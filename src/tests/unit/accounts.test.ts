@@ -97,6 +97,23 @@ describe('getBalance', () => {
 		const balance = await repo.getBalance(db, id);
 		expect(balance).toBe(0);
 	});
+
+	it('handles transfers correctly (subtracts from source, adds to dest)', async () => {
+		const sourceId = await repo.createAccount(db, { name: 'Source', type: 'checking', currency: 'VND', initial_balance: 1000000 });
+		const destId = await repo.createAccount(db, { name: 'Dest', type: 'savings', currency: 'VND' });
+		const now = new Date().toISOString();
+		const today = now.split('T')[0];
+
+		// Create a transfer (single-row model)
+		await db.execute(
+			`INSERT INTO transactions (id, kind, date, amount, account_id, transfer_account_id, transfer_pair_id, created_at, updated_at)
+			 VALUES (?, 'transfer', ?, ?, ?, ?, ?, ?, ?)`,
+			['t1', today, 300000, sourceId, destId, 'pair1', now, now]
+		);
+
+		expect(await repo.getBalance(db, sourceId)).toBe(700000); // 1M - 300k
+		expect(await repo.getBalance(db, destId)).toBe(300000); // 0 + 300k
+	});
 });
 
 describe('updateAccount', () => {

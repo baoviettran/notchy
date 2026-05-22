@@ -45,6 +45,8 @@
     "@inlang/paraglide-js": "1.11.8",
     "@inlang/paraglide-sveltekit": "0.15.3",
     "@tauri-apps/api": "2.5.0",
+    "@tauri-apps/plugin-dialog": "2.2.0",
+    "@tauri-apps/plugin-fs": "2.2.0",
     "@tauri-apps/plugin-sql": "2.2.0",
     "layercake": "8.2.0"
   }

@@ -67,18 +67,20 @@ export async function getBalance(db: DatabaseService, accountId: string): Promis
 	const today = new Date().toISOString().split('T')[0];
 	const rows = await db.query<{ total: number | null }>(
 		`SELECT
-			SUM(CASE
+			COALESCE(SUM(CASE
 				WHEN kind = 'income' THEN amount
 				WHEN kind = 'adjustment' THEN amount
 				WHEN kind = 'refund' THEN amount
 				WHEN kind = 'expense' THEN -amount
-				WHEN kind = 'transfer' AND transfer_account_id IS NOT NULL THEN -amount
-				WHEN kind = 'transfer' AND transfer_account_id IS NULL THEN amount
+				WHEN kind = 'transfer' AND account_id = ? THEN -amount
+				WHEN kind = 'transfer' AND transfer_account_id = ? THEN amount
 				ELSE 0
-			END) AS total
+			END), 0) AS total
 		 FROM transactions
-		 WHERE account_id = ? AND deleted_at IS NULL AND date <= ?`,
-		[accountId, today]
+		 WHERE (account_id = ? OR (kind = 'transfer' AND transfer_account_id = ?))
+		   AND deleted_at IS NULL
+		   AND date <= ?`,
+		[accountId, accountId, accountId, accountId, today]
 	);
 	return rows[0]?.total ?? 0;
 }

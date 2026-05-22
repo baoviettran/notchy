@@ -105,24 +105,17 @@ export async function createTransaction(db: DatabaseService, input: NewTransacti
 
 async function createTransferPair(db: DatabaseService, input: NewTransaction, now: string): Promise<string> {
 	const pairId = ulid();
-	const outId = ulid();
-	const inId = ulid();
+	const txId = ulid();
 
-	await db.transaction(async (tx) => {
-		// Outgoing (from source account)
-		await tx.execute(
-			`INSERT INTO transactions (id, kind, date, amount, account_id, transfer_account_id, transfer_pair_id, created_at, updated_at)
-			 VALUES (?, 'transfer', ?, ?, ?, ?, ?, ?, ?)`,
-			[outId, input.date, input.amount, input.account_id, input.transfer_account_id, pairId, now, now]
-		);
-		// Incoming (to destination account)
-		await tx.execute(
-			`INSERT INTO transactions (id, kind, date, amount, account_id, transfer_account_id, transfer_pair_id, created_at, updated_at)
-			 VALUES (?, 'transfer', ?, ?, ?, ?, ?, ?, ?)`,
-			[inId, input.date, input.amount, input.transfer_account_id!, input.account_id, pairId, now, now]
-		);
-	});
-	return outId;
+	// Single-row model: one row represents the transfer.
+	// account_id = source, transfer_account_id = destination.
+	// Balance queries handle direction by checking which field matches the queried account.
+	await db.execute(
+		`INSERT INTO transactions (id, kind, date, amount, account_id, transfer_account_id, transfer_pair_id, created_at, updated_at)
+		 VALUES (?, 'transfer', ?, ?, ?, ?, ?, ?, ?)`,
+		[txId, input.date, input.amount, input.account_id, input.transfer_account_id, pairId, now, now]
+	);
+	return txId;
 }
 
 export async function updateTransaction(db: DatabaseService, id: string, patch: Partial<NewTransaction>): Promise<void> {

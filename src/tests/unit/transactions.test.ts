@@ -34,19 +34,20 @@ describe('createTransaction', () => {
 		expect(tx!.payee).toBe('Coffee');
 	});
 
-	it('creates a transfer pair', async () => {
+	it('creates a single-row transfer with pair id', async () => {
 		const id = await repo.createTransaction(db, {
 			kind: 'transfer', date: TODAY, amount: 100000, account_id: 'acc1', transfer_account_id: 'acc2'
 		});
 		const tx = await repo.getTransaction(db, id);
 		expect(tx!.transfer_pair_id).not.toBeNull();
+		expect(tx!.account_id).toBe('acc1');
+		expect(tx!.transfer_account_id).toBe('acc2');
 
-		// Both sides exist
-		const pair = await db.query<{ id: string }>(
+		const all = await db.query<{ id: string }>(
 			`SELECT id FROM transactions WHERE transfer_pair_id = ? AND deleted_at IS NULL`,
 			[tx!.transfer_pair_id]
 		);
-		expect(pair).toHaveLength(2);
+		expect(all).toHaveLength(1);
 	});
 
 	it('rejects transfer without destination', async () => {
@@ -100,7 +101,7 @@ describe('updateTransaction', () => {
 		expect(tx!.payee).toBe('Updated');
 	});
 
-	it('updates both sides of a transfer atomically', async () => {
+	it('updates a transfer amount', async () => {
 		const id = await repo.createTransaction(db, {
 			kind: 'transfer', date: TODAY, amount: 100000, account_id: 'acc1', transfer_account_id: 'acc2'
 		});
@@ -108,12 +109,6 @@ describe('updateTransaction', () => {
 
 		const tx = await repo.getTransaction(db, id);
 		expect(tx!.amount).toBe(200000);
-
-		const pair = await db.query<{ amount: number }>(
-			`SELECT amount FROM transactions WHERE transfer_pair_id = ? AND id != ? AND deleted_at IS NULL`,
-			[tx!.transfer_pair_id, id]
-		);
-		expect(pair[0].amount).toBe(200000);
 	});
 });
 
