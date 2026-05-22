@@ -1,5 +1,10 @@
 <script lang="ts">
 	import Button from '$lib/components/primitives/Button.svelte';
+	import { settings } from '$lib/stores/settings.svelte';
+
+	function setTheme(theme: 'auto' | 'light' | 'dark') {
+		settings.setTheme(theme);
+	}
 </script>
 
 <div class="space-y-6">
@@ -17,9 +22,25 @@
 		<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
 			<div class="font-medium text-zinc-900 dark:text-zinc-50 mb-2">Theme</div>
 			<div class="flex gap-2">
-				<button class="px-3 py-1.5 text-sm rounded-md border border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700">Auto</button>
-				<button class="px-3 py-1.5 text-sm rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400">Light</button>
-				<button class="px-3 py-1.5 text-sm rounded-md border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400">Dark</button>
+				{#each ['auto', 'light', 'dark'] as theme}
+					<button
+						onclick={() => setTheme(theme as any)}
+						class="px-3 py-1.5 text-sm rounded-md border transition-colors capitalize {settings.theme === theme ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700' : 'border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400'}"
+					>{theme}</button>
+				{/each}
+			</div>
+		</div>
+		<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+			<div class="font-medium text-zinc-900 dark:text-zinc-50 mb-1">Language</div>
+			<div class="flex gap-2">
+				<button
+					onclick={() => settings.setLocale('en')}
+					class="px-3 py-1.5 text-sm rounded-md border transition-colors {settings.locale === 'en' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700' : 'border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400'}"
+				>English</button>
+				<button
+					onclick={() => settings.setLocale('vi')}
+					class="px-3 py-1.5 text-sm rounded-md border transition-colors {settings.locale === 'vi' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700' : 'border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400'}"
+				>Tiếng Việt</button>
 			</div>
 		</div>
 		<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">

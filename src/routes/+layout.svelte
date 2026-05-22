@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import '../app.css';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
@@ -25,8 +25,19 @@
 		}
 	});
 
+	function onKeydown(e: KeyboardEvent) {
+		const target = e.target as HTMLElement;
+		const inInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+		if (e.key === 'Escape') { showTxModal = false; return; }
+		if (inInput) return;
+		if (e.key === 'n') { showTxModal = true; e.preventDefault(); }
+		if (e.key === '/') { document.querySelector<HTMLInputElement>('[type="search"]')?.focus(); e.preventDefault(); }
+	}
+
 	const isOnboarding = $derived($page.url.pathname === '/onboarding');
 </script>
+
+<svelte:window onkeydown={onKeydown} />
 
 {#if !dbStore.ready}
 	<div class="h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-900">
