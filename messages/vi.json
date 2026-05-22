@@ -1,1 +1,25 @@
-{}
+{
+	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"app_name": "Notchy",
+	"nav_dashboard": "Tổng quan",
+	"nav_transactions": "Giao dịch",
+	"nav_budgets": "Ngân sách",
+	"nav_reports": "Báo cáo",
+	"nav_accounts": "Tài khoản",
+	"nav_goals": "Mục tiêu",
+	"nav_debts": "Công nợ",
+	"nav_settings": "Cài đặt",
+	"action_save": "Lưu",
+	"action_cancel": "Huỷ",
+	"action_delete": "Xoá",
+	"action_edit": "Sửa",
+	"action_add": "Thêm",
+	"action_undo": "Hoàn tác",
+	"onboarding_choose_language": "Chọn ngôn ngữ",
+	"onboarding_choose_currency": "Chọn đơn vị tiền tệ",
+	"onboarding_create_account": "Tạo tài khoản đầu tiên",
+	"onboarding_continue": "Tiếp tục",
+	"onboarding_finish": "Hoàn tất",
+	"lang_english": "English",
+	"lang_vietnamese": "Tiếng Việt"
+}

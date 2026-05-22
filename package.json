@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
+    "dev": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide && vite dev",
+    "build": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide && vite build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run",
@@ -42,6 +42,8 @@
     "vitest": "3.1.3"
   },
   "dependencies": {
+    "@inlang/paraglide-js": "1.11.8",
+    "@inlang/paraglide-sveltekit": "0.15.3",
     "@tauri-apps/api": "2.5.0",
     "@tauri-apps/plugin-sql": "2.2.0"
   }

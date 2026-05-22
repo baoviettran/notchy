@@ -1,1 +1,25 @@
-{}
+{
+	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"app_name": "Notchy",
+	"nav_dashboard": "Dashboard",
+	"nav_transactions": "Transactions",
+	"nav_budgets": "Budgets",
+	"nav_reports": "Reports",
+	"nav_accounts": "Accounts",
+	"nav_goals": "Goals",
+	"nav_debts": "Debts",
+	"nav_settings": "Settings",
+	"action_save": "Save",
+	"action_cancel": "Cancel",
+	"action_delete": "Delete",
+	"action_edit": "Edit",
+	"action_add": "Add",
+	"action_undo": "Undo",
+	"onboarding_choose_language": "Choose your language",
+	"onboarding_choose_currency": "Choose your currency",
+	"onboarding_create_account": "Create your first account",
+	"onboarding_continue": "Continue",
+	"onboarding_finish": "Finish setup",
+	"lang_english": "English",
+	"lang_vietnamese": "Tiếng Việt"
+}
