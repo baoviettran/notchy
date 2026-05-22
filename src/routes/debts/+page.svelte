@@ -46,6 +46,7 @@
 					account_id: activeDebt.type === 'loan_from_person' ? fromAccount : activeDebt.id,
 					transfer_account_id: activeDebt.type === 'loan_from_person' ? activeDebt.id : fromAccount
 				});
+				await debts.load();
 				toast.show('Payment recorded.');
 			} else {
 				const db = await getDb();

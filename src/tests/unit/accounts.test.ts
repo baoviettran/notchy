@@ -167,6 +167,30 @@ describe('deleteAccount', () => {
 		const list = await repo.listAccounts(db);
 		expect(list.find((a) => a.id === id)).toBeUndefined();
 	});
+
+	it('blocks delete when active goal links to account', async () => {
+		const accId = await repo.createAccount(db, { name: 'Savings', type: 'savings', currency: 'VND' });
+		const now = new Date().toISOString();
+		await db.execute(
+			`INSERT INTO goals (id, name, type, target_amount, target_date, linked_account_id, starting_amount, created_at, updated_at)
+			 VALUES ('g1', 'Vacation', 'savings', 10000000, '2027-01-01', ?, 0, ?, ?)`,
+			[accId, now, now]
+		);
+
+		await expect(repo.deleteAccount(db, accId)).rejects.toThrow('linked to 1 active goal');
+	});
+
+	it('allows delete when goal is completed', async () => {
+		const accId = await repo.createAccount(db, { name: 'Savings', type: 'savings', currency: 'VND' });
+		const now = new Date().toISOString();
+		await db.execute(
+			`INSERT INTO goals (id, name, type, target_amount, target_date, linked_account_id, starting_amount, status, created_at, updated_at)
+			 VALUES ('g1', 'Vacation', 'savings', 10000000, '2027-01-01', ?, 0, 'completed', ?, ?)`,
+			[accId, now, now]
+		);
+
+		await expect(repo.deleteAccount(db, accId)).resolves.toBeUndefined();
+	});
 });
 
 describe('listAccounts', () => {

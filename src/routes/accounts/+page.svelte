@@ -26,8 +26,12 @@
 
 	async function doDelete() {
 		if (!confirmDelete) return;
-		await accounts.delete(confirmDelete.id);
-		toast.show('Account deleted.');
+		try {
+			await accounts.delete(confirmDelete.id);
+			toast.show('Account deleted.');
+		} catch (e) {
+			toast.show(String(e).replace('Error: ', ''));
+		}
 		confirmDelete = null;
 	}
 </script>

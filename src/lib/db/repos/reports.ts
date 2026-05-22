@@ -30,12 +30,21 @@ export async function getOverview(db: DatabaseService, month: string, includeAdj
 		? `t.kind IN ('expense', 'income', 'refund', 'adjustment')`
 		: `t.kind IN ('expense', 'income', 'refund')`;
 
+	// Exclude transactions tagged in the Adjustments bucket (e.g. Reconciliation expenses)
+	// from main report aggregates unless includeAdjustments is true.
+	const adjustmentTagFilter = includeAdjustments
+		? ''
+		: `AND (t.tag_id IS NULL OR t.tag_id NOT IN (
+			SELECT id FROM category_tags WHERE type_id = 'bucket_adjustments'
+		))`;
+
 	const monthStart = `${month}-01`;
 	const monthEnd = nextMonthStart(month);
 
 	const totals = await db.query<{ kind: string; total: number | null }>(`
 		SELECT kind, SUM(amount) AS total FROM transactions t
 		WHERE ${kindFilter} AND t.date >= ? AND t.date < ? AND t.deleted_at IS NULL
+		${adjustmentTagFilter}
 		GROUP BY kind`, [monthStart, monthEnd]);
 
 	let total_income = 0, total_expense = 0;

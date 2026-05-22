@@ -40,6 +40,19 @@ describe('getOverview', () => {
 		expect(report.net_cash_flow).toBe(7500000);
 	});
 
+	it('excludes Adjustments-bucket transactions from totals by default', async () => {
+		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+		await seedTx('expense', 1000000, '2026-05-10', tagId);
+		// Reconciliation expense (tagged in Adjustments bucket)
+		await seedTx('expense', 500000, '2026-05-11', 'tag_reconciliation');
+
+		const report = await reports.getOverview(db, '2026-05');
+		expect(report.total_expense).toBe(1000000); // reconciliation excluded
+
+		const reportWithAdj = await reports.getOverview(db, '2026-05', true);
+		expect(reportWithAdj.total_expense).toBe(1500000); // included
+	});
+
 	it('returns spending by bucket', async () => {
 		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
 		await seedTx('expense', 1000000, '2026-05-10', tagId);

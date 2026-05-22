@@ -153,6 +153,17 @@ export async function updateAccount(
 }
 
 export async function deleteAccount(db: DatabaseService, id: string): Promise<void> {
+	// Cascade check: block if any active goal links to this account
+	const activeGoals = await db.query<{ name: string }>(
+		`SELECT name FROM goals WHERE linked_account_id = ? AND deleted_at IS NULL AND status = 'active'`,
+		[id]
+	);
+	if (activeGoals.length > 0) {
+		throw new Error(
+			`Cannot delete account: it is linked to ${activeGoals.length} active goal(s): ${activeGoals.map((g) => g.name).join(', ')}. Delete or unlink the goal first.`
+		);
+	}
+
 	const now = new Date().toISOString();
 	await db.execute(`UPDATE accounts SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`, [now, now, id]);
 }
