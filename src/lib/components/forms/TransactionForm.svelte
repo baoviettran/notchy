@@ -2,6 +2,7 @@
 	import Button from '$lib/components/primitives/Button.svelte';
 	import Input from '$lib/components/primitives/Input.svelte';
 	import Select from '$lib/components/primitives/Select.svelte';
+	import Autocomplete from '$lib/components/primitives/Autocomplete.svelte';
 	import { transactions } from '$lib/stores/transactions.svelte';
 	import { accounts } from '$lib/stores/accounts.svelte';
 	import { categories } from '$lib/stores/categories.svelte';
@@ -58,6 +59,11 @@
 
 	let accountOptions = $derived(accounts.items.map((a) => ({ value: a.id, label: a.name })));
 	let tagOptions = $derived(categories.tags.map((t) => ({ value: t.id, label: t.name })));
+	let payeeOptions = $derived(
+		[...new Set(transactions.items.filter((t) => t.payee).map((t) => t.payee!))]
+			.slice(0, 20)
+			.map((p) => ({ value: p, label: p }))
+	);
 
 	async function save() {
 		if (saving) return;
@@ -120,12 +126,12 @@
 		<Select label="From Account" bind:value={accountId} options={accountOptions} />
 		<Select label="To Account" bind:value={transferAccountId} options={accountOptions} />
 	{:else}
-		<Select label="Tag" bind:value={tagId} options={tagOptions} />
+		<Autocomplete label="Tag" bind:value={tagId} options={tagOptions} placeholder="Search tags..." />
 		<Select label="Account" bind:value={accountId} options={accountOptions} />
 	{/if}
 
 	{#if mode === 'full'}
-		<Input label="Payee" bind:value={payee} placeholder="Who did you pay?" />
+		<Autocomplete label="Payee" bind:value={payee} options={payeeOptions} placeholder="Who did you pay?" />
 		<div class="grid grid-cols-2 gap-3">
 			<Input label="Date" type="date" bind:value={date} />
 			<Input label="Description" bind:value={description} placeholder="Optional" />

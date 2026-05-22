@@ -5,9 +5,21 @@
 	import type { OverviewReport } from '$lib/db/repos/reports';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
+	import DonutChart from '$lib/components/charts/DonutChart.svelte';
 
 	let report = $state<OverviewReport | null>(null);
 	let includeAdjustments = $state(false);
+
+	const bucketColors: Record<string, string> = {
+		Essentials: '#f59e0b', 'Learning & Entertainment': '#8b5cf6',
+		'Saving & Investment': '#10b981', Adjustments: '#64748b'
+	};
+
+	let donutData = $derived(
+		report?.spending_by_bucket.map((b) => ({
+			label: b.name, value: b.total, color: bucketColors[b.name] ?? '#94a3b8'
+		})) ?? []
+	);
 
 	function currentMonth() {
 		const d = new Date();
@@ -57,7 +69,8 @@
 		{#if report.spending_by_bucket.length > 0}
 			<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
 				<h2 class="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-3">Spending by Bucket</h2>
-				<div class="space-y-2">
+				<DonutChart data={donutData} />
+				<div class="space-y-2 mt-4">
 					{#each report.spending_by_bucket as b}
 						<div class="flex items-center justify-between text-sm">
 							<span class="text-zinc-900 dark:text-zinc-50">{b.name}</span>
