@@ -1,4 +1,6 @@
 import type { Migration } from './runner';
+import { migration001 } from './001_initial';
+import { migration002 } from './002_triggers';
+import { migration003 } from './003_seed';
 
-// Migrations are added in Task 3
-export const migrations: Migration[] = [];
+export const migrations: Migration[] = [migration001, migration002, migration003];
