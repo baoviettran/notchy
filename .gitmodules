@@ -1,3 +1,3 @@
 [submodule "docs"]
 	path = docs
-	url = ../notchy-docs
+	url = git@github.com:baoviettran/notchy-docs.git
