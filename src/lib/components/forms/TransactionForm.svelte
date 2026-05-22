@@ -2,8 +2,15 @@
 	import Button from '$lib/components/primitives/Button.svelte';
 	import Input from '$lib/components/primitives/Input.svelte';
 	import Select from '$lib/components/primitives/Select.svelte';
+	import { transactions } from '$lib/stores/transactions.svelte';
+	import { accounts } from '$lib/stores/accounts.svelte';
+	import { categories } from '$lib/stores/categories.svelte';
+	import { settings } from '$lib/stores/settings.svelte';
+	import { session } from '$lib/stores/session.svelte';
+	import { parseAmount } from '$lib/utils/number_parse';
+	import { onMount } from 'svelte';
 
-	let { mode = 'full', onclose = () => {} }: { mode?: 'full' | 'quick'; onclose?: () => void } = $props();
+	let { mode = 'full', onclose = () => {}, onsave = () => {} }: { mode?: 'full' | 'quick'; onclose?: () => void; onsave?: () => void } = $props();
 
 	let kind = $state('expense');
 	let amount = $state('');
@@ -14,6 +21,7 @@
 	let description = $state('');
 	let transferAccountId = $state('');
 	let saving = $state(false);
+	let error = $state('');
 
 	const kinds = [
 		{ value: 'expense', label: 'Expense' },
@@ -23,35 +31,77 @@
 		{ value: 'adjustment', label: 'Adjustment' }
 	];
 
+	let accountOptions = $derived(accounts.items.map((a) => ({ value: a.id, label: a.name })));
+	let tagOptions = $derived(categories.tags.map((t) => ({ value: t.id, label: t.name })));
+
+	onMount(async () => {
+		await accounts.load();
+		await categories.load();
+		accountId = session.lastUsedAccountId ?? accounts.items[0]?.id ?? '';
+		date = session.lastEnteredDate ?? new Date().toISOString().split('T')[0];
+	});
+
 	async function save() {
+		if (saving) return;
+		error = '';
+		let parsedAmount: number;
+		try {
+			parsedAmount = parseAmount(amount, settings.locale);
+		} catch {
+			error = 'Invalid amount';
+			return;
+		}
+		if (!accountId) { error = 'Select an account'; return; }
+
 		saving = true;
-		// In production: calls transactions.create() with parsed amount
-		saving = false;
-		onclose();
+		try {
+			await transactions.create({
+				kind: kind as any,
+				date,
+				amount: parsedAmount,
+				account_id: accountId,
+				transfer_account_id: kind === 'transfer' ? transferAccountId : undefined,
+				tag_id: kind !== 'transfer' ? (tagId || undefined) : undefined,
+				payee: payee || undefined,
+				description: description || undefined
+			});
+			session.lastUsedAccountId = accountId;
+			session.lastEnteredDate = date;
+			amount = '';
+			tagId = '';
+			payee = '';
+			description = '';
+			onsave();
+			if (mode === 'full') onclose();
+		} catch (e) {
+			error = String(e);
+		} finally {
+			saving = false;
+		}
 	}
 </script>
 
 <div class="space-y-4">
-	<!-- Kind selector -->
+	{#if error}
+		<p class="text-sm text-red-500">{error}</p>
+	{/if}
+
 	<div class="flex flex-wrap gap-2">
 		{#each kinds as k}
-			<button
-				onclick={() => kind = k.value}
+			<button onclick={() => kind = k.value}
 				class="px-3 py-1.5 text-sm rounded-md border transition-colors {kind === k.value ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 font-medium' : 'border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400'}"
 			>{k.label}</button>
 		{/each}
 	</div>
 
-	<!-- Amount -->
 	<Input label="Amount" bind:value={amount} placeholder="e.g. 50k, 1.5tr, 100+50" />
 
 	{#if kind === 'transfer'}
-		<Select label="From Account" bind:value={accountId} options={[]} />
-		<Select label="To Account" bind:value={transferAccountId} options={[]} />
+		<Select label="From Account" bind:value={accountId} options={accountOptions} />
+		<Select label="To Account" bind:value={transferAccountId} options={accountOptions} />
 	{:else}
-		<!-- Tag -->
-		<Input label="Tag" bind:value={tagId} placeholder="Search tags..." />
-		<Select label="Account" bind:value={accountId} options={[]} />
+		<Select label="Tag" bind:value={tagId} options={tagOptions} />
+		<Select label="Account" bind:value={accountId} options={accountOptions} />
 	{/if}
 
 	{#if mode === 'full'}
@@ -62,12 +112,8 @@
 		</div>
 	{/if}
 
-	<!-- Actions -->
 	<div class="flex justify-end gap-2 pt-2">
 		<Button variant="ghost" onclick={onclose}>Cancel</Button>
-		{#if mode === 'full'}
-			<Button variant="secondary" disabled={saving || !amount}>Save and add</Button>
-		{/if}
-		<Button disabled={saving || !amount} onclick={save}>Save</Button>
+		<Button disabled={saving || !amount} onclick={save}>{saving ? 'Saving...' : 'Save'}</Button>
 	</div>
 </div>
