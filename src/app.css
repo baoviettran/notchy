@@ -1,3 +1,37 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer utilities {
+	.animate-slide-up {
+		animation: slide-up 150ms ease-out;
+	}
+	.animate-scale-in {
+		animation: scale-in 150ms ease-out;
+	}
+	.animate-in {
+		animation: scale-in 150ms ease-out;
+	}
+}
+
+@keyframes slide-up {
+	from { transform: translateY(16px); opacity: 0; }
+	to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes scale-in {
+	from { transform: scale(0.95); opacity: 0; }
+	to { transform: scale(1); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.animate-slide-up, .animate-scale-in, .animate-in {
+		animation: none;
+	}
+}
+
+@layer base {
+	body {
+		font-variant-numeric: tabular-nums;
+	}
+}

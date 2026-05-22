@@ -11,6 +11,7 @@
 	import FAB from '$lib/components/layout/FAB.svelte';
 	import Modal from '$lib/components/primitives/Modal.svelte';
 	import TransactionForm from '$lib/components/forms/TransactionForm.svelte';
+	import GlobalToast from '$lib/components/primitives/GlobalToast.svelte';
 
 	let { children } = $props();
 	let showTxModal = $state(false);
@@ -59,5 +60,6 @@
 		<Modal bind:open={showTxModal} title="Add transaction">
 			<TransactionForm onclose={() => showTxModal = false} />
 		</Modal>
+		<GlobalToast />
 	</div>
 {/if}

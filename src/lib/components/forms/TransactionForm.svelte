@@ -7,7 +7,9 @@
 	import { categories } from '$lib/stores/categories.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { session } from '$lib/stores/session.svelte';
+	import { toast } from '$lib/stores/toast.svelte';
 	import { parseAmount } from '$lib/utils/number_parse';
+	import { formatCurrency } from '$lib/utils/currency';
 	import { onMount } from 'svelte';
 
 	let { mode = 'full', onclose = () => {}, onsave = () => {} }: { mode?: 'full' | 'quick'; onclose?: () => void; onsave?: () => void } = $props();
@@ -23,6 +25,29 @@
 	let saving = $state(false);
 	let error = $state('');
 
+	const DRAFT_KEY = 'notchy_tx_draft';
+
+	// Restore draft on mount
+	onMount(async () => {
+		await accounts.load();
+		await categories.load();
+		const draft = sessionStorage.getItem(DRAFT_KEY);
+		if (draft) {
+			try {
+				const d = JSON.parse(draft);
+				kind = d.kind ?? kind; amount = d.amount ?? ''; tagId = d.tagId ?? '';
+				payee = d.payee ?? ''; description = d.description ?? '';
+			} catch {}
+		}
+		accountId = session.lastUsedAccountId ?? accounts.items[0]?.id ?? '';
+		date = session.lastEnteredDate ?? new Date().toISOString().split('T')[0];
+	});
+
+	// Auto-save draft
+	$effect(() => {
+		sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ kind, amount, tagId, payee, description }));
+	});
+
 	const kinds = [
 		{ value: 'expense', label: 'Expense' },
 		{ value: 'income', label: 'Income' },
@@ -33,13 +58,6 @@
 
 	let accountOptions = $derived(accounts.items.map((a) => ({ value: a.id, label: a.name })));
 	let tagOptions = $derived(categories.tags.map((t) => ({ value: t.id, label: t.name })));
-
-	onMount(async () => {
-		await accounts.load();
-		await categories.load();
-		accountId = session.lastUsedAccountId ?? accounts.items[0]?.id ?? '';
-		date = session.lastEnteredDate ?? new Date().toISOString().split('T')[0];
-	});
 
 	async function save() {
 		if (saving) return;
@@ -67,6 +85,8 @@
 			});
 			session.lastUsedAccountId = accountId;
 			session.lastEnteredDate = date;
+			toast.show(`Saved · ${kind} · ${formatCurrency(parsedAmount, settings.currency, settings.locale)}`);
+			sessionStorage.removeItem(DRAFT_KEY);
 			amount = '';
 			tagId = '';
 			payee = '';

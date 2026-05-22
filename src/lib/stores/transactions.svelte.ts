@@ -1,6 +1,7 @@
 import { getDb } from '$lib/db';
 import * as repo from '$lib/db/repos/transactions';
 import type { Transaction, NewTransaction, TransactionFilter } from '$lib/db/repos/transactions';
+import { toast } from '$lib/stores/toast.svelte';
 
 class TransactionsStore {
 	items = $state<Transaction[]>([]);
@@ -35,8 +36,27 @@ class TransactionsStore {
 
 	async delete(id: string): Promise<void> {
 		const db = await getDb();
+		// Capture for undo
+		const tx = await repo.getTransaction(db, id);
 		await repo.deleteTransaction(db, id);
 		await this.load();
+
+		if (tx) {
+			toast.show('Transaction deleted.', {
+				action: 'UNDO',
+				duration: 5000,
+				onaction: async () => {
+					const db2 = await getDb();
+					// Restore by clearing deleted_at
+					await db2.execute(`UPDATE transactions SET deleted_at = NULL, updated_at = ? WHERE id = ?`, [new Date().toISOString(), id]);
+					if (tx.transfer_pair_id) {
+						await db2.execute(`UPDATE transactions SET deleted_at = NULL, updated_at = ? WHERE transfer_pair_id = ?`, [new Date().toISOString(), tx.transfer_pair_id]);
+					}
+					await this.load();
+					toast.show('Transaction restored.');
+				}
+			});
+		}
 	}
 
 	async duplicate(id: string): Promise<string> {

@@ -3,6 +3,7 @@
 	import Progress from '$lib/components/primitives/Progress.svelte';
 	import Button from '$lib/components/primitives/Button.svelte';
 	import Input from '$lib/components/primitives/Input.svelte';
+	import FrequentTransactions from '$lib/components/sections/FrequentTransactions.svelte';
 	import { accounts } from '$lib/stores/accounts.svelte';
 	import { budgets } from '$lib/stores/budgets.svelte';
 	import { transactions } from '$lib/stores/transactions.svelte';
@@ -48,6 +49,9 @@
 			<p class="text-sm text-zinc-400">No budget set. <a href="/budgets" class="text-emerald-600 hover:underline">Set up budget</a></p>
 		{/if}
 	</a>
+
+	<!-- Frequent Transactions -->
+	<FrequentTransactions />
 
 	<!-- Recent Transactions -->
 	<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-3">
