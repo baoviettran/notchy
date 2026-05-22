@@ -1,0 +1,153 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import { createTestDb } from './helpers/test-db';
+import { runMigrations } from '$lib/db/migrations/runner';
+import { migrations } from '$lib/db/migrations/index';
+import * as repo from '$lib/db/repos/transactions';
+import type { DatabaseService } from '$lib/db/service';
+
+let db: DatabaseService;
+const NOW = new Date().toISOString();
+const TODAY = NOW.split('T')[0];
+
+async function seedAccount(id = 'acc1', name = 'Test') {
+	await db.execute(
+		`INSERT INTO accounts (id, name, type, currency, created_at, updated_at) VALUES (?, ?, 'checking', 'VND', ?, ?)`,
+		[id, name, NOW, NOW]
+	);
+}
+
+beforeEach(async () => {
+	db = createTestDb();
+	await runMigrations(db, migrations);
+	await seedAccount();
+	await seedAccount('acc2', 'Second');
+});
+
+describe('createTransaction', () => {
+	it('creates an expense', async () => {
+		const id = await repo.createTransaction(db, {
+			kind: 'expense', date: TODAY, amount: 50000, account_id: 'acc1', tag_id: 'tag_initial_balance', payee: 'Coffee'
+		});
+		const tx = await repo.getTransaction(db, id);
+		expect(tx!.kind).toBe('expense');
+		expect(tx!.amount).toBe(50000);
+		expect(tx!.payee).toBe('Coffee');
+	});
+
+	it('creates a transfer pair', async () => {
+		const id = await repo.createTransaction(db, {
+			kind: 'transfer', date: TODAY, amount: 100000, account_id: 'acc1', transfer_account_id: 'acc2'
+		});
+		const tx = await repo.getTransaction(db, id);
+		expect(tx!.transfer_pair_id).not.toBeNull();
+
+		// Both sides exist
+		const pair = await db.query<{ id: string }>(
+			`SELECT id FROM transactions WHERE transfer_pair_id = ? AND deleted_at IS NULL`,
+			[tx!.transfer_pair_id]
+		);
+		expect(pair).toHaveLength(2);
+	});
+
+	it('rejects transfer without destination', async () => {
+		await expect(
+			repo.createTransaction(db, { kind: 'transfer', date: TODAY, amount: 100000, account_id: 'acc1' })
+		).rejects.toThrow('destination account');
+	});
+});
+
+describe('listTransactions', () => {
+	it('filters by account', async () => {
+		await repo.createTransaction(db, { kind: 'expense', date: TODAY, amount: 1000, account_id: 'acc1' });
+		await repo.createTransaction(db, { kind: 'expense', date: TODAY, amount: 2000, account_id: 'acc2' });
+
+		const list = await repo.listTransactions(db, { account_id: 'acc1' });
+		expect(list).toHaveLength(1);
+		expect(list[0].amount).toBe(1000);
+	});
+
+	it('filters by date range', async () => {
+		await repo.createTransaction(db, { kind: 'expense', date: '2026-01-01', amount: 1000, account_id: 'acc1' });
+		await repo.createTransaction(db, { kind: 'expense', date: '2026-06-01', amount: 2000, account_id: 'acc1' });
+
+		const list = await repo.listTransactions(db, { date_from: '2026-05-01', date_to: '2026-12-31' });
+		expect(list).toHaveLength(1);
+		expect(list[0].amount).toBe(2000);
+	});
+
+	it('searches by payee', async () => {
+		await repo.createTransaction(db, { kind: 'expense', date: TODAY, amount: 1000, account_id: 'acc1', payee: 'Highlands Coffee' });
+		await repo.createTransaction(db, { kind: 'expense', date: TODAY, amount: 2000, account_id: 'acc1', payee: 'Grab' });
+
+		const list = await repo.listTransactions(db, { query: 'Highland' });
+		expect(list).toHaveLength(1);
+	});
+
+	it('excludes soft-deleted', async () => {
+		const id = await repo.createTransaction(db, { kind: 'expense', date: TODAY, amount: 1000, account_id: 'acc1' });
+		await repo.deleteTransaction(db, id);
+		const list = await repo.listTransactions(db);
+		expect(list.find((t) => t.id === id)).toBeUndefined();
+	});
+});
+
+describe('updateTransaction', () => {
+	it('updates amount and payee', async () => {
+		const id = await repo.createTransaction(db, { kind: 'expense', date: TODAY, amount: 1000, account_id: 'acc1' });
+		await repo.updateTransaction(db, id, { amount: 2000, payee: 'Updated' });
+		const tx = await repo.getTransaction(db, id);
+		expect(tx!.amount).toBe(2000);
+		expect(tx!.payee).toBe('Updated');
+	});
+
+	it('updates both sides of a transfer atomically', async () => {
+		const id = await repo.createTransaction(db, {
+			kind: 'transfer', date: TODAY, amount: 100000, account_id: 'acc1', transfer_account_id: 'acc2'
+		});
+		await repo.updateTransaction(db, id, { amount: 200000 });
+
+		const tx = await repo.getTransaction(db, id);
+		expect(tx!.amount).toBe(200000);
+
+		const pair = await db.query<{ amount: number }>(
+			`SELECT amount FROM transactions WHERE transfer_pair_id = ? AND id != ? AND deleted_at IS NULL`,
+			[tx!.transfer_pair_id, id]
+		);
+		expect(pair[0].amount).toBe(200000);
+	});
+});
+
+describe('deleteTransaction', () => {
+	it('soft-deletes a transaction', async () => {
+		const id = await repo.createTransaction(db, { kind: 'expense', date: TODAY, amount: 1000, account_id: 'acc1' });
+		await repo.deleteTransaction(db, id);
+		expect(await repo.getTransaction(db, id)).toBeNull();
+	});
+
+	it('deletes both sides of a transfer', async () => {
+		const id = await repo.createTransaction(db, {
+			kind: 'transfer', date: TODAY, amount: 100000, account_id: 'acc1', transfer_account_id: 'acc2'
+		});
+		const tx = await repo.getTransaction(db, id);
+		await repo.deleteTransaction(db, id);
+
+		const remaining = await db.query<{ id: string }>(
+			`SELECT id FROM transactions WHERE transfer_pair_id = ? AND deleted_at IS NULL`,
+			[tx!.transfer_pair_id]
+		);
+		expect(remaining).toHaveLength(0);
+	});
+});
+
+describe('duplicateTransaction', () => {
+	it('creates a copy with today date', async () => {
+		const id = await repo.createTransaction(db, {
+			kind: 'expense', date: '2026-01-01', amount: 50000, account_id: 'acc1', payee: 'Coffee'
+		});
+		const newId = await repo.duplicateTransaction(db, id);
+		const tx = await repo.getTransaction(db, newId);
+		expect(tx!.amount).toBe(50000);
+		expect(tx!.payee).toBe('Coffee');
+		expect(tx!.date).toBe(new Date().toISOString().split('T')[0]);
+	});
+});
