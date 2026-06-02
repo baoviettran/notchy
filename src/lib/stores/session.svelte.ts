@@ -5,7 +5,7 @@ export interface UndoEntry {
 	expires: number;
 }
 
-class SessionStore {
+export class SessionStore {
 	lastUsedAccountId = $state<string | null>(null);
 	lastEnteredDate = $state<string | null>(null);
 	undoStack = $state<UndoEntry[]>([]);

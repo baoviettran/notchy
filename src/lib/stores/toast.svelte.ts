@@ -8,7 +8,7 @@ export interface ToastItem {
 
 let nextId = 0;
 
-class ToastBus {
+export class ToastBus {
 	current = $state<ToastItem | null>(null);
 
 	show(message: string, opts?: { action?: string; onaction?: () => void; duration?: number }) {
