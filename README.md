@@ -4,33 +4,9 @@ A local-first personal finance application. Your data stays on your device — n
 
 ## Install
 
-### Download (recommended)
+### Build from Source (current)
 
-Download the latest release for your platform:
-
-| Platform | File |
-|---|---|
-| Linux (Debian/Ubuntu) | `notchy_0.1.0_amd64.deb` |
-| Linux (Fedora/RHEL) | `notchy-0.1.0-1.x86_64.rpm` |
-| Linux (any) | `notchy_0.1.0_amd64.AppImage` |
-| macOS | `notchy_0.1.0_x64.dmg` (coming soon) |
-| Windows | `notchy_0.1.0_x64-setup.exe` (coming soon) |
-
-#### Linux
-
-```bash
-# Debian/Ubuntu
-sudo dpkg -i notchy_0.1.0_amd64.deb
-
-# Fedora/RHEL
-sudo rpm -i notchy-0.1.0-1.x86_64.rpm
-
-# AppImage (any distro)
-chmod +x notchy_0.1.0_amd64.AppImage
-./notchy_0.1.0_amd64.AppImage
-```
-
-### Build from Source
+> **Pre-built binaries are not available yet.** Build from source following the instructions below.
 
 Requirements: Node.js 22, pnpm 10, Rust 1.77+, and Tauri system dependencies.
 
@@ -53,6 +29,18 @@ Or use Docker for a reproducible build:
 docker build -t notchy .
 docker cp $(docker create notchy):/app/src-tauri/target/release/bundle ./release
 ```
+
+### Download (planned)
+
+Once a release is published, pre-built binaries will be available:
+
+| Platform | File |
+|---|---|
+| Linux (Debian/Ubuntu) | `notchy_0.1.0_amd64.deb` |
+| Linux (Fedora/RHEL) | `notchy-0.1.0-1.x86_64.rpm` |
+| Linux (any) | `notchy_0.1.0_amd64.AppImage` |
+| macOS | `notchy_0.1.0_x64.dmg` (planned) |
+| Windows | `notchy_0.1.0_x64-setup.exe` (planned) |
 
 ## Usage
 
