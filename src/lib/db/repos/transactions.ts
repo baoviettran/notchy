@@ -123,26 +123,6 @@ export async function updateTransaction(db: DatabaseService, id: string, patch: 
 	if (!existing) throw new Error('Transaction not found');
 
 	const now = new Date().toISOString();
-
-	// If it's a transfer, update both sides atomically
-	if (existing.kind === 'transfer' && existing.transfer_pair_id) {
-		await db.transaction(async (tx) => {
-			await applyPatch(tx, id, patch, now);
-			// Update the paired transaction
-			const pair = await tx.query<{ id: string }>(
-				`SELECT id FROM transactions WHERE transfer_pair_id = ? AND id != ? AND deleted_at IS NULL`,
-				[existing.transfer_pair_id, id]
-			);
-			if (pair[0]) {
-				const pairPatch: Partial<NewTransaction> = {};
-				if (patch.date) pairPatch.date = patch.date;
-				if (patch.amount) pairPatch.amount = patch.amount;
-				await applyPatch(tx, pair[0].id, pairPatch, now);
-			}
-		});
-		return;
-	}
-
 	await applyPatch(db, id, patch, now);
 }
 
@@ -166,21 +146,23 @@ export async function deleteTransaction(db: DatabaseService, id: string): Promis
 	if (!existing) return;
 
 	const now = new Date().toISOString();
-
-	// If transfer, delete both sides atomically
-	if (existing.kind === 'transfer' && existing.transfer_pair_id) {
-		await db.transaction(async (tx) => {
-			await tx.execute(
-				`UPDATE transactions SET deleted_at = ?, updated_at = ? WHERE transfer_pair_id = ?`,
-				[now, now, existing.transfer_pair_id]
-			);
-		});
-		return;
-	}
-
 	await db.execute(
 		`UPDATE transactions SET deleted_at = ?, updated_at = ? WHERE id = ?`,
 		[now, now, id]
+	);
+}
+
+export async function restoreTransaction(db: DatabaseService, id: string): Promise<void> {
+	const existing = await db.query<{ id: string }>(
+		`SELECT id FROM transactions WHERE id = ? AND deleted_at IS NOT NULL`,
+		[id]
+	);
+	if (existing.length === 0) throw new Error('Transaction not found or not deleted');
+
+	const now = new Date().toISOString();
+	await db.execute(
+		`UPDATE transactions SET deleted_at = NULL, updated_at = ? WHERE id = ?`,
+		[now, id]
 	);
 }
 

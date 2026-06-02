@@ -3,6 +3,7 @@
 	import Progress from '$lib/components/primitives/Progress.svelte';
 	import Button from '$lib/components/primitives/Button.svelte';
 	import Input from '$lib/components/primitives/Input.svelte';
+	import TransactionForm from '$lib/components/forms/TransactionForm.svelte';
 	import FrequentTransactions from '$lib/components/sections/FrequentTransactions.svelte';
 	import { accounts } from '$lib/stores/accounts.svelte';
 	import { budgets } from '$lib/stores/budgets.svelte';
@@ -49,6 +50,12 @@
 			<p class="text-sm text-zinc-400">No budget set. <a href="/budgets" class="text-emerald-600 hover:underline">Set up budget</a></p>
 		{/if}
 	</a>
+
+	<!-- Inline Transaction Form -->
+	<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-3">
+		<h2 class="text-sm font-medium text-zinc-500 dark:text-zinc-400">+ Add transaction</h2>
+		<TransactionForm mode="quick" onclose={() => {}} onsave={async () => { await transactions.load({ limit: 5 }); }} />
+	</div>
 
 	<!-- Frequent Transactions -->
 	<FrequentTransactions />

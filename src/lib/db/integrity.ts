@@ -17,12 +17,14 @@ export async function runIntegrityCheck(db: DatabaseService): Promise<void> {
 }
 
 export async function checkOrphanedTransfers(db: DatabaseService): Promise<void> {
+	// Single-row transfer model: each transfer row has a unique transfer_pair_id used for sync/export correlation.
+	// An orphan is a pair_id shared by more than one row (duplicate), indicating data corruption.
 	const orphans = await db.query<{ pair: string; n: number }>(`
 		SELECT transfer_pair_id AS pair, COUNT(*) AS n
 		FROM transactions
 		WHERE kind = 'transfer' AND deleted_at IS NULL
 		GROUP BY transfer_pair_id
-		HAVING n != 2
+		HAVING n != 1
 	`);
 
 	if (orphans.length > 0) {
@@ -30,5 +32,8 @@ export async function checkOrphanedTransfers(db: DatabaseService): Promise<void>
 			`INSERT OR REPLACE INTO app_meta (key, value) VALUES ('integrity_warnings', ?)`,
 			[JSON.stringify(orphans)]
 		);
+	} else {
+		// Clear stale warnings
+		await db.execute(`DELETE FROM app_meta WHERE key = 'integrity_warnings'`);
 	}
 }

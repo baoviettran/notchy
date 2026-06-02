@@ -1,7 +1,7 @@
 import type { DatabaseService } from './service';
 import { createTauriDb } from './service';
 import { applyPragmas } from './pragmas';
-import { runIntegrityCheck } from './integrity';
+import { runIntegrityCheck, checkOrphanedTransfers } from './integrity';
 import { runMigrations } from './migrations/runner';
 import { migrations } from './migrations/index';
 
@@ -13,6 +13,7 @@ export async function getDb(): Promise<DatabaseService> {
 	await applyPragmas(_db);
 	await runIntegrityCheck(_db);
 	await runMigrations(_db, migrations);
+	await checkOrphanedTransfers(_db);
 	return _db;
 }
 

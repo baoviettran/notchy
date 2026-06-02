@@ -63,10 +63,10 @@
 <div class="space-y-4">
 	{#if error}<p class="text-sm text-red-500">{error}</p>{/if}
 
-	<Input label="Name" bind:value={name} placeholder="e.g. Vietcombank Checking" />
+	<Input label="Name" bind:value={name} placeholder="e.g. Vietcombank Checking" maxlength={64} />
 	<Select label="Type" bind:value={type} options={types} disabled={isEdit} />
 	{#if isLoan}
-		<Input label="Counterparty" bind:value={counterparty} placeholder="Person's name" />
+		<Input label="Counterparty" bind:value={counterparty} placeholder="Person's name" maxlength={64} />
 	{/if}
 	{#if !isEdit}
 		<Input label="Initial balance (optional)" bind:value={initialBalance} placeholder="e.g. 5tr, 1000000" />

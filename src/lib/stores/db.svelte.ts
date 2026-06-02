@@ -1,5 +1,6 @@
 import { getDb } from '$lib/db';
 import * as meta from '$lib/db/repos/meta';
+import { runAutoBackup } from '$lib/backup';
 
 class DbStore {
 	ready = $state(false);
@@ -11,6 +12,8 @@ class DbStore {
 			const db = await getDb();
 			this.firstRunComplete = await meta.isFirstRunComplete(db);
 			this.ready = true;
+			// Run auto-backup in the background, don't block startup
+			runAutoBackup(db).catch((e) => console.warn('Auto-backup error:', e));
 		} catch (e) {
 			this.error = String(e);
 		}

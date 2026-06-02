@@ -20,6 +20,71 @@ export async function createBackup(db: DatabaseService, backupDir: string): Prom
 }
 
 /**
+ * Run auto-backup on app launch. Best-effort: failures are logged but don't block startup.
+ * Skips if last backup was less than 1 hour ago.
+ */
+export async function runAutoBackup(db: DatabaseService): Promise<void> {
+	if (typeof window === 'undefined') return; // Skip in test/SSR
+
+	try {
+		// Skip if last backup was less than 1 hour ago
+		const lastBackup = await db.query<{ value: string }>(
+			`SELECT value FROM app_meta WHERE key = 'last_backup_at'`
+		);
+		if (lastBackup.length > 0) {
+			const lastTime = new Date(lastBackup[0].value).getTime();
+			if (Date.now() - lastTime < 3600_000) return;
+		}
+
+		const { appDataDir, join } = await import('@tauri-apps/api/path');
+		const { mkdir, readDir, remove, stat } = await import('@tauri-apps/plugin-fs');
+
+		const dataDir = await appDataDir();
+		const backupDir = await join(dataDir, 'backups');
+
+		await mkdir(backupDir, { recursive: true }).catch(() => {});
+
+		// Take the backup
+		await createBackup(db, backupDir);
+
+		// Prune old backups, keep 10 most recent (reuse getBackupsToDelete)
+		const entries = await readDir(backupDir).catch(() => []);
+		const backupInfos: BackupInfo[] = [];
+		for (const entry of entries) {
+			if (!entry.name?.startsWith('notchy-backup-')) continue;
+			const filePath = await join(backupDir, entry.name);
+			const fileSize = await stat(filePath).then((s) => s.size).catch(() => 0);
+			// Extract timestamp from filename: notchy-backup-2025-06-02T12-30-00-000Z.sqlite
+			const tsMatch = entry.name.match(/^notchy-backup-(.+)\.sqlite$/);
+			const timestamp = tsMatch ? tsMatch[1].replace(/-/g, (m, i) =>
+				i === 4 || i === 7 ? '-' : i === 10 ? 'T' : m
+			) : entry.name;
+			backupInfos.push({ path: filePath, timestamp, size: fileSize });
+		}
+
+		const toDelete = getBackupsToDelete(backupInfos);
+		for (const path of toDelete) {
+			await remove(path).catch(() => {});
+		}
+
+		// Record backup time in app_meta
+		await db.execute(
+			`INSERT OR REPLACE INTO app_meta (key, value) VALUES ('last_backup_at', ?)`,
+			[new Date().toISOString()]
+		);
+	} catch (e) {
+		console.warn('Auto-backup failed:', e);
+		// Set warning so UI can show it
+		try {
+			await db.execute(
+				`INSERT OR REPLACE INTO app_meta (key, value) VALUES ('backup_warning', ?)`,
+				[String(e)]
+			);
+		} catch {}
+	}
+}
+
+/**
  * Prune old backups, keeping only the most recent `keep` files.
  * Returns the list of paths that should be deleted.
  */

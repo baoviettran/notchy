@@ -63,7 +63,7 @@
 <div class="space-y-4">
 	{#if error}<p class="text-sm text-red-500">{error}</p>{/if}
 
-	<Input label="Name" bind:value={name} placeholder="e.g. Vacation 2026" />
+	<Input label="Name" bind:value={name} placeholder="e.g. Vacation 2026" maxlength={64} />
 	<Select label="Type" bind:value={type} options={types} disabled={isEdit} />
 	<Input label="Target amount" bind:value={targetAmount} placeholder="e.g. 10tr" />
 	<Input label="Target date" type="date" bind:value={targetDate} />

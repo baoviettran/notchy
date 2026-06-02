@@ -4,6 +4,7 @@ export const migration001: Migration = {
 	version: 1,
 	name: 'initial_schema',
 	async up(db) {
+		// app_meta is created by the migration runner before any migration runs
 		await db.execute(`
 			CREATE TABLE accounts (
 				id           TEXT PRIMARY KEY,
@@ -58,7 +59,7 @@ export const migration001: Migration = {
 				amount              INTEGER NOT NULL CHECK (amount > 0 AND amount <= 999999999999),
 				account_id          TEXT NOT NULL REFERENCES accounts(id),
 				transfer_account_id TEXT REFERENCES accounts(id),
-				transfer_pair_id    TEXT,
+				transfer_pair_id    TEXT, -- Stable correlation key per transfer row (unique per row in single-row model). Useful for future sync/export identification.
 				refund_of_id        TEXT REFERENCES transactions(id),
 				tag_id              TEXT REFERENCES category_tags(id),
 				payee               TEXT CHECK (payee IS NULL OR length(payee) <= 128),

@@ -40,16 +40,43 @@ export function isLoanType(type: AccountType): boolean {
 }
 
 export async function listAccounts(db: DatabaseService): Promise<AccountWithBalance[]> {
-	const accounts = await db.query<Account>(
-		`SELECT id, name, type, counterparty, currency, archived, created_at, updated_at
-		 FROM accounts WHERE deleted_at IS NULL ORDER BY archived, created_at`
-	);
-	const result: AccountWithBalance[] = [];
-	for (const acc of accounts) {
-		const balance = await getBalance(db, acc.id);
-		result.push({ ...acc, balance });
-	}
-	return result;
+	const today = new Date().toISOString().split('T')[0];
+	// UNION ALL to collect all balance-impacting rows per account, then aggregate once.
+	// This scans the transactions table a single time instead of using a correlated subquery per account.
+	const rows = await db.query<Account & { balance: number | null }>(`
+		SELECT
+			a.id, a.name, a.type, a.counterparty, a.currency, a.archived, a.created_at, a.updated_at,
+			COALESCE(b.balance, 0) AS balance
+		FROM accounts a
+		LEFT JOIN (
+			SELECT acct_id, SUM(delta) AS balance
+			FROM (
+				SELECT account_id AS acct_id,
+					CASE
+						WHEN kind = 'income' THEN amount
+						WHEN kind = 'adjustment' THEN amount
+						WHEN kind = 'refund' THEN amount
+						WHEN kind = 'expense' THEN -amount
+						WHEN kind = 'transfer' THEN -amount
+						ELSE 0
+					END AS delta
+				FROM transactions
+				WHERE deleted_at IS NULL AND date <= ?
+				UNION ALL
+				SELECT transfer_account_id AS acct_id, amount AS delta
+				FROM transactions
+				WHERE kind = 'transfer' AND deleted_at IS NULL AND date <= ?
+			)
+			GROUP BY acct_id
+		) b ON a.id = b.acct_id
+		WHERE a.deleted_at IS NULL
+		ORDER BY a.archived, a.created_at`, [today, today]);
+
+	return rows.map((r) => ({
+		id: r.id, name: r.name, type: r.type, counterparty: r.counterparty,
+		currency: r.currency, archived: r.archived, created_at: r.created_at, updated_at: r.updated_at,
+		balance: r.balance ?? 0
+	}));
 }
 
 export async function getAccount(db: DatabaseService, id: string): Promise<AccountWithBalance | null> {

@@ -7,13 +7,15 @@ class TransactionsStore {
 	items = $state<Transaction[]>([]);
 	loading = $state(false);
 	error = $state<string | null>(null);
+	private lastFilter: TransactionFilter = {};
 
-	async load(filter: TransactionFilter = {}): Promise<void> {
+	async load(filter?: TransactionFilter): Promise<void> {
+		if (filter !== undefined) this.lastFilter = filter;
 		this.loading = true;
 		this.error = null;
 		try {
 			const db = await getDb();
-			this.items = await repo.listTransactions(db, filter);
+			this.items = await repo.listTransactions(db, this.lastFilter);
 		} catch (e) {
 			this.error = String(e);
 		} finally {
@@ -47,11 +49,7 @@ class TransactionsStore {
 				duration: 5000,
 				onaction: async () => {
 					const db2 = await getDb();
-					// Restore by clearing deleted_at
-					await db2.execute(`UPDATE transactions SET deleted_at = NULL, updated_at = ? WHERE id = ?`, [new Date().toISOString(), id]);
-					if (tx.transfer_pair_id) {
-						await db2.execute(`UPDATE transactions SET deleted_at = NULL, updated_at = ? WHERE transfer_pair_id = ?`, [new Date().toISOString(), tx.transfer_pair_id]);
-					}
+					await repo.restoreTransaction(db2, id);
 					await this.load();
 					toast.show('Transaction restored.');
 				}

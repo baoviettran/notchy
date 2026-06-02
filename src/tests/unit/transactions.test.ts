@@ -119,16 +119,15 @@ describe('deleteTransaction', () => {
 		expect(await repo.getTransaction(db, id)).toBeNull();
 	});
 
-	it('deletes both sides of a transfer', async () => {
+	it('deletes a transfer', async () => {
 		const id = await repo.createTransaction(db, {
 			kind: 'transfer', date: TODAY, amount: 100000, account_id: 'acc1', transfer_account_id: 'acc2'
 		});
-		const tx = await repo.getTransaction(db, id);
 		await repo.deleteTransaction(db, id);
 
 		const remaining = await db.query<{ id: string }>(
-			`SELECT id FROM transactions WHERE transfer_pair_id = ? AND deleted_at IS NULL`,
-			[tx!.transfer_pair_id]
+			`SELECT id FROM transactions WHERE id = ? AND deleted_at IS NULL`,
+			[id]
 		);
 		expect(remaining).toHaveLength(0);
 	});

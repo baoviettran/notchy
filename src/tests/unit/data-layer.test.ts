@@ -69,13 +69,14 @@ describe('runIntegrityCheck', () => {
 });
 
 describe('checkOrphanedTransfers', () => {
-	it('stores warnings when orphaned pairs exist', async () => {
+	it('stores warnings when duplicate pair_ids exist (orphan in single-row model)', async () => {
 		await db.execute(`CREATE TABLE app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
 		await db.execute(`CREATE TABLE transactions (
 			id TEXT PRIMARY KEY, kind TEXT, transfer_pair_id TEXT, deleted_at TEXT
 		)`);
+		// Two rows with the same pair_id is an orphan in the single-row model
 		await db.execute(`INSERT INTO transactions VALUES ('t1', 'transfer', 'pair1', NULL)`);
-		// Only one row for pair1 — orphaned
+		await db.execute(`INSERT INTO transactions VALUES ('t2', 'transfer', 'pair1', NULL)`);
 
 		await checkOrphanedTransfers(db);
 
@@ -83,5 +84,18 @@ describe('checkOrphanedTransfers', () => {
 		const parsed = JSON.parse(warnings[0].value);
 		expect(parsed).toHaveLength(1);
 		expect(parsed[0].pair).toBe('pair1');
+	});
+
+	it('does not warn when each pair has exactly one row', async () => {
+		await db.execute(`CREATE TABLE app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+		await db.execute(`CREATE TABLE transactions (
+			id TEXT PRIMARY KEY, kind TEXT, transfer_pair_id TEXT, deleted_at TEXT
+		)`);
+		await db.execute(`INSERT INTO transactions VALUES ('t1', 'transfer', 'pair1', NULL)`);
+
+		await checkOrphanedTransfers(db);
+
+		const warnings = await db.query<{ value: string }>(`SELECT value FROM app_meta WHERE key = 'integrity_warnings'`);
+		expect(warnings).toHaveLength(0);
 	});
 });
