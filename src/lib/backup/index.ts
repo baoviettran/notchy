@@ -25,6 +25,10 @@ export async function createBackup(db: DatabaseService, backupDir: string): Prom
  */
 export async function runAutoBackup(db: DatabaseService): Promise<void> {
 	if (typeof window === 'undefined') return; // Skip in test/SSR
+	// Skip in a plain browser (Playwright/dev/preview): backup writes via the
+	// Tauri FS plugin, which only exists inside the Tauri webview.
+	const isTauri = !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+	if (!isTauri) return;
 
 	try {
 		// Skip if last backup was less than 1 hour ago
