@@ -1,5 +1,6 @@
 import type { DatabaseService } from '../service';
 import { ulid } from '../../utils/id';
+import { stripControlChars } from '../../utils/sanitize';
 
 export type TransactionKind = 'expense' | 'income' | 'transfer' | 'refund' | 'adjustment';
 
@@ -93,9 +94,17 @@ export async function getTransaction(db: DatabaseService, id: string): Promise<T
 export async function createTransaction(db: DatabaseService, input: NewTransaction): Promise<string> {
 	const now = new Date().toISOString();
 
+	// Spec §4.5: strip control chars from description (newlines/tabs preserved).
+	const description = input.description != null ? stripControlChars(input.description) : null;
+
 	if (input.kind === 'transfer') {
 		if (!input.transfer_account_id) throw new Error('Transfer requires a destination account');
 		return createTransferPair(db, input, now);
+	}
+
+	// Spec §4.8: refund_of_id must reference an existing, non-deleted expense.
+	if (input.refund_of_id) {
+		await validateRefundTarget(db, input.refund_of_id);
 	}
 
 	const id = ulid();
@@ -104,9 +113,22 @@ export async function createTransaction(db: DatabaseService, input: NewTransacti
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		[id, input.kind, input.date, input.amount, input.account_id,
 		 input.refund_of_id ?? null, input.tag_id ?? null,
-		 input.payee ?? null, input.description ?? null, now, now]
+		 input.payee ?? null, description, now, now]
 	);
 	return id;
+}
+
+async function validateRefundTarget(db: DatabaseService, refundOfId: string): Promise<void> {
+	const rows = await db.query<{ kind: string }>(
+		`SELECT kind FROM transactions WHERE id = ? AND deleted_at IS NULL`,
+		[refundOfId]
+	);
+	if (rows.length === 0) {
+		throw new Error('Refund must reference a non-deleted expense');
+	}
+	if (rows[0].kind !== 'expense') {
+		throw new Error('Refund must reference an expense transaction');
+	}
 }
 
 async function createTransferPair(db: DatabaseService, input: NewTransaction, now: string): Promise<string> {
@@ -140,7 +162,10 @@ async function applyPatch(db: DatabaseService, id: string, patch: Partial<NewTra
 	if (patch.amount !== undefined) { sets.push('amount = ?'); params.push(patch.amount); }
 	if (patch.tag_id !== undefined) { sets.push('tag_id = ?'); params.push(patch.tag_id); }
 	if (patch.payee !== undefined) { sets.push('payee = ?'); params.push(patch.payee); }
-	if (patch.description !== undefined) { sets.push('description = ?'); params.push(patch.description); }
+	if (patch.description !== undefined) {
+		sets.push('description = ?');
+		params.push(patch.description == null ? null : stripControlChars(patch.description));
+	}
 	if (patch.transfer_account_id !== undefined) {
 		// Repointing a transfer's destination. Reject self-transfers (source ==
 		// destination): they neither move money nor balance to zero in the
