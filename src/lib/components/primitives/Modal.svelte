@@ -10,7 +10,7 @@
 
 {#if open}
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4" onkeydown={onKeydown} role="dialog" aria-modal="true">
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4" tabindex="-1" onkeydown={onKeydown} role="dialog" aria-modal="true">
 		<div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick={onBackdrop} role="presentation"></div>
 		<div class="relative bg-white dark:bg-zinc-800 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in">
 			{#if title}

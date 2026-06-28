@@ -47,7 +47,7 @@
 				</div>
 			{/each}
 		{:else}
-			<p class="text-sm text-zinc-400">No budget set. <a href="/budgets" class="text-emerald-600 hover:underline">Set up budget</a></p>
+			<p class="text-sm text-zinc-400">No budget set. <span class="text-emerald-600 hover:underline">Set up budget</span></p>
 		{/if}
 	</a>
 

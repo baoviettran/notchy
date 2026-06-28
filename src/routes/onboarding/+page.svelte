@@ -114,6 +114,7 @@
 				<p class="text-sm text-zinc-500">{locale === 'vi' ? 'Nơi tiền của bạn được lưu trữ.' : 'This is where your money lives.'}</p>
 				<div class="space-y-3">
 					<div>
+						<!-- svelte-ignore a11y_label_has_associated_control -->
 						<label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Type</label>
 						<div class="flex flex-wrap gap-2">
 							{#each accountTypes as t}
