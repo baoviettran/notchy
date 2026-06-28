@@ -35,6 +35,10 @@ export function isAssetType(type: AccountType): boolean {
 	return ASSET_TYPES.includes(type);
 }
 
+export function isLiabilityType(type: AccountType): boolean {
+	return LIABILITY_TYPES.includes(type);
+}
+
 export function isLoanType(type: AccountType): boolean {
 	return LOAN_TYPES.includes(type);
 }
@@ -131,14 +135,18 @@ export async function createAccount(db: DatabaseService, input: NewAccount): Pro
 			[id, input.name, input.type, input.counterparty ?? null, input.currency, now, now]
 		);
 
-		// Create initial balance adjustment if provided
+		// Create initial balance if provided. Liability accounts (credit_card,
+		// loan_from_person) carry balances as negative magnitudes (money owed),
+		// so their opening balance is recorded as an expense (getBalance returns
+		// -amount for expenses). Asset accounts use a positive adjustment.
 		if (input.initial_balance && input.initial_balance !== 0) {
 			const txId = ulid();
 			const date = input.initial_balance_date ?? now.split('T')[0];
+			const kind = LIABILITY_TYPES.includes(input.type) ? 'expense' : 'adjustment';
 			await tx.execute(
 				`INSERT INTO transactions (id, kind, date, amount, account_id, tag_id, created_at, updated_at)
-				 VALUES (?, 'adjustment', ?, ?, ?, 'tag_initial_balance', ?, ?)`,
-				[txId, date, Math.abs(input.initial_balance), id, now, now]
+				 VALUES (?, ?, ?, ?, ?, 'tag_initial_balance', ?, ?)`,
+				[txId, kind, date, Math.abs(input.initial_balance), id, now, now]
 			);
 		}
 	});

@@ -37,7 +37,7 @@
 
 	async function saveEdit(typeId: string) {
 		try {
-			const parsed = editValue.trim() ? parseAmount(editValue, settings.locale) : 0;
+			const parsed = editValue.trim() ? parseAmount(editValue, settings.locale, settings.currency) : 0;
 			await budgets.setAllocation(typeId, parsed);
 			toast.show('Budget updated.');
 			editing = null;

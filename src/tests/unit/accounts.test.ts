@@ -30,6 +30,19 @@ describe('createAccount', () => {
 		expect(balance).toBe(500000);
 	});
 
+	it('stores liability opening balance as negative (owed)', async () => {
+		// Liability accounts (credit_card, loan_from_person) carry balances as
+		// negative magnitudes: an opening credit-card debt of 4,000,000 must
+		// produce a balance of -4,000,000, not +4,000,000. The dashboard renders
+		// liabilities via Math.abs(); net_worth sums the signed value.
+		const id = await repo.createAccount(db, {
+			name: 'Credit Card', type: 'credit_card', currency: 'VND',
+			initial_balance: 4000000, initial_balance_date: '2026-01-01'
+		});
+		const balance = await repo.getBalance(db, id);
+		expect(balance).toBe(-4000000);
+	});
+
 	it('requires counterparty for loan_to_person', async () => {
 		await expect(
 			repo.createAccount(db, { name: 'Loan', type: 'loan_to_person', currency: 'VND' })

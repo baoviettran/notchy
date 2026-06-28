@@ -39,7 +39,7 @@
 		saving = true;
 		error = '';
 		try {
-			const parsed = parseAmount(targetAmount, settings.locale);
+			const parsed = parseAmount(targetAmount, settings.locale, settings.currency);
 			if (isEdit && goal) {
 				await goals.update(goal.id, { name, target_amount: parsed, target_date: targetDate });
 				toast.show('Goal updated.');

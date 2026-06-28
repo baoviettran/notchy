@@ -41,7 +41,7 @@
 			} else {
 				let balance: number | undefined;
 				if (initialBalance.trim()) {
-					try { balance = parseAmount(initialBalance, settings.locale); } catch { error = 'Invalid amount'; saving = false; return; }
+					try { balance = parseAmount(initialBalance, settings.locale, settings.currency); } catch { error = 'Invalid amount'; saving = false; return; }
 				}
 				await accounts.create({
 					name, type, currency: settings.currency,

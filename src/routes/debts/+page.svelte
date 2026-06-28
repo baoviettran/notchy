@@ -35,7 +35,7 @@
 		if (!activeDebt || !amount) return;
 		saving = true;
 		try {
-			const parsed = parseAmount(amount, settings.locale);
+			const parsed = parseAmount(amount, settings.locale, settings.currency);
 			if (actionType === 'payment') {
 				if (!fromAccount) { toast.show('Select an account.'); saving = false; return; }
 				// Payment is a transfer from fromAccount to the debt account

@@ -44,7 +44,7 @@
 		try {
 			let balance: number | undefined;
 			if (initialBalance) {
-				try { balance = parseAmount(initialBalance, locale); } catch { balance = undefined; }
+				try { balance = parseAmount(initialBalance, locale, currency); } catch { balance = undefined; }
 			}
 			await accounts.create({
 				name: accountName,

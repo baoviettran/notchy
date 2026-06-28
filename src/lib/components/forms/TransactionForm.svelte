@@ -82,7 +82,7 @@
 		error = '';
 		let parsedAmount: number;
 		try {
-			parsedAmount = parseAmount(amount, settings.locale);
+			parsedAmount = parseAmount(amount, settings.locale, settings.currency);
 		} catch {
 			error = 'Invalid amount';
 			return;

@@ -83,6 +83,25 @@ describe('progress calculation', () => {
 		expect(goal!.current_amount).toBe(5000000);
 		expect(goal!.progress_pct).toBe(50);
 	});
+
+	it('net_worth subtracts liability balances from asset balances', async () => {
+		// Asset: 10,000,000 in checking
+		const assetId = await accounts.createAccount(db, {
+			name: 'Checking', type: 'checking', currency: 'VND', initial_balance: 10000000
+		});
+		// Liability: 4,000,000 credit-card balance
+		const liabId = await accounts.createAccount(db, {
+			name: 'Credit Card', type: 'credit_card', currency: 'VND', initial_balance: 4000000
+		});
+		const id = await goals.createGoal(db, {
+			name: 'Net Worth', type: 'net_worth', target_amount: 100000000,
+			target_date: '2030-01-01', starting_amount: 0
+		});
+		const goal = await goals.getGoal(db, id);
+		// Net worth = assets − liabilities = 10,000,000 − 4,000,000 = 6,000,000.
+		// Bug today: liabilities are summed as assets → 14,000,000.
+		expect(goal!.current_amount).toBe(6000000);
+	});
 });
 
 describe('listGoals', () => {

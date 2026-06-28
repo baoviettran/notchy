@@ -1,5 +1,11 @@
 export type Locale = 'en' | 'vi';
 
+/** Fraction digits per currency (smallest-unit storage). Mirrors currency.ts. */
+const FRACTION_DIGITS: Record<string, number> = {
+	VND: 0,
+	USD: 2
+};
+
 /**
  * Parses a user-entered amount string into an integer (smallest currency unit).
  * Supports:
@@ -7,8 +13,12 @@ export type Locale = 'en' | 'vi';
  * - English shortcuts: m (million), k (thousand)
  * - Arithmetic: +, -, *, /
  * - Parentheses for grouping
+ *
+ * `currency` scales the result to the smallest unit: VND (0 digits) stores the
+ * number as-is; USD (2 digits) multiplies by 100 so "50" → 5000 cents. Defaults
+ * to VND to preserve existing callers.
  */
-export function parseAmount(input: string, locale: Locale): number {
+export function parseAmount(input: string, locale: Locale, currency: string = 'VND'): number {
 	const cleaned = input.replace(/[\s,]/g, '');
 	if (cleaned === '') throw new Error('Invalid amount');
 
@@ -29,5 +39,8 @@ export function parseAmount(input: string, locale: Locale): number {
 	if (typeof result !== 'number' || !isFinite(result) || result <= 0) {
 		throw new Error('Invalid amount');
 	}
-	return Math.round(result);
+
+	// Scale to smallest currency unit (VND: ×1, USD: ×100) and round to integer.
+	const fractionDigits = FRACTION_DIGITS[currency] ?? 0;
+	return Math.round(result * Math.pow(10, fractionDigits));
 }

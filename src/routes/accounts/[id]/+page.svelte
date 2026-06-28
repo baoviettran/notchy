@@ -40,7 +40,7 @@
 	async function startReconcile() {
 		if (!actualBalance.trim()) return;
 		try {
-			const parsed = parseAmount(actualBalance, settings.locale);
+			const parsed = parseAmount(actualBalance, settings.locale, settings.currency);
 			const expected = account!.balance;
 			const discrepancy = parsed - expected;
 			if (isLargeDiscrepancy(discrepancy)) {
@@ -64,7 +64,7 @@
 	}
 
 	async function confirmLargeReconcile() {
-		const parsed = parseAmount(actualBalance, settings.locale);
+		const parsed = parseAmount(actualBalance, settings.locale, settings.currency);
 		await doReconcile(parsed);
 		confirmLarge = false;
 	}

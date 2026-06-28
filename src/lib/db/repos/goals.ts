@@ -101,13 +101,12 @@ async function enrichGoal(db: DatabaseService, goal: Goal): Promise<GoalWithProg
 	let current_amount: number;
 
 	if (goal.type === 'net_worth') {
-		const rows = await db.query<{ total: number | null }>(`
-			SELECT SUM(bal) AS total FROM (
-				SELECT id FROM accounts WHERE deleted_at IS NULL
-			) a, (SELECT 0 AS bal) -- simplified: use getBalance per account
-		`);
-		// For net_worth, sum all account balances
-		const accs = await db.query<{ id: string }>(`SELECT id FROM accounts WHERE deleted_at IS NULL`);
+		// Net worth = Σ(account balances). Liability balances (credit_card,
+		// loan_from_person) are stored as negative magnitudes (money owed), so
+		// summing every account's signed balance yields assets − liabilities.
+		const accs = await db.query<{ id: string }>(
+			`SELECT id FROM accounts WHERE deleted_at IS NULL`
+		);
 		let total = 0;
 		for (const acc of accs) total += await getBalance(db, acc.id);
 		current_amount = total;

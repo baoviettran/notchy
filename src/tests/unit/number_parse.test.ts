@@ -64,6 +64,35 @@ describe('parseAmount', () => {
 		});
 	});
 
+	describe('currency scaling', () => {
+		// Amounts are stored in the smallest currency unit. VND has 0 fraction
+		// digits (1₫ = 1 unit), so the raw number is stored as-is. USD has 2
+		// fraction digits, so "50" means 50 dollars = 5000 cents.
+		it('stores VND as-is (0 fraction digits)', () => {
+			expect(parseAmount('50000', 'vi', 'VND')).toBe(50000);
+		});
+
+		it('scales USD by 100 (2 fraction digits) — "50" → 5000 cents', () => {
+			expect(parseAmount('50', 'en', 'USD')).toBe(5000);
+		});
+
+		it('scales USD decimals — "12.34" → 1234 cents', () => {
+			expect(parseAmount('12.34', 'en', 'USD')).toBe(1234);
+		});
+
+		it('scales USD with shortcuts — "5k" → 500000 cents ($5000)', () => {
+			expect(parseAmount('5k', 'en', 'USD')).toBe(500000);
+		});
+
+		it('rounds fractional cents — "12.349" → 1235 cents (rounds up)', () => {
+			expect(parseAmount('12.349', 'en', 'USD')).toBe(1235);
+		});
+
+		it('defaults to VND when currency omitted (back-compat)', () => {
+			expect(parseAmount('50', 'vi')).toBe(50);
+		});
+	});
+
 	describe('errors', () => {
 		it('throws on empty string', () => {
 			expect(() => parseAmount('', 'vi')).toThrow('Invalid amount');

@@ -28,6 +28,7 @@ describe('listDebts', () => {
 	it('includes balance', async () => {
 		await accounts.createAccount(db, { name: 'Loan', type: 'loan_to_person', currency: 'VND', counterparty: 'Bob', initial_balance: 1000000 });
 		const result = await debts.listDebts(db);
+		// loan_to_person is an asset (Bob owes me) → positive balance.
 		expect(result.owed_to_me[0].balance).toBe(1000000);
 	});
 });
@@ -38,7 +39,7 @@ describe('writeOff', () => {
 		await debts.writeOff(db, id, 500000);
 
 		const balance = await accounts.getBalance(db, id);
-		expect(balance).toBe(500000); // 1M initial - 500k expense
+		expect(balance).toBe(500000); // 1M asset − 500k expense written off
 	});
 
 	it('creates income for loan_from_person (debt forgiven)', async () => {
@@ -46,6 +47,8 @@ describe('writeOff', () => {
 		await debts.writeOff(db, id, 500000, 'tag_gift');
 
 		const balance = await accounts.getBalance(db, id);
-		expect(balance).toBe(1500000); // 1M initial + 500k income
+		// loan_from_person opening balance is owed → stored −1,000,000.
+		// Forgiving 500k of the debt = income (+500k) → −500,000 (I owe less).
+		expect(balance).toBe(-500000);
 	});
 });
