@@ -75,7 +75,7 @@ All financial movements.
 | amount | INTEGER | **Always positive.** In the smallest currency unit (e.g. VND has no decimals; USD stores cents) |
 | account_id | TEXT (FK) | The account this transaction belongs to |
 | transfer_account_id | TEXT (FK) | For transfers: the other account |
-| transfer_pair_id | TEXT | Shared ID linking both sides of a transfer |
+| transfer_pair_id | TEXT | Unique per transfer row; a stable correlation key retained for export and future sync. (Notchy stores a transfer as a single row, not a pair.) |
 | refund_of_id | TEXT (FK) | For refunds: the original expense being refunded |
 | tag_id | TEXT (FK) | Category tag (NULL for transfers) |
 | payee | TEXT | Who was paid (max 128 chars) |
@@ -84,7 +84,7 @@ All financial movements.
 | updated_at | TEXT | ISO 8601 |
 | deleted_at | TEXT | Soft-delete |
 
-**Balance calculation:** For a given account, balance = SUM of: +income, +adjustment, +refund, -expense. Transfers: -amount on the source side, +amount on the destination side. Future-dated transactions are excluded from current balance.
+**Balance calculation:** A transfer is one row (`account_id` = source, `transfer_account_id` = destination). For a queried account, balance = SUM of: +income, +adjustment, +refund, −expense, and for transfers −amount when the account is the source (`account_id`) and +amount when the account is the destination (`transfer_account_id`). Listing an account's transactions matches both columns. Future-dated transactions are excluded from current balance.
 
 ## budgets
 

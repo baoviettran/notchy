@@ -47,7 +47,13 @@ export async function listTransactions(db: DatabaseService, filter: TransactionF
 	const conditions = ['t.deleted_at IS NULL'];
 	const params: unknown[] = [];
 
-	if (filter.account_id) { conditions.push('t.account_id = ?'); params.push(filter.account_id); }
+	// Single-row transfer model: account_id = source, transfer_account_id = dest.
+	// An account's ledger must show transfers where it is EITHER party, so the
+	// account filter matches both columns. (Balance queries do the same.)
+	if (filter.account_id) {
+		conditions.push('(t.account_id = ? OR (t.kind = \'transfer\' AND t.transfer_account_id = ?))');
+		params.push(filter.account_id, filter.account_id);
+	}
 	if (filter.kind) { conditions.push('t.kind = ?'); params.push(filter.kind); }
 	if (filter.tag_id) { conditions.push('t.tag_id = ?'); params.push(filter.tag_id); }
 	if (filter.date_from) { conditions.push('t.date >= ?'); params.push(filter.date_from); }

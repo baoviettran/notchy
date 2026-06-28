@@ -67,6 +67,22 @@ describe('listTransactions', () => {
 		expect(list[0].amount).toBe(1000);
 	});
 
+	it('includes incoming transfers when filtering by destination account', async () => {
+		// Single-row transfer model: account_id = source, transfer_account_id = dest.
+		// Filtering by an account must match BOTH columns or the destination
+		// account's ledger silently drops incoming transfers.
+		await repo.createTransaction(db, {
+			kind: 'transfer', date: TODAY, amount: 100000, account_id: 'acc1', transfer_account_id: 'acc2'
+		});
+
+		const dest = await repo.listTransactions(db, { account_id: 'acc2' });
+		expect(dest).toHaveLength(1);
+		expect(dest[0].kind).toBe('transfer');
+		expect(dest[0].id).toBe(
+			(await repo.listTransactions(db, { account_id: 'acc1' }))[0].id
+		);
+	});
+
 	it('filters by date range', async () => {
 		await repo.createTransaction(db, { kind: 'expense', date: '2026-01-01', amount: 1000, account_id: 'acc1' });
 		await repo.createTransaction(db, { kind: 'expense', date: '2026-06-01', amount: 2000, account_id: 'acc1' });
