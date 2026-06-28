@@ -24,7 +24,7 @@
 	});
 
 	async function repeat(item: FrequentTx) {
-		await transactions.create({
+		const newId = await transactions.create({
 			kind: item.kind as any,
 			date: new Date().toISOString().split('T')[0],
 			amount: item.amount,
@@ -34,10 +34,9 @@
 		toast.show(`Saved · ${item.payee} · ${formatCurrency(item.amount, settings.currency, settings.locale)}`, {
 			action: 'UNDO', duration: 5000,
 			onaction: async () => {
-				// Undo last created — simplified: delete most recent
-				const db = await getDb();
-				const last = await db.query<{ id: string }>(`SELECT id FROM transactions WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 1`);
-				if (last[0]) { await transactions.delete(last[0].id); }
+				// Delete the exact row this repeat created — never "most recent",
+				// which could be a different transaction created after this one.
+				await transactions.delete(newId);
 			}
 		});
 	}

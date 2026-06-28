@@ -20,15 +20,19 @@
 
 	const today = new Date().toISOString().split('T')[0];
 
+	// The store holds PAGE_SIZE+1 rows so we can detect a next page; the visible
+	// list is the first PAGE_SIZE. Never mutate `transactions.items` — it's a
+	// shared singleton read by the dashboard, FrequentTransactions, and the
+	// payee autocomplete; truncating it here corrupts those views.
+	let displayItems = $derived(transactions.items.slice(0, PAGE_SIZE));
+
 	async function loadPage() {
 		await transactions.load({
 			query: search || undefined,
 			limit: PAGE_SIZE + 1,
 			offset: page * PAGE_SIZE
 		});
-		// If we got more than PAGE_SIZE, there's a next page; trim the extra
 		hasNextPage = transactions.items.length > PAGE_SIZE;
-		if (hasNextPage) transactions.items = transactions.items.slice(0, PAGE_SIZE);
 	}
 
 	onMount(loadPage);
@@ -69,13 +73,13 @@
 	</div>
 
 	<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-700">
-		{#if transactions.items.length === 0}
+		{#if displayItems.length === 0}
 			<div class="text-center py-12 text-zinc-400">
 				<p class="text-3xl mb-2">📋</p>
 				<p class="text-sm">No transactions found.</p>
 			</div>
 		{:else}
-			{#each transactions.items as tx}
+			{#each displayItems as tx}
 				<div class="p-4 flex items-center justify-between group">
 					<button onclick={() => openEdit(tx)} class="flex-1 text-left">
 						<div class="text-sm text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
