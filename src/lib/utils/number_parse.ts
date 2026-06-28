@@ -32,10 +32,14 @@ export function parseAmount(input: string, locale: Locale, currency: string = 'V
 	});
 
 	// Strict character whitelist — only digits, operators, parens, dots
-	if (!/^[\d+\-*/.()\s]+$/.test(expanded)) throw new Error('Invalid amount');
+	if (!/^[\d+\-*/.()\s]+$/m.test(expanded)) throw new Error('Invalid amount');
 
-	// Safe evaluation via Function constructor (input is whitelisted)
-	const result = Function(`"use strict"; return (${expanded});`)();
+	// Safe evaluation via a hand-written recursive-descent parser (NOT Function/
+	// eval), so the production CSP can ship without 'unsafe-eval'. Grammar:
+	//   expr   := term (('+'|'-') term)*
+	//   term   := factor (('*'|'/') factor)*
+	//   factor := ('-'|'+')? ('(' expr ')' | number)
+	const result = evalExpr(expanded);
 	if (typeof result !== 'number' || !isFinite(result) || result <= 0) {
 		throw new Error('Invalid amount');
 	}
@@ -43,4 +47,70 @@ export function parseAmount(input: string, locale: Locale, currency: string = 'V
 	// Scale to smallest currency unit (VND: ×1, USD: ×100) and round to integer.
 	const fractionDigits = FRACTION_DIGITS[currency] ?? 0;
 	return Math.round(result * Math.pow(10, fractionDigits));
+}
+
+function evalExpr(input: string): number {
+	let pos = 0;
+
+	function skipWs() {
+		while (pos < input.length && /\s/.test(input[pos])) pos++;
+	}
+
+	function parseExpr(): number {
+		let value = parseTerm();
+		skipWs();
+		while (pos < input.length && (input[pos] === '+' || input[pos] === '-')) {
+			const op = input[pos++];
+			const rhs = parseTerm();
+			value = op === '+' ? value + rhs : value - rhs;
+			skipWs();
+		}
+		return value;
+	}
+
+	function parseTerm(): number {
+		let value = parseFactor();
+		skipWs();
+		while (pos < input.length && (input[pos] === '*' || input[pos] === '/')) {
+			const op = input[pos++];
+			const rhs = parseFactor();
+			value = op === '*' ? value * rhs : value / rhs;
+			skipWs();
+		}
+		return value;
+	}
+
+	function parseFactor(): number {
+		skipWs();
+		// Unary plus/minus
+		if (input[pos] === '+' || input[pos] === '-') {
+			const op = input[pos++];
+			const v = parseFactor();
+			return op === '-' ? -v : v;
+		}
+		// Parenthesized sub-expression
+		if (input[pos] === '(') {
+			pos++; // consume '('
+			const v = parseExpr();
+			skipWs();
+			if (input[pos] === ')') pos++; // consume ')'
+			return v;
+		}
+		// Number (digits + optional decimal point)
+		let num = '';
+		while (pos < input.length && /[\d.]/.test(input[pos])) {
+			num += input[pos++];
+		}
+		if (num === '') throw new Error('Invalid amount');
+		return Number(num);
+	}
+
+	try {
+		const v = parseExpr();
+		skipWs();
+		if (pos !== input.length) throw new Error('Invalid amount'); // trailing chars
+		return v;
+	} catch {
+		throw new Error('Invalid amount');
+	}
 }

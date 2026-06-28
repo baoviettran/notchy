@@ -56,6 +56,15 @@ describe('parseAmount', () => {
 		it('evaluates subtraction', () => {
 			expect(parseAmount('100-30', 'vi')).toBe(70);
 		});
+
+		it('respects operator precedence and parentheses', () => {
+			expect(parseAmount('5*(3+2)', 'vi')).toBe(25);
+		});
+
+		it('handles leading unary minus', () => {
+			// -5+10 = 5, still > 0 so valid
+			expect(parseAmount('-5+10', 'vi')).toBe(5);
+		});
 	});
 
 	describe('rounding', () => {

@@ -10,7 +10,6 @@
     "sql:allow-select",
     "fs:default",
     "fs:allow-write-text-file",
-    "fs:allow-read-text-file",
     "dialog:default",
     "dialog:allow-save",
     "dialog:allow-open"

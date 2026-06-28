@@ -4,7 +4,7 @@
 	import { save, open } from '@tauri-apps/plugin-dialog';
 	import { writeTextFile } from '@tauri-apps/plugin-fs';
 	import { getDb } from '$lib/db';
-	import { exportCsv } from '$lib/backup';
+	import { exportCsv, importDatabase } from '$lib/backup';
 	import { toast } from '$lib/stores/toast.svelte';
 
 	let confirmImport = $state(false);
@@ -46,15 +46,26 @@
 		}
 	}
 
-	async function importDatabase() {
+	async function importDb() {
 		try {
 			const path = await open({
 				filters: [{ name: 'SQLite Database', extensions: ['sqlite', 'db'] }]
 			});
 			if (!path) return;
-			toast.show('Import requires app restart. Please copy the file manually to the data directory.');
+			busy = true;
+			const result = await importDatabase(path, 3);
+			if (!result.valid) {
+				toast.show(`Import rejected: ${result.error}`);
+				return;
+			}
+			toast.show('Database imported. Reloading…');
+			// The live connection was closed and the file replaced; reload the app
+			// so getDb() reopens the new database and migrations re-run.
+			setTimeout(() => globalThis.location.reload(), 800);
 		} catch (e) {
 			toast.show(`Import failed: ${e}`);
+		} finally {
+			busy = false;
 		}
 	}
 </script>
@@ -91,5 +102,5 @@
 	title="Replace database?"
 	message="Importing will REPLACE all current data. Make sure you've exported a backup first. Continue?"
 	confirmLabel="Continue"
-	onconfirm={importDatabase}
+	onconfirm={importDb}
 />

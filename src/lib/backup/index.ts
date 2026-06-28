@@ -161,9 +161,61 @@ export async function validateImport(importDb: DatabaseService, expectedVersion:
 	return { valid: true };
 }
 
-function csvEscape(value: string): string {
-	if (value.includes(',') || value.includes('"') || value.includes('\n')) {
-		return `"${value.replace(/"/g, '""')}"`;
+/**
+ * Import a database file: validate it in a read-only connection, and only on
+ * success copy it over the live `notchy.db`. The caller must close the live DB
+ * connection and reload after this resolves. Never touches the live DB on
+ * validation failure. Throws on any error (caller surfaces the message).
+ */
+export async function importDatabase(
+	sourcePath: string,
+	expectedVersion: number
+): Promise<{ valid: boolean; error?: string }> {
+	const { createTauriDb } = await import('../db/service');
+	const { closeDb } = await import('../db');
+
+	// Open the candidate file READ-ONLY. The Tauri SQL plugin (sqlite variant)
+	// honors `?readonly` on the connection string, preventing any write to the
+	// source during validation.
+	let importDb;
+	try {
+		importDb = await createTauriDb(`sqlite:${sourcePath}?readonly`);
+	} catch {
+		// Fallback: some plugin builds don't parse ?readonly; open without it —
+		// validateImport only reads, so the source is still untouched.
+		importDb = await createTauriDb(`sqlite:${sourcePath}`);
 	}
-	return value;
+
+	try {
+		const validation = await validateImport(importDb, expectedVersion);
+		if (!validation.valid) return validation;
+
+		// Validated: replace the live DB. Resolve the live path and copy the
+		// source over it, then close the live connection so the next getDb()
+		// reopens the replaced file.
+		const { appDataDir, join } = await import('@tauri-apps/api/path');
+		const { copyFile } = await import('@tauri-apps/plugin-fs');
+		const dataDir = await appDataDir();
+		const livePath = await join(dataDir, 'notchy.db');
+		await closeDb();
+		await copyFile(sourcePath, livePath);
+		return { valid: true };
+	} finally {
+		await importDb.close();
+	}
+}
+
+function csvEscape(value: string): string {
+	// CSV formula injection: a value beginning with = + - @ or TAB/CR is
+	// interpreted as a formula by Excel/LibreOffice (e.g. =HYPERLINK to
+	// exfiltrate other cells). Prefix with a single quote — spreadsheets render
+	// it as text and hide the leading quote. Neutralize BEFORE quoting.
+	let escaped = value;
+	if (/^[=+\-@\t\r]/.test(escaped)) {
+		escaped = `'${escaped}`;
+	}
+	if (escaped.includes(',') || escaped.includes('"') || escaped.includes('\n')) {
+		return `"${escaped.replace(/"/g, '""')}"`;
+	}
+	return escaped;
 }
