@@ -78,6 +78,9 @@ export class InMemoryDatabase implements DatabaseService {
 			return result;
 		} catch (e) {
 			await this.execute(`ROLLBACK TO SAVEPOINT ${name}`);
+			// ROLLBACK TO rewinds but leaves the savepoint on the stack; RELEASE
+			// removes it. See service.ts for the full rationale.
+			await this.execute(`RELEASE SAVEPOINT ${name}`);
 			throw e;
 		}
 	}

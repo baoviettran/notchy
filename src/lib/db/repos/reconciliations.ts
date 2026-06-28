@@ -40,41 +40,35 @@ export async function reconcile(
 	const now = new Date().toISOString();
 	const today = now.split('T')[0];
 
-	let adjustment_transaction_id: string | null = null;
+	// The adjustment and the reconciliation record are one logical operation.
+	// Wrap both in a single transaction so a failure recording the audit row
+	// rolls back the balance-changing adjustment (and vice versa) — otherwise a
+	// partial failure silently skews the balance with no reconciliation record.
+	return db.transaction(async (tx) => {
+		let adjustment_transaction_id: string | null = null;
 
-	if (createAdjustment && discrepancy !== 0) {
-		adjustment_transaction_id = ulid();
-		const kind = discrepancy > 0 ? 'adjustment' : 'adjustment';
-		const amount = Math.abs(discrepancy);
-
-		// Positive discrepancy = we have more than expected (income-like adjustment)
-		// Negative discrepancy = we have less than expected (expense-like adjustment)
-		// Both stored as 'adjustment' kind with positive amount; sign handled by balance calc
-		// For adjustments, amount adds to balance, so negative discrepancy needs special handling
-		if (discrepancy > 0) {
-			await db.execute(
+		if (createAdjustment && discrepancy !== 0) {
+			adjustment_transaction_id = ulid();
+			const amount = Math.abs(discrepancy);
+			// Positive discrepancy = we have more than expected (adjustment adds).
+			// Negative discrepancy = we have less than expected (expense subtracts).
+			const kind = discrepancy > 0 ? 'adjustment' : 'expense';
+			await tx.execute(
 				`INSERT INTO transactions (id, kind, date, amount, account_id, tag_id, created_at, updated_at)
-				 VALUES (?, 'adjustment', ?, ?, ?, 'tag_reconciliation', ?, ?)`,
-				[adjustment_transaction_id, today, amount, accountId, now, now]
-			);
-		} else {
-			// Negative: create expense to reduce balance
-			await db.execute(
-				`INSERT INTO transactions (id, kind, date, amount, account_id, tag_id, created_at, updated_at)
-				 VALUES (?, 'expense', ?, ?, ?, 'tag_reconciliation', ?, ?)`,
-				[adjustment_transaction_id, today, amount, accountId, now, now]
+				 VALUES (?, ?, ?, ?, ?, 'tag_reconciliation', ?, ?)`,
+				[adjustment_transaction_id, kind, today, amount, accountId, now, now]
 			);
 		}
-	}
 
-	const reconciliation_id = ulid();
-	await db.execute(
-		`INSERT INTO reconciliations (id, account_id, date, expected_balance, actual_balance, adjustment_transaction_id, notes, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		[reconciliation_id, accountId, today, expectedBalance, actualBalance, adjustment_transaction_id, notes ?? null, now, now]
-	);
+		const reconciliation_id = ulid();
+		await tx.execute(
+			`INSERT INTO reconciliations (id, account_id, date, expected_balance, actual_balance, adjustment_transaction_id, notes, created_at, updated_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[reconciliation_id, accountId, today, expectedBalance, actualBalance, adjustment_transaction_id, notes ?? null, now, now]
+		);
 
-	return { discrepancy, reconciliation_id, adjustment_transaction_id };
+		return { discrepancy, reconciliation_id, adjustment_transaction_id };
+	});
 }
 
 export const LARGE_DISCREPANCY_THRESHOLD = 1_000_000;

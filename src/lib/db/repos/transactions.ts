@@ -123,10 +123,10 @@ export async function updateTransaction(db: DatabaseService, id: string, patch: 
 	if (!existing) throw new Error('Transaction not found');
 
 	const now = new Date().toISOString();
-	await applyPatch(db, id, patch, now);
+	await applyPatch(db, id, patch, now, existing);
 }
 
-async function applyPatch(db: DatabaseService, id: string, patch: Partial<NewTransaction>, now: string): Promise<void> {
+async function applyPatch(db: DatabaseService, id: string, patch: Partial<NewTransaction>, now: string, existing: Transaction): Promise<void> {
 	const sets: string[] = ['updated_at = ?'];
 	const params: unknown[] = [now];
 
@@ -135,6 +135,16 @@ async function applyPatch(db: DatabaseService, id: string, patch: Partial<NewTra
 	if (patch.tag_id !== undefined) { sets.push('tag_id = ?'); params.push(patch.tag_id); }
 	if (patch.payee !== undefined) { sets.push('payee = ?'); params.push(patch.payee); }
 	if (patch.description !== undefined) { sets.push('description = ?'); params.push(patch.description); }
+	if (patch.transfer_account_id !== undefined) {
+		// Repointing a transfer's destination. Reject self-transfers (source ==
+		// destination): they neither move money nor balance to zero in the
+		// single-row transfer model, and the balance query would double-count.
+		if (patch.transfer_account_id === existing.account_id) {
+			throw new Error('Transfer destination must differ from source');
+		}
+		sets.push('transfer_account_id = ?');
+		params.push(patch.transfer_account_id);
+	}
 
 	if (sets.length === 1) return; // only updated_at
 	params.push(id);

@@ -30,6 +30,9 @@ export class TestDatabase implements DatabaseService {
 			return result;
 		} catch (e) {
 			this.db.exec(`ROLLBACK TO SAVEPOINT ${name}`);
+			// ROLLBACK TO leaves the savepoint on the stack; RELEASE removes it.
+			// Mirrors the production TauriDatabase / InMemoryDatabase contract.
+			this.db.exec(`RELEASE SAVEPOINT ${name}`);
 			throw e;
 		}
 	}

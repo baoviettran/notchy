@@ -37,6 +37,10 @@ export class TauriDatabase implements DatabaseService {
 			return result;
 		} catch (e) {
 			await this.execute(`ROLLBACK TO SAVEPOINT ${name}`);
+			// ROLLBACK TO rewinds but leaves the savepoint on SQLite's stack.
+			// RELEASE removes it, preventing a stack leak across errored
+			// top-level transactions (which no outer RELEASE would otherwise mop up).
+			await this.execute(`RELEASE SAVEPOINT ${name}`);
 			throw e;
 		}
 	}

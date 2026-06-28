@@ -110,6 +110,30 @@ describe('updateTransaction', () => {
 		const tx = await repo.getTransaction(db, id);
 		expect(tx!.amount).toBe(200000);
 	});
+
+	it('updates a transfer destination account', async () => {
+		// Repointing a transfer's destination must change transfer_account_id.
+		// Bug today: applyPatch ignores transfer_account_id, so the edit is
+		// silently dropped while the UI shows the new destination.
+		await seedAccount('acc3', 'Third');
+		const id = await repo.createTransaction(db, {
+			kind: 'transfer', date: TODAY, amount: 100000, account_id: 'acc1', transfer_account_id: 'acc2'
+		});
+		await repo.updateTransaction(db, id, { transfer_account_id: 'acc3' });
+
+		const tx = await repo.getTransaction(db, id);
+		expect(tx!.transfer_account_id).toBe('acc3');
+	});
+
+	it('rejects updating a transfer to point at its own source (self-transfer)', async () => {
+		await seedAccount('acc3', 'Third');
+		const id = await repo.createTransaction(db, {
+			kind: 'transfer', date: TODAY, amount: 100000, account_id: 'acc1', transfer_account_id: 'acc2'
+		});
+		await expect(repo.updateTransaction(db, id, { transfer_account_id: 'acc1' })).rejects.toThrow(
+			'Transfer destination must differ from source'
+		);
+	});
 });
 
 describe('deleteTransaction', () => {
