@@ -135,13 +135,13 @@
 
 <div class="space-y-4">
 	{#if error}
-		<p class="text-sm text-red-500">{error}</p>
+		<p class="text-sm text-debit">{error}</p>
 	{/if}
 
 	<div class="flex flex-wrap gap-2">
 		{#each kinds as k}
 			<button onclick={() => kind = k.value as TransactionKind} disabled={isEdit}
-				class="px-3 py-1.5 text-sm rounded-md border transition-colors {kind === k.value ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 font-medium' : 'border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400'} {isEdit ? 'cursor-not-allowed opacity-60' : ''}"
+				class="px-3 py-1.5 text-sm rounded-md border transition-colors {kind === k.value ? 'border-phosphor bg-phosphor/10 text-phosphor-bright font-medium' : 'border-line text-dim hover:text-ledger'} {isEdit ? 'cursor-not-allowed opacity-60' : ''}"
 			>{k.label}</button>
 		{/each}
 	</div>

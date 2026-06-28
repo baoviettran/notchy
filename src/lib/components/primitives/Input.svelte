@@ -7,18 +7,18 @@
 	const inputId = id || `input-${Math.random().toString(36).slice(2, 9)}`;
 </script>
 
-<div class="space-y-1">
+<div class="space-y-1.5">
 	{#if label}
-		<label for={inputId} class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">{label}</label>
+		<label for={inputId} class="plate block">{label}</label>
 	{/if}
 	<input
 		id={inputId} {type} {placeholder} {disabled} {maxlength} bind:value
 		class="w-full px-3 py-2 text-base rounded-md border transition-colors
-			{error ? 'border-red-500' : 'border-zinc-200 dark:border-zinc-700'}
-			bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50
-			focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
+			{error ? 'border-debit' : 'border-line'}
+			bg-ink text-ledger placeholder:text-dim/60
+			disabled:opacity-50"
 	/>
 	{#if error}
-		<p class="text-xs text-red-500">{error}</p>
+		<p class="text-xs text-debit">{error}</p>
 	{/if}
 </div>

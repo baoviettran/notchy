@@ -41,17 +41,18 @@
 <svelte:window onkeydown={onKeydown} />
 
 {#if !dbStore.ready}
-	<div class="h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-900">
-		<p class="text-zinc-500">Loading...</p>
+	<div class="h-screen flex flex-col items-center justify-center bg-ink gap-3">
+		<div class="figures-glow text-2xl animate-flash">▮▮▮</div>
+		<p class="plate">Warming up</p>
 	</div>
 {:else if isOnboarding}
 	{@render children()}
 {:else}
-	<div class="h-screen flex flex-col bg-zinc-50 dark:bg-zinc-900">
+	<div class="h-screen flex flex-col bg-ink text-ledger">
 		<TopBar />
 		<div class="flex flex-1 overflow-hidden">
 			<Sidebar />
-			<main class="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6 max-w-5xl mx-auto w-full">
+			<main class="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8 max-w-5xl mx-auto w-full">
 				{@render children()}
 			</main>
 		</div>

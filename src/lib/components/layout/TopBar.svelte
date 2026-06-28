@@ -2,19 +2,30 @@
 	let { onMenuToggle = () => {} }: { onMenuToggle?: () => void } = $props();
 </script>
 
-<header class="h-14 flex items-center px-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 shrink-0">
-	<button class="md:hidden mr-3 p-1 text-zinc-600 dark:text-zinc-400" onclick={onMenuToggle} aria-label="Menu">☰</button>
-	<span class="text-lg font-semibold text-zinc-900 dark:text-zinc-50 md:hidden">Notchy</span>
-	<div class="flex-1"></div>
+<header class="h-14 flex items-center gap-3 px-4 border-b border-line bg-tape shrink-0">
+	<button class="md:hidden p-1.5 -ml-1 text-dim hover:text-ledger" onclick={onMenuToggle} aria-label="Menu">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" class="w-5 h-5"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+	</button>
+	<a href="/" class="md:hidden flex items-center gap-2">
+		<span class="figures-glow text-base leading-none">▮</span>
+		<span class="figures text-ledger tracking-wide">Notchy</span>
+	</a>
 	<div class="hidden md:block flex-1 max-w-md mx-auto">
-		<input
-			type="search"
-			placeholder="Search..."
-			class="w-full px-3 py-1.5 text-sm rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-		/>
+		<label class="relative block">
+			<span class="sr-only">Search</span>
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-dim pointer-events-none"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" stroke-linecap="round" /></svg>
+			<input
+				type="search"
+				placeholder="Search transactions, payees…"
+				class="w-full pl-8 pr-3 py-1.5 text-sm rounded-md border border-line bg-ink text-ledger placeholder:text-dim/70"
+			/>
+		</label>
 	</div>
+	<div class="flex-1 md:hidden"></div>
 	<div class="flex items-center gap-2">
-		<button class="md:hidden p-1 text-zinc-600 dark:text-zinc-400" aria-label="Search">🔍</button>
-		<button class="px-2 py-1 text-xs font-medium rounded border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400">EN</button>
+		<button class="md:hidden p-1.5 text-dim hover:text-ledger" aria-label="Search">
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-5 h-5"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" stroke-linecap="round" /></svg>
+		</button>
+		<button class="plate px-2 py-1 rounded border border-line text-dim hover:text-ledger">EN</button>
 	</div>
 </header>

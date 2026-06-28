@@ -2,22 +2,30 @@
 	import { page } from '$app/stores';
 
 	const tabs = [
-		{ href: '/', label: 'Home', icon: '🏠' },
-		{ href: '/transactions', label: 'Trans', icon: '📋' },
-		{ href: '/budgets', label: 'Budget', icon: '💰' },
-		{ href: '/reports', label: 'Reports', icon: '📊' }
+		{ href: '/', label: 'Home', d: 'M3 12h7V3H3zM14 21h7v-9h-7zM14 3v6h7V3zM3 21h7v-3H3z' },
+		{ href: '/transactions', label: 'Trans', d: 'M4 6h16M4 12h16M4 18h10' },
+		{ href: '/budgets', label: 'Budget', d: 'M3 17l5-5 4 4 8-8M21 8v5h-5' },
+		{ href: '/reports', label: 'Reports', d: 'M4 20V10M10 20V4M16 20v-7M22 20H2' }
 	];
+
+	function isActive(href: string, path: string): boolean {
+		return href === '/' ? path === '/' : path === href || path.startsWith(href + '/');
+	}
 </script>
 
-<nav class="md:hidden fixed bottom-0 left-0 right-0 h-14 bg-white dark:bg-zinc-800 border-t border-zinc-200 dark:border-zinc-800 flex z-30">
+<nav class="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-tape/95 backdrop-blur border-t border-line flex z-30 pb-[env(safe-area-inset-bottom)]">
 	{#each tabs as tab}
+		{@const active = isActive(tab.href, $page.url.pathname)}
 		<a
 			href={tab.href}
-			class="flex-1 flex flex-col items-center justify-center text-xs transition-colors
-				{$page.url.pathname === tab.href ? 'text-emerald-600' : 'text-zinc-500 dark:text-zinc-400'}"
+			aria-current={active ? 'page' : undefined}
+			class="flex-1 flex flex-col items-center justify-center gap-1 text-[10px] transition-colors
+				{active ? 'text-phosphor-bright' : 'text-dim'}"
 		>
-			<span class="text-lg">{tab.icon}</span>
-			<span>{tab.label}</span>
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 {active ? 'text-phosphor' : ''}">
+				<path d={tab.d} />
+			</svg>
+			<span class="tracking-wide">{tab.label}</span>
 		</a>
 	{/each}
 </nav>

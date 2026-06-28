@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Progress from '$lib/components/primitives/Progress.svelte';
-	import Button from '$lib/components/primitives/Button.svelte';
-	import Input from '$lib/components/primitives/Input.svelte';
 	import TransactionForm from '$lib/components/forms/TransactionForm.svelte';
 	import FrequentTransactions from '$lib/components/sections/FrequentTransactions.svelte';
 	import { accounts } from '$lib/stores/accounts.svelte';
@@ -10,107 +8,174 @@
 	import { transactions } from '$lib/stores/transactions.svelte';
 	import { goals } from '$lib/stores/goals.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
-	import { formatCurrency } from '$lib/utils/currency';
+	import { formatCurrency, formatNumber } from '$lib/utils/currency';
 
-	let recentTxns = $derived(transactions.items.slice(0, 5));
+	let recentTxns = $derived(transactions.items.slice(0, 6));
 	let totalAssets = $derived(accounts.assets.reduce((s, a) => s + a.balance, 0));
 	let totalLiabilities = $derived(accounts.liabilities.reduce((s, a) => s + Math.abs(a.balance), 0));
+	let netPosition = $derived(totalAssets - totalLiabilities);
 	let totalAllocated = $derived(budgets.items.reduce((s, b) => s + b.allocated, 0));
 	let totalSpent = $derived(budgets.items.reduce((s, b) => s + b.spent, 0));
 	let budgetPct = $derived(totalAllocated > 0 ? Math.round((totalSpent / totalAllocated) * 100) : 0);
+
+	// This-month net flow from recent visible transactions (income − expense),
+	// shown as a directional delta beside the net figure.
+	let monthFlow = $derived(
+		transactions.items
+			.filter((t) => t.kind === 'income' || t.kind === 'expense')
+			.reduce((s, t) => s + (t.kind === 'income' ? t.amount : -t.amount), 0)
+	);
+
+	// Magnitude ladder: order-of-magnitude ticks framing where the net figure sits.
+	// Encodes the integer-counting model — the adding machine always knows its scale.
+	const LADDER = [
+		{ label: '100K', pow: 100_000 },
+		{ label: '1M', pow: 1_000_000 },
+		{ label: '10M', pow: 10_000_000 },
+		{ label: '100M', pow: 100_000_000 },
+		{ label: '1B', pow: 1_000_000_000 }
+	];
+	let activeRung = $derived(() => {
+		const abs = Math.abs(netPosition);
+		let idx = 0;
+		for (let i = 0; i < LADDER.length; i++) if (abs >= LADDER[i].pow) idx = i;
+		return idx;
+	});
 
 	onMount(async () => {
 		await Promise.all([accounts.load(), budgets.load(), transactions.load({ limit: 5 }), goals.load()]);
 	});
 </script>
 
-<div class="space-y-6">
-	<h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Dashboard</h1>
+<div class="space-y-5">
+	<header class="flex items-center justify-between">
+		<h1 class="plate">Dashboard</h1>
+		<span class="plate">{budgets.month}</span>
+	</header>
 
-	<!-- Budget Snapshot -->
-	<a href="/budgets" class="block bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-3 hover:border-zinc-300 transition-colors">
-		<div class="flex items-center justify-between">
-			<h2 class="text-sm font-medium text-zinc-500 dark:text-zinc-400">This Month</h2>
-			<span class="text-xs text-zinc-400">{budgets.month}</span>
+	<!-- SIGNATURE: net position as a VFD display, flanked by a magnitude ladder. -->
+	<section class="surface rounded-lg p-5 md:p-6 relative overflow-hidden">
+		<div class="flex items-center justify-between mb-4">
+			<h2 class="plate">Net position</h2>
+			<a href="/accounts" class="plate hover:text-ledger transition-colors">Accounts →</a>
+		</div>
+
+		<div class="flex items-end justify-between gap-4">
+			<div class="min-w-0">
+				<div class="figures-glow text-4xl md:text-5xl leading-none break-all">
+					{formatCurrency(netPosition, settings.currency, settings.locale)}
+				</div>
+				<div class="mt-3 flex items-center gap-2 text-sm">
+					<span class="figures {monthFlow >= 0 ? 'text-phosphor' : 'text-debit'}">
+						{monthFlow >= 0 ? '▲' : '▼'} {formatNumber(Math.abs(monthFlow), settings.locale)}
+					</span>
+					<span class="text-dim">this month's flow</span>
+				</div>
+			</div>
+
+			<!-- Magnitude ladder: ticks at each order of magnitude, current bracket lit. -->
+			<div class="hidden sm:flex flex-col items-end gap-1 shrink-0 pb-1" aria-hidden="true">
+				{#each LADDER as rung, i}
+					<div class="flex items-center gap-2">
+						<span class="plate {activeRung() === i ? '!text-phosphor-bright' : ''}">{rung.label}</span>
+						<span class="block w-6 h-px {activeRung() === i ? 'bg-phosphor' : 'bg-line'}"></span>
+					</div>
+				{/each}
+			</div>
+		</div>
+
+		<div class="mt-5 pt-4 border-t border-line grid grid-cols-2 gap-4 text-sm">
+			<div>
+				<p class="plate mb-1">Assets</p>
+				<p class="figures text-ledger">{formatCurrency(totalAssets, settings.currency, settings.locale)}</p>
+			</div>
+			<div>
+				<p class="plate mb-1">Liabilities</p>
+				<p class="figures text-debit">{formatCurrency(totalLiabilities, settings.currency, settings.locale)}</p>
+			</div>
+		</div>
+	</section>
+
+	<!-- THIS MONTH: segmented budget meter. -->
+	<section class="surface rounded-lg p-5">
+		<div class="flex items-center justify-between mb-3">
+			<h2 class="plate">This month · spent / budget</h2>
+			<a href="/budgets" class="plate hover:text-ledger transition-colors">Budgets →</a>
 		</div>
 		{#if budgets.hasAllocations}
-			<div class="flex items-baseline gap-2">
-				<span class="text-2xl font-semibold text-zinc-900 dark:text-zinc-50 tabular-nums">{formatCurrency(totalSpent, settings.currency, settings.locale)}</span>
-				<span class="text-sm text-zinc-500">/ {formatCurrency(totalAllocated, settings.currency, settings.locale)}</span>
-				<span class="ml-auto text-sm text-zinc-500">{budgetPct}%</span>
+			<div class="flex items-baseline gap-3 mb-3">
+				<span class="figures-glow text-2xl leading-none">{formatCurrency(totalSpent, settings.currency, settings.locale)}</span>
+				<span class="text-sm text-dim figures">/ {formatCurrency(totalAllocated, settings.currency, settings.locale)}</span>
+				<span class="ml-auto plate">{budgetPct}%</span>
 			</div>
 			<Progress value={budgetPct} max={100} />
-			{#each budgets.items as b}
-				<div class="flex items-center justify-between text-xs text-zinc-500">
-					<span>{b.type_id.replace('bucket_', '')}</span>
-					<span class="tabular-nums">{formatCurrency(b.spent, settings.currency, settings.locale)} / {formatCurrency(b.allocated, settings.currency, settings.locale)}</span>
-				</div>
-			{/each}
+			<div class="mt-4 space-y-1.5">
+				{#each budgets.items.slice(0, 4) as b}
+					<div class="flex items-center justify-between text-xs">
+						<span class="text-dim">{b.type_id.replace('bucket_', '')}</span>
+						<span class="figures text-ledger">{formatCurrency(b.spent, settings.currency, settings.locale)} <span class="text-dim">/ {formatCurrency(b.allocated, settings.currency, settings.locale)}</span></span>
+					</div>
+				{/each}
+			</div>
 		{:else}
-			<p class="text-sm text-zinc-400">No budget set. <span class="text-emerald-600 hover:underline">Set up budget</span></p>
+			<p class="text-sm text-dim">No budget set. <a href="/budgets" class="text-phosphor hover:underline">Set up budget →</a></p>
 		{/if}
-	</a>
+	</section>
 
-	<!-- Inline Transaction Form -->
-	<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-3">
-		<h2 class="text-sm font-medium text-zinc-500 dark:text-zinc-400">+ Add transaction</h2>
+	<!-- QUICK ENTRY: the keypad. -->
+	<section class="surface rounded-lg p-5">
+		<h2 class="plate mb-3">Quick entry</h2>
 		<TransactionForm mode="quick" onclose={() => {}} onsave={async () => { await transactions.load({ limit: 5 }); }} />
-	</div>
+	</section>
 
-	<!-- Frequent Transactions -->
 	<FrequentTransactions />
 
-	<!-- Recent Transactions -->
-	<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-3">
-		<div class="flex items-center justify-between">
-			<h2 class="text-sm font-medium text-zinc-500 dark:text-zinc-400">Recent</h2>
-			<a href="/transactions" class="text-xs text-emerald-600 hover:underline">View all →</a>
+	<!-- RECENT: the ledger tape. -->
+	<section class="surface rounded-lg overflow-hidden">
+		<div class="flex items-center justify-between px-5 pt-4 pb-3">
+			<h2 class="plate">Recent</h2>
+			<a href="/transactions" class="plate hover:text-ledger transition-colors">View all →</a>
 		</div>
 		{#if recentTxns.length === 0}
-			<div class="text-center py-8 text-zinc-400">
-				<p class="text-3xl mb-2">📋</p>
-				<p class="text-sm">No transactions yet.</p>
+			<div class="px-5 pb-6 pt-2 text-dim">
+				<p class="figures-glow text-xl mb-1">▮▯▯▯</p>
+				<p class="text-sm">No transactions yet. Press <kbd class="figures text-phosphor">N</kbd> or tap + to log the first.</p>
 			</div>
 		{:else}
-			<div class="divide-y divide-zinc-100 dark:divide-zinc-700">
+			<ul class="divide-y divide-line border-t border-line">
 				{#each recentTxns as tx}
-					<div class="py-2 flex items-center justify-between">
-						<div>
-							<span class="text-sm text-zinc-900 dark:text-zinc-50">{tx.payee || tx.kind}</span>
-							<span class="text-xs text-zinc-400 ml-2">{tx.date}</span>
+					<li class="px-5 py-3 flex items-center justify-between gap-3">
+						<div class="min-w-0">
+							<p class="text-sm text-ledger truncate">{tx.payee || tx.kind}</p>
+							<p class="plate mt-0.5">{tx.date}</p>
 						</div>
-						<span class="text-sm tabular-nums {tx.kind === 'expense' ? 'text-red-500' : tx.kind === 'income' ? 'text-emerald-500' : 'text-zinc-500'}">
-							{tx.kind === 'expense' ? '-' : ''}{formatCurrency(tx.amount, settings.currency, settings.locale)}
+						<span class="figures text-sm shrink-0 {tx.kind === 'expense' ? 'text-debit' : tx.kind === 'income' ? 'text-phosphor' : 'text-dim'}">
+							{tx.kind === 'expense' ? '−' : tx.kind === 'income' ? '+' : ''}{formatCurrency(tx.amount, settings.currency, settings.locale)}
 						</span>
-					</div>
+					</li>
 				{/each}
-			</div>
+			</ul>
 		{/if}
-	</div>
+	</section>
 
-	<!-- Goals + Net Position -->
-	<div class="grid md:grid-cols-2 gap-4">
-		<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
-			<h2 class="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-3">Goals</h2>
-			{#if goals.dashboard.length === 0}
-				<p class="text-sm text-zinc-400">No goals yet. <a href="/goals" class="text-emerald-600 hover:underline">Create one</a></p>
-			{:else}
-				{#each goals.dashboard as g}
-					<div class="flex items-center justify-between text-sm py-1">
-						<span class="text-zinc-900 dark:text-zinc-50">{g.name}</span>
-						<span class="text-zinc-500">{g.progress_pct}%</span>
+	<!-- GOALS -->
+	{#if goals.dashboard.length > 0}
+		<section class="surface rounded-lg p-5">
+			<div class="flex items-center justify-between mb-3">
+				<h2 class="plate">Goals</h2>
+				<a href="/goals" class="plate hover:text-ledger transition-colors">View all →</a>
+			</div>
+			<div class="space-y-3">
+				{#each goals.dashboard.slice(0, 3) as g}
+					<div>
+						<div class="flex items-center justify-between text-sm mb-1">
+							<span class="text-ledger">{g.name}</span>
+							<span class="figures text-dim">{g.progress_pct}%</span>
+						</div>
+						<Progress value={g.progress_pct} max={100} size="sm" segments={16} />
 					</div>
 				{/each}
-			{/if}
-			<a href="/goals" class="text-xs text-emerald-600 hover:underline mt-2 inline-block">View all →</a>
-		</div>
-		<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
-			<h2 class="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-3">Net Position</h2>
-			<div class="space-y-1">
-				<div class="flex justify-between text-sm"><span class="text-zinc-600 dark:text-zinc-400">Assets</span><span class="text-zinc-900 dark:text-zinc-50 tabular-nums">{formatCurrency(totalAssets, settings.currency, settings.locale)}</span></div>
-				<div class="flex justify-between text-sm"><span class="text-zinc-600 dark:text-zinc-400">Liabilities</span><span class="text-zinc-900 dark:text-zinc-50 tabular-nums">{formatCurrency(totalLiabilities, settings.currency, settings.locale)}</span></div>
 			</div>
-			<a href="/accounts" class="text-xs text-emerald-600 hover:underline mt-2 inline-block">View accounts →</a>
-		</div>
-	</div>
+		</section>
+	{/if}
 </div>

@@ -43,18 +43,18 @@
 </script>
 
 {#if items.length >= 3}
-	<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
-		<h2 class="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-3">Frequent</h2>
+	<section class="surface rounded-lg p-5">
+		<h2 class="plate mb-3">Repeat · last 30 days</h2>
 		<div class="flex gap-2 overflow-x-auto pb-1">
 			{#each items as item}
 				<button
 					onclick={() => repeat(item)}
-					class="shrink-0 w-24 p-2 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:border-emerald-400 transition-colors text-center"
+					class="shrink-0 w-28 p-2.5 rounded-md border border-line bg-ink hover:border-phosphor/60 transition-colors text-left"
 				>
-					<div class="text-xs font-medium text-zinc-900 dark:text-zinc-50 truncate">{item.payee}</div>
-					<div class="text-xs text-zinc-500 tabular-nums mt-1">{formatCurrency(item.amount, settings.currency, settings.locale)}</div>
+					<div class="text-xs text-ledger truncate">{item.payee}</div>
+					<div class="figures text-xs text-phosphor mt-1">{formatCurrency(item.amount, settings.currency, settings.locale)}</div>
 				</button>
 			{/each}
 		</div>
-	</div>
+	</section>
 {/if}

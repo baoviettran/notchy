@@ -34,12 +34,12 @@ describe('Button', () => {
 
 	it('applies danger variant class', () => {
 		render(Button, { children: snip('Delete'), variant: 'danger' });
-		expect(screen.getByRole('button').className).toContain('bg-red-500');
+		expect(screen.getByRole('button').className).toContain('bg-debit');
 	});
 
 	it('applies primary variant class by default', () => {
 		render(Button, { children: snip('Save') });
-		expect(screen.getByRole('button').className).toContain('bg-emerald-600');
+		expect(screen.getByRole('button').className).toContain('bg-phosphor');
 	});
 
 	it('applies sm size class', () => {

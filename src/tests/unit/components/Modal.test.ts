@@ -18,12 +18,12 @@ describe('Modal', () => {
 
 	it('renders close button when title is provided', () => {
 		render(Modal, { open: true, title: 'Titled', children: snip('Body') });
-		expect(screen.getByText('✕')).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
 	});
 
 	it('omits title section when title is empty', () => {
 		render(Modal, { open: true, title: '', children: snip('Body') });
-		expect(screen.queryByText('✕')).not.toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument();
 	});
 
 	it('closes on Escape key', async () => {

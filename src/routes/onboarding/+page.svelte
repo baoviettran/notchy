@@ -62,46 +62,48 @@
 	}
 </script>
 
-<div class="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-900 p-4">
+<div class="min-h-screen flex items-center justify-center bg-ink p-4">
 	<div class="w-full max-w-md">
 		<div class="text-center mb-8">
-			<h1 class="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">Notchy</h1>
+			<div class="figures-glow text-3xl mb-2">▮</div>
+			<h1 class="figures text-2xl text-ledger tracking-wide">Notchy</h1>
+			<p class="plate mt-2">Local-first ledger</p>
 		</div>
 
 		{#if step === 1}
-			<div class="bg-white dark:bg-zinc-800 rounded-xl p-6 shadow-sm space-y-4">
-				<h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Choose your language</h2>
+			<div class="surface rounded-lg p-6 space-y-5">
+				<h2 class="figures text-ledger tracking-wide">{locale === 'vi' ? 'Chọn ngôn ngữ' : 'Choose your language'}</h2>
 				<div class="space-y-3">
 					<button onclick={() => locale = 'en'}
-						class="w-full p-4 rounded-lg border-2 text-left transition-colors {locale === 'en' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : 'border-zinc-200 dark:border-zinc-700'}">
-						<div class="font-medium text-zinc-900 dark:text-zinc-50">English</div>
-						<div class="text-sm text-zinc-500">Tracks finances in English</div>
+						class="w-full p-4 rounded-md border text-left transition-colors {locale === 'en' ? 'border-phosphor bg-phosphor/10' : 'border-line hover:border-dim'}">
+						<div class="font-medium text-ledger">English</div>
+						<div class="text-sm text-dim">Tracks finances in English</div>
 					</button>
 					<button onclick={() => locale = 'vi'}
-						class="w-full p-4 rounded-lg border-2 text-left transition-colors {locale === 'vi' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : 'border-zinc-200 dark:border-zinc-700'}">
-						<div class="font-medium text-zinc-900 dark:text-zinc-50">Tiếng Việt</div>
-						<div class="text-sm text-zinc-500">Quản lý tài chính bằng Tiếng Việt</div>
+						class="w-full p-4 rounded-md border text-left transition-colors {locale === 'vi' ? 'border-phosphor bg-phosphor/10' : 'border-line hover:border-dim'}">
+						<div class="font-medium text-ledger">Tiếng Việt</div>
+						<div class="text-sm text-dim">Quản lý tài chính bằng Tiếng Việt</div>
 					</button>
 				</div>
-				<div class="flex items-center justify-between pt-4">
-					<div class="flex gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span class="w-2 h-2 rounded-full bg-zinc-300"></span><span class="w-2 h-2 rounded-full bg-zinc-300"></span></div>
+				<div class="flex items-center justify-between pt-2">
+					<div class="flex gap-1.5"><span class="w-2 h-2 rounded-full bg-phosphor"></span><span class="w-2 h-2 rounded-full bg-line"></span><span class="w-2 h-2 rounded-full bg-line"></span></div>
 					<Button onclick={nextStep}>Continue →</Button>
 				</div>
 			</div>
 		{:else if step === 2}
-			<div class="bg-white dark:bg-zinc-800 rounded-xl p-6 shadow-sm space-y-4">
-				<h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-50">{locale === 'vi' ? 'Chọn đơn vị tiền tệ' : 'Choose your currency'}</h2>
-				<p class="text-sm text-zinc-500">{locale === 'vi' ? 'Tất cả tài khoản sẽ dùng chung đơn vị này.' : 'All accounts will share this currency.'}</p>
+			<div class="surface rounded-lg p-6 space-y-5">
+				<h2 class="figures text-ledger tracking-wide">{locale === 'vi' ? 'Chọn đơn vị tiền tệ' : 'Choose your currency'}</h2>
+				<p class="text-sm text-dim">{locale === 'vi' ? 'Tất cả tài khoản sẽ dùng chung đơn vị này.' : 'All accounts will share this currency.'}</p>
 				<div class="space-y-3">
 					{#each currencies as c}
 						<button onclick={() => currency = c.value}
-							class="w-full p-4 rounded-lg border-2 text-left transition-colors {currency === c.value ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : 'border-zinc-200 dark:border-zinc-700'}">
-							<span class="font-medium text-zinc-900 dark:text-zinc-50">{c.label}</span>
+							class="w-full p-4 rounded-md border text-left transition-colors {currency === c.value ? 'border-phosphor bg-phosphor/10' : 'border-line hover:border-dim'}">
+							<span class="font-medium text-ledger">{c.label}</span>
 						</button>
 					{/each}
 				</div>
-				<div class="flex items-center justify-between pt-4">
-					<div class="flex gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span class="w-2 h-2 rounded-full bg-zinc-300"></span></div>
+				<div class="flex items-center justify-between pt-2">
+					<div class="flex gap-1.5"><span class="w-2 h-2 rounded-full bg-phosphor"></span><span class="w-2 h-2 rounded-full bg-phosphor"></span><span class="w-2 h-2 rounded-full bg-line"></span></div>
 					<div class="flex gap-2">
 						<Button variant="ghost" onclick={() => step = 1}>← Back</Button>
 						<Button onclick={nextStep}>Continue →</Button>
@@ -109,17 +111,17 @@
 				</div>
 			</div>
 		{:else}
-			<div class="bg-white dark:bg-zinc-800 rounded-xl p-6 shadow-sm space-y-4">
-				<h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-50">{locale === 'vi' ? 'Tạo tài khoản đầu tiên' : 'Create your first account'}</h2>
-				<p class="text-sm text-zinc-500">{locale === 'vi' ? 'Nơi tiền của bạn được lưu trữ.' : 'This is where your money lives.'}</p>
-				<div class="space-y-3">
+			<div class="surface rounded-lg p-6 space-y-5">
+				<h2 class="figures text-ledger tracking-wide">{locale === 'vi' ? 'Tạo tài khoản đầu tiên' : 'Create your first account'}</h2>
+				<p class="text-sm text-dim">{locale === 'vi' ? 'Nơi tiền của bạn được lưu trữ.' : 'This is where your money lives.'}</p>
+				<div class="space-y-4">
 					<div>
 						<!-- svelte-ignore a11y_label_has_associated_control -->
-						<label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Type</label>
+						<label class="plate block mb-2">Type</label>
 						<div class="flex flex-wrap gap-2">
 							{#each accountTypes as t}
 								<button onclick={() => accountType = t.value}
-									class="px-3 py-1.5 text-sm rounded-md border transition-colors {accountType === t.value ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700' : 'border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400'}"
+									class="px-3 py-1.5 text-sm rounded-md border transition-colors {accountType === t.value ? 'border-phosphor bg-phosphor/10 text-phosphor-bright font-medium' : 'border-line text-dim hover:text-ledger'}"
 								>{t.label}</button>
 							{/each}
 						</div>
@@ -127,8 +129,8 @@
 					<Input label="Name" bind:value={accountName} placeholder="My Checking Account" />
 					<Input label="Initial balance (optional)" bind:value={initialBalance} placeholder="e.g. 5tr, 1000000" />
 				</div>
-				<div class="flex items-center justify-between pt-4">
-					<div class="flex gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span class="w-2 h-2 rounded-full bg-emerald-500"></span></div>
+				<div class="flex items-center justify-between pt-2">
+					<div class="flex gap-1.5"><span class="w-2 h-2 rounded-full bg-phosphor"></span><span class="w-2 h-2 rounded-full bg-phosphor"></span><span class="w-2 h-2 rounded-full bg-phosphor"></span></div>
 					<div class="flex gap-2">
 						<Button variant="ghost" onclick={() => step = 2}>← Back</Button>
 						<Button onclick={finish} disabled={!accountName || saving}>{locale === 'vi' ? 'Hoàn tất' : 'Finish setup'}</Button>

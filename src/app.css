@@ -2,6 +2,73 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===========================================================
+   Notchy — Adding Machine design system
+   Warm near-black casing, amber-phosphor figures, oxblood debit.
+   Dark is the native surface; light is the paper fallback.
+   =========================================================== */
+
+@layer base {
+	:root {
+		color-scheme: dark;
+	}
+
+	html {
+		background-color: #14110c;
+	}
+
+	body {
+		font-family: theme('fontFamily.sans');
+		font-variant-numeric: tabular-nums lining-nums;
+		-webkit-font-smoothing: antialiased;
+		text-rendering: optimizeLegibility;
+	}
+
+	/* Amber-phosphor VFD numerals: the adding-machine display. */
+	.figures {
+		font-family: theme('fontFamily.mono');
+		font-variant-numeric: tabular-nums lining-nums;
+		letter-spacing: -0.01em;
+	}
+	.figures-glow {
+		font-family: theme('fontFamily.mono');
+		font-variant-numeric: tabular-nums lining-nums;
+		color: #ffd79a;
+		text-shadow: 0 0 8px rgba(255, 180, 84, 0.45), 0 0 22px rgba(255, 180, 84, 0.18);
+	}
+
+	/* Engraved faceplate micro-label. */
+	.plate {
+		font-family: theme('fontFamily.mono');
+		text-transform: uppercase;
+		letter-spacing: 0.18em;
+		font-size: 0.6875rem; /* 11px */
+		color: #8a8170;
+	}
+
+	::selection {
+		background: rgba(255, 180, 84, 0.28);
+		color: #ffd79a;
+	}
+
+	/* Quiet, amber focus ring — visible against the dark casing. */
+	:focus-visible {
+		outline: none;
+		box-shadow: 0 0 0 2px #14110c, 0 0 0 3px rgba(255, 180, 84, 0.7);
+	}
+}
+
+@layer components {
+	/* Single card recipe so hierarchy is consistent across screens. */
+	.surface {
+		background-color: #1c1812;
+		border: 1px solid #2a2419;
+	}
+	.hairline {
+		border-color: #2a2419;
+	}
+}
+
 @layer utilities {
 	.animate-slide-up {
 		animation: slide-up 150ms ease-out;
@@ -12,6 +79,9 @@
 	.animate-in {
 		animation: scale-in 150ms ease-out;
 	}
+	.animate-flash {
+		animation: flash 480ms ease-out;
+	}
 }
 
 @keyframes slide-up {
@@ -20,18 +90,21 @@
 }
 
 @keyframes scale-in {
-	from { transform: scale(0.95); opacity: 0; }
+	from { transform: scale(0.96); opacity: 0; }
 	to { transform: scale(1); opacity: 1; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-	.animate-slide-up, .animate-scale-in, .animate-in {
-		animation: none;
-	}
+/* On repeat/save, a brief phosphor flicker — the machine registering a keypress. */
+@keyframes flash {
+	0% { text-shadow: 0 0 14px rgba(255, 180, 84, 0.9), 0 0 30px rgba(255, 180, 84, 0.4); }
+	100% { text-shadow: 0 0 8px rgba(255, 180, 84, 0.45), 0 0 22px rgba(255, 180, 84, 0.18); }
 }
 
-@layer base {
-	body {
-		font-variant-numeric: tabular-nums;
+@media (prefers-reduced-motion: reduce) {
+	.animate-slide-up, .animate-scale-in, .animate-in, .animate-flash {
+		animation: none;
+	}
+	.figures-glow {
+		text-shadow: none;
 	}
 }

@@ -30,12 +30,12 @@ describe('ConfirmDialog', () => {
 
 	it('shows danger variant button by default', () => {
 		render(ConfirmDialog, { open: true, title: 'Delete?', message: 'Sure?' });
-		expect(screen.getByText('Delete').className).toContain('bg-red-500');
+		expect(screen.getByText('Delete').className).toContain('bg-debit');
 	});
 
 	it('shows primary variant when danger=false', () => {
 		render(ConfirmDialog, { open: true, title: 'Confirm?', message: 'Sure?', danger: false, confirmLabel: 'OK' });
-		expect(screen.getByText('OK').className).toContain('bg-emerald-600');
+		expect(screen.getByText('OK').className).toContain('bg-phosphor');
 	});
 
 	it('uses custom confirmLabel', () => {
