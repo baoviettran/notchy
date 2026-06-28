@@ -11,6 +11,7 @@
 	let open = $state(false);
 	let inputEl: HTMLInputElement;
 	const listboxId = `listbox-${Math.random().toString(36).slice(2, 9)}`;
+	const inputId = `ac-${Math.random().toString(36).slice(2, 9)}`;
 
 	let filtered = $derived(
 		query
@@ -38,10 +39,10 @@
 
 <div class="relative space-y-1">
 	{#if label}
-		<!-- svelte-ignore a11y_label_has_associated_control -->
-		<label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">{label}</label>
+		<label for={inputId} class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">{label}</label>
 	{/if}
 	<input
+		id={inputId}
 		bind:this={inputEl}
 		type="text"
 		value={open ? query : displayValue}
