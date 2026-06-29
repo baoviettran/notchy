@@ -9,6 +9,7 @@
 	import { toast } from '$lib/stores/toast.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
 	import { formatDateRelative } from '$lib/utils/date';
+	import { labelFor } from '$lib/utils/tx-kind';
 	import type { Transaction } from '$lib/db/repos/transactions';
 	import * as m from '$lib/paraglide/messages';
 
@@ -73,6 +74,12 @@
 		<Button size="sm" onclick={onSearch}>{m.common_search()}</Button>
 	</div>
 
+	{#if displayItems.length > 0}
+		<p class="text-xs text-dim">
+			{displayItems.length === 0 ? m.transactions_count_none() : m.transactions_count_many({ count: displayItems.length })}
+		</p>
+	{/if}
+
 	<div class="bg-tape rounded-lg border border-line divide-y divide-line">
 		{#if displayItems.length === 0}
 			<div class="text-center py-12 text-dim">
@@ -84,12 +91,12 @@
 				<div class="p-4 flex items-center justify-between group">
 					<button onclick={() => openEdit(tx)} class="flex-1 text-left">
 						<div class="text-sm text-ledger flex items-center gap-2">
-							{tx.payee || tx.kind}
+							{tx.payee || labelFor(tx.kind)}
 							{#if tx.date > today}
 								<span class="text-[10px] px-1.5 py-0.5 rounded bg-phosphor/15 text-phosphor font-medium uppercase">{m.transactions_future()}</span>
 							{/if}
 						</div>
-						<div class="text-xs text-dim">{formatDateRelative(tx.date, settings.locale)} · {tx.kind}</div>
+						<div class="text-xs text-dim">{formatDateRelative(tx.date, settings.locale)} · {labelFor(tx.kind)}</div>
 					</button>
 					<span class="figures text-sm mr-3 {tx.kind === 'expense' ? 'text-debit' : tx.kind === 'income' ? 'text-phosphor' : 'text-dim'}">
 						{tx.kind === 'expense' ? '-' : ''}{formatCurrency(tx.amount, settings.currency, settings.locale)}

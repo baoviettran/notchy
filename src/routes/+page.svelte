@@ -9,6 +9,7 @@
 	import { goals } from '$lib/stores/goals.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { formatCurrency, formatNumber } from '$lib/utils/currency';
+	import { labelFor } from '$lib/utils/tx-kind';
 	import * as m from '$lib/paraglide/messages';
 
 	let recentTxns = $derived(transactions.items.slice(0, 6));
@@ -32,16 +33,7 @@
 	// doesn't already say.
 	// Human-readable fallback for transactions without a payee — name the entry
 	// by what it is to the person reading the list, never the raw system kind.
-	const KIND_LABELS: Record<string, () => string> = {
-		expense: m.forms_expense,
-		income: m.forms_income,
-		transfer: m.forms_transfer,
-		refund: m.forms_refund,
-		adjustment: m.forms_adjustment
-	};
-	function labelFor(kind: string): string {
-		return (KIND_LABELS[kind] ?? (() => kind))();
-	}
+	// (labelFor / KIND_LABELS live in src/lib/utils/tx-kind.ts.)
 
 	onMount(async () => {
 		await Promise.all([accounts.load(), budgets.load(), transactions.load({ limit: 5 }), goals.load()]);
