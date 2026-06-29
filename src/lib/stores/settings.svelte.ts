@@ -6,13 +6,14 @@ class SettingsStore {
 	locale = $state<Locale>('en');
 	currency = $state('VND');
 	firstRunComplete = $state(false);
-	theme = $state<'auto' | 'light' | 'dark'>('auto');
+	theme = $state<'auto' | 'light' | 'dark'>('light');
 
 	async load(): Promise<void> {
 		const db = await getDb();
 		this.locale = (await meta.getLocale(db)) as Locale;
 		this.currency = await meta.getCurrency(db);
 		this.firstRunComplete = await meta.isFirstRunComplete(db);
+		this.applyThemeClass();
 	}
 
 	async setLocale(locale: Locale): Promise<void> {
@@ -36,10 +37,13 @@ class SettingsStore {
 
 	setTheme(theme: 'auto' | 'light' | 'dark'): void {
 		this.theme = theme;
-		if (typeof document !== 'undefined') {
-			document.documentElement.classList.remove('light', 'dark');
-			if (theme !== 'auto') document.documentElement.classList.add(theme);
-		}
+		this.applyThemeClass();
+	}
+
+	private applyThemeClass(): void {
+		if (typeof document === 'undefined') return;
+		document.documentElement.classList.remove('light', 'dark');
+		if (this.theme !== 'auto') document.documentElement.classList.add(this.theme);
 	}
 }
 
