@@ -77,28 +77,28 @@
 
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
-		<h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Categories</h1>
+		<h1 class="figures text-xl text-ledger tracking-wide">Categories</h1>
 		<Button size="sm" onclick={openCreate}>+ Add tag</Button>
 	</div>
 
 	{#each categories.buckets as bucket}
 		{@const bucketTags = categories.tagsForBucket(bucket.id)}
 		<section>
-			<h2 class="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-2">{bucket.name}</h2>
-			<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-700">
+			<h2 class="plate mb-2">{bucket.name}</h2>
+			<div class="bg-tape rounded-lg border border-line divide-y divide-line">
 				{#if bucketTags.length === 0}
-					<p class="p-4 text-sm text-zinc-400">No tags yet.</p>
+					<p class="p-4 text-sm text-dim">No tags yet.</p>
 				{:else}
 					{#each bucketTags as tag}
 						<div class="p-3 flex items-center justify-between group">
 							<div>
-								<span class="text-sm text-zinc-900 dark:text-zinc-50">{tag.name}</span>
-								{#if tag.is_system}<span class="text-xs text-zinc-400 ml-2">system</span>{/if}
+								<span class="text-sm text-ledger">{tag.name}</span>
+								{#if tag.is_system}<span class="text-xs text-dim ml-2">system</span>{/if}
 							</div>
 							<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-								<button onclick={() => openEdit(tag)} class="text-xs text-zinc-500 hover:text-emerald-600 px-2">Edit</button>
+								<button onclick={() => openEdit(tag)} class="text-xs text-dim hover:text-phosphor px-2">Edit</button>
 								{#if !tag.is_system}
-									<button onclick={() => startDelete(tag)} class="text-xs text-zinc-500 hover:text-red-500 px-2">Delete</button>
+									<button onclick={() => startDelete(tag)} class="text-xs text-dim hover:text-debit px-2">Delete</button>
 								{/if}
 							</div>
 						</div>
@@ -123,7 +123,7 @@
 {#if confirmDelete}
 	<Modal open={true} title="Delete tag?">
 		<div class="space-y-4">
-			<p class="text-sm text-zinc-600 dark:text-zinc-400">
+			<p class="text-sm text-dim">
 				{#if affectedCount > 0}
 					{affectedCount} transactions reference this tag. Choose how to handle them:
 				{:else}
