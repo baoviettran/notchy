@@ -3,16 +3,16 @@
 	import * as m from '$lib/paraglide/messages';
 
 	const primaryNav = [
-		{ href: '/', key: 'dashboard', label: () => m.layout_dashboard() },
-		{ href: '/transactions', key: 'transactions', label: () => m.layout_transactions() },
-		{ href: '/budgets', key: 'budgets', label: () => m.layout_budgets() },
-		{ href: '/reports', key: 'reports', label: () => m.layout_reports() }
+		{ href: '/', key: 'dashboard', label: () => m.nav_dashboard() },
+		{ href: '/transactions', key: 'transactions', label: () => m.nav_transactions() },
+		{ href: '/budgets', key: 'budgets', label: () => m.nav_budgets() },
+		{ href: '/reports', key: 'reports', label: () => m.nav_reports() }
 	];
 	const secondaryNav = [
-		{ href: '/accounts', key: 'accounts', label: () => m.layout_accounts() },
-		{ href: '/goals', key: 'goals', label: () => m.layout_goals() },
-		{ href: '/debts', key: 'debts', label: () => m.layout_debts() },
-		{ href: '/settings', key: 'settings', label: () => m.layout_settings() }
+		{ href: '/accounts', key: 'accounts', label: () => m.nav_accounts() },
+		{ href: '/goals', key: 'goals', label: () => m.nav_goals() },
+		{ href: '/debts', key: 'debts', label: () => m.nav_debts() },
+		{ href: '/settings', key: 'settings', label: () => m.nav_settings() }
 	];
 
 	function isActive(href: string, path: string): boolean {
@@ -35,7 +35,7 @@
 <aside class="hidden md:flex flex-col w-60 border-r border-line bg-tape h-full">
 	<a href="/" class="flex items-center gap-2.5 px-5 h-14 border-b border-line">
 		<span class="figures-glow text-lg leading-none">▮</span>
-		<span class="figures text-ledger tracking-wide">Notchy</span>
+		<span class="figures text-ledger tracking-wide">{m.app_name()}</span>
 	</a>
 	<nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
 		<p class="plate px-3 pb-2 pt-1">{m.layout_ledger()}</p>

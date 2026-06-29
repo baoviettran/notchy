@@ -6,7 +6,7 @@
 		{ href: '/', label: m.layout_home(), d: 'M3 12h7V3H3zM14 21h7v-9h-7zM14 3v6h7V3zM3 21h7v-3H3z' },
 		{ href: '/transactions', label: m.layout_trans(), d: 'M4 6h16M4 12h16M4 18h10' },
 		{ href: '/budgets', label: m.layout_budget(), d: 'M3 17l5-5 4 4 8-8M21 8v5h-5' },
-		{ href: '/reports', label: m.layout_reports(), d: 'M4 20V10M10 20V4M16 20v-7M22 20H2' }
+		{ href: '/reports', label: m.nav_reports(), d: 'M4 20V10M10 20V4M16 20v-7M22 20H2' }
 	];
 
 	function isActive(href: string, path: string): boolean {

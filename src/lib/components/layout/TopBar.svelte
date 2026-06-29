@@ -10,7 +10,7 @@
 	</button>
 	<a href="/" class="md:hidden flex items-center gap-2">
 		<span class="figures-glow text-base leading-none">▮</span>
-		<span class="figures text-ledger tracking-wide">Notchy</span>
+		<span class="figures text-ledger tracking-wide">{m.app_name()}</span>
 	</a>
 	<div class="hidden md:block flex-1 max-w-md mx-auto">
 		<label class="relative block">

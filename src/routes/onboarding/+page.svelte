@@ -71,7 +71,7 @@
 	<div class="w-full max-w-md">
 		<div class="text-center mb-8">
 			<div class="figures-glow text-3xl mb-2">▮</div>
-			<h1 class="figures text-2xl text-ledger tracking-wide">Notchy</h1>
+			<h1 class="figures text-2xl text-ledger tracking-wide">{m.app_name()}</h1>
 			<p class="plate mt-2">{m.onboarding_local_first()}</p>
 		</div>
 

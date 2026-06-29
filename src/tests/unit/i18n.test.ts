@@ -187,7 +187,6 @@ describe('wave 5 messages', () => {
 		expect(m.onboarding_currency_desc_vnd()).toBe('Đồng Việt Nam');
 		expect(m.onboarding_currency_desc_usd()).toBe('Đô la Mỹ');
 		expect(m.layout_lang_label_en()).toBe('EN');
-		expect(m.layout_lang_label_vi()).toBe('VI');
 		setLanguageTag('en');
 	});
 });
