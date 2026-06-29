@@ -87,8 +87,16 @@ describe('formatDate', () => {
 });
 
 describe('formatDateRelative', () => {
+	/** Local calendar date as `YYYY-MM-DD` — matches formatDateRelative's convention. */
+	function localKey(d: Date): string {
+		const y = d.getFullYear();
+		const m = String(d.getMonth() + 1).padStart(2, '0');
+		const day = String(d.getDate()).padStart(2, '0');
+		return `${y}-${m}-${day}`;
+	}
+
 	it('returns Today for current date', () => {
-		const today = new Date().toISOString().split('T')[0];
+		const today = localKey(new Date());
 		setLanguageTag('en');
 		expect(formatDateRelative(today, 'en')).toBe('Today');
 		setLanguageTag('vi');
@@ -96,7 +104,9 @@ describe('formatDateRelative', () => {
 	});
 
 	it('returns Yesterday for previous day', () => {
-		const yesterday = new Date(Date.now() - 86_400_000).toISOString().split('T')[0];
+		const d = new Date();
+		d.setDate(d.getDate() - 1);
+		const yesterday = localKey(d);
 		setLanguageTag('en');
 		expect(formatDateRelative(yesterday, 'en')).toBe('Yesterday');
 		setLanguageTag('vi');

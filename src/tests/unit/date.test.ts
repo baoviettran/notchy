@@ -4,6 +4,14 @@ import { setLanguageTag } from '$lib/paraglide/runtime';
 
 afterEach(() => setLanguageTag('en'));
 
+/** Local calendar date as `YYYY-MM-DD` — matches formatDateRelative's convention. */
+function localKey(d: Date): string {
+	const y = d.getFullYear();
+	const m = String(d.getMonth() + 1).padStart(2, '0');
+	const day = String(d.getDate()).padStart(2, '0');
+	return `${y}-${m}-${day}`;
+}
+
 describe('formatDate', () => {
 	it('formats vi locale as dd/mm/yyyy', () => {
 		const result = formatDate('2026-01-15', 'vi');
@@ -26,13 +34,13 @@ describe('formatDate', () => {
 describe('formatDateRelative', () => {
 	it('returns "Today" for today in en locale', () => {
 		setLanguageTag('en');
-		const today = new Date().toISOString().slice(0, 10);
+		const today = localKey(new Date());
 		expect(formatDateRelative(today, 'en')).toBe('Today');
 	});
 
 	it('returns "Hôm nay" for today in vi locale', () => {
 		setLanguageTag('vi');
-		const today = new Date().toISOString().slice(0, 10);
+		const today = localKey(new Date());
 		expect(formatDateRelative(today, 'vi')).toBe('Hôm nay');
 	});
 
@@ -40,7 +48,7 @@ describe('formatDateRelative', () => {
 		setLanguageTag('en');
 		const d = new Date();
 		d.setDate(d.getDate() - 1);
-		const yesterday = d.toISOString().slice(0, 10);
+		const yesterday = localKey(d);
 		expect(formatDateRelative(yesterday, 'en')).toBe('Yesterday');
 	});
 
@@ -48,7 +56,7 @@ describe('formatDateRelative', () => {
 		setLanguageTag('vi');
 		const d = new Date();
 		d.setDate(d.getDate() - 1);
-		const yesterday = d.toISOString().slice(0, 10);
+		const yesterday = localKey(d);
 		expect(formatDateRelative(yesterday, 'vi')).toBe('Hôm qua');
 	});
 
@@ -56,7 +64,7 @@ describe('formatDateRelative', () => {
 		setLanguageTag('vi');
 		const d = new Date();
 		d.setDate(d.getDate() - 7);
-		const oldDate = d.toISOString().slice(0, 10);
+		const oldDate = localKey(d);
 		const result = formatDateRelative(oldDate, 'vi');
 		expect(result).toBe(formatDate(oldDate, 'vi'));
 	});
