@@ -8,6 +8,7 @@
 	import { toast } from '$lib/stores/toast.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
 	import { parseAmount } from '$lib/utils/number_parse';
+	import * as m from '$lib/paraglide/messages';
 
 	let editing = $state<string | null>(null);
 	let editValue = $state('');
@@ -39,10 +40,10 @@
 		try {
 			const parsed = editValue.trim() ? parseAmount(editValue, settings.locale, settings.currency) : 0;
 			await budgets.setAllocation(typeId, parsed);
-			toast.show('Budget updated.');
+			toast.show(m.budgets_updated());
 			editing = null;
 		} catch {
-			toast.show('Invalid amount.');
+			toast.show(m.validation_invalid_amount());
 		}
 	}
 
@@ -55,7 +56,7 @@
 
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
-		<h1 class="figures text-xl text-ledger tracking-wide">Budgets</h1>
+		<h1 class="figures text-xl text-ledger tracking-wide">{m.budgets_title()}</h1>
 		<div class="flex items-center gap-2 text-sm">
 			<button onclick={prevMonth} class="p-1 text-dim hover:text-ledger">◀</button>
 			<span class="figures font-medium text-ledger">{budgets.month}</span>
@@ -65,8 +66,8 @@
 
 	{#if !budgets.hasAllocations}
 		<div class="bg-phosphor/10 border border-phosphor/30 rounded-lg p-4 flex items-center justify-between">
-			<p class="text-sm text-phosphor">No budget set for this month.</p>
-			<Button size="sm" variant="secondary" onclick={() => budgets.copyFromPrevious()}>Copy from previous</Button>
+			<p class="text-sm text-phosphor">{m.budgets_no_budget_for_month()}</p>
+			<Button size="sm" variant="secondary" onclick={() => budgets.copyFromPrevious()}>{m.budgets_copy_from_previous()}</Button>
 		</div>
 	{/if}
 
@@ -99,8 +100,8 @@
 				</div>
 				<Progress value={pct} max={100} size="sm" />
 				<div class="flex justify-between text-xs text-dim">
-					<span>{pct}% used</span>
-					<span>{formatCurrency(remaining, settings.currency, settings.locale)} remaining</span>
+					<span>{pct}% {m.budgets_used()}</span>
+					<span>{formatCurrency(remaining, settings.currency, settings.locale)} {m.budgets_remaining()}</span>
 				</div>
 			</div>
 		{/each}

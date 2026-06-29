@@ -143,3 +143,13 @@ describe('transactions messages', () => {
 		setLanguageTag('en');
 	});
 });
+
+describe('wave 3 messages', () => {
+	it('renders budgets + reports + goals vi strings', () => {
+		setLanguageTag('vi');
+		expect(m.budgets_title()).toBe('Ngân sách');
+		expect(m.reports_net_cash_flow()).toBe('Dòng tiền thuần');
+		expect(m.goals_empty_state()).toBe('Tạo mục tiêu đầu tiên');
+		setLanguageTag('en');
+	});
+});
