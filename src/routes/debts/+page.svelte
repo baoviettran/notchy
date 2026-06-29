@@ -66,27 +66,27 @@
 </script>
 
 <div class="space-y-6">
-	<h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Debts</h1>
+	<h1 class="figures text-xl text-ledger tracking-wide">Debts</h1>
 
 	<section>
-		<h2 class="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-2">I Owe</h2>
+		<h2 class="plate mb-2">I Owe</h2>
 		{#if debts.i_owe.length === 0}
-			<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6 text-center text-zinc-400">
+			<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
 				<p class="text-sm">No debts. You're debt-free! 🎉</p>
 			</div>
 		{:else}
-			<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-700">
+			<div class="bg-tape rounded-lg border border-line divide-y divide-line">
 				{#each debts.i_owe as d}
 					<div class="p-4 flex items-center justify-between group">
 						<div>
-							<div class="text-sm font-medium text-zinc-900 dark:text-zinc-50">{d.counterparty}</div>
-							<div class="text-xs text-zinc-500">{d.name}</div>
+							<div class="text-sm font-medium text-ledger">{d.counterparty}</div>
+							<div class="text-xs text-dim">{d.name}</div>
 						</div>
 						<div class="flex items-center gap-2">
-							<span class="text-sm tabular-nums text-red-500">{formatCurrency(Math.abs(d.balance), settings.currency, settings.locale)}</span>
+							<span class="figures text-sm text-debit">{formatCurrency(Math.abs(d.balance), settings.currency, settings.locale)}</span>
 							<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-								<button onclick={() => openPayment(d)} class="text-xs text-emerald-600 hover:underline px-2">Pay</button>
-								<button onclick={() => openWriteoff(d)} class="text-xs text-zinc-500 hover:underline px-2">Write off</button>
+								<button onclick={() => openPayment(d)} class="text-xs text-phosphor hover:underline px-2">Pay</button>
+								<button onclick={() => openWriteoff(d)} class="text-xs text-dim hover:underline px-2">Write off</button>
 							</div>
 						</div>
 					</div>
@@ -96,24 +96,24 @@
 	</section>
 
 	<section>
-		<h2 class="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-2">Owed to Me</h2>
+		<h2 class="plate mb-2">Owed to Me</h2>
 		{#if debts.owed_to_me.length === 0}
-			<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6 text-center text-zinc-400">
+			<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
 				<p class="text-sm">No one owes you money.</p>
 			</div>
 		{:else}
-			<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-700">
+			<div class="bg-tape rounded-lg border border-line divide-y divide-line">
 				{#each debts.owed_to_me as d}
 					<div class="p-4 flex items-center justify-between group">
 						<div>
-							<div class="text-sm font-medium text-zinc-900 dark:text-zinc-50">{d.counterparty}</div>
-							<div class="text-xs text-zinc-500">{d.name}</div>
+							<div class="text-sm font-medium text-ledger">{d.counterparty}</div>
+							<div class="text-xs text-dim">{d.name}</div>
 						</div>
 						<div class="flex items-center gap-2">
-							<span class="text-sm tabular-nums text-emerald-600">{formatCurrency(d.balance, settings.currency, settings.locale)}</span>
+							<span class="figures text-sm text-phosphor">{formatCurrency(d.balance, settings.currency, settings.locale)}</span>
 							<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-								<button onclick={() => openPayment(d)} class="text-xs text-emerald-600 hover:underline px-2">Receive</button>
-								<button onclick={() => openWriteoff(d)} class="text-xs text-zinc-500 hover:underline px-2">Write off</button>
+								<button onclick={() => openPayment(d)} class="text-xs text-phosphor hover:underline px-2">Receive</button>
+								<button onclick={() => openWriteoff(d)} class="text-xs text-dim hover:underline px-2">Write off</button>
 							</div>
 						</div>
 					</div>
