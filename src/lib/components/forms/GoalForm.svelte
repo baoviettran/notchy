@@ -61,7 +61,7 @@
 </script>
 
 <div class="space-y-4">
-	{#if error}<p class="text-sm text-red-500">{error}</p>{/if}
+	{#if error}<p class="text-sm text-debit">{error}</p>{/if}
 
 	<Input label="Name" bind:value={name} placeholder="e.g. Vacation 2026" maxlength={64} />
 	<Select label="Type" bind:value={type} options={types} disabled={isEdit} />
