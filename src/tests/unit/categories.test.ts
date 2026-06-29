@@ -38,7 +38,7 @@ describe('renameBucket', () => {
 
 describe('deleteBucket', () => {
 	it('blocks deletion when bucket has active tags', async () => {
-		await expect(repo.deleteBucket(db, 'bucket_adjustments')).rejects.toThrow('active tags');
+		await expect(repo.deleteBucket(db, 'bucket_adjustments')).rejects.toMatchObject({ code: 'bucket_has_tags' });
 	});
 
 	it('deletes empty bucket', async () => {
@@ -110,7 +110,7 @@ describe('deleteTag', () => {
 	it('blocks deletion of system tags', async () => {
 		await expect(
 			repo.deleteTag(db, 'tag_initial_balance', 'uncategorise')
-		).rejects.toThrow('System tags cannot be deleted');
+		).rejects.toMatchObject({ code: 'system_tag_no_delete' });
 	});
 
 	it('uncategorise: soft-deletes tag, transactions keep tag_id', async () => {

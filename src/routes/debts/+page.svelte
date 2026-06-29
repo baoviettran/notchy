@@ -15,6 +15,7 @@
 	import { parseAmount } from '$lib/utils/number_parse';
 	import type { DebtAccount } from '$lib/db/repos/debts';
 	import * as m from '$lib/paraglide/messages';
+	import { mapError } from '$lib/utils/errors';
 
 	let showAction = $state(false);
 	let actionType = $state<'payment' | 'writeoff'>('payment');
@@ -57,7 +58,7 @@
 			}
 			showAction = false;
 		} catch (e) {
-			toast.show(String(e).replace('Error: ', ''));
+			toast.show(mapError(e));
 		} finally {
 			saving = false;
 		}

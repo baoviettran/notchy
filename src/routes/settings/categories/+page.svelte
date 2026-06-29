@@ -11,6 +11,7 @@
 	import { getTagTransactionInfo } from '$lib/db/repos/categories';
 	import type { Tag } from '$lib/db/repos/categories';
 	import * as m from '$lib/paraglide/messages';
+	import { mapError } from '$lib/utils/errors';
 
 	let showForm = $state(false);
 	let editing = $state<Tag | null>(null);
@@ -42,7 +43,7 @@
 			}
 			showForm = false;
 		} catch (e) {
-			toast.show(String(e).replace('Error: ', ''));
+			toast.show(mapError(e));
 		}
 	}
 
@@ -62,7 +63,7 @@
 			toast.show(m.categories_tag_deleted());
 			confirmDelete = null;
 		} catch (e) {
-			toast.show(String(e).replace('Error: ', ''));
+			toast.show(mapError(e));
 		}
 	}
 

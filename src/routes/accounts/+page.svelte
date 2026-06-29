@@ -10,6 +10,7 @@
 	import { formatCurrency } from '$lib/utils/currency';
 	import type { AccountWithBalance, AccountType } from '$lib/db/repos/accounts';
 	import * as m from '$lib/paraglide/messages';
+	import { mapError } from '$lib/utils/errors';
 
 	let showForm = $state(false);
 	let editing = $state<AccountWithBalance | null>(null);
@@ -43,7 +44,7 @@
 			await accounts.delete(confirmDelete.id);
 			toast.show(m.accounts_deleted_toast());
 		} catch (e) {
-			toast.show(String(e).replace('Error: ', ''));
+			toast.show(mapError(e));
 		}
 		confirmDelete = null;
 	}

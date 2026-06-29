@@ -274,5 +274,22 @@
 	"reports_compare_empty": "No comparison data. Add expenses in both months to compare.",
 	"reports_trend_empty": "No trend data yet. Add transactions across multiple months.",
 	"reports_expense": "Expense",
-	"reports_months": "{count} months"
+	"reports_months": "{count} months",
+	"errors_transfer_dest_required": "Transfer requires a destination account",
+	"errors_transfer_dest_differs": "Transfer destination must differ from source",
+	"errors_refund_not_expense": "Refund must reference an expense transaction",
+	"errors_refund_deleted_expense": "Refund must reference a non-deleted expense",
+	"errors_txn_not_found": "Transaction not found",
+	"errors_txn_not_found_deleted": "Transaction not found or not deleted",
+	"errors_account_not_found": "Account not found",
+	"errors_account_currency_mismatch": "All accounts must use the same currency. Existing accounts use {currency}",
+	"errors_account_type_asset_liability": "Cannot change between asset and liability types",
+	"errors_account_type_loan": "Cannot change to or from loan account types",
+	"errors_account_delete_linked_goals": "Cannot delete account: it is linked to {count} active goal(s): {names}. Delete or unlink the goal first.",
+	"errors_counterparty_required": "Counterparty is required for loan accounts",
+	"errors_bucket_has_tags": "Cannot delete bucket with active tags",
+	"errors_bucket_has_transactions": "Cannot delete bucket with active transactions",
+	"errors_tag_not_found": "Tag not found",
+	"errors_system_tag_no_delete": "System tags cannot be deleted",
+	"errors_unknown": "Something went wrong. Please try again."
 }

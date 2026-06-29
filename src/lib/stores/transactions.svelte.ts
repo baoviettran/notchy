@@ -2,6 +2,7 @@ import { getDb } from '$lib/db';
 import * as repo from '$lib/db/repos/transactions';
 import type { Transaction, NewTransaction, TransactionFilter } from '$lib/db/repos/transactions';
 import { toast } from '$lib/stores/toast.svelte';
+import { mapError } from '$lib/utils/errors';
 
 class TransactionsStore {
 	items = $state<Transaction[]>([]);
@@ -17,7 +18,7 @@ class TransactionsStore {
 			const db = await getDb();
 			this.items = await repo.listTransactions(db, this.lastFilter);
 		} catch (e) {
-			this.error = String(e);
+			this.error = mapError(e);
 		} finally {
 			this.loading = false;
 		}

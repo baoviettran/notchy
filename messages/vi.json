@@ -274,5 +274,22 @@
 	"reports_compare_empty": "Chưa có dữ liệu so sánh. Thêm chi tiêu ở cả hai tháng để so sánh.",
 	"reports_trend_empty": "Chưa có dữ liệu xu hướng. Thêm giao dịch qua nhiều tháng.",
 	"reports_expense": "Chi",
-	"reports_months": "{count} tháng"
+	"reports_months": "{count} tháng",
+	"errors_transfer_dest_required": "Chuyển khoản cần tài khoản đích",
+	"errors_transfer_dest_differs": "Tài khoản đích chuyển khoản phải khác tài khoản nguồn",
+	"errors_refund_not_expense": "Hoàn tiền phải tham chiếu đến một giao dịch chi tiêu",
+	"errors_refund_deleted_expense": "Hoàn tiền phải tham chiếu đến một giao dịch chi tiêu chưa bị xoá",
+	"errors_txn_not_found": "Không tìm thấy giao dịch",
+	"errors_txn_not_found_deleted": "Không tìm thấy giao dịch hoặc giao dịch chưa bị xoá",
+	"errors_account_not_found": "Không tìm thấy tài khoản",
+	"errors_account_currency_mismatch": "Tất cả tài khoản phải dùng cùng một loại tiền. Các tài khoản hiện dùng {currency}",
+	"errors_account_type_asset_liability": "Không thể đổi giữa loại tài sản và nợ phải trả",
+	"errors_account_type_loan": "Không thể đổi sang hoặc từ loại tài khoản vay",
+	"errors_account_delete_linked_goals": "Không thể xoá tài khoản: đang liên kết với {count} mục tiêu đang hoạt động: {names}. Hãy xoá hoặc bỏ liên kết mục tiêu trước.",
+	"errors_counterparty_required": "Bên vay là bắt buộc đối với tài khoản vay",
+	"errors_bucket_has_tags": "Không thể xoá nhóm khi còn nhãn đang dùng",
+	"errors_bucket_has_transactions": "Không thể xoá nhóm khi còn giao dịch đang dùng",
+	"errors_tag_not_found": "Không tìm thấy nhãn",
+	"errors_system_tag_no_delete": "Không thể xoá nhãn hệ thống",
+	"errors_unknown": "Đã xảy ra lỗi. Vui lòng thử lại."
 }

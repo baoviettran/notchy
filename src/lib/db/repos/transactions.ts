@@ -1,6 +1,7 @@
 import type { DatabaseService } from '../service';
 import { ulid } from '../../utils/id';
 import { stripControlChars } from '../../utils/sanitize';
+import { AppError } from '../../errors';
 
 export type TransactionKind = 'expense' | 'income' | 'transfer' | 'refund' | 'adjustment';
 
@@ -98,7 +99,7 @@ export async function createTransaction(db: DatabaseService, input: NewTransacti
 	const description = input.description != null ? stripControlChars(input.description) : null;
 
 	if (input.kind === 'transfer') {
-		if (!input.transfer_account_id) throw new Error('Transfer requires a destination account');
+		if (!input.transfer_account_id) throw new AppError('transfer_dest_required');
 		return createTransferPair(db, input, now);
 	}
 
@@ -124,10 +125,10 @@ async function validateRefundTarget(db: DatabaseService, refundOfId: string): Pr
 		[refundOfId]
 	);
 	if (rows.length === 0) {
-		throw new Error('Refund must reference a non-deleted expense');
+		throw new AppError('refund_deleted_expense');
 	}
 	if (rows[0].kind !== 'expense') {
-		throw new Error('Refund must reference an expense transaction');
+		throw new AppError('refund_not_expense');
 	}
 }
 
@@ -148,7 +149,7 @@ async function createTransferPair(db: DatabaseService, input: NewTransaction, no
 
 export async function updateTransaction(db: DatabaseService, id: string, patch: Partial<NewTransaction>): Promise<void> {
 	const existing = await getTransaction(db, id);
-	if (!existing) throw new Error('Transaction not found');
+	if (!existing) throw new AppError('txn_not_found');
 
 	const now = new Date().toISOString();
 	await applyPatch(db, id, patch, now, existing);
@@ -171,7 +172,7 @@ async function applyPatch(db: DatabaseService, id: string, patch: Partial<NewTra
 		// destination): they neither move money nor balance to zero in the
 		// single-row transfer model, and the balance query would double-count.
 		if (patch.transfer_account_id === existing.account_id) {
-			throw new Error('Transfer destination must differ from source');
+			throw new AppError('transfer_dest_differs');
 		}
 		sets.push('transfer_account_id = ?');
 		params.push(patch.transfer_account_id);
@@ -198,7 +199,7 @@ export async function restoreTransaction(db: DatabaseService, id: string): Promi
 		`SELECT id FROM transactions WHERE id = ? AND deleted_at IS NOT NULL`,
 		[id]
 	);
-	if (existing.length === 0) throw new Error('Transaction not found or not deleted');
+	if (existing.length === 0) throw new AppError('txn_not_found_deleted');
 
 	const now = new Date().toISOString();
 	await db.execute(
@@ -209,7 +210,7 @@ export async function restoreTransaction(db: DatabaseService, id: string): Promi
 
 export async function duplicateTransaction(db: DatabaseService, id: string): Promise<string> {
 	const existing = await getTransaction(db, id);
-	if (!existing) throw new Error('Transaction not found');
+	if (!existing) throw new AppError('txn_not_found');
 
 	return createTransaction(db, {
 		kind: existing.kind,

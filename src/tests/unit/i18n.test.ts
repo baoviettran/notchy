@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parseAmount } from '$lib/utils/number_parse';
 import { formatCurrency, formatNumber } from '$lib/utils/currency';
 import { formatDate, formatDateRelative } from '$lib/utils/date';
+import { AppError } from '$lib/errors';
 
 describe('parseAmount', () => {
 	it('parses plain numbers', () => {
@@ -39,17 +40,18 @@ describe('parseAmount', () => {
 	});
 
 	it('throws on empty input', () => {
-		expect(() => parseAmount('', 'en')).toThrow('Invalid amount');
+		expect(() => parseAmount('', 'en')).toThrow(AppError);
+		expect(() => parseAmount('', 'en')).toThrow(expect.objectContaining({ code: 'invalid_amount' }));
 	});
 
 	it('throws on zero or negative result', () => {
-		expect(() => parseAmount('0', 'en')).toThrow('Invalid amount');
-		expect(() => parseAmount('10-20', 'en')).toThrow('Invalid amount');
+		expect(() => parseAmount('0', 'en')).toThrow(expect.objectContaining({ code: 'invalid_amount' }));
+		expect(() => parseAmount('10-20', 'en')).toThrow(expect.objectContaining({ code: 'invalid_amount' }));
 	});
 
 	it('throws on invalid characters (security)', () => {
-		expect(() => parseAmount('alert(1)', 'en')).toThrow('Invalid amount');
-		expect(() => parseAmount('process.exit()', 'en')).toThrow('Invalid amount');
+		expect(() => parseAmount('alert(1)', 'en')).toThrow(expect.objectContaining({ code: 'invalid_amount' }));
+		expect(() => parseAmount('process.exit()', 'en')).toThrow(expect.objectContaining({ code: 'invalid_amount' }));
 	});
 });
 
@@ -211,5 +213,26 @@ describe('wave 6 messages', () => {
 		expect(m.reports_category()).toBe('Category');
 		expect(m.reports_change()).toBe('Change');
 		setLanguageTag('en');
+	});
+});
+
+import { mapError } from '$lib/utils/errors';
+
+describe('backend error mapping', () => {
+	it('maps AppError codes to localized strings', () => {
+		setLanguageTag('vi');
+		expect(mapError(new AppError('txn_not_found'))).toBe('Không tìm thấy giao dịch');
+		expect(mapError(new AppError('account_currency_mismatch', { currency: 'USD' }))).toBe('Tất cả tài khoản phải dùng cùng một loại tiền. Các tài khoản hiện dùng USD');
+		setLanguageTag('en');
+		expect(mapError(new AppError('txn_not_found'))).toBe('Transaction not found');
+	});
+	it('falls back to errors_unknown for non-AppError', () => {
+		setLanguageTag('en');
+		expect(mapError(new Error('something weird'))).toBe('Something went wrong. Please try again.');
+		expect(mapError('raw string')).toBe('Something went wrong. Please try again.');
+	});
+	it('falls back to errors_unknown for unknown AppError codes', () => {
+		setLanguageTag('en');
+		expect(mapError(new AppError('not_a_real_code'))).toBe('Something went wrong. Please try again.');
 	});
 });

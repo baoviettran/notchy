@@ -104,19 +104,19 @@ describe('parseAmount', () => {
 
 	describe('errors', () => {
 		it('throws on empty string', () => {
-			expect(() => parseAmount('', 'vi')).toThrow('Invalid amount');
+			expect(() => parseAmount('', 'vi')).toThrow(expect.objectContaining({ code: 'invalid_amount' }));
 		});
 
 		it('throws on negative result', () => {
-			expect(() => parseAmount('5-10', 'vi')).toThrow('Invalid amount');
+			expect(() => parseAmount('5-10', 'vi')).toThrow(expect.objectContaining({ code: 'invalid_amount' }));
 		});
 
 		it('throws on zero result', () => {
-			expect(() => parseAmount('0', 'vi')).toThrow('Invalid amount');
+			expect(() => parseAmount('0', 'vi')).toThrow(expect.objectContaining({ code: 'invalid_amount' }));
 		});
 
 		it('throws on invalid characters', () => {
-			expect(() => parseAmount('abc', 'vi')).toThrow('Invalid amount');
+			expect(() => parseAmount('abc', 'vi')).toThrow(expect.objectContaining({ code: 'invalid_amount' }));
 		});
 	});
 });

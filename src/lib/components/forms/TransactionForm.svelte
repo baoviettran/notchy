@@ -14,6 +14,7 @@
 	import { onMount } from 'svelte';
 	import type { Transaction, TransactionKind } from '$lib/db/repos/transactions';
 	import * as m from '$lib/paraglide/messages';
+	import { mapError } from '$lib/utils/errors';
 
 	let { mode = 'full', existing = null, onclose = () => {}, onsave = () => {} }: {
 		mode?: 'full' | 'quick';
@@ -127,7 +128,7 @@
 			onsave();
 			if (mode === 'full') onclose();
 		} catch (e) {
-			error = String(e).replace('Error: ', '');
+			error = mapError(e);
 		} finally {
 			saving = false;
 		}

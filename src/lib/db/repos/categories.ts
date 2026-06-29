@@ -1,5 +1,6 @@
 import type { DatabaseService } from '../service';
 import { ulid } from '../../utils/id';
+import { AppError } from '../../errors';
 
 export interface Bucket {
 	id: string;
@@ -62,7 +63,7 @@ export async function deleteBucket(db: DatabaseService, id: string): Promise<voi
 	const tags = await db.query<{ c: number }>(
 		`SELECT COUNT(*) AS c FROM category_tags WHERE type_id = ? AND deleted_at IS NULL`, [id]
 	);
-	if (tags[0].c > 0) throw new Error('Cannot delete bucket with active tags');
+	if (tags[0].c > 0) throw new AppError('bucket_has_tags');
 
 	// Check for active transactions referencing tags in this bucket
 	const txns = await db.query<{ c: number }>(
@@ -70,7 +71,7 @@ export async function deleteBucket(db: DatabaseService, id: string): Promise<voi
 		 JOIN category_tags ct ON t.tag_id = ct.id
 		 WHERE ct.type_id = ? AND t.deleted_at IS NULL`, [id]
 	);
-	if (txns[0].c > 0) throw new Error('Cannot delete bucket with active transactions');
+	if (txns[0].c > 0) throw new AppError('bucket_has_transactions');
 
 	const now = new Date().toISOString();
 	await db.execute(
@@ -141,8 +142,8 @@ export async function deleteTag(db: DatabaseService, id: string, option: 'uncate
 	const tag = await db.query<{ is_system: number }>(
 		`SELECT is_system FROM category_tags WHERE id = ? AND deleted_at IS NULL`, [id]
 	);
-	if (tag.length === 0) throw new Error('Tag not found');
-	if (tag[0].is_system === 1) throw new Error('System tags cannot be deleted');
+	if (tag.length === 0) throw new AppError('tag_not_found');
+	if (tag[0].is_system === 1) throw new AppError('system_tag_no_delete');
 
 	const now = new Date().toISOString();
 

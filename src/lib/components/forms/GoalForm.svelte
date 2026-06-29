@@ -10,6 +10,7 @@
 	import type { GoalWithProgress, GoalType } from '$lib/db/repos/goals';
 	import { onMount } from 'svelte';
 	import * as m from '$lib/paraglide/messages';
+	import { mapError } from '$lib/utils/errors';
 
 	let { goal = null, onclose = () => {} }: { goal?: GoalWithProgress | null; onclose?: () => void } = $props();
 
@@ -54,7 +55,7 @@
 			}
 			onclose();
 		} catch (e) {
-			error = String(e).replace('Error: ', '');
+			error = mapError(e);
 		} finally {
 			saving = false;
 		}

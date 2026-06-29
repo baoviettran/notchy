@@ -46,7 +46,7 @@ describe('createAccount', () => {
 	it('requires counterparty for loan_to_person', async () => {
 		await expect(
 			repo.createAccount(db, { name: 'Loan', type: 'loan_to_person', currency: 'VND' })
-		).rejects.toThrow('Counterparty is required');
+		).rejects.toMatchObject({ code: 'counterparty_required' });
 	});
 
 	it('allows loan with counterparty', async () => {
@@ -61,7 +61,7 @@ describe('createAccount', () => {
 		await repo.createAccount(db, { name: 'VND Account', type: 'checking', currency: 'VND' });
 		await expect(
 			repo.createAccount(db, { name: 'USD Account', type: 'checking', currency: 'USD' })
-		).rejects.toThrow('same currency');
+		).rejects.toMatchObject({ code: 'account_currency_mismatch' });
 	});
 });
 
@@ -148,14 +148,14 @@ describe('updateAccount', () => {
 		const id = await repo.createAccount(db, { name: 'Acc', type: 'checking', currency: 'VND' });
 		await expect(
 			repo.updateAccount(db, id, { type: 'credit_card' })
-		).rejects.toThrow('Cannot change between asset and liability');
+		).rejects.toMatchObject({ code: 'account_type_asset_liability' });
 	});
 
 	it('forbids changing to/from loan types', async () => {
 		const id = await repo.createAccount(db, { name: 'Acc', type: 'checking', currency: 'VND' });
 		await expect(
 			repo.updateAccount(db, id, { type: 'loan_to_person' })
-		).rejects.toThrow('Cannot change to or from loan');
+		).rejects.toMatchObject({ code: 'account_type_loan' });
 	});
 
 	it('archives an account', async () => {
@@ -190,7 +190,7 @@ describe('deleteAccount', () => {
 			[accId, now, now]
 		);
 
-		await expect(repo.deleteAccount(db, accId)).rejects.toThrow('linked to 1 active goal');
+		await expect(repo.deleteAccount(db, accId)).rejects.toMatchObject({ code: 'account_delete_linked_goals' });
 	});
 
 	it('allows delete when goal is completed', async () => {

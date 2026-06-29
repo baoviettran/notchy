@@ -1,5 +1,6 @@
 import type { DatabaseService } from '../service';
 import { ulid } from '../../utils/id';
+import { AppError } from '../../errors';
 
 export type AccountType = 'checking' | 'savings' | 'cash' | 'credit_card' | 'loan_to_person' | 'loan_from_person';
 
@@ -119,7 +120,7 @@ export async function getBalance(db: DatabaseService, accountId: string): Promis
 export async function createAccount(db: DatabaseService, input: NewAccount): Promise<string> {
 	// Validate counterparty required for loan types
 	if (LOAN_TYPES.includes(input.type) && !input.counterparty) {
-		throw new Error('Counterparty is required for loan accounts');
+		throw new AppError('counterparty_required');
 	}
 
 	// Single-currency rule: check existing accounts
@@ -160,7 +161,7 @@ export async function updateAccount(
 	patch: { name?: string; type?: AccountType; counterparty?: string | null; archived?: number }
 ): Promise<void> {
 	const existing = await getAccount(db, id);
-	if (!existing) throw new Error('Account not found');
+	if (!existing) throw new AppError('account_not_found');
 
 	// Validate type change rules
 	if (patch.type && patch.type !== existing.type) {
@@ -171,7 +172,7 @@ export async function updateAccount(
 	const newType = patch.type ?? existing.type;
 	if (LOAN_TYPES.includes(newType)) {
 		const newCounterparty = patch.counterparty !== undefined ? patch.counterparty : existing.counterparty;
-		if (!newCounterparty) throw new Error('Counterparty is required for loan accounts');
+		if (!newCounterparty) throw new AppError('counterparty_required');
 	}
 
 	const now = new Date().toISOString();
@@ -194,9 +195,10 @@ export async function deleteAccount(db: DatabaseService, id: string): Promise<vo
 		[id]
 	);
 	if (activeGoals.length > 0) {
-		throw new Error(
-			`Cannot delete account: it is linked to ${activeGoals.length} active goal(s): ${activeGoals.map((g) => g.name).join(', ')}. Delete or unlink the goal first.`
-		);
+		throw new AppError('account_delete_linked_goals', {
+			count: activeGoals.length,
+			names: activeGoals.map((g) => g.name).join(', ')
+		});
 	}
 
 	const now = new Date().toISOString();
@@ -210,9 +212,9 @@ function validateTypeChange(from: AccountType, to: AccountType): void {
 	const toIsLoan = LOAN_TYPES.includes(to);
 
 	// Cannot change between asset and liability
-	if (fromIsAsset !== toIsAsset) throw new Error('Cannot change between asset and liability types');
+	if (fromIsAsset !== toIsAsset) throw new AppError('account_type_asset_liability');
 	// Cannot change to/from loan types
-	if (fromIsLoan || toIsLoan) throw new Error('Cannot change to or from loan account types');
+	if (fromIsLoan || toIsLoan) throw new AppError('account_type_loan');
 }
 
 async function enforceSingleCurrency(db: DatabaseService, currency: string): Promise<void> {
@@ -220,6 +222,6 @@ async function enforceSingleCurrency(db: DatabaseService, currency: string): Pro
 		`SELECT DISTINCT currency FROM accounts WHERE deleted_at IS NULL LIMIT 1`
 	);
 	if (rows.length > 0 && rows[0].currency !== currency) {
-		throw new Error(`All accounts must use the same currency. Existing accounts use ${rows[0].currency}`);
+		throw new AppError('account_currency_mismatch', { currency: rows[0].currency });
 	}
 }

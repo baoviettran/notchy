@@ -8,6 +8,7 @@
 	import { parseAmount } from '$lib/utils/number_parse';
 	import type { AccountWithBalance, AccountType } from '$lib/db/repos/accounts';
 	import * as m from '$lib/paraglide/messages';
+	import { mapError } from '$lib/utils/errors';
 
 	let { account = null, onclose = () => {} }: { account?: AccountWithBalance | null; onclose?: () => void } = $props();
 
@@ -54,7 +55,7 @@
 			}
 			onclose();
 		} catch (e) {
-			error = String(e).replace('Error: ', '');
+			error = mapError(e);
 		} finally {
 			saving = false;
 		}

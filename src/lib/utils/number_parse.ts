@@ -1,3 +1,5 @@
+import { AppError } from '$lib/errors';
+
 export type Locale = 'en' | 'vi';
 
 /** Fraction digits per currency (smallest-unit storage). Mirrors currency.ts. */
@@ -20,7 +22,7 @@ const FRACTION_DIGITS: Record<string, number> = {
  */
 export function parseAmount(input: string, locale: Locale, currency: string = 'VND'): number {
 	const cleaned = input.replace(/[\s,]/g, '');
-	if (cleaned === '') throw new Error('Invalid amount');
+	if (cleaned === '') throw new AppError('invalid_amount');
 
 	// Expand locale-aware shortcuts
 	const expanded = cleaned.replace(/(\d+(?:\.\d+)?)(tr|k|m)/gi, (_, num, unit) => {
@@ -32,7 +34,7 @@ export function parseAmount(input: string, locale: Locale, currency: string = 'V
 	});
 
 	// Strict character whitelist — only digits, operators, parens, dots
-	if (!/^[\d+\-*/.()\s]+$/m.test(expanded)) throw new Error('Invalid amount');
+	if (!/^[\d+\-*/.()\s]+$/m.test(expanded)) throw new AppError('invalid_amount');
 
 	// Safe evaluation via a hand-written recursive-descent parser (NOT Function/
 	// eval), so the production CSP can ship without 'unsafe-eval'. Grammar:
@@ -41,7 +43,7 @@ export function parseAmount(input: string, locale: Locale, currency: string = 'V
 	//   factor := ('-'|'+')? ('(' expr ')' | number)
 	const result = evalExpr(expanded);
 	if (typeof result !== 'number' || !isFinite(result) || result <= 0) {
-		throw new Error('Invalid amount');
+		throw new AppError('invalid_amount');
 	}
 
 	// Scale to smallest currency unit (VND: ×1, USD: ×100) and round to integer.
@@ -101,16 +103,16 @@ function evalExpr(input: string): number {
 		while (pos < input.length && /[\d.]/.test(input[pos])) {
 			num += input[pos++];
 		}
-		if (num === '') throw new Error('Invalid amount');
+		if (num === '') throw new AppError('invalid_amount');
 		return Number(num);
 	}
 
 	try {
 		const v = parseExpr();
 		skipWs();
-		if (pos !== input.length) throw new Error('Invalid amount'); // trailing chars
+		if (pos !== input.length) throw new AppError('invalid_amount'); // trailing chars
 		return v;
 	} catch {
-		throw new Error('Invalid amount');
+		throw new AppError('invalid_amount');
 	}
 }
