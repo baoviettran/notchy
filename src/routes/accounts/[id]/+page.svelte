@@ -74,32 +74,32 @@
 	{#if account}
 		<div class="flex items-center justify-between">
 			<div>
-				<h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{account.name}</h1>
-				<p class="text-sm text-zinc-500">{account.type}{account.counterparty ? ` · ${account.counterparty}` : ''}</p>
+				<h1 class="figures text-xl text-ledger tracking-wide">{account.name}</h1>
+				<p class="text-sm text-dim">{account.type}{account.counterparty ? ` · ${account.counterparty}` : ''}</p>
 			</div>
 			<Button size="sm" variant="secondary" onclick={() => { showReconcile = true; actualBalance = String(account!.balance); }}>Reconcile</Button>
 		</div>
 
-		<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
-			<p class="text-2xl font-semibold text-zinc-900 dark:text-zinc-50 tabular-nums">{formatCurrency(account.balance, settings.currency, settings.locale)}</p>
-			<p class="text-sm text-zinc-500">Current balance</p>
+		<div class="bg-tape rounded-lg border border-line p-4">
+			<p class="figures text-2xl text-ledger">{formatCurrency(account.balance, settings.currency, settings.locale)}</p>
+			<p class="plate mt-1">Current balance</p>
 		</div>
 
 		<section>
-			<h2 class="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-2">Transactions</h2>
+			<h2 class="plate mb-2">Transactions</h2>
 			{#if txns.length === 0}
-				<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6 text-center text-zinc-400">
+				<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
 					<p class="text-sm">No transactions for this account.</p>
 				</div>
 			{:else}
-				<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-700">
+				<div class="bg-tape rounded-lg border border-line divide-y divide-line">
 					{#each txns as tx}
 						<div class="p-3 flex items-center justify-between text-sm">
 							<div>
-								<div class="text-zinc-900 dark:text-zinc-50">{tx.payee || tx.kind}</div>
-								<div class="text-xs text-zinc-500">{formatDateRelative(tx.date, settings.locale)}</div>
+								<div class="text-ledger">{tx.payee || tx.kind}</div>
+								<div class="text-xs text-dim">{formatDateRelative(tx.date, settings.locale)}</div>
 							</div>
-							<span class="tabular-nums {tx.kind === 'expense' ? 'text-red-500' : tx.kind === 'income' ? 'text-emerald-500' : 'text-zinc-500'}">
+							<span class="figures {tx.kind === 'expense' ? 'text-debit' : tx.kind === 'income' ? 'text-phosphor' : 'text-dim'}">
 								{tx.kind === 'expense' ? '-' : ''}{formatCurrency(tx.amount, settings.currency, settings.locale)}
 							</span>
 						</div>
@@ -110,15 +110,15 @@
 
 		{#if history.length > 0}
 			<section>
-				<h2 class="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-2">Reconciliation History</h2>
-				<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-700">
+				<h2 class="plate mb-2">Reconciliation History</h2>
+				<div class="bg-tape rounded-lg border border-line divide-y divide-line">
 					{#each history as h}
 						<div class="p-3 flex items-center justify-between text-sm">
 							<div>
-								<div class="text-zinc-900 dark:text-zinc-50">{h.date}</div>
-								<div class="text-xs text-zinc-500">Expected {formatCurrency(h.expected_balance, settings.currency, settings.locale)} · Actual {formatCurrency(h.actual_balance, settings.currency, settings.locale)}</div>
+								<div class="text-ledger">{h.date}</div>
+								<div class="text-xs text-dim">Expected {formatCurrency(h.expected_balance, settings.currency, settings.locale)} · Actual {formatCurrency(h.actual_balance, settings.currency, settings.locale)}</div>
 							</div>
-							<span class="text-xs tabular-nums {h.actual_balance - h.expected_balance === 0 ? 'text-emerald-600' : 'text-amber-600'}">
+							<span class="figures text-xs text-phosphor">
 								Δ {formatCurrency(h.actual_balance - h.expected_balance, settings.currency, settings.locale)}
 							</span>
 						</div>
@@ -127,16 +127,16 @@
 			</section>
 		{/if}
 	{:else}
-		<p class="text-zinc-500">Loading...</p>
+		<p class="text-dim">Loading...</p>
 	{/if}
 </div>
 
 <Modal bind:open={showReconcile} title="Reconcile account">
 	<div class="space-y-4">
-		<p class="text-sm text-zinc-500">Enter the actual balance from your bank statement or wallet. We'll create an adjustment if there's a discrepancy.</p>
+		<p class="text-sm text-dim">Enter the actual balance from your bank statement or wallet. We'll create an adjustment if there's a discrepancy.</p>
 		<Input label="Actual balance" bind:value={actualBalance} placeholder="e.g. 5000000" />
 		{#if account}
-			<p class="text-xs text-zinc-400">Currently shown: {formatCurrency(account.balance, settings.currency, settings.locale)}</p>
+			<p class="text-xs text-dim">Currently shown: {formatCurrency(account.balance, settings.currency, settings.locale)}</p>
 		{/if}
 		<div class="flex justify-end gap-2 pt-2">
 			<Button variant="ghost" onclick={() => showReconcile = false}>Cancel</Button>
