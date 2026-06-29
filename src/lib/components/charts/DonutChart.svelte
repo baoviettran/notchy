@@ -36,13 +36,13 @@
 				<path d={describeArc(50, 50, 45, arc.startAngle, arc.endAngle)} fill={arc.color} />
 			{/each}
 			<!-- Inner circle for donut effect -->
-			<circle cx="50" cy="50" r="25" class="fill-white dark:fill-zinc-800" />
+			<circle cx="50" cy="50" r="25" class="fill-tape" />
 		</svg>
 		<div class="space-y-1 text-sm">
 			{#each data as item}
 				<div class="flex items-center gap-2">
 					<span class="w-3 h-3 rounded-sm shrink-0" style="background: {item.color}"></span>
-					<span class="text-zinc-600 dark:text-zinc-400">{item.label}</span>
+					<span class="text-dim">{item.label}</span>
 				</div>
 			{/each}
 		</div>

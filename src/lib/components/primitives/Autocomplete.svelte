@@ -39,7 +39,7 @@
 
 <div class="relative space-y-1">
 	{#if label}
-		<label for={inputId} class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">{label}</label>
+		<label for={inputId} class="plate block">{label}</label>
 	{/if}
 	<input
 		id={inputId}
@@ -51,20 +51,20 @@
 		onblur={onBlur}
 		oninput={onInput}
 		onkeydown={onKeydown}
-		class="w-full px-3 py-2 text-base rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+		class="w-full px-3 py-2 text-base rounded-md border border-line bg-ink text-ledger"
 		role="combobox"
 		aria-expanded={open}
 		aria-controls={listboxId}
 		autocomplete="off"
 	/>
 	{#if open && filtered.length > 0}
-		<ul id={listboxId} class="absolute z-20 w-full mt-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg max-h-48 overflow-y-auto animate-scale-in" role="listbox">
+		<ul id={listboxId} class="absolute z-20 w-full mt-1 bg-tape border border-line rounded-lg shadow-lg max-h-48 overflow-y-auto animate-scale-in" role="listbox">
 			{#each filtered as opt}
 				<li>
 					<button
 						type="button"
 						onmousedown={() => select(opt)}
-						class="w-full text-left px-3 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors {opt.value === value ? 'text-emerald-600 font-medium' : 'text-zinc-900 dark:text-zinc-50'}"
+						class="w-full text-left px-3 py-2 text-sm hover:bg-line/40 transition-colors {opt.value === value ? 'text-phosphor font-medium' : 'text-ledger'}"
 						role="option"
 						aria-selected={opt.value === value}
 					>{opt.label}</button>

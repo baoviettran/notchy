@@ -12,10 +12,10 @@
 </script>
 
 {#if visible}
-	<div class="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 md:left-6 md:translate-x-0 z-50 bg-zinc-800 dark:bg-zinc-700 text-white px-4 py-3 rounded-lg shadow-md flex items-center gap-3 text-sm">
+	<div class="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 md:left-6 md:translate-x-0 z-50 bg-tape border border-line text-ledger px-4 py-3 rounded-lg shadow-md flex items-center gap-3 text-sm">
 		<span>{message}</span>
 		{#if action}
-			<button onclick={onaction} class="font-semibold text-emerald-400 hover:text-emerald-300 uppercase text-xs">{action}</button>
+			<button onclick={onaction} class="font-semibold text-phosphor hover:text-phosphor-bright uppercase text-xs">{action}</button>
 		{/if}
 	</div>
 {/if}

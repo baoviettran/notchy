@@ -4,6 +4,6 @@
 
 <div class="animate-pulse space-y-3">
 	{#each Array(lines) as _}
-		<div class="{height} bg-zinc-200 dark:bg-zinc-700 rounded"></div>
+		<div class="{height} bg-line rounded"></div>
 	{/each}
 </div>
