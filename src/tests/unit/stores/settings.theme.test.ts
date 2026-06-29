@@ -4,6 +4,8 @@ import { settings } from '$lib/stores/settings.svelte';
 
 describe('settings theme', () => {
 	beforeEach(() => {
+		// Reset the singleton's state so prior test files/cases don't leak in.
+		settings.theme = 'light';
 		document.documentElement.classList.remove('light', 'dark');
 	});
 
