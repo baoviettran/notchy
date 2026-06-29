@@ -5,6 +5,7 @@
 	import type { CompareRow } from '$lib/db/repos/reports';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
+	import * as m from '$lib/paraglide/messages';
 
 	let rows = $state<CompareRow[]>([]);
 	let includeAdjustments = $state(false);
@@ -33,21 +34,21 @@
 
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
-		<h1 class="figures text-xl text-ledger tracking-wide">Reports</h1>
+		<h1 class="figures text-xl text-ledger tracking-wide">{m.reports_title()}</h1>
 		<div class="flex gap-2 text-sm">
-			<a href="/reports" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">Overview</a>
-			<a href="/reports/trend" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">Trend</a>
-			<a href="/reports/compare" class="px-3 py-1.5 rounded-md bg-phosphor/15 text-phosphor font-medium">Compare</a>
+			<a href="/reports" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">{m.reports_overview()}</a>
+			<a href="/reports/trend" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">{m.reports_trend()}</a>
+			<a href="/reports/compare" class="px-3 py-1.5 rounded-md bg-phosphor/15 text-phosphor font-medium">{m.reports_compare()}</a>
 		</div>
 	</div>
 
 	<div class="flex items-center gap-4">
 		<input type="month" bind:value={monthA} class="px-2 py-1 text-sm rounded border border-line bg-ink text-ledger" />
-		<span class="text-dim">vs</span>
+		<span class="text-dim">{m.reports_vs()}</span>
 		<input type="month" bind:value={monthB} class="px-2 py-1 text-sm rounded border border-line bg-ink text-ledger" />
 		<label class="flex items-center gap-2 text-sm text-dim">
 			<input type="checkbox" bind:checked={includeAdjustments} class="rounded" />
-			Adjustments
+			{m.reports_include_adjustments()}
 		</label>
 	</div>
 
@@ -56,10 +57,10 @@
 			<table class="w-full text-sm">
 				<thead>
 					<tr class="border-b border-line text-dim text-xs">
-						<th class="text-left p-3 font-medium">Category</th>
+						<th class="text-left p-3 font-medium">{m.reports_category()}</th>
 						<th class="text-right p-3 font-medium">{monthA}</th>
 						<th class="text-right p-3 font-medium">{monthB}</th>
-						<th class="text-right p-3 font-medium">Change</th>
+						<th class="text-right p-3 font-medium">{m.reports_change()}</th>
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-line">
@@ -81,7 +82,7 @@
 		</div>
 	{:else}
 		<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim min-h-[200px] flex items-center justify-center">
-			<p class="text-sm">No comparison data. Add expenses in both months to compare.</p>
+			<p class="text-sm">{m.reports_compare_empty()}</p>
 		</div>
 	{/if}
 </div>

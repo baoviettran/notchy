@@ -191,3 +191,26 @@ describe('wave 5 messages', () => {
 		setLanguageTag('en');
 	});
 });
+
+describe('wave 6 messages', () => {
+	it('renders backup + reports sub-page vi strings', () => {
+		setLanguageTag('vi');
+		expect(m.settings_backup()).toBe('Sao lưu & Dữ liệu');
+		expect(m.settings_backup_export_sqlite()).toBe('Xuất SQLite');
+		expect(m.settings_backup_confirm_title()).toBe('Thay thế cơ sở dữ liệu?');
+		expect(m.reports_vs()).toBe('so với');
+		expect(m.reports_compare_empty()).toBe('Chưa có dữ liệu so sánh. Thêm chi tiêu ở cả hai tháng để so sánh.');
+		expect(m.reports_trend_empty()).toBe('Chưa có dữ liệu xu hướng. Thêm giao dịch qua nhiều tháng.');
+		expect(m.reports_expense()).toBe('Chi');
+		setLanguageTag('en');
+	});
+
+	it('renders backup + reports sub-page en strings', () => {
+		setLanguageTag('en');
+		expect(m.settings_backup()).toBe('Backup & Data');
+		expect(m.settings_backup_export_csv()).toBe('Export CSV');
+		expect(m.reports_category()).toBe('Category');
+		expect(m.reports_change()).toBe('Change');
+		setLanguageTag('en');
+	});
+});

@@ -1,7 +1,8 @@
 <script lang="ts">
 	import Button from './Button.svelte';
+	import * as m from '$lib/paraglide/messages';
 
-	let { open = $bindable(false), title = '', message = '', confirmLabel = 'Delete', danger = true, onconfirm = () => {} }: {
+	let { open = $bindable(false), title = '', message = '', confirmLabel = '', danger = true, onconfirm = () => {} }: {
 		open?: boolean; title?: string; message?: string; confirmLabel?: string; danger?: boolean; onconfirm?: () => void;
 	} = $props();
 
@@ -17,8 +18,8 @@
 				<p class="text-sm text-dim">{message}</p>
 			{/if}
 			<div class="flex justify-end gap-2 pt-2">
-				<Button variant="ghost" onclick={() => open = false}>Cancel</Button>
-				<Button variant={danger ? 'danger' : 'primary'} onclick={confirm}>{confirmLabel}</Button>
+				<Button variant="ghost" onclick={() => open = false}>{m.common_cancel()}</Button>
+				<Button variant={danger ? 'danger' : 'primary'} onclick={confirm}>{confirmLabel || m.common_delete()}</Button>
 			</div>
 		</div>
 	</div>

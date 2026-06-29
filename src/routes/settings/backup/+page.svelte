@@ -6,6 +6,7 @@
 	import { getDb } from '$lib/db';
 	import { exportCsv, importDatabase } from '$lib/backup';
 	import { toast } from '$lib/stores/toast.svelte';
+	import * as m from '$lib/paraglide/messages';
 
 	let confirmImport = $state(false);
 	let busy = $state(false);
@@ -20,9 +21,9 @@
 			if (!path) return;
 			const db = await getDb();
 			await db.execute(`VACUUM INTO ?`, [path]);
-			toast.show('Database exported.');
+			toast.show(m.settings_backup_toast_exported());
 		} catch (e) {
-			toast.show(`Export failed: ${e}`);
+			toast.show(m.settings_backup_toast_export_failed({ error: String(e) }));
 		} finally {
 			busy = false;
 		}
@@ -38,9 +39,9 @@
 			for (const [table, content] of csvMap) {
 				if (content) await writeTextFile(`${dir}/${table}.csv`, content);
 			}
-			toast.show('CSV files exported.');
+			toast.show(m.settings_backup_toast_csv_exported());
 		} catch (e) {
-			toast.show(`Export failed: ${e}`);
+			toast.show(m.settings_backup_toast_export_failed({ error: String(e) }));
 		} finally {
 			busy = false;
 		}
@@ -55,15 +56,15 @@
 			busy = true;
 			const result = await importDatabase(path, 3);
 			if (!result.valid) {
-				toast.show(`Import rejected: ${result.error}`);
+				toast.show(m.settings_backup_toast_import_rejected({ error: result.error ?? '' }));
 				return;
 			}
-			toast.show('Database imported. Reloading…');
+			toast.show(m.settings_backup_toast_imported());
 			// The live connection was closed and the file replaced; reload the app
 			// so getDb() reopens the new database and migrations re-run.
 			setTimeout(() => globalThis.location.reload(), 800);
 		} catch (e) {
-			toast.show(`Import failed: ${e}`);
+			toast.show(m.settings_backup_toast_import_failed({ error: String(e) }));
 		} finally {
 			busy = false;
 		}
@@ -71,36 +72,36 @@
 </script>
 
 <div class="space-y-6">
-	<h1 class="figures text-xl text-ledger tracking-wide">Backup & Data</h1>
+	<h1 class="figures text-xl text-ledger tracking-wide">{m.settings_backup()}</h1>
 
 	<div class="space-y-4">
 		<div class="bg-tape rounded-lg border border-line p-4 space-y-2">
-			<h2 class="font-medium text-ledger">Export</h2>
-			<p class="text-sm text-dim">Download your data as a SQLite file (most durable) or CSV per table.</p>
+			<h2 class="font-medium text-ledger">{m.settings_backup_export()}</h2>
+			<p class="text-sm text-dim">{m.settings_backup_export_desc()}</p>
 			<div class="flex gap-2">
-				<Button size="sm" variant="secondary" disabled={busy} onclick={exportSqlite}>Export SQLite</Button>
-				<Button size="sm" variant="secondary" disabled={busy} onclick={exportCsvFiles}>Export CSV</Button>
+				<Button size="sm" variant="secondary" disabled={busy} onclick={exportSqlite}>{m.settings_backup_export_sqlite()}</Button>
+				<Button size="sm" variant="secondary" disabled={busy} onclick={exportCsvFiles}>{m.settings_backup_export_csv()}</Button>
 			</div>
 		</div>
 
 		<div class="bg-tape rounded-lg border border-line p-4 space-y-2">
-			<h2 class="font-medium text-ledger">Import</h2>
-			<p class="text-sm text-dim">Replace your database with an imported file. This cannot be undone.</p>
-			<Button size="sm" variant="danger" onclick={() => confirmImport = true}>Import database</Button>
+			<h2 class="font-medium text-ledger">{m.settings_backup_import()}</h2>
+			<p class="text-sm text-dim">{m.settings_backup_import_desc()}</p>
+			<Button size="sm" variant="danger" onclick={() => confirmImport = true}>{m.settings_backup_import_button()}</Button>
 		</div>
 
 		<div class="bg-tape rounded-lg border border-line p-4 space-y-2">
-			<h2 class="font-medium text-ledger">Auto-backup</h2>
-			<p class="text-sm text-dim">Backups are created automatically on every launch. The 10 most recent are retained.</p>
-			<p class="text-xs text-dim">Location: same folder as the database file.</p>
+			<h2 class="font-medium text-ledger">{m.settings_backup_auto()}</h2>
+			<p class="text-sm text-dim">{m.settings_backup_auto_desc()}</p>
+			<p class="text-xs text-dim">{m.settings_backup_auto_location()}</p>
 		</div>
 	</div>
 </div>
 
 <ConfirmDialog
 	open={confirmImport}
-	title="Replace database?"
-	message="Importing will REPLACE all current data. Make sure you've exported a backup first. Continue?"
-	confirmLabel="Continue"
+	title={m.settings_backup_confirm_title()}
+	message={m.settings_backup_confirm_message()}
+	confirmLabel={m.settings_backup_confirm_label()}
 	onconfirm={importDb}
 />
