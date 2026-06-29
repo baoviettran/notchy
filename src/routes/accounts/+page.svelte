@@ -8,7 +8,8 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
-	import type { AccountWithBalance, AccountType } from '$lib/db/repos/accounts';
+	import type { AccountWithBalance } from '$lib/db/repos/accounts';
+	import { accountTypeLabel } from '$lib/utils/account-type';
 	import * as m from '$lib/paraglide/messages';
 	import { mapError } from '$lib/utils/errors';
 
@@ -17,18 +18,6 @@
 	let confirmDelete = $state<AccountWithBalance | null>(null);
 
 	onMount(() => accounts.load());
-
-	function accountTypeLabel(type: AccountType): string {
-		switch (type) {
-			case 'checking': return m.forms_account_type_checking();
-			case 'savings': return m.forms_account_type_savings();
-			case 'cash': return m.forms_account_type_cash();
-			case 'credit_card': return m.forms_account_type_credit_card();
-			case 'loan_to_person': return m.forms_account_type_loan_to_person();
-			case 'loan_from_person': return m.forms_account_type_loan_from_person();
-			default: return type;
-		}
-	}
 
 	function openCreate() { editing = null; showForm = true; }
 	function openEdit(a: AccountWithBalance) { editing = a; showForm = true; }

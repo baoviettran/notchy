@@ -15,7 +15,8 @@
 	import { formatDateRelative } from '$lib/utils/date';
 	import { parseAmount } from '$lib/utils/number_parse';
 	import { labelFor } from '$lib/utils/tx-kind';
-	import type { AccountWithBalance, AccountType } from '$lib/db/repos/accounts';
+	import { accountTypeLabel } from '$lib/utils/account-type';
+	import type { AccountWithBalance } from '$lib/db/repos/accounts';
 	import type { Transaction } from '$lib/db/repos/transactions';
 	import type { Reconciliation } from '$lib/db/repos/reconciliations';
 	import * as m from '$lib/paraglide/messages';
@@ -29,18 +30,6 @@
 	let pendingDiscrepancy = $state(0);
 
 	const accountId = $derived($page.params.id);
-
-	function accountTypeLabel(type: AccountType): string {
-		switch (type) {
-			case 'checking': return m.forms_account_type_checking();
-			case 'savings': return m.forms_account_type_savings();
-			case 'cash': return m.forms_account_type_cash();
-			case 'credit_card': return m.forms_account_type_credit_card();
-			case 'loan_to_person': return m.forms_account_type_loan_to_person();
-			case 'loan_from_person': return m.forms_account_type_loan_from_person();
-			default: return type;
-		}
-	}
 
 	async function load() {
 		const db = await getDb();
