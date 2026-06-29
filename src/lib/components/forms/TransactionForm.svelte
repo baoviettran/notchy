@@ -13,6 +13,7 @@
 	import { formatCurrency } from '$lib/utils/currency';
 	import { onMount } from 'svelte';
 	import type { Transaction, TransactionKind } from '$lib/db/repos/transactions';
+	import * as m from '$lib/paraglide/messages';
 
 	let { mode = 'full', existing = null, onclose = () => {}, onsave = () => {} }: {
 		mode?: 'full' | 'quick';
@@ -62,11 +63,11 @@
 	});
 
 	const kinds = [
-		{ value: 'expense', label: 'Expense' },
-		{ value: 'income', label: 'Income' },
-		{ value: 'transfer', label: 'Transfer' },
-		{ value: 'refund', label: 'Refund' },
-		{ value: 'adjustment', label: 'Adjustment' }
+		{ value: 'expense', label: m.forms_expense() },
+		{ value: 'income', label: m.forms_income() },
+		{ value: 'transfer', label: m.forms_transfer() },
+		{ value: 'refund', label: m.forms_refund() },
+		{ value: 'adjustment', label: m.forms_adjustment() }
 	];
 
 	let accountOptions = $derived(accounts.items.map((a) => ({ value: a.id, label: a.name })));
@@ -84,12 +85,12 @@
 		try {
 			parsedAmount = parseAmount(amount, settings.locale, settings.currency);
 		} catch {
-			error = 'Invalid amount';
+			error = m.validation_invalid_amount();
 			return;
 		}
-		if (!accountId) { error = 'Select an account'; return; }
-		if (kind === 'transfer' && !transferAccountId) { error = 'Select a destination account'; return; }
-		if (kind === 'transfer' && transferAccountId === accountId) { error = 'Source and destination must differ'; return; }
+		if (!accountId) { error = m.forms_select_account(); return; }
+		if (kind === 'transfer' && !transferAccountId) { error = m.forms_select_destination(); return; }
+		if (kind === 'transfer' && transferAccountId === accountId) { error = m.validation_source_dest_differ(); return; }
 
 		saving = true;
 		try {
@@ -102,7 +103,7 @@
 					payee: payee || null,
 					description: description || null
 				});
-				toast.show('Transaction updated.');
+				toast.show(m.forms_transaction_updated());
 			} else {
 				await transactions.create({
 					kind,
@@ -116,7 +117,7 @@
 				});
 				session.lastUsedAccountId = accountId;
 				session.lastEnteredDate = date;
-				toast.show(`Saved · ${kind} · ${formatCurrency(parsedAmount, settings.currency, settings.locale)}`);
+				toast.show(m.forms_saved({ kind, amount: formatCurrency(parsedAmount, settings.currency, settings.locale) }));
 				sessionStorage.removeItem(DRAFT_KEY);
 				amount = '';
 				tagId = '';
@@ -146,26 +147,26 @@
 		{/each}
 	</div>
 
-	<Input label="Amount" bind:value={amount} placeholder="e.g. 50k, 1.5tr, 100+50" />
+	<Input label={m.common_amount()} bind:value={amount} placeholder={m.forms_amount_placeholder()} />
 
 	{#if kind === 'transfer'}
-		<Select label="From Account" bind:value={accountId} options={accountOptions} disabled={isEdit} />
-		<Select label="To Account" bind:value={transferAccountId} options={accountOptions} disabled={isEdit} />
+		<Select label={m.forms_from_account()} bind:value={accountId} options={accountOptions} disabled={isEdit} />
+		<Select label={m.forms_to_account()} bind:value={transferAccountId} options={accountOptions} disabled={isEdit} />
 	{:else}
-		<Autocomplete label="Tag" bind:value={tagId} options={tagOptions} placeholder="Search tags..." />
-		<Select label="Account" bind:value={accountId} options={accountOptions} disabled={isEdit} />
+		<Autocomplete label={m.forms_tag()} bind:value={tagId} options={tagOptions} placeholder={m.forms_search_tags_placeholder()} />
+		<Select label={m.forms_account()} bind:value={accountId} options={accountOptions} disabled={isEdit} />
 	{/if}
 
 	{#if mode === 'full'}
-		<Autocomplete label="Payee" bind:value={payee} options={payeeOptions} placeholder="Who did you pay?" />
+		<Autocomplete label={m.forms_payee()} bind:value={payee} options={payeeOptions} placeholder={m.forms_who_paid()} />
 		<div class="grid grid-cols-2 gap-3">
-			<Input label="Date" type="date" bind:value={date} />
-			<Input label="Description" bind:value={description} placeholder="Optional" maxlength={1024} />
+			<Input label={m.common_date()} type="date" bind:value={date} />
+			<Input label={m.common_description()} bind:value={description} placeholder={m.common_optional()} maxlength={1024} />
 		</div>
 	{/if}
 
 	<div class="flex justify-end gap-2 pt-2">
-		<Button variant="ghost" onclick={onclose}>Cancel</Button>
-		<Button disabled={saving || !amount} onclick={save}>{saving ? 'Saving...' : (isEdit ? 'Save changes' : 'Save')}</Button>
+		<Button variant="ghost" onclick={onclose}>{m.common_cancel()}</Button>
+		<Button disabled={saving || !amount} onclick={save}>{saving ? m.forms_saving() : (isEdit ? m.forms_save_changes() : m.common_save())}</Button>
 	</div>
 </div>

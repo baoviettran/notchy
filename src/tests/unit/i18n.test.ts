@@ -113,3 +113,18 @@ describe('paraglide runtime sync', () => {
 		expect(m.nav_dashboard()).toBe('Dashboard');
 	});
 });
+
+describe('form messages', () => {
+	it('renders transaction type labels in vi', () => {
+		setLanguageTag('vi');
+		expect(m.forms_expense()).toBe('Chi tiêu');
+		expect(m.forms_transfer()).toBe('Chuyển khoản');
+		setLanguageTag('en');
+	});
+
+	it('renders validation messages in vi', () => {
+		setLanguageTag('vi');
+		expect(m.validation_name_required()).toBe('Tên là bắt buộc');
+		setLanguageTag('en');
+	});
+});
