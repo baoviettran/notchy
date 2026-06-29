@@ -40,7 +40,7 @@
 
 **Pages/components migrated (markup → `m.*()` calls), in wave order:**
 - Wave 1 (forms): `src/lib/components/forms/TransactionForm.svelte`, `AccountForm.svelte`, `GoalForm.svelte`
-- Wave 2: `src/routes/dashboard/+page.svelte`, `src/routes/transactions/+page.svelte`
+- Wave 2: `src/routes/+page.svelte` (the dashboard — the app's root route), `src/routes/transactions/+page.svelte`
 - Wave 3: `src/routes/budgets/+page.svelte`, `src/routes/reports/+page.svelte`, `src/routes/goals/+page.svelte`
 - Wave 4: `src/routes/accounts/+page.svelte`, `src/routes/debts/+page.svelte`
 - Wave 5: `src/routes/settings/+page.svelte`, `src/routes/settings/categories/+page.svelte`, `src/routes/onboarding/+page.svelte`, `src/lib/components/layout/{TopBar,BottomNav,FAB,Sidebar,GlobalToast}.svelte`, `src/routes/+layout.svelte`
@@ -466,7 +466,7 @@ git commit -m "feat(i18n): migrate forms to Paraglide (en+vi)"
 
 **Files:**
 - Modify: `messages/en.json`, `messages/vi.json`
-- Modify: `src/routes/dashboard/+page.svelte`, `src/routes/transactions/+page.svelte`
+- Modify: `src/routes/+page.svelte` (dashboard — root route), `src/routes/transactions/+page.svelte`
 - Modify (regenerated): `src/lib/paraglide/*`
 - Test: `src/tests/unit/i18n.test.ts`
 
@@ -557,7 +557,7 @@ Expected: all green.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add messages/en.json messages/vi.json src/routes/dashboard src/routes/transactions src/tests/unit/i18n.test.ts
+git add messages/en.json messages/vi.json src/routes/+page.svelte src/routes/transactions src/lib/utils/tx-kind.ts src/tests/unit/i18n.test.ts
 git commit -m "feat(i18n): migrate dashboard and transactions to Paraglide (en+vi)"
 ```
 
