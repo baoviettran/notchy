@@ -97,3 +97,19 @@ describe('formatDateRelative', () => {
 		expect(formatDateRelative(yesterday, 'vi')).toBe('Hôm qua');
 	});
 });
+
+import * as m from '$lib/paraglide/messages';
+import { setLanguageTag } from '$lib/paraglide/runtime';
+
+describe('paraglide runtime sync', () => {
+	it('returns vi string after setLanguageTag(vi)', () => {
+		setLanguageTag('vi');
+		expect(m.nav_dashboard()).toBe('Tổng quan');
+		setLanguageTag('en'); // restore for other tests
+	});
+
+	it('returns en string by default', () => {
+		setLanguageTag('en');
+		expect(m.nav_dashboard()).toBe('Dashboard');
+	});
+});
