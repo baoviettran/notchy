@@ -63,7 +63,7 @@
 </script>
 
 <div class="space-y-4">
-	<h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Transactions</h1>
+	<h1 class="figures text-xl text-ledger tracking-wide">Transactions</h1>
 
 	<div class="flex gap-2">
 		<div class="flex-1">
@@ -72,9 +72,9 @@
 		<Button size="sm" onclick={onSearch}>Search</Button>
 	</div>
 
-	<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-700">
+	<div class="bg-tape rounded-lg border border-line divide-y divide-line">
 		{#if displayItems.length === 0}
-			<div class="text-center py-12 text-zinc-400">
+			<div class="text-center py-12 text-dim">
 				<p class="text-3xl mb-2">📋</p>
 				<p class="text-sm">No transactions found.</p>
 			</div>
@@ -82,20 +82,20 @@
 			{#each displayItems as tx}
 				<div class="p-4 flex items-center justify-between group">
 					<button onclick={() => openEdit(tx)} class="flex-1 text-left">
-						<div class="text-sm text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
+						<div class="text-sm text-ledger flex items-center gap-2">
 							{tx.payee || tx.kind}
 							{#if tx.date > today}
-								<span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-medium uppercase">Future</span>
+								<span class="text-[10px] px-1.5 py-0.5 rounded bg-phosphor/15 text-phosphor font-medium uppercase">Future</span>
 							{/if}
 						</div>
-						<div class="text-xs text-zinc-500">{formatDateRelative(tx.date, settings.locale)} · {tx.kind}</div>
+						<div class="text-xs text-dim">{formatDateRelative(tx.date, settings.locale)} · {tx.kind}</div>
 					</button>
-					<span class="text-sm tabular-nums mr-3 {tx.kind === 'expense' ? 'text-red-500' : tx.kind === 'income' ? 'text-emerald-500' : 'text-zinc-500'}">
+					<span class="figures text-sm mr-3 {tx.kind === 'expense' ? 'text-debit' : tx.kind === 'income' ? 'text-phosphor' : 'text-dim'}">
 						{tx.kind === 'expense' ? '-' : ''}{formatCurrency(tx.amount, settings.currency, settings.locale)}
 					</span>
 					<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-						<button onclick={() => doDuplicate(tx)} class="text-xs text-zinc-500 hover:text-emerald-600 px-2" title="Duplicate">↻</button>
-						<button onclick={() => doDelete(tx)} class="text-xs text-zinc-500 hover:text-red-500 px-2" title="Delete">✕</button>
+						<button onclick={() => doDuplicate(tx)} class="text-xs text-dim hover:text-phosphor px-2" title="Duplicate">↻</button>
+						<button onclick={() => doDelete(tx)} class="text-xs text-dim hover:text-debit px-2" title="Delete">✕</button>
 					</div>
 				</div>
 			{/each}
@@ -104,7 +104,7 @@
 
 	<div class="flex justify-between items-center text-sm">
 		<Button variant="ghost" size="sm" disabled={page === 0} onclick={prevPage}>← Previous</Button>
-		<span class="text-zinc-500">Page {page + 1}</span>
+		<span class="text-dim">Page {page + 1}</span>
 		<Button variant="ghost" size="sm" disabled={!hasNextPage} onclick={nextPage}>Next →</Button>
 	</div>
 </div>
