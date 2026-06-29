@@ -26,21 +26,21 @@
 			.reduce((s, t) => s + (t.kind === 'income' ? t.amount : -t.amount), 0)
 	);
 
-	// Magnitude ladder: order-of-magnitude ticks framing where the net figure sits.
-	// Encodes the integer-counting model — the adding machine always knows its scale.
-	const LADDER = [
-		{ label: '100K', pow: 100_000 },
-		{ label: '1M', pow: 1_000_000 },
-		{ label: '10M', pow: 10_000_000 },
-		{ label: '100M', pow: 100_000_000 },
-		{ label: '1B', pow: 1_000_000_000 }
-	];
-	let activeRung = $derived(() => {
-		const abs = Math.abs(netPosition);
-		let idx = 0;
-		for (let i = 0; i < LADDER.length; i++) if (abs >= LADDER[i].pow) idx = i;
-		return idx;
-	});
+	// The net figure stands alone — a single VFD readout. A ladder of
+	// magnitude ticks only crowded it without encoding anything the number
+	// doesn't already say.
+	// Human-readable fallback for transactions without a payee — name the entry
+	// by what it is to the person reading the list, never the raw system kind.
+	const KIND_LABELS: Record<string, string> = {
+		expense: 'Expense',
+		income: 'Income',
+		transfer: 'Transfer',
+		refund: 'Refund',
+		adjustment: 'Opening balance'
+	};
+	function labelFor(kind: string): string {
+		return KIND_LABELS[kind] ?? kind;
+	}
 
 	onMount(async () => {
 		await Promise.all([accounts.load(), budgets.load(), transactions.load({ limit: 5 }), goals.load()]);
@@ -53,34 +53,22 @@
 		<span class="plate">{budgets.month}</span>
 	</header>
 
-	<!-- SIGNATURE: net position as a VFD display, flanked by a magnitude ladder. -->
+	<!-- SIGNATURE: net position as a VFD readout. -->
 	<section class="surface rounded-lg p-5 md:p-6 relative overflow-hidden">
 		<div class="flex items-center justify-between mb-4">
 			<h2 class="plate">Net position</h2>
 			<a href="/accounts" class="plate hover:text-ledger transition-colors">Accounts →</a>
 		</div>
 
-		<div class="flex items-end justify-between gap-4">
-			<div class="min-w-0">
-				<div class="figures-glow text-4xl md:text-5xl leading-none break-all">
-					{formatCurrency(netPosition, settings.currency, settings.locale)}
-				</div>
-				<div class="mt-3 flex items-center gap-2 text-sm">
-					<span class="figures {monthFlow >= 0 ? 'text-phosphor' : 'text-debit'}">
-						{monthFlow >= 0 ? '▲' : '▼'} {formatNumber(Math.abs(monthFlow), settings.locale)}
-					</span>
-					<span class="text-dim">this month's flow</span>
-				</div>
+		<div class="min-w-0">
+			<div class="figures-glow text-4xl md:text-5xl leading-none break-all">
+				{formatCurrency(netPosition, settings.currency, settings.locale)}
 			</div>
-
-			<!-- Magnitude ladder: ticks at each order of magnitude, current bracket lit. -->
-			<div class="hidden sm:flex flex-col items-end gap-1 shrink-0 pb-1" aria-hidden="true">
-				{#each LADDER as rung, i}
-					<div class="flex items-center gap-2">
-						<span class="plate {activeRung() === i ? '!text-phosphor-bright' : ''}">{rung.label}</span>
-						<span class="block w-6 h-px {activeRung() === i ? 'bg-phosphor' : 'bg-line'}"></span>
-					</div>
-				{/each}
+			<div class="mt-3 flex items-center gap-2 text-sm">
+				<span class="figures {monthFlow >= 0 ? 'text-phosphor' : 'text-debit'}">
+					{monthFlow >= 0 ? '▲' : '▼'} {formatNumber(Math.abs(monthFlow), settings.locale)}
+				</span>
+				<span class="text-dim">this month's flow</span>
 			</div>
 		</div>
 
@@ -118,7 +106,13 @@
 				{/each}
 			</div>
 		{:else}
-			<p class="text-sm text-dim">No budget set. <a href="/budgets" class="text-phosphor hover:underline">Set up budget →</a></p>
+			<!-- Empty budget: show the meter skeleton so the card teaches what budgeting
+			     looks like here, instead of going inert. -->
+			<Progress value={0} max={100} />
+			<div class="mt-4 flex items-center justify-between text-sm">
+				<p class="text-dim">No budget set for {budgets.month}.</p>
+				<a href="/budgets" class="text-phosphor hover:underline">Set up budget →</a>
+			</div>
 		{/if}
 	</section>
 
@@ -146,7 +140,7 @@
 				{#each recentTxns as tx}
 					<li class="px-5 py-3 flex items-center justify-between gap-3">
 						<div class="min-w-0">
-							<p class="text-sm text-ledger truncate">{tx.payee || tx.kind}</p>
+							<p class="text-sm text-ledger truncate">{tx.payee || labelFor(tx.kind)}</p>
 							<p class="plate mt-0.5">{tx.date}</p>
 						</div>
 						<span class="figures text-sm shrink-0 {tx.kind === 'expense' ? 'text-debit' : tx.kind === 'income' ? 'text-phosphor' : 'text-dim'}">

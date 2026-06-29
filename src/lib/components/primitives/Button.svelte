@@ -13,7 +13,7 @@
 	const sizes = { sm: 'px-3 py-1.5 text-sm', md: 'px-4 py-2 text-sm' };
 	const variants = {
 		primary: 'bg-phosphor text-ink hover:bg-phosphor-bright',
-		secondary: 'border border-line bg-tape text-ledger hover:border-dim',
+		secondary: 'border border-dim bg-tape text-ledger hover:border-ledger',
 		danger: 'bg-debit text-ledger hover:brightness-110',
 		ghost: 'text-dim hover:text-ledger hover:bg-line/40'
 	};

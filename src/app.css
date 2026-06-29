@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* IBM Plex Mono — the VFD/display face. Self-hosted so it ships offline
+   with the app instead of drifting to Consolas/SF Mono per OS. */
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/ibm-plex-mono/600.css';
+
 /* ===========================================================
    Notchy — Adding Machine design system
    Warm near-black casing, amber-phosphor figures, oxblood debit.
@@ -18,7 +24,10 @@
 		--tape: #1C1812;
 		--ledger: #D6CFC0;
 		--dim: #8A8170;
-		--line: #2A2419;
+		/* Line lifted from #2A2419 (1.15:1 on tape) — dividers vanished in
+		   dark too. #807763 clears 3:1 and stays below --dim (4.59:1) so
+		   secondary controls still read stronger than plain dividers. */
+		--line: #807763;
 		--phosphor: #FFB454;
 		--phosphor-bright: #FFD79A;
 		--debit: #E5484D;
@@ -31,9 +40,14 @@
 		--tape: #FBF8F1;
 		--ledger: #1F1B14;
 		--dim: #6B6353;
-		--line: #E2DAC8;
+		/* Line deepened from #E2DAC8 (1.31:1 on tape) — 74 borders/dividers
+		   were near-invisible. #9A8C6E clears the 3:1 non-text minimum. */
+		--line: #9A8C6E;
+		/* Phosphor-bright collapsed to phosphor in light: as a bare accent
+		   #D99935 managed only 2.31:1 — it's used for active nav and selected
+		   toggles, so it needs the same contrast as phosphor itself. */
 		--phosphor: #B8721A;
-		--phosphor-bright: #D99935;
+		--phosphor-bright: #B8721A;
 		--debit: #C23B3F;
 	}
 
@@ -55,12 +69,14 @@
 		letter-spacing: -0.01em;
 	}
 
-	/* Glow renders dark-only: a bloom on paper reads muddy and loses legibility. */
+	/* Glow renders dark-only: a bloom on paper reads muddy and loses legibility.
+	   Resting state is dialed back so the digits themselves stay legible —
+	   the flash keyframe carries the bright keypress moment. */
 	:root:not(.light) .figures-glow {
 		font-family: theme('fontFamily.mono');
 		font-variant-numeric: tabular-nums lining-nums;
 		color: var(--phosphor-bright);
-		text-shadow: 0 0 8px rgba(255, 180, 84, 0.45), 0 0 22px rgba(255, 180, 84, 0.18);
+		text-shadow: 0 0 4px rgba(255, 180, 84, 0.35), 0 0 11px rgba(255, 180, 84, 0.10);
 	}
 	html.light .figures-glow {
 		font-family: theme('fontFamily.mono');
@@ -126,10 +142,12 @@
 	to { transform: scale(1); opacity: 1; }
 }
 
-/* On repeat/save, a brief phosphor flicker — the machine registering a keypress. */
+/* On repeat/save, a brief phosphor flicker — the machine registering a keypress.
+   Settles back to the same resting value .figures-glow holds, so a saved figure
+   doesn't read brighter than its neighbors once the flicker ends. */
 @keyframes flash {
-	0% { text-shadow: 0 0 14px rgba(255, 180, 84, 0.9), 0 0 30px rgba(255, 180, 84, 0.4); }
-	100% { text-shadow: 0 0 8px rgba(255, 180, 84, 0.45), 0 0 22px rgba(255, 180, 84, 0.18); }
+	0% { text-shadow: 0 0 10px rgba(255, 180, 84, 0.8), 0 0 22px rgba(255, 180, 84, 0.32); }
+	100% { text-shadow: 0 0 4px rgba(255, 180, 84, 0.35), 0 0 11px rgba(255, 180, 84, 0.10); }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -18,7 +18,7 @@ export default {
 				debit: 'var(--debit)'
 			},
 			fontFamily: {
-				mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
+				mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
 				sans: ['ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif']
 			}
 		}
