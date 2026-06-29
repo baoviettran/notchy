@@ -16,7 +16,8 @@
 - **Amounts:** integers in smallest currency unit. No floats.
 - **i18n runtime import:** `import * as m from '$lib/paraglide/messages'` (alias `$lib` → `src/lib`). Functions are named exports, e.g. `m.nav_dashboard()`.
 - **Regen command (run after editing any `messages/*.json`):** `pnpm exec paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide`
-- **Key naming — READ CAREFULLY:** Paraglide JS **1.11.8** (the pinned version) requires message IDs to be valid JavaScript identifiers. It does **NOT** sanitize punctuation — a dotted key like `nav.dashboard` makes `paraglide-js compile` throw `Cannot compile message with ID "nav.dashboard". The message is not a valid JavaScript variable name.` (verified). Therefore keys are written directly as flat **underscore-separated names** and grouped by a feature prefix as a *naming convention*: `nav_dashboard`, `common_save`, `transactions_count`, `forms_expense`, `validation_name_required`, `goals_status_on_track`, `accounts_empty_assets`. The prefix (`nav_`, `common_`, `forms_`, `transactions_`, …) is the namespace. **Do not use dots in keys.** Upgrading to Paraglide 2.x was evaluated and rejected (see ADR note below) — 2.x gives bracket-access dotted strings (`m["nav.dashboard"]()`), not nested namespaces, so the upgrade's payoff is cosmetic while its cost is large.
+- **Key naming — READ CAREFULLY:** Paraglide JS **1.11.8** (the pinned version) requires message IDs to be valid JavaScript identifiers. It does **NOT** sanitize punctuation — a dotted key like `nav.dashboard` makes `paraglide-js compile` throw `Cannot compile message with ID "nav.dashboard". The message is not a valid JavaScript variable name.` (verified). Therefore keys are written directly as flat **underscore-separated names** and grouped by a feature prefix as a *naming convention*: `nav_dashboard`, `common_save`, `forms_expense`, `validation_name_required`, `goals_status_on_track`, `accounts_empty_assets`. The prefix (`nav_`, `common_`, `forms_`, `transactions_`, …) is the namespace. **Do not use dots in keys.** Upgrading to Paraglide 2.x was evaluated and rejected (see ADR note below) — 2.x gives bracket-access dotted strings (`m["nav.dashboard"]()`), not nested namespaces, so the upgrade's payoff is cosmetic while its cost is large.
+- **Plurals — NO ICU plural syntax:** Paraglide 1.11.8's message-format compiler does **NOT** parse ICU `{count, plural, …}` / `{n, select, …}` syntax. It compiles exits-0 but emits a broken param-bag lookup that returns garbage like `"undefined one undefined other undefined}"` (verified). **Do not use ICU plural/select syntax in any message.** Instead model every plural as a small set of plain keys + a JS branch at the call site (plain `{count}` interpolation DOES compile correctly). Convention: split into `<feature>_count_none` (the zero/empty case) and `<feature>_count_many` (the non-zero case, using `{count}` interpolation), branched in markup: `{count === 0 ? m.transactions_count_none() : m.transactions_count_many({ count })}`. Vietnamese has no singular/plural distinction anyway, so zero-vs-nonzero is the only meaningful branch. Apply this to every plural in every wave (there are only a handful: "N transactions", "N days left", "N results").
 - **TDD:** write failing test → watch fail → implement → pass → commit. Run `pnpm test` before every commit.
 - **Commit prefix:** `feat:`, `fix:`, `docs:`, `refactor:`, `test:`.
 - **Vietnamese quality:** use natural finance terminology (giao dịch, ngân sách, báo cáo, tài khoản, mục tiêu, công nợ, thu/chi, chuyển khoản, hoàn tiền, điều chỉnh), not literal word-for-word.
@@ -303,7 +304,7 @@ Expected: all green.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add messages/en.json messages/vi.json src/lib/paraglide src/lib/stores/settings.svelte.ts src/tests/unit/i18n.test.ts
+git add messages/en.json messages/vi.json src/lib/stores/settings.svelte.ts src/tests/unit/i18n.test.ts
 git commit -m "feat(i18n): add runtime locale sync and underscore-namespaced message keys"
 ```
 
@@ -455,7 +456,7 @@ Expected: all green.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add messages/en.json messages/vi.json src/lib/paraglide src/lib/components/forms src/tests/unit/i18n.test.ts
+git add messages/en.json messages/vi.json src/lib/components/forms src/tests/unit/i18n.test.ts
 git commit -m "feat(i18n): migrate forms to Paraglide (en+vi)"
 ```
 
@@ -485,10 +486,10 @@ describe('transactions messages', () => {
 		setLanguageTag('en');
 	});
 
-	it('renders transaction count (plural) in vi', () => {
+	it('renders transaction count (split keys) in vi', () => {
 		setLanguageTag('vi');
-		expect(m.transactions_count({ count: 0 })).toBe('Không có giao dịch nào');
-		expect(m.transactions_count({ count: 5 })).toBe('5 giao dịch');
+		expect(m.transactions_count_none()).toBe('Không có giao dịch nào');
+		expect(m.transactions_count_many({ count: 5 })).toBe('5 giao dịch');
 		setLanguageTag('en');
 	});
 });
@@ -512,7 +513,8 @@ Add to `en.json`:
 	"transactions_next": "Next →",
 	"transactions_edit": "Edit transaction",
 	"transactions_duplicate": "Duplicate",
-	"transactions_count": "{count, plural, =0 {No transactions} one {# transaction} other {# transactions}}"
+	"transactions_count_none": "No transactions",
+	"transactions_count_many": "{count} transactions"
 ```
 
 Add to `vi.json`:
@@ -526,22 +528,26 @@ Add to `vi.json`:
 	"transactions_next": "Tiếp →",
 	"transactions_edit": "Sửa giao dịch",
 	"transactions_duplicate": "Nhân bản",
-	"transactions_count": "{count, plural, =0 {Không có giao dịch nào} other {# giao dịch}}"
+	"transactions_count_none": "Không có giao dịch nào",
+	"transactions_count_many": "{count} giao dịch"
 ```
 
-> Vietnamese has no singular/plural distinction, so the plural uses only `=0` and `other`. Complete the rest of each page's strings via the migration loop (inventory the file → add `transactions_*` / `dashboard_*` keys en+vi → regen → replace). Do not skip any literal.
+> The count is modelled as two plain keys (`transactions_count_none` / `transactions_count_many`) rather than ICU plural — Paraglide 1.11.8 cannot compile ICU `{count, plural, …}` (see Global Constraints: Plurals). Complete the rest of each page's strings via the migration loop (inventory the file → add `transactions_*` / `dashboard_*` keys en+vi → regen → replace). Do not skip any literal.
 
-- [ ] **Step 4: Regenerate and verify the plural signature**
+- [ ] **Step 4: Regenerate and verify the count-key signatures**
 
 Run: `pnpm exec paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide`
-Expected: compiles with no errors. ICU plural keys compile to a function taking a typed `params` object, so verify the exact signature before the Step 1 test can pass:
+Expected: compiles with no errors.
 
 Run: `grep -n "transactions_count" src/lib/paraglide/messages.js`
-Expected: shows `export const transactions_count = (params = {}, options = {}) => {` with `count` required in `params`. This confirms the plural key `transactions_count` compiles to `transactions_count` and accepts `{ count }`. **If the function name or signature differs, or if the compile rejects the inline ICU plural syntax, adjust the test in Step 1 to the actual compiled form before proceeding — and if the inline-ICU plural is rejected by this plugin version, report BLOCKED so the plural can be converted to the plugin's structured form.** Record the confirmed name here: `transactions_count`.
+Expected: shows TWO exports — `transactions_count_none` (a paramless function) and `transactions_count_many = (params, ...) =>` (a function taking `{ count }`). Call both from node to confirm they resolve correctly (this is the verification that the split-keys approach works on this toolchain, replacing the old ICU-plural check):
+- `m.transactions_count_none()` → `'No transactions'` (en) / `'Không có giao dịch nào'` (vi)
+- `m.transactions_count_many({ count: 5 })` → `'5 transactions'` (en) / `'5 giao dịch'` (vi)
+If either returns garbage like `undefined ... }`, the key still contains ICU syntax — fix the JSON and recompile.
 
 - [ ] **Step 5: Replace markup**
 
-For `dashboard/+page.svelte` and `transactions/+page.svelte`: add the import, then replace literals. The plural/count usage: where the page shows a count, use `{m.transactions_count({ count: n })}`.
+For `dashboard/+page.svelte` and `transactions/+page.svelte`: add the import, then replace literals. The count usage: `{count === 0 ? m.transactions_count_none() : m.transactions_count_many({ count })}`.
 
 - [ ] **Step 6: Run tests**
 
@@ -551,7 +557,7 @@ Expected: all green.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add messages/en.json messages/vi.json src/lib/paraglide src/routes/dashboard src/routes/transactions src/tests/unit/i18n.test.ts
+git add messages/en.json messages/vi.json src/routes/dashboard src/routes/transactions src/tests/unit/i18n.test.ts
 git commit -m "feat(i18n): migrate dashboard and transactions to Paraglide (en+vi)"
 ```
 
@@ -699,7 +705,7 @@ Expected: all green.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add messages/en.json messages/vi.json src/lib/paraglide src/routes/budgets src/routes/reports src/routes/goals src/tests/unit/i18n.test.ts
+git add messages/en.json messages/vi.json src/routes/budgets src/routes/reports src/routes/goals src/tests/unit/i18n.test.ts
 git commit -m "feat(i18n): migrate budgets, reports, goals to Paraglide (en+vi)"
 ```
 
@@ -822,7 +828,7 @@ Expected: all green.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add messages/en.json messages/vi.json src/lib/paraglide src/routes/accounts src/routes/debts src/tests/unit/i18n.test.ts
+git add messages/en.json messages/vi.json src/routes/accounts src/routes/debts src/tests/unit/i18n.test.ts
 git commit -m "feat(i18n): migrate accounts and debts to Paraglide (en+vi)"
 ```
 
@@ -974,7 +980,7 @@ Expected: all green.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add messages/en.json messages/vi.json src/lib/paraglide src/routes/settings src/routes/onboarding src/lib/components/layout src/routes/+layout.svelte src/lib/utils/date.ts src/tests/unit/i18n.test.ts
+git add messages/en.json messages/vi.json src/routes/settings src/routes/onboarding src/lib/components/layout src/routes/+layout.svelte src/lib/utils/date.ts src/tests/unit/i18n.test.ts
 git commit -m "feat(i18n): migrate settings, categories, onboarding, layout (en+vi)"
 ```
 
@@ -1025,7 +1031,7 @@ Hand `messages/vi.json` to the user for a complete review pass. Apply any termin
 - [ ] **Step 7: Commit**
 
 ```bash
-git add messages/en.json messages/vi.json src/lib/paraglide
+git add messages/en.json messages/vi.json
 git commit -m "fix(i18n): apply vi review corrections"
 ```
 
@@ -1033,7 +1039,7 @@ git commit -m "fix(i18n): apply vi review corrections"
 
 ## Self-Review Notes (completed)
 
-- **Spec coverage:** §1 plumbing → Task 1. §1.2 namespacing → Task 1 + used throughout (underscore-prefix convention). §1.3 plurals/interpolation → Task 3 (`transactions_count`). §2 waves → Tasks 2–6. §3 formatting verification → Task 6 Step 6 (date literals) + Task 7. §4 testing → every task has a failing-test step; linters enforced in Task 7. §5 scope (out-of-scope items) → none implemented. All spec sections covered.
+- **Spec coverage:** §1 plumbing → Task 1. §1.2 namespacing → Task 1 + used throughout (underscore-prefix convention). §1.3 plurals/interpolation → Task 3 (`transactions_count_none` + `transactions_count_many` with a JS branch — Paraglide 1.11.8 cannot compile ICU plurals; plain `{count}` interpolation is used instead). §2 waves → Tasks 2–6. §3 formatting verification → Task 6 Step 6 (date literals) + Task 7. §4 testing → every task has a failing-test step; linters enforced in Task 7. §5 scope (out-of-scope items) → none implemented. All spec sections covered.
 - **Key-naming premise verified:** Paraglide 1.11.8 rejects dotted IDs (reproduced); keys are flat underscore identifiers grouped by feature prefix. 2.x upgrade rejected (bracket-access, not nested) — see Global Constraints ADR.
 - **Type consistency:** message function names match the JSON keys verbatim (`nav_dashboard`, `transactions_count`, `goals_status_on_track`); `setLanguageTag`/`m` import paths identical across tasks. `Locale` type unchanged. Goal status enum handled via `goals_status_*` naming + explicit switch.
 - **Placeholder scan:** migration loops intentionally defer exhaustive literal enumeration to the implementer reading each file (the file is the source of truth and hand-listing 560 strings would be stale/plausible-but-wrong). Every task still ships concrete seed keys, a representative test, the exact regen command, and the replacement pattern. No "TBD"/"add error handling" language.
