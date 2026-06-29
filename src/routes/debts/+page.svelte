@@ -14,6 +14,7 @@
 	import { formatCurrency } from '$lib/utils/currency';
 	import { parseAmount } from '$lib/utils/number_parse';
 	import type { DebtAccount } from '$lib/db/repos/debts';
+	import * as m from '$lib/paraglide/messages';
 
 	let showAction = $state(false);
 	let actionType = $state<'payment' | 'writeoff'>('payment');
@@ -37,7 +38,7 @@
 		try {
 			const parsed = parseAmount(amount, settings.locale, settings.currency);
 			if (actionType === 'payment') {
-				if (!fromAccount) { toast.show('Select an account.'); saving = false; return; }
+				if (!fromAccount) { toast.show(m.debts_select_account()); saving = false; return; }
 				// Payment is a transfer from fromAccount to the debt account
 				await transactions.create({
 					kind: 'transfer',
@@ -47,12 +48,12 @@
 					transfer_account_id: activeDebt.type === 'loan_from_person' ? activeDebt.id : fromAccount
 				});
 				await debts.load();
-				toast.show('Payment recorded.');
+				toast.show(m.debts_payment_recorded());
 			} else {
 				const db = await getDb();
 				await writeOff(db, activeDebt.id, parsed);
 				await debts.load();
-				toast.show('Debt written off.');
+				toast.show(m.debts_written_off());
 			}
 			showAction = false;
 		} catch (e) {
@@ -66,13 +67,13 @@
 </script>
 
 <div class="space-y-6">
-	<h1 class="figures text-xl text-ledger tracking-wide">Debts</h1>
+	<h1 class="figures text-xl text-ledger tracking-wide">{m.debts_title()}</h1>
 
 	<section>
-		<h2 class="plate mb-2">I Owe</h2>
+		<h2 class="plate mb-2">{m.debts_i_owe()}</h2>
 		{#if debts.i_owe.length === 0}
 			<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
-				<p class="text-sm">No debts. You're debt-free! 🎉</p>
+				<p class="text-sm">{m.debts_empty_i_owe()}</p>
 			</div>
 		{:else}
 			<div class="bg-tape rounded-lg border border-line divide-y divide-line">
@@ -85,8 +86,8 @@
 						<div class="flex items-center gap-2">
 							<span class="figures text-sm text-debit">{formatCurrency(Math.abs(d.balance), settings.currency, settings.locale)}</span>
 							<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-								<button onclick={() => openPayment(d)} class="text-xs text-phosphor hover:underline px-2">Pay</button>
-								<button onclick={() => openWriteoff(d)} class="text-xs text-dim hover:underline px-2">Write off</button>
+								<button onclick={() => openPayment(d)} class="text-xs text-phosphor hover:underline px-2">{m.debts_pay()}</button>
+								<button onclick={() => openWriteoff(d)} class="text-xs text-dim hover:underline px-2">{m.debts_write_off()}</button>
 							</div>
 						</div>
 					</div>
@@ -96,10 +97,10 @@
 	</section>
 
 	<section>
-		<h2 class="plate mb-2">Owed to Me</h2>
+		<h2 class="plate mb-2">{m.debts_owed_to_me()}</h2>
 		{#if debts.owed_to_me.length === 0}
 			<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
-				<p class="text-sm">No one owes you money.</p>
+				<p class="text-sm">{m.debts_empty_owed_to_me()}</p>
 			</div>
 		{:else}
 			<div class="bg-tape rounded-lg border border-line divide-y divide-line">
@@ -112,8 +113,8 @@
 						<div class="flex items-center gap-2">
 							<span class="figures text-sm text-phosphor">{formatCurrency(d.balance, settings.currency, settings.locale)}</span>
 							<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-								<button onclick={() => openPayment(d)} class="text-xs text-phosphor hover:underline px-2">Receive</button>
-								<button onclick={() => openWriteoff(d)} class="text-xs text-dim hover:underline px-2">Write off</button>
+								<button onclick={() => openPayment(d)} class="text-xs text-phosphor hover:underline px-2">{m.debts_receive()}</button>
+								<button onclick={() => openWriteoff(d)} class="text-xs text-dim hover:underline px-2">{m.debts_write_off()}</button>
 							</div>
 						</div>
 					</div>
@@ -123,15 +124,15 @@
 	</section>
 </div>
 
-<Modal bind:open={showAction} title={actionType === 'payment' ? (activeDebt?.type === 'loan_from_person' ? 'Make payment' : 'Receive payment') : 'Write off debt'}>
+<Modal bind:open={showAction} title={actionType === 'payment' ? (activeDebt?.type === 'loan_from_person' ? m.debts_make_payment() : m.debts_receive_payment()) : m.debts_write_off_debt()}>
 	<div class="space-y-4">
-		<Input label="Amount" bind:value={amount} placeholder="e.g. 500k" />
+		<Input label={m.common_amount()} bind:value={amount} placeholder={m.forms_amount_placeholder()} />
 		{#if actionType === 'payment'}
-			<Select label={activeDebt?.type === 'loan_from_person' ? 'From account' : 'To account'} bind:value={fromAccount} options={assetAccounts} />
+			<Select label={activeDebt?.type === 'loan_from_person' ? m.debts_from_account() : m.debts_to_account()} bind:value={fromAccount} options={assetAccounts} />
 		{/if}
 		<div class="flex justify-end gap-2 pt-2">
-			<Button variant="ghost" onclick={() => showAction = false}>Cancel</Button>
-			<Button disabled={saving} onclick={doAction}>{actionType === 'payment' ? 'Record' : 'Write off'}</Button>
+			<Button variant="ghost" onclick={() => showAction = false}>{m.common_cancel()}</Button>
+			<Button disabled={saving} onclick={doAction}>{actionType === 'payment' ? m.debts_record() : m.debts_write_off()}</Button>
 		</div>
 	</div>
 </Modal>

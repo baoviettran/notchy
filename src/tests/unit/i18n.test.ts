@@ -153,3 +153,13 @@ describe('wave 3 messages', () => {
 		setLanguageTag('en');
 	});
 });
+
+describe('wave 4 messages', () => {
+	it('renders accounts + debts vi strings', () => {
+		setLanguageTag('vi');
+		expect(m.accounts_assets()).toBe('Tài sản');
+		expect(m.accounts_liabilities()).toBe('Nợ phải trả');
+		expect(m.debts_i_owe()).toBe('Tôi nợ');
+		setLanguageTag('en');
+	});
+});
