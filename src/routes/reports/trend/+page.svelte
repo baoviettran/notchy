@@ -34,10 +34,10 @@
 
 	<div class="flex items-center gap-4">
 		<div class="flex gap-1 text-sm">
-			{#each [6, 12, 24] as m}
-				<button onclick={() => months = m}
-					class="px-2 py-1 rounded {months === m ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim'}"
-				>{m}mo</button>
+			{#each [6, 12, 24] as n}
+				<button onclick={() => months = n}
+					class="px-2 py-1 rounded {months === n ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim'}"
+				>{m.reports_months({ count: n })}</button>
 			{/each}
 		</div>
 		<label class="flex items-center gap-2 text-sm text-dim">

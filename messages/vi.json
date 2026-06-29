@@ -285,5 +285,6 @@
 	"reports_change": "Thay đổi",
 	"reports_compare_empty": "Chưa có dữ liệu so sánh. Thêm chi tiêu ở cả hai tháng để so sánh.",
 	"reports_trend_empty": "Chưa có dữ liệu xu hướng. Thêm giao dịch qua nhiều tháng.",
-	"reports_expense": "Chi"
+	"reports_expense": "Chi",
+	"reports_months": "{count} tháng"
 }

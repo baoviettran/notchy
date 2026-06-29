@@ -285,5 +285,6 @@
 	"reports_change": "Change",
 	"reports_compare_empty": "No comparison data. Add expenses in both months to compare.",
 	"reports_trend_empty": "No trend data yet. Add transactions across multiple months.",
-	"reports_expense": "Expense"
+	"reports_expense": "Expense",
+	"reports_months": "{count} months"
 }
