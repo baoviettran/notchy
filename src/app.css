@@ -5,16 +5,40 @@
 /* ===========================================================
    Notchy — Adding Machine design system
    Warm near-black casing, amber-phosphor figures, oxblood debit.
-   Dark is the native surface; light is the paper fallback.
+   Dark is the native surface; light is the paper variant.
+   Token hexes live in CSS variables so each flips with the
+   html.light / html.dark class on <html>.
    =========================================================== */
 
 @layer base {
 	:root {
+		/* Dark (default): warm near-black casing + amber phosphor. */
 		color-scheme: dark;
+		--ink: #14110C;
+		--tape: #1C1812;
+		--ledger: #D6CFC0;
+		--dim: #8A8170;
+		--line: #2A2419;
+		--phosphor: #FFB454;
+		--phosphor-bright: #FFD79A;
+		--debit: #E5484D;
+	}
+
+	html.light {
+		/* Light: warm paper-bone + ochre phosphor (deepened for contrast). */
+		color-scheme: light;
+		--ink: #F4EFE2;
+		--tape: #FBF8F1;
+		--ledger: #1F1B14;
+		--dim: #6B6353;
+		--line: #E2DAC8;
+		--phosphor: #B8721A;
+		--phosphor-bright: #D99935;
+		--debit: #C23B3F;
 	}
 
 	html {
-		background-color: #14110c;
+		background-color: var(--ink);
 	}
 
 	body {
@@ -24,17 +48,25 @@
 		text-rendering: optimizeLegibility;
 	}
 
-	/* Amber-phosphor VFD numerals: the adding-machine display. */
+	/* Phosphor VFD numerals: the adding-machine display. */
 	.figures {
 		font-family: theme('fontFamily.mono');
 		font-variant-numeric: tabular-nums lining-nums;
 		letter-spacing: -0.01em;
 	}
-	.figures-glow {
+
+	/* Glow renders dark-only: a bloom on paper reads muddy and loses legibility. */
+	:root:not(.light) .figures-glow {
 		font-family: theme('fontFamily.mono');
 		font-variant-numeric: tabular-nums lining-nums;
-		color: #ffd79a;
+		color: var(--phosphor-bright);
 		text-shadow: 0 0 8px rgba(255, 180, 84, 0.45), 0 0 22px rgba(255, 180, 84, 0.18);
+	}
+	html.light .figures-glow {
+		font-family: theme('fontFamily.mono');
+		font-variant-numeric: tabular-nums lining-nums;
+		color: var(--phosphor);
+		text-shadow: none;
 	}
 
 	/* Engraved faceplate micro-label. */
@@ -43,29 +75,29 @@
 		text-transform: uppercase;
 		letter-spacing: 0.18em;
 		font-size: 0.6875rem; /* 11px */
-		color: #8a8170;
+		color: var(--dim);
 	}
 
 	::selection {
 		background: rgba(255, 180, 84, 0.28);
-		color: #ffd79a;
+		color: var(--phosphor-bright);
 	}
 
-	/* Quiet, amber focus ring — visible against the dark casing. */
+	/* Quiet phosphor focus ring — visible against either casing. */
 	:focus-visible {
 		outline: none;
-		box-shadow: 0 0 0 2px #14110c, 0 0 0 3px rgba(255, 180, 84, 0.7);
+		box-shadow: 0 0 0 2px var(--ink), 0 0 0 3px var(--phosphor);
 	}
 }
 
 @layer components {
 	/* Single card recipe so hierarchy is consistent across screens. */
 	.surface {
-		background-color: #1c1812;
-		border: 1px solid #2a2419;
+		background-color: var(--tape);
+		border: 1px solid var(--line);
 	}
 	.hairline {
-		border-color: #2a2419;
+		border-color: var(--line);
 	}
 }
 

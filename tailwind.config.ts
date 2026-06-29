@@ -6,15 +6,16 @@ export default {
 	theme: {
 		extend: {
 			colors: {
-				// Adding Machine palette — warm near-black casing + amber phosphor.
-				ink: '#14110C',
-				tape: '#1C1812',
-				ledger: '#D6CFC0',
-				dim: '#8A8170',
-				line: '#2A2419',
-				phosphor: '#FFB454',
-				'phosphor-bright': '#FFD79A',
-				debit: '#E5484D'
+				// Adding Machine palette — values are CSS variables defined in app.css,
+				// so each token flips with the html.light / html.dark class.
+				ink: 'var(--ink)',
+				tape: 'var(--tape)',
+				ledger: 'var(--ledger)',
+				dim: 'var(--dim)',
+				line: 'var(--line)',
+				phosphor: 'var(--phosphor)',
+				'phosphor-bright': 'var(--phosphor-bright)',
+				debit: 'var(--debit)'
 			},
 			fontFamily: {
 				mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
