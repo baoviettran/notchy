@@ -9,6 +9,7 @@
 	import { goals } from '$lib/stores/goals.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { formatCurrency, formatNumber } from '$lib/utils/currency';
+	import * as m from '$lib/paraglide/messages';
 
 	let recentTxns = $derived(transactions.items.slice(0, 6));
 	let totalAssets = $derived(accounts.assets.reduce((s, a) => s + a.balance, 0));
@@ -31,15 +32,15 @@
 	// doesn't already say.
 	// Human-readable fallback for transactions without a payee — name the entry
 	// by what it is to the person reading the list, never the raw system kind.
-	const KIND_LABELS: Record<string, string> = {
-		expense: 'Expense',
-		income: 'Income',
-		transfer: 'Transfer',
-		refund: 'Refund',
-		adjustment: 'Opening balance'
+	const KIND_LABELS: Record<string, () => string> = {
+		expense: m.forms_expense,
+		income: m.forms_income,
+		transfer: m.forms_transfer,
+		refund: m.forms_refund,
+		adjustment: m.forms_adjustment
 	};
 	function labelFor(kind: string): string {
-		return KIND_LABELS[kind] ?? kind;
+		return (KIND_LABELS[kind] ?? (() => kind))();
 	}
 
 	onMount(async () => {
@@ -49,15 +50,15 @@
 
 <div class="space-y-5">
 	<header class="flex items-center justify-between">
-		<h1 class="plate">Dashboard</h1>
+		<h1 class="plate">{m.nav_dashboard()}</h1>
 		<span class="plate">{budgets.month}</span>
 	</header>
 
 	<!-- SIGNATURE: net position as a VFD readout. -->
 	<section class="surface rounded-lg p-5 md:p-6 relative overflow-hidden">
 		<div class="flex items-center justify-between mb-4">
-			<h2 class="plate">Net position</h2>
-			<a href="/accounts" class="plate hover:text-ledger transition-colors">Accounts →</a>
+			<h2 class="plate">{m.dashboard_net_position()}</h2>
+			<a href="/accounts" class="plate hover:text-ledger transition-colors">{m.dashboard_accounts_link()}</a>
 		</div>
 
 		<div class="min-w-0">
@@ -68,17 +69,17 @@
 				<span class="figures {monthFlow >= 0 ? 'text-phosphor' : 'text-debit'}">
 					{monthFlow >= 0 ? '▲' : '▼'} {formatNumber(Math.abs(monthFlow), settings.locale)}
 				</span>
-				<span class="text-dim">this month's flow</span>
+				<span class="text-dim">{m.dashboard_month_flow()}</span>
 			</div>
 		</div>
 
 		<div class="mt-5 pt-4 border-t border-line grid grid-cols-2 gap-4 text-sm">
 			<div>
-				<p class="plate mb-1">Assets</p>
+				<p class="plate mb-1">{m.dashboard_assets()}</p>
 				<p class="figures text-ledger">{formatCurrency(totalAssets, settings.currency, settings.locale)}</p>
 			</div>
 			<div>
-				<p class="plate mb-1">Liabilities</p>
+				<p class="plate mb-1">{m.dashboard_liabilities()}</p>
 				<p class="figures text-debit">{formatCurrency(totalLiabilities, settings.currency, settings.locale)}</p>
 			</div>
 		</div>
@@ -87,8 +88,8 @@
 	<!-- THIS MONTH: segmented budget meter. -->
 	<section class="surface rounded-lg p-5">
 		<div class="flex items-center justify-between mb-3">
-			<h2 class="plate">This month · spent / budget</h2>
-			<a href="/budgets" class="plate hover:text-ledger transition-colors">Budgets →</a>
+			<h2 class="plate">{m.dashboard_this_month()}</h2>
+			<a href="/budgets" class="plate hover:text-ledger transition-colors">{m.dashboard_budgets_link()}</a>
 		</div>
 		{#if budgets.hasAllocations}
 			<div class="flex items-baseline gap-3 mb-3">
@@ -110,15 +111,15 @@
 			     looks like here, instead of going inert. -->
 			<Progress value={0} max={100} />
 			<div class="mt-4 flex items-center justify-between text-sm">
-				<p class="text-dim">No budget set for {budgets.month}.</p>
-				<a href="/budgets" class="text-phosphor hover:underline">Set up budget →</a>
+				<p class="text-dim">{m.dashboard_no_budget({ month: budgets.month })}</p>
+				<a href="/budgets" class="text-phosphor hover:underline">{m.dashboard_setup_budget()}</a>
 			</div>
 		{/if}
 	</section>
 
 	<!-- QUICK ENTRY: the keypad. -->
 	<section class="surface rounded-lg p-5">
-		<h2 class="plate mb-3">Quick entry</h2>
+		<h2 class="plate mb-3">{m.dashboard_quick_entry()}</h2>
 		<TransactionForm mode="quick" onclose={() => {}} onsave={async () => { await transactions.load({ limit: 5 }); }} />
 	</section>
 
@@ -127,13 +128,13 @@
 	<!-- RECENT: the ledger tape. -->
 	<section class="surface rounded-lg overflow-hidden">
 		<div class="flex items-center justify-between px-5 pt-4 pb-3">
-			<h2 class="plate">Recent</h2>
-			<a href="/transactions" class="plate hover:text-ledger transition-colors">View all →</a>
+			<h2 class="plate">{m.dashboard_recent()}</h2>
+			<a href="/transactions" class="plate hover:text-ledger transition-colors">{m.dashboard_view_all()}</a>
 		</div>
 		{#if recentTxns.length === 0}
 			<div class="px-5 pb-6 pt-2 text-dim">
 				<p class="figures-glow text-xl mb-1">▮▯▯▯</p>
-				<p class="text-sm">No transactions yet. Press <kbd class="figures text-phosphor">N</kbd> or tap + to log the first.</p>
+				<p class="text-sm">{m.dashboard_no_txns_yet({ shortcut: 'N' })}</p>
 			</div>
 		{:else}
 			<ul class="divide-y divide-line border-t border-line">
@@ -156,8 +157,8 @@
 	{#if goals.dashboard.length > 0}
 		<section class="surface rounded-lg p-5">
 			<div class="flex items-center justify-between mb-3">
-				<h2 class="plate">Goals</h2>
-				<a href="/goals" class="plate hover:text-ledger transition-colors">View all →</a>
+				<h2 class="plate">{m.nav_goals()}</h2>
+				<a href="/goals" class="plate hover:text-ledger transition-colors">{m.dashboard_view_all()}</a>
 			</div>
 			<div class="space-y-3">
 				{#each goals.dashboard.slice(0, 3) as g}

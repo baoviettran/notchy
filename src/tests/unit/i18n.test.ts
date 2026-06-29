@@ -128,3 +128,18 @@ describe('form messages', () => {
 		setLanguageTag('en');
 	});
 });
+
+describe('transactions messages', () => {
+	it('renders empty state in vi', () => {
+		setLanguageTag('vi');
+		expect(m.transactions_empty_state()).toBe('Không có giao dịch nào.');
+		setLanguageTag('en');
+	});
+
+	it('renders transaction count (split keys) in vi', () => {
+		setLanguageTag('vi');
+		expect(m.transactions_count_none()).toBe('Không có giao dịch nào');
+		expect(m.transactions_count_many({ count: 5 })).toBe('5 giao dịch');
+		setLanguageTag('en');
+	});
+});
