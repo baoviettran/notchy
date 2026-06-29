@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { formatDate, formatDateRelative } from '$lib/utils/date';
+import { setLanguageTag } from '$lib/paraglide/runtime';
 
 describe('formatDate', () => {
 	it('formats vi locale as dd/mm/yyyy', () => {
@@ -22,16 +23,19 @@ describe('formatDate', () => {
 
 describe('formatDateRelative', () => {
 	it('returns "Today" for today in en locale', () => {
+		setLanguageTag('en');
 		const today = new Date().toISOString().slice(0, 10);
 		expect(formatDateRelative(today, 'en')).toBe('Today');
 	});
 
 	it('returns "Hôm nay" for today in vi locale', () => {
+		setLanguageTag('vi');
 		const today = new Date().toISOString().slice(0, 10);
 		expect(formatDateRelative(today, 'vi')).toBe('Hôm nay');
 	});
 
 	it('returns "Yesterday" for yesterday in en locale', () => {
+		setLanguageTag('en');
 		const d = new Date();
 		d.setDate(d.getDate() - 1);
 		const yesterday = d.toISOString().slice(0, 10);
@@ -39,6 +43,7 @@ describe('formatDateRelative', () => {
 	});
 
 	it('returns "Hôm qua" for yesterday in vi locale', () => {
+		setLanguageTag('vi');
 		const d = new Date();
 		d.setDate(d.getDate() - 1);
 		const yesterday = d.toISOString().slice(0, 10);
@@ -46,6 +51,7 @@ describe('formatDateRelative', () => {
 	});
 
 	it('falls back to formatDate for dates older than yesterday', () => {
+		setLanguageTag('vi');
 		const d = new Date();
 		d.setDate(d.getDate() - 7);
 		const oldDate = d.toISOString().slice(0, 10);

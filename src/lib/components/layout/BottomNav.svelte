@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import * as m from '$lib/paraglide/messages';
 
 	const tabs = [
-		{ href: '/', label: 'Home', d: 'M3 12h7V3H3zM14 21h7v-9h-7zM14 3v6h7V3zM3 21h7v-3H3z' },
-		{ href: '/transactions', label: 'Trans', d: 'M4 6h16M4 12h16M4 18h10' },
-		{ href: '/budgets', label: 'Budget', d: 'M3 17l5-5 4 4 8-8M21 8v5h-5' },
-		{ href: '/reports', label: 'Reports', d: 'M4 20V10M10 20V4M16 20v-7M22 20H2' }
+		{ href: '/', label: m.layout_home(), d: 'M3 12h7V3H3zM14 21h7v-9h-7zM14 3v6h7V3zM3 21h7v-3H3z' },
+		{ href: '/transactions', label: m.layout_trans(), d: 'M4 6h16M4 12h16M4 18h10' },
+		{ href: '/budgets', label: m.layout_budget(), d: 'M3 17l5-5 4 4 8-8M21 8v5h-5' },
+		{ href: '/reports', label: m.layout_reports(), d: 'M4 20V10M10 20V4M16 20v-7M22 20H2' }
 	];
 
 	function isActive(href: string, path: string): boolean {

@@ -87,13 +87,17 @@ describe('formatDate', () => {
 describe('formatDateRelative', () => {
 	it('returns Today for current date', () => {
 		const today = new Date().toISOString().split('T')[0];
+		setLanguageTag('en');
 		expect(formatDateRelative(today, 'en')).toBe('Today');
+		setLanguageTag('vi');
 		expect(formatDateRelative(today, 'vi')).toBe('Hôm nay');
 	});
 
 	it('returns Yesterday for previous day', () => {
 		const yesterday = new Date(Date.now() - 86_400_000).toISOString().split('T')[0];
+		setLanguageTag('en');
 		expect(formatDateRelative(yesterday, 'en')).toBe('Yesterday');
+		setLanguageTag('vi');
 		expect(formatDateRelative(yesterday, 'vi')).toBe('Hôm qua');
 	});
 });
@@ -160,6 +164,16 @@ describe('wave 4 messages', () => {
 		expect(m.accounts_assets()).toBe('Tài sản');
 		expect(m.accounts_liabilities()).toBe('Nợ phải trả');
 		expect(m.debts_i_owe()).toBe('Tôi nợ');
+		setLanguageTag('en');
+	});
+});
+
+describe('wave 5 messages', () => {
+	it('renders settings + categories + layout vi strings', () => {
+		setLanguageTag('vi');
+		expect(m.settings_title()).toBe('Cài đặt');
+		expect(m.categories_title()).toBe('Nhãn');
+		expect(m.layout_warming_up()).toBe('Đang khởi động');
 		setLanguageTag('en');
 	});
 });

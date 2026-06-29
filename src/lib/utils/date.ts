@@ -1,4 +1,5 @@
 import type { Locale } from './number_parse';
+import * as m from '$lib/paraglide/messages';
 
 /**
  * Formats an ISO date string for display.
@@ -26,7 +27,7 @@ export function formatDateRelative(isoDate: string, locale: Locale): string {
 
 	const diffDays = Math.round((today.getTime() - target.getTime()) / 86_400_000);
 
-	if (diffDays === 0) return locale === 'vi' ? 'Hôm nay' : 'Today';
-	if (diffDays === 1) return locale === 'vi' ? 'Hôm qua' : 'Yesterday';
+	if (diffDays === 0) return m.common_today();
+	if (diffDays === 1) return m.common_yesterday();
 	return formatDate(isoDate, locale);
 }
