@@ -5,6 +5,7 @@
 	import type { TrendPoint } from '$lib/db/repos/reports';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
+	import * as m from '$lib/paraglide/messages';
 
 	let points = $state<TrendPoint[]>([]);
 	let months = $state(6);
@@ -23,25 +24,25 @@
 
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
-		<h1 class="figures text-xl text-ledger tracking-wide">Reports</h1>
+		<h1 class="figures text-xl text-ledger tracking-wide">{m.reports_title()}</h1>
 		<div class="flex gap-2 text-sm">
-			<a href="/reports" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">Overview</a>
-			<a href="/reports/trend" class="px-3 py-1.5 rounded-md bg-phosphor/15 text-phosphor font-medium">Trend</a>
-			<a href="/reports/compare" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">Compare</a>
+			<a href="/reports" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">{m.reports_overview()}</a>
+			<a href="/reports/trend" class="px-3 py-1.5 rounded-md bg-phosphor/15 text-phosphor font-medium">{m.reports_trend()}</a>
+			<a href="/reports/compare" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">{m.reports_compare()}</a>
 		</div>
 	</div>
 
 	<div class="flex items-center gap-4">
 		<div class="flex gap-1 text-sm">
-			{#each [6, 12, 24] as m}
-				<button onclick={() => months = m}
-					class="px-2 py-1 rounded {months === m ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim'}"
-				>{m}mo</button>
+			{#each [6, 12, 24] as n}
+				<button onclick={() => months = n}
+					class="px-2 py-1 rounded {months === n ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim'}"
+				>{m.reports_months({ count: n })}</button>
 			{/each}
 		</div>
 		<label class="flex items-center gap-2 text-sm text-dim">
 			<input type="checkbox" bind:checked={includeAdjustments} class="rounded" />
-			Include adjustments
+			{m.reports_include_adjustments()}
 		</label>
 	</div>
 
@@ -59,8 +60,8 @@
 				{/each}
 			</div>
 			<div class="flex gap-4 mt-3 text-xs text-dim">
-				<span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-phosphor"></span> Income</span>
-				<span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-debit"></span> Expense</span>
+				<span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-phosphor"></span> {m.reports_income()}</span>
+				<span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-debit"></span> {m.reports_expense()}</span>
 			</div>
 		</div>
 
@@ -78,7 +79,7 @@
 		</div>
 	{:else}
 		<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim min-h-[200px] flex items-center justify-center">
-			<p class="text-sm">No trend data yet. Add transactions across multiple months.</p>
+			<p class="text-sm">{m.reports_trend_empty()}</p>
 		</div>
 	{/if}
 </div>

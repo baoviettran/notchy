@@ -1,6 +1,7 @@
 import { getDb } from '$lib/db';
 import * as meta from '$lib/db/repos/meta';
 import type { Locale } from '$lib/utils/number_parse';
+import { setLanguageTag } from '$lib/paraglide/runtime';
 
 class SettingsStore {
 	locale = $state<Locale>('en');
@@ -11,6 +12,7 @@ class SettingsStore {
 	async load(): Promise<void> {
 		const db = await getDb();
 		this.locale = (await meta.getLocale(db)) as Locale;
+		setLanguageTag(this.locale);
 		this.currency = await meta.getCurrency(db);
 		this.firstRunComplete = await meta.isFirstRunComplete(db);
 		this.applyThemeClass();
@@ -20,6 +22,7 @@ class SettingsStore {
 		const db = await getDb();
 		await meta.setMeta(db, 'locale', locale);
 		this.locale = locale;
+		setLanguageTag(locale);
 	}
 
 	async setCurrency(currency: string): Promise<void> {

@@ -7,6 +7,8 @@
 	import { toast } from '$lib/stores/toast.svelte';
 	import { parseAmount } from '$lib/utils/number_parse';
 	import type { AccountWithBalance, AccountType } from '$lib/db/repos/accounts';
+	import * as m from '$lib/paraglide/messages';
+	import { mapError } from '$lib/utils/errors';
 
 	let { account = null, onclose = () => {} }: { account?: AccountWithBalance | null; onclose?: () => void } = $props();
 
@@ -18,30 +20,30 @@
 	let error = $state('');
 
 	const types: { value: AccountType; label: string }[] = [
-		{ value: 'checking', label: 'Checking' },
-		{ value: 'savings', label: 'Savings' },
-		{ value: 'cash', label: 'Cash' },
-		{ value: 'credit_card', label: 'Credit Card' },
-		{ value: 'loan_to_person', label: 'Loan to Person' },
-		{ value: 'loan_from_person', label: 'Loan from Person' }
+		{ value: 'checking', label: m.forms_account_type_checking() },
+		{ value: 'savings', label: m.forms_account_type_savings() },
+		{ value: 'cash', label: m.forms_account_type_cash() },
+		{ value: 'credit_card', label: m.forms_account_type_credit_card() },
+		{ value: 'loan_to_person', label: m.forms_account_type_loan_to_person() },
+		{ value: 'loan_from_person', label: m.forms_account_type_loan_from_person() }
 	];
 
 	const isLoan = $derived(type === 'loan_to_person' || type === 'loan_from_person');
 	const isEdit = $derived(account !== null);
 
 	async function save() {
-		if (!name.trim()) { error = 'Name is required'; return; }
-		if (isLoan && !counterparty.trim()) { error = 'Counterparty is required for loans'; return; }
+		if (!name.trim()) { error = m.validation_name_required(); return; }
+		if (isLoan && !counterparty.trim()) { error = m.validation_counterparty_required(); return; }
 		saving = true;
 		error = '';
 		try {
 			if (isEdit && account) {
 				await accounts.update(account.id, { name, type, counterparty: isLoan ? counterparty : null });
-				toast.show('Account updated.');
+				toast.show(m.forms_account_updated());
 			} else {
 				let balance: number | undefined;
 				if (initialBalance.trim()) {
-					try { balance = parseAmount(initialBalance, settings.locale, settings.currency); } catch { error = 'Invalid amount'; saving = false; return; }
+					try { balance = parseAmount(initialBalance, settings.locale, settings.currency); } catch { error = m.validation_invalid_amount(); saving = false; return; }
 				}
 				await accounts.create({
 					name, type, currency: settings.currency,
@@ -49,11 +51,11 @@
 					initial_balance: balance,
 					initial_balance_date: new Date().toISOString().split('T')[0]
 				});
-				toast.show('Account created.');
+				toast.show(m.forms_account_created());
 			}
 			onclose();
 		} catch (e) {
-			error = String(e).replace('Error: ', '');
+			error = mapError(e);
 		} finally {
 			saving = false;
 		}
@@ -63,17 +65,17 @@
 <div class="space-y-4">
 	{#if error}<p class="text-sm text-debit">{error}</p>{/if}
 
-	<Input label="Name" bind:value={name} placeholder="e.g. Vietcombank Checking" maxlength={64} />
-	<Select label="Type" bind:value={type} options={types} disabled={isEdit} />
+	<Input label={m.common_name()} bind:value={name} placeholder={m.forms_account_name_placeholder()} maxlength={64} />
+	<Select label={m.forms_type()} bind:value={type} options={types} disabled={isEdit} />
 	{#if isLoan}
-		<Input label="Counterparty" bind:value={counterparty} placeholder="Person's name" maxlength={64} />
+		<Input label={m.forms_counterparty()} bind:value={counterparty} placeholder={m.forms_counterparty_hint()} maxlength={64} />
 	{/if}
 	{#if !isEdit}
-		<Input label="Initial balance (optional)" bind:value={initialBalance} placeholder="e.g. 5tr, 1000000" />
+		<Input label={m.forms_initial_balance()} bind:value={initialBalance} placeholder={m.forms_initial_balance_placeholder()} />
 	{/if}
 
 	<div class="flex justify-end gap-2 pt-2">
-		<Button variant="ghost" onclick={onclose}>Cancel</Button>
-		<Button disabled={saving} onclick={save}>{isEdit ? 'Save' : 'Create'}</Button>
+		<Button variant="ghost" onclick={onclose}>{m.common_cancel()}</Button>
+		<Button disabled={saving} onclick={save}>{isEdit ? m.common_save() : m.forms_create()}</Button>
 	</div>
 </div>

@@ -6,6 +6,7 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
 	import DonutChart from '$lib/components/charts/DonutChart.svelte';
+	import * as m from '$lib/paraglide/messages';
 
 	let report = $state<OverviewReport | null>(null);
 	let includeAdjustments = $state(false);
@@ -37,38 +38,38 @@
 
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
-		<h1 class="figures text-xl text-ledger tracking-wide">Reports</h1>
+		<h1 class="figures text-xl text-ledger tracking-wide">{m.reports_title()}</h1>
 		<div class="flex gap-2 text-sm">
-			<a href="/reports" class="px-3 py-1.5 rounded-md bg-phosphor/15 text-phosphor font-medium">Overview</a>
-			<a href="/reports/trend" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">Trend</a>
-			<a href="/reports/compare" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">Compare</a>
+			<a href="/reports" class="px-3 py-1.5 rounded-md bg-phosphor/15 text-phosphor font-medium">{m.reports_overview()}</a>
+			<a href="/reports/trend" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">{m.reports_trend()}</a>
+			<a href="/reports/compare" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">{m.reports_compare()}</a>
 		</div>
 	</div>
 
 	<label class="flex items-center gap-2 text-sm text-dim">
 		<input type="checkbox" bind:checked={includeAdjustments} class="rounded" />
-		Include adjustments
+		{m.reports_include_adjustments()}
 	</label>
 
 	{#if report}
 		<div class="grid md:grid-cols-3 gap-4">
 			<div class="bg-tape rounded-lg border border-line p-4">
-				<p class="plate mb-1">Income</p>
+				<p class="plate mb-1">{m.reports_income()}</p>
 				<p class="figures text-2xl text-phosphor">{formatCurrency(report.total_income, settings.currency, settings.locale)}</p>
 			</div>
 			<div class="bg-tape rounded-lg border border-line p-4">
-				<p class="plate mb-1">Expenses</p>
+				<p class="plate mb-1">{m.reports_expenses()}</p>
 				<p class="figures text-2xl text-debit">{formatCurrency(report.total_expense, settings.currency, settings.locale)}</p>
 			</div>
 			<div class="bg-tape rounded-lg border border-line p-4">
-				<p class="plate mb-1">Net Cash Flow</p>
+				<p class="plate mb-1">{m.reports_net_cash_flow()}</p>
 				<p class="figures text-2xl {report.net_cash_flow >= 0 ? 'text-phosphor' : 'text-debit'}">{formatCurrency(report.net_cash_flow, settings.currency, settings.locale)}</p>
 			</div>
 		</div>
 
 		{#if report.spending_by_bucket.length > 0}
 			<div class="bg-tape rounded-lg border border-line p-4">
-				<h2 class="plate mb-3">Spending by Bucket</h2>
+				<h2 class="plate mb-3">{m.reports_spending_by_bucket()}</h2>
 				<DonutChart data={donutData} />
 				<div class="space-y-2 mt-4">
 					{#each report.spending_by_bucket as b}
@@ -83,7 +84,7 @@
 
 		{#if report.top_categories.length > 0}
 			<div class="bg-tape rounded-lg border border-line p-4">
-				<h2 class="plate mb-3">Top Categories</h2>
+				<h2 class="plate mb-3">{m.reports_top_categories()}</h2>
 				<div class="space-y-2">
 					{#each report.top_categories as c}
 						<div class="flex items-center justify-between text-sm">
@@ -97,11 +98,11 @@
 
 		{#if report.top_transactions.length > 0}
 			<div class="bg-tape rounded-lg border border-line p-4">
-				<h2 class="plate mb-3">Top Transactions</h2>
+				<h2 class="plate mb-3">{m.reports_top_transactions()}</h2>
 				<div class="space-y-2">
 					{#each report.top_transactions as tx}
 						<div class="flex items-center justify-between text-sm">
-							<span class="text-ledger">{tx.payee || 'No payee'}</span>
+							<span class="text-ledger">{tx.payee || m.reports_no_payee()}</span>
 							<span class="figures text-debit">{formatCurrency(tx.amount, settings.currency, settings.locale)}</span>
 						</div>
 					{/each}
@@ -111,7 +112,7 @@
 
 		{#if report.spending_by_bucket.length === 0 && report.top_transactions.length === 0}
 			<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
-				<p class="text-sm">No data for this month. Add transactions to see reports.</p>
+				<p class="text-sm">{m.reports_empty()}</p>
 			</div>
 		{/if}
 	{/if}

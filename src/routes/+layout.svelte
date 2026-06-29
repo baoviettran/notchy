@@ -12,6 +12,7 @@
 	import Modal from '$lib/components/primitives/Modal.svelte';
 	import TransactionForm from '$lib/components/forms/TransactionForm.svelte';
 	import GlobalToast from '$lib/components/primitives/GlobalToast.svelte';
+	import * as m from '$lib/paraglide/messages';
 
 	let { children } = $props();
 	let showTxModal = $state(false);
@@ -43,7 +44,7 @@
 {#if !dbStore.ready}
 	<div class="h-screen flex flex-col items-center justify-center bg-ink gap-3">
 		<div class="figures-glow text-2xl animate-flash">▮▮▮</div>
-		<p class="plate">Warming up</p>
+		<p class="plate">{m.layout_warming_up()}</p>
 	</div>
 {:else if isOnboarding}
 	{@render children()}
@@ -58,7 +59,7 @@
 		</div>
 		<BottomNav />
 		<FAB onclick={() => showTxModal = true} />
-		<Modal bind:open={showTxModal} title="Add transaction">
+		<Modal bind:open={showTxModal} title={m.layout_add_transaction()}>
 			<TransactionForm onclose={() => showTxModal = false} />
 		</Modal>
 		<GlobalToast />

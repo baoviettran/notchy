@@ -1,6 +1,7 @@
 import { getDb } from '$lib/db';
 import * as repo from '$lib/db/repos/accounts';
 import type { AccountWithBalance, NewAccount, AccountType } from '$lib/db/repos/accounts';
+import { mapError } from '$lib/utils/errors';
 
 class AccountsStore {
 	items = $state<AccountWithBalance[]>([]);
@@ -26,7 +27,7 @@ class AccountsStore {
 			const db = await getDb();
 			this.items = await repo.listAccounts(db);
 		} catch (e) {
-			this.error = String(e);
+			this.error = mapError(e);
 		} finally {
 			this.loading = false;
 		}

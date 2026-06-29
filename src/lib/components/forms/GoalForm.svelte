@@ -9,6 +9,8 @@
 	import { parseAmount } from '$lib/utils/number_parse';
 	import type { GoalWithProgress, GoalType } from '$lib/db/repos/goals';
 	import { onMount } from 'svelte';
+	import * as m from '$lib/paraglide/messages';
+	import { mapError } from '$lib/utils/errors';
 
 	let { goal = null, onclose = () => {} }: { goal?: GoalWithProgress | null; onclose?: () => void } = $props();
 
@@ -23,37 +25,37 @@
 	onMount(() => accounts.load());
 
 	const types = [
-		{ value: 'savings', label: 'Savings' },
-		{ value: 'debt_payoff', label: 'Debt Payoff' },
-		{ value: 'net_worth', label: 'Net Worth' }
+		{ value: 'savings', label: m.forms_goal_type_savings() },
+		{ value: 'debt_payoff', label: m.forms_goal_type_debt_payoff() },
+		{ value: 'net_worth', label: m.forms_goal_type_net_worth() }
 	];
 	const accountOptions = $derived([
-		{ value: '', label: '— None —' },
+		{ value: '', label: m.common_none() },
 		...accounts.items.map((a) => ({ value: a.id, label: a.name }))
 	]);
 	const isEdit = $derived(goal !== null);
 
 	async function save() {
-		if (!name.trim()) { error = 'Name is required'; return; }
-		if (!targetDate) { error = 'Target date is required'; return; }
+		if (!name.trim()) { error = m.validation_name_required(); return; }
+		if (!targetDate) { error = m.validation_target_date_required(); return; }
 		saving = true;
 		error = '';
 		try {
 			const parsed = parseAmount(targetAmount, settings.locale, settings.currency);
 			if (isEdit && goal) {
 				await goals.update(goal.id, { name, target_amount: parsed, target_date: targetDate });
-				toast.show('Goal updated.');
+				toast.show(m.forms_goal_updated());
 			} else {
 				await goals.create({
 					name, type, target_amount: parsed, target_date: targetDate,
 					linked_account_id: linkedAccountId || null,
 					starting_amount: 0
 				});
-				toast.show('Goal created.');
+				toast.show(m.forms_goal_created());
 			}
 			onclose();
 		} catch (e) {
-			error = String(e).replace('Error: ', '');
+			error = mapError(e);
 		} finally {
 			saving = false;
 		}
@@ -63,16 +65,16 @@
 <div class="space-y-4">
 	{#if error}<p class="text-sm text-debit">{error}</p>{/if}
 
-	<Input label="Name" bind:value={name} placeholder="e.g. Vacation 2026" maxlength={64} />
-	<Select label="Type" bind:value={type} options={types} disabled={isEdit} />
-	<Input label="Target amount" bind:value={targetAmount} placeholder="e.g. 10tr" />
-	<Input label="Target date" type="date" bind:value={targetDate} />
+	<Input label={m.common_name()} bind:value={name} placeholder={m.forms_goal_name_placeholder()} maxlength={64} />
+	<Select label={m.forms_type()} bind:value={type} options={types} disabled={isEdit} />
+	<Input label={m.forms_target_amount()} bind:value={targetAmount} placeholder={m.forms_target_amount_placeholder()} />
+	<Input label={m.forms_target_date()} type="date" bind:value={targetDate} />
 	{#if type !== 'net_worth'}
-		<Select label="Linked account" bind:value={linkedAccountId} options={accountOptions} />
+		<Select label={m.forms_linked_account()} bind:value={linkedAccountId} options={accountOptions} />
 	{/if}
 
 	<div class="flex justify-end gap-2 pt-2">
-		<Button variant="ghost" onclick={onclose}>Cancel</Button>
-		<Button disabled={saving} onclick={save}>{isEdit ? 'Save' : 'Create'}</Button>
+		<Button variant="ghost" onclick={onclose}>{m.common_cancel()}</Button>
+		<Button disabled={saving} onclick={save}>{isEdit ? m.common_save() : m.forms_create()}</Button>
 	</div>
 </div>

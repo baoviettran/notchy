@@ -1,6 +1,7 @@
 import { getDb } from '$lib/db';
 import * as repo from '$lib/db/repos/categories';
 import type { Bucket, Tag } from '$lib/db/repos/categories';
+import { mapError } from '$lib/utils/errors';
 
 class CategoriesStore {
 	buckets = $state<Bucket[]>([]);
@@ -21,7 +22,7 @@ class CategoriesStore {
 			this.buckets = await repo.listBuckets(db);
 			this.tags = await repo.listTags(db);
 		} catch (e) {
-			this.error = String(e);
+			this.error = mapError(e);
 		} finally {
 			this.loading = false;
 		}

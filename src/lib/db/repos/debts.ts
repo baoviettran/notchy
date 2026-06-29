@@ -1,6 +1,7 @@
 import type { DatabaseService } from '../service';
 import { ulid } from '../../utils/id';
 import { getBalance } from './accounts';
+import { AppError } from '../../errors';
 
 export interface DebtAccount {
 	id: string;
@@ -58,7 +59,7 @@ export async function writeOff(
 	const acc = await db.query<{ type: string }>(
 		`SELECT type FROM accounts WHERE id = ? AND deleted_at IS NULL`, [accountId]
 	);
-	if (acc.length === 0) throw new Error('Account not found');
+	if (acc.length === 0) throw new AppError('account_not_found');
 
 	const now = new Date().toISOString();
 	const today = now.split('T')[0];

@@ -1,6 +1,7 @@
 import { getDb } from '$lib/db';
 import * as meta from '$lib/db/repos/meta';
 import { runAutoBackup } from '$lib/backup';
+import { mapError } from '$lib/utils/errors';
 
 class DbStore {
 	ready = $state(false);
@@ -15,7 +16,7 @@ class DbStore {
 			// Run auto-backup in the background, don't block startup
 			runAutoBackup(db).catch((e) => console.warn('Auto-backup error:', e));
 		} catch (e) {
-			this.error = String(e);
+			this.error = mapError(e);
 		}
 	}
 }

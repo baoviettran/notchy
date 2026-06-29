@@ -9,6 +9,9 @@
 	import { toast } from '$lib/stores/toast.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
 	import type { AccountWithBalance } from '$lib/db/repos/accounts';
+	import { accountTypeLabel } from '$lib/utils/account-type';
+	import * as m from '$lib/paraglide/messages';
+	import { mapError } from '$lib/utils/errors';
 
 	let showForm = $state(false);
 	let editing = $state<AccountWithBalance | null>(null);
@@ -21,16 +24,16 @@
 
 	async function archiveAccount(a: AccountWithBalance) {
 		await accounts.update(a.id, { archived: a.archived ? 0 : 1 });
-		toast.show(a.archived ? 'Account unarchived.' : 'Account archived.');
+		toast.show(a.archived ? m.accounts_unarchived_toast() : m.accounts_archived_toast());
 	}
 
 	async function doDelete() {
 		if (!confirmDelete) return;
 		try {
 			await accounts.delete(confirmDelete.id);
-			toast.show('Account deleted.');
+			toast.show(m.accounts_deleted_toast());
 		} catch (e) {
-			toast.show(String(e).replace('Error: ', ''));
+			toast.show(mapError(e));
 		}
 		confirmDelete = null;
 	}
@@ -38,15 +41,15 @@
 
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
-		<h1 class="figures text-xl text-ledger tracking-wide">Accounts</h1>
-		<Button size="sm" onclick={openCreate}>+ Add account</Button>
+		<h1 class="figures text-xl text-ledger tracking-wide">{m.accounts_title()}</h1>
+		<Button size="sm" onclick={openCreate}>{m.accounts_add()}</Button>
 	</div>
 
 	<section>
-		<h2 class="plate mb-2">Assets</h2>
+		<h2 class="plate mb-2">{m.accounts_assets()}</h2>
 		{#if accounts.assets.length === 0}
 			<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
-				<p class="text-sm">No asset accounts.</p>
+				<p class="text-sm">{m.accounts_empty_assets()}</p>
 			</div>
 		{:else}
 			<div class="bg-tape rounded-lg border border-line divide-y divide-line">
@@ -54,13 +57,13 @@
 					<div class="flex items-center justify-between p-4 group">
 						<a href="/accounts/{acc.id}" class="flex-1">
 							<div class="text-sm font-medium text-ledger">{acc.name}</div>
-							<div class="text-xs text-dim">{acc.type}{acc.counterparty ? ` · ${acc.counterparty}` : ''}</div>
+							<div class="text-xs text-dim">{accountTypeLabel(acc.type)}{acc.counterparty ? ` · ${acc.counterparty}` : ''}</div>
 						</a>
 						<span class="figures text-sm text-ledger mr-3">{formatCurrency(acc.balance, settings.currency, settings.locale)}</span>
 						<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-							<button onclick={() => openEdit(acc)} class="text-xs text-dim hover:text-phosphor px-2">Edit</button>
-							<button onclick={() => archiveAccount(acc)} class="text-xs text-dim hover:text-phosphor px-2">Archive</button>
-							<button onclick={() => confirmDelete = acc} class="text-xs text-dim hover:text-debit px-2">Delete</button>
+							<button onclick={() => openEdit(acc)} class="text-xs text-dim hover:text-phosphor px-2">{m.common_edit()}</button>
+							<button onclick={() => archiveAccount(acc)} class="text-xs text-dim hover:text-phosphor px-2">{m.accounts_archive()}</button>
+							<button onclick={() => confirmDelete = acc} class="text-xs text-dim hover:text-debit px-2">{m.common_delete()}</button>
 						</div>
 					</div>
 				{/each}
@@ -69,10 +72,10 @@
 	</section>
 
 	<section>
-		<h2 class="plate mb-2">Liabilities</h2>
+		<h2 class="plate mb-2">{m.accounts_liabilities()}</h2>
 		{#if accounts.liabilities.length === 0}
 			<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
-				<p class="text-sm">No liability accounts.</p>
+				<p class="text-sm">{m.accounts_empty_liabilities()}</p>
 			</div>
 		{:else}
 			<div class="bg-tape rounded-lg border border-line divide-y divide-line">
@@ -80,12 +83,12 @@
 					<div class="flex items-center justify-between p-4 group">
 						<a href="/accounts/{acc.id}" class="flex-1">
 							<div class="text-sm font-medium text-ledger">{acc.name}</div>
-							<div class="text-xs text-dim">{acc.type}{acc.counterparty ? ` · ${acc.counterparty}` : ''}</div>
+							<div class="text-xs text-dim">{accountTypeLabel(acc.type)}{acc.counterparty ? ` · ${acc.counterparty}` : ''}</div>
 						</a>
 						<span class="figures text-sm text-debit mr-3">{formatCurrency(Math.abs(acc.balance), settings.currency, settings.locale)}</span>
 						<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-							<button onclick={() => openEdit(acc)} class="text-xs text-dim hover:text-phosphor px-2">Edit</button>
-							<button onclick={() => confirmDelete = acc} class="text-xs text-dim hover:text-debit px-2">Delete</button>
+							<button onclick={() => openEdit(acc)} class="text-xs text-dim hover:text-phosphor px-2">{m.common_edit()}</button>
+							<button onclick={() => confirmDelete = acc} class="text-xs text-dim hover:text-debit px-2">{m.common_delete()}</button>
 						</div>
 					</div>
 				{/each}
@@ -95,14 +98,14 @@
 
 	{#if accounts.archived.length > 0}
 		<section>
-			<h2 class="plate mb-2">Archived</h2>
+			<h2 class="plate mb-2">{m.accounts_archived()}</h2>
 			<div class="bg-tape rounded-lg border border-line divide-y divide-line">
 				{#each accounts.archived as acc}
 					<div class="flex items-center justify-between p-4">
 						<div class="flex-1">
 							<div class="text-sm text-dim">{acc.name}</div>
 						</div>
-						<button onclick={() => archiveAccount(acc)} class="text-xs text-phosphor hover:underline">Unarchive</button>
+						<button onclick={() => archiveAccount(acc)} class="text-xs text-phosphor hover:underline">{m.accounts_unarchive()}</button>
 					</div>
 				{/each}
 			</div>
@@ -110,14 +113,14 @@
 	{/if}
 </div>
 
-<Modal bind:open={showForm} title={editing ? 'Edit account' : 'Add account'}>
+<Modal bind:open={showForm} title={editing ? m.accounts_edit_modal() : m.accounts_add_modal()}>
 	<AccountForm account={editing} onclose={() => showForm = false} />
 </Modal>
 
 <ConfirmDialog
 	open={confirmDelete !== null}
-	title="Delete account?"
-	message="This will hide the account from active lists. You can restore it from a backup if needed."
-	confirmLabel="Delete"
+	title={m.accounts_delete_confirm_title()}
+	message={m.accounts_delete_confirm_body()}
+	confirmLabel={m.common_delete()}
 	onconfirm={doDelete}
 />
