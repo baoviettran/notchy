@@ -33,7 +33,7 @@
 - `src/lib/paraglide/messages.js` + `messages/en.js` + `messages/vi.js` + `runtime.js`
 
 **Runtime sync (new logic):**
-- `src/lib/stores/settings.svelte.ts` — add `$effect` + explicit `setLanguageTag` calls
+- `src/lib/stores/settings.svelte.ts` — add explicit `setLanguageTag` calls in `load()` + `setLocale()`
 
 **Pages/components migrated (markup → `m.*()` calls), in wave order:**
 - Wave 1 (forms): `src/lib/components/forms/TransactionForm.svelte`, `AccountForm.svelte`, `GoalForm.svelte`
@@ -60,6 +60,8 @@ Each migration task follows the same loop. This block is the canonical reference
 1. **Inventory:** Read the target `.svelte` file. Collect every user-facing literal string (button text, headings, labels, placeholders, toasts, empty-state messages, `title="..."` attributes, `<p>`/`<span>` text). Ignore non-user strings (CSS classes, `data-*` keys, tag names).
 2. **Key + translate:** For each string, add a namespaced key to BOTH `messages/en.json` and `messages/vi.json`. Namespace = feature (`transactions.*`, `budgets.*`, …). Shared words (save/cancel/delete/edit/add/search/amount/date/…) go in `common.*` — check it exists first; if it already exists from an earlier wave, reuse it, do not duplicate.
 3. **Regen:** `pnpm exec paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide`
+
+> **JSON append discipline:** Task 1 *overwrites* `messages/{en,vi}.json` with a complete object; Tasks 2–5 *append* new keys into the existing object. When appending, the new entries go **inside** the closing `}` — meaning the previous last entry must gain a trailing comma, and the very last entry in the file must never have one. A corrupted JSON file silently breaks the Paraglide compile, so after every append: ensure the comma before your first new key, ensure no comma after your last new key, and let the Step "Regen" compile be the proof (a clean compile = valid JSON).
 4. **Replace markup:** In the `.svelte` file, add `import * as m from '$lib/paraglide/messages';` to `<script lang="ts">`, then replace each literal with its function call `m.<namespace>_<key>()`. For interpolated strings use params: `m.transactions_paid_to({ name })`.
 5. **Test:** add one `it(...)` to `src/tests/unit/i18n.test.ts` asserting the new feature's representative vi string (see "Representative test" below).
 6. **Verify + commit:** `pnpm test` green → commit.
@@ -241,13 +243,6 @@ class SettingsStore {
 	firstRunComplete = $state(false);
 	theme = $state<'auto' | 'light' | 'dark'>('light');
 
-	constructor() {
-		// Keep Paraglide's active locale in sync with the persisted locale.
-		$effect(() => {
-			setLanguageTag(this.locale);
-		});
-	}
-
 	async load(): Promise<void> {
 		const db = await getDb();
 		this.locale = (await meta.getLocale(db)) as Locale;
@@ -292,7 +287,7 @@ class SettingsStore {
 export const settings = new SettingsStore();
 ```
 
-> Note on `$effect` in a class constructor: Svelte 5 runes `$effect` registers against the nearest reactive root. In this class-field style it tracks `this.locale`. If `pnpm check` reports the `$effect` cannot run outside a component context, instead expose a `syncLocale()` method calling `setLanguageTag(this.locale)` and call it from `+layout.svelte` `onMount` after `settings.load()`. Prefer the `$effect` form first; fall back only if `pnpm check` errors.
+> Why no `$effect`: Svelte 5 `$effect` only runs inside a component/effect-root context — a plain class constructor is neither, so a constructor `$effect` would silently never fire. There is also nothing for it to react to: `this.locale` is mutated in exactly two places — `load()` (boot) and `setLocale()` (user change) — and both call `setLanguageTag` explicitly. The two explicit calls are the complete coverage; a reactive `$effect` would add nothing.
 
 - [ ] **Step 7: Run typecheck + tests**
 
@@ -532,9 +527,13 @@ Add to `vi.json`:
 
 > Vietnamese has no singular/plural distinction, so the plural uses only `=0` and `other`. Complete the rest of each page's strings via the migration loop (inventory the file → add `transactions.*` / `dashboard.*` keys en+vi → regen → replace). Do not skip any literal.
 
-- [ ] **Step 4: Regenerate**
+- [ ] **Step 4: Regenerate and verify the plural signature**
 
 Run: `pnpm exec paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide`
+Expected: compiles with no errors. ICU plural keys compile to a function taking a typed `params` object, so verify the exact signature before the Step 1 test can pass:
+
+Run: `grep -n "transactions_count" src/lib/paraglide/messages.js`
+Expected: shows `export const transactions_count = (params = {}, options = {}) => {` with `count` required in `params`. This confirms the dotted+plural key `transactions.count` compiles to `transactions_count` and accepts `{ count }`. **If the function name or signature differs, adjust the test in Step 1 to the actual compiled form before proceeding.** Record the confirmed name here: `transactions_count`.
 
 - [ ] **Step 5: Replace markup**
 
@@ -669,7 +668,24 @@ Add to `vi.json`:
 
 Run: `pnpm exec paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide`
 
-- [ ] **Step 5: Replace markup** in `budgets`, `reports`, `goals` pages (import + replace every literal). For status enums rendered from data (on_track/behind/…), map the data value to the message call, e.g. a helper `{m[\`goals_status_${status}\`]()}` or an explicit switch.
+- [ ] **Step 5: Replace markup** in `budgets`, `reports`, `goals` pages (import + replace every literal). For status enums rendered from data (on_track/behind/…), use an explicit `switch` in the script block — it keeps `pnpm check` clean (dynamic key access on the `m` namespace trips `Element implicitly has 'any'`):
+
+```svelte
+<script lang="ts">
+	function goalStatusLabel(status: string): string {
+		switch (status) {
+			case 'on_track': return m.goals_status_on_track();
+			case 'behind': return m.goals_status_behind();
+			case 'ahead': return m.goals_status_ahead();
+			case 'overdue': return m.goals_status_overdue();
+			case 'insufficient_data': return m.goals_status_insufficient_data();
+			default: return status;
+		}
+	}
+</script>
+```
+
+Then `{goalStatusLabel(goal.status)}` in markup. (Dynamic `m[\`goals_status_${status}\`]()` works at runtime but needs a `Record<string, () => string>` cast to satisfy TS; prefer the switch.)
 
 - [ ] **Step 6: Run tests**
 
@@ -933,16 +949,16 @@ import * as m from '$lib/paraglide/messages';
 
 export function formatDateRelative(dateStr: string, locale: Locale): string {
 	// ... existing same-day / prior-day logic ...
-	if (isToday) return locale === 'vi' ? m.common_today() : m.common_today();
-	if (isYesterday) return locale === 'vi' ? m.common_yesterday() : m.common_yesterday();
-	// (common.today/common.yesterday already hold the right per-locale value
-	//  because setLanguageTag was called; the locale param is kept for the
-	//  existing format fallback only.)
+	// setLanguageTag is synced to settings.locale in SettingsStore, so the
+	// active message tag already matches the locale these messages need to
+	// render in. Return the message directly — no locale branch required.
+	if (isToday) return m.common_today();
+	if (isYesterday) return m.common_yesterday();
 	...
 }
 ```
 
-> Simplification: since `setLanguageTag` is synced to `settings.locale` and `common.today`/`common.yesterday` resolve per active tag, the `locale` branch can be dropped and the function can return `m.common_today()` / `m.common_yesterday()` directly. Keep the `locale` param only if other call sites still pass it; otherwise leave the signature unchanged to avoid touching callers. Update the existing `formatDateRelative` tests — they assert `'Hôm nay'`/`'Today'`; those still pass because the message values match. Run `pnpm test` to confirm.
+> The `locale` param is kept in the signature so call sites don't need touching, even though it's no longer used inside this branch. (It may still drive the full-date format fallback elsewhere in the function.) The existing `formatDateRelative` tests assert `'Hôm nay'`/`'Today'` — they still pass because the message values match and `setLanguageTag('vi')`/`('en')` is called in the test setup. Run `pnpm test` to confirm.
 
 - [ ] **Step 7: Run typecheck + tests**
 
@@ -975,9 +991,9 @@ Expected: no warnings from `message-lint-rule-missing-translation` or `message-l
 
 Run:
 ```bash
-grep -rnE "'(Save|Cancel|Delete|Edit|Add|Settings|Dashboard|Transactions|Accounts|Goals|Debts|Reports|Budgets)'" src/routes src/lib/components --include=*.svelte
+grep -rnE "['\"](Save|Cancel|Delete|Edit|Add|Settings|Dashboard|Transactions|Accounts|Goals|Debts|Reports|Budgets)['\"]" src/routes src/lib/components --include='*.svelte'
 ```
-Expected: no user-facing literal matches (ignore matches inside `m.*()` calls or non-user contexts). Any remaining literal → add a key and replace.
+This matches both single- and double-quoted literals (svelte markup uses both). Expected: no user-facing literal matches (ignore matches inside `m.*()` calls, `import` paths, or non-user contexts like `data-*` keys / CSS classes). Any remaining literal → add a key and replace.
 
 - [ ] **Step 3: Grep for leftover onboarding conditionals**
 

@@ -28,16 +28,10 @@ Net effect: switching to Vietnamese flips only the nav labels; everything else s
 
 ### 1.1 Paraglide runtime sync
 
-Paraglide holds its active locale in a module-level `languageTag` (`src/lib/paraglide/runtime.js`) defaulting to `en`. Add a reactive sync so `settings.locale` drives Paraglide:
+Paraglide holds its active locale in a module-level `languageTag` (`src/lib/paraglide/runtime.js`) defaulting to `en`. Sync `settings.locale` into it via explicit calls at every write site:
 
-- In `SettingsStore` (`src/lib/stores/settings.svelte.ts`), add a `$effect` that calls `setLanguageTag(this.locale)`.
-- Also call `setLanguageTag(locale)` explicitly at the end of `load()` and inside `setLocale()` to cover non-reactive paths (SSR is off, but the explicit call guards the initial paint).
-
-```ts
-import { setLanguageTag } from '$lib/paraglide/runtime';
-// ...
-$effect(() => { setLanguageTag(this.locale); });
-```
+- In `SettingsStore` (`src/lib/stores/settings.svelte.ts`), call `setLanguageTag(locale)` at the end of `load()` (boot) and inside `setLocale()` (user change). These two sites are the complete set of `this.locale` mutations, so they fully cover the sync.
+- Do **not** use a constructor `$effect`: Svelte 5 effects only run inside a component/effect-root context, which a plain class instance is not. It would never fire, and it would react to nothing the two explicit calls don't already cover.
 
 ### 1.2 Namespaced key layout
 
