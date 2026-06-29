@@ -33,42 +33,42 @@
 
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
-		<h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Reports</h1>
+		<h1 class="figures text-xl text-ledger tracking-wide">Reports</h1>
 		<div class="flex gap-2 text-sm">
-			<a href="/reports" class="px-3 py-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800">Overview</a>
-			<a href="/reports/trend" class="px-3 py-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800">Trend</a>
-			<a href="/reports/compare" class="px-3 py-1.5 rounded-md bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 font-medium">Compare</a>
+			<a href="/reports" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">Overview</a>
+			<a href="/reports/trend" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">Trend</a>
+			<a href="/reports/compare" class="px-3 py-1.5 rounded-md bg-phosphor/15 text-phosphor font-medium">Compare</a>
 		</div>
 	</div>
 
 	<div class="flex items-center gap-4">
-		<input type="month" bind:value={monthA} class="px-2 py-1 text-sm rounded border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50" />
-		<span class="text-zinc-400">vs</span>
-		<input type="month" bind:value={monthB} class="px-2 py-1 text-sm rounded border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50" />
-		<label class="flex items-center gap-2 text-sm text-zinc-500">
+		<input type="month" bind:value={monthA} class="px-2 py-1 text-sm rounded border border-line bg-ink text-ledger" />
+		<span class="text-dim">vs</span>
+		<input type="month" bind:value={monthB} class="px-2 py-1 text-sm rounded border border-line bg-ink text-ledger" />
+		<label class="flex items-center gap-2 text-sm text-dim">
 			<input type="checkbox" bind:checked={includeAdjustments} class="rounded" />
 			Adjustments
 		</label>
 	</div>
 
 	{#if rows.length > 0}
-		<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+		<div class="bg-tape rounded-lg border border-line overflow-hidden">
 			<table class="w-full text-sm">
 				<thead>
-					<tr class="border-b border-zinc-200 dark:border-zinc-700 text-zinc-500 text-xs">
+					<tr class="border-b border-line text-dim text-xs">
 						<th class="text-left p-3 font-medium">Category</th>
 						<th class="text-right p-3 font-medium">{monthA}</th>
 						<th class="text-right p-3 font-medium">{monthB}</th>
 						<th class="text-right p-3 font-medium">Change</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-zinc-100 dark:divide-zinc-700">
+				<tbody class="divide-y divide-line">
 					{#each rows as row}
 						<tr>
-							<td class="p-3 text-zinc-900 dark:text-zinc-50">{row.name}</td>
-							<td class="p-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">{formatCurrency(row.month_a, settings.currency, settings.locale)}</td>
-							<td class="p-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">{formatCurrency(row.month_b, settings.currency, settings.locale)}</td>
-							<td class="p-3 text-right tabular-nums {row.change > 0 ? 'text-red-500' : row.change < 0 ? 'text-emerald-600' : 'text-zinc-400'}">
+							<td class="p-3 text-ledger">{row.name}</td>
+							<td class="p-3 text-right figures text-dim">{formatCurrency(row.month_a, settings.currency, settings.locale)}</td>
+							<td class="p-3 text-right figures text-dim">{formatCurrency(row.month_b, settings.currency, settings.locale)}</td>
+							<td class="p-3 text-right figures {row.change > 0 ? 'text-debit' : row.change < 0 ? 'text-phosphor' : 'text-dim'}">
 								{row.change > 0 ? '+' : ''}{formatCurrency(row.change, settings.currency, settings.locale)}
 								{#if row.change_pct !== null}
 									<span class="text-xs ml-1">({row.change_pct > 0 ? '+' : ''}{Math.round(row.change_pct)}%)</span>
@@ -80,7 +80,7 @@
 			</table>
 		</div>
 	{:else}
-		<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-6 text-center text-zinc-400 min-h-[200px] flex items-center justify-center">
+		<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim min-h-[200px] flex items-center justify-center">
 			<p class="text-sm">No comparison data. Add expenses in both months to compare.</p>
 		</div>
 	{/if}
