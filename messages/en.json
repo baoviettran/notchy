@@ -252,5 +252,13 @@
 	"onboarding_account_desc": "This is where your money lives.",
 	"onboarding_local_first": "Local-first ledger",
 	"onboarding_continue_arrow": "Continue →",
-	"onboarding_back": "← Back"
+	"onboarding_back": "← Back",
+	"onboarding_account_name_placeholder": "My Checking Account",
+	"onboarding_amount_hint": "e.g. 5tr, 1000000",
+	"onboarding_lang_desc_english": "Tracks finances in English",
+	"onboarding_lang_desc_vietnamese": "Tracks finances in Vietnamese",
+	"onboarding_currency_desc_vnd": "Vietnamese đồng",
+	"onboarding_currency_desc_usd": "US Dollar",
+	"layout_lang_label_en": "EN",
+	"layout_lang_label_vi": "VI"
 }

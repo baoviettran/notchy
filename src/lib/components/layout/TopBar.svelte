@@ -28,6 +28,6 @@
 		<button class="md:hidden p-1.5 text-dim hover:text-ledger" aria-label={m.layout_search()}>
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-5 h-5"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" stroke-linecap="round" /></svg>
 		</button>
-		<button class="plate px-2 py-1 rounded border border-line text-dim hover:text-ledger">EN</button>
+		<button class="plate px-2 py-1 rounded border border-line text-dim hover:text-ledger">{m.layout_lang_label_en()}</button>
 	</div>
 </header>

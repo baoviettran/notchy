@@ -32,7 +32,7 @@
 				{#each ['auto', 'light', 'dark'] as theme}
 					<button
 						onclick={() => setTheme(theme as any)}
-						class="px-3 py-1.5 text-sm rounded-md border transition-colors capitalize {settings.theme === theme ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
+						class="px-3 py-1.5 text-sm rounded-md border transition-colors {settings.theme === theme ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
 					>{themeLabels[theme as keyof typeof themeLabels]()}</button>
 				{/each}
 			</div>

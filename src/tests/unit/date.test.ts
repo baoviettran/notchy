@@ -1,6 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { formatDate, formatDateRelative } from '$lib/utils/date';
 import { setLanguageTag } from '$lib/paraglide/runtime';
+
+afterEach(() => setLanguageTag('en'));
 
 describe('formatDate', () => {
 	it('formats vi locale as dd/mm/yyyy', () => {

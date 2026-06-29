@@ -176,4 +176,18 @@ describe('wave 5 messages', () => {
 		expect(m.layout_warming_up()).toBe('Đang khởi động');
 		setLanguageTag('en');
 	});
+
+	it('renders onboarding residual-literal keys vi strings', () => {
+		setLanguageTag('vi');
+		expect(m.forms_account_type_checking()).toBe('Tài khoản thanh toán');
+		expect(m.onboarding_account_name_placeholder()).toBe('Tài khoản thanh toán của tôi');
+		expect(m.onboarding_amount_hint()).toBe('vd. 5tr, 1000000');
+		expect(m.onboarding_lang_desc_english()).toBe('Quản lý tài chính bằng tiếng Anh');
+		expect(m.onboarding_lang_desc_vietnamese()).toBe('Quản lý tài chính bằng tiếng Việt');
+		expect(m.onboarding_currency_desc_vnd()).toBe('Đồng Việt Nam');
+		expect(m.onboarding_currency_desc_usd()).toBe('Đô la Mỹ');
+		expect(m.layout_lang_label_en()).toBe('EN');
+		expect(m.layout_lang_label_vi()).toBe('VI');
+		setLanguageTag('en');
+	});
 });

@@ -252,5 +252,13 @@
 	"onboarding_account_desc": "Nơi tiền của bạn được lưu trữ.",
 	"onboarding_local_first": "Sổ cái cục bộ",
 	"onboarding_continue_arrow": "Tiếp tục →",
-	"onboarding_back": "← Quay lại"
+	"onboarding_back": "← Quay lại",
+	"onboarding_account_name_placeholder": "Tài khoản thanh toán của tôi",
+	"onboarding_amount_hint": "vd. 5tr, 1000000",
+	"onboarding_lang_desc_english": "Quản lý tài chính bằng tiếng Anh",
+	"onboarding_lang_desc_vietnamese": "Quản lý tài chính bằng tiếng Việt",
+	"onboarding_currency_desc_vnd": "Đồng Việt Nam",
+	"onboarding_currency_desc_usd": "Đô la Mỹ",
+	"layout_lang_label_en": "EN",
+	"layout_lang_label_vi": "VI"
 }

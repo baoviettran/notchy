@@ -22,15 +22,15 @@
 	}
 
 	const accountTypes = [
-		{ value: 'checking', label: 'Checking' },
-		{ value: 'savings', label: 'Savings' },
-		{ value: 'cash', label: 'Cash' },
-		{ value: 'credit_card', label: 'Credit Card' }
+		{ value: 'checking', label: m.forms_account_type_checking },
+		{ value: 'savings', label: m.forms_account_type_savings },
+		{ value: 'cash', label: m.forms_account_type_cash },
+		{ value: 'credit_card', label: m.forms_account_type_credit_card }
 	] as const;
 
 	const currencies = [
-		{ value: 'VND', label: '🇻🇳 VND — Vietnamese đồng' },
-		{ value: 'USD', label: '🇺🇸 USD — US Dollar' }
+		{ value: 'VND', code: 'VND', flag: '🇻🇳' },
+		{ value: 'USD', code: 'USD', flag: '🇺🇸' }
 	];
 
 	async function nextStep() {
@@ -81,13 +81,13 @@
 				<div class="space-y-3">
 					<button onclick={() => locale = 'en'}
 						class="w-full p-4 rounded-md border text-left transition-colors {langButtonClass('en')}">
-						<div class="font-medium text-ledger">English</div>
-						<div class="text-sm text-dim">Tracks finances in English</div>
+						<div class="font-medium text-ledger">{m.lang_english()}</div>
+						<div class="text-sm text-dim">{m.onboarding_lang_desc_english()}</div>
 					</button>
 					<button onclick={() => locale = 'vi'}
 						class="w-full p-4 rounded-md border text-left transition-colors {langButtonClass('vi')}">
-						<div class="font-medium text-ledger">Tiếng Việt</div>
-						<div class="text-sm text-dim">Quản lý tài chính bằng Tiếng Việt</div>
+						<div class="font-medium text-ledger">{m.lang_vietnamese()}</div>
+						<div class="text-sm text-dim">{m.onboarding_lang_desc_vietnamese()}</div>
 					</button>
 				</div>
 				<div class="flex items-center justify-between pt-2">
@@ -103,7 +103,7 @@
 					{#each currencies as c}
 						<button onclick={() => currency = c.value}
 							class="w-full p-4 rounded-md border text-left transition-colors {currency === c.value ? 'border-phosphor bg-phosphor/10' : 'border-line hover:border-dim'}">
-							<span class="font-medium text-ledger">{c.label}</span>
+							<span class="font-medium text-ledger">{c.flag} {c.code} — {c.value === 'VND' ? m.onboarding_currency_desc_vnd() : m.onboarding_currency_desc_usd()}</span>
 						</button>
 					{/each}
 				</div>
@@ -127,12 +127,12 @@
 							{#each accountTypes as t}
 								<button onclick={() => accountType = t.value}
 									class="px-3 py-1.5 text-sm rounded-md border transition-colors {accountType === t.value ? 'border-phosphor bg-phosphor/10 text-phosphor-bright font-medium' : 'border-line text-dim hover:text-ledger'}"
-								>{t.label}</button>
+								>{t.label()}</button>
 							{/each}
 						</div>
 					</div>
-					<Input label={m.common_name()} bind:value={accountName} placeholder="My Checking Account" />
-					<Input label={m.forms_initial_balance()} bind:value={initialBalance} placeholder="e.g. 5tr, 1000000" />
+					<Input label={m.common_name()} bind:value={accountName} placeholder={m.onboarding_account_name_placeholder()} />
+					<Input label={m.forms_initial_balance()} bind:value={initialBalance} placeholder={m.onboarding_amount_hint()} />
 				</div>
 				<div class="flex items-center justify-between pt-2">
 					<div class="flex gap-1.5"><span class="w-2 h-2 rounded-full bg-phosphor"></span><span class="w-2 h-2 rounded-full bg-phosphor"></span><span class="w-2 h-2 rounded-full bg-phosphor"></span></div>
