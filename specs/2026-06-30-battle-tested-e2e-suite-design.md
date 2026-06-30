@@ -43,28 +43,71 @@ Three layers:
 
 Every non-onboarding spec uses `onboardedPage` (re-runs the 3 steps, so onboarding stays under test). Backup/restore opts into `tauriMockPage`. The reload-survival test calls `persistDb(page)`.
 
+## Precondition: Fix the `VACUUM INTO ?` production bug FIRST
+
+Before building any mock, the source must be fixed. This is a latent bug, not a mock artifact.
+
+`src/lib/backup/index.ts:18` (`createBackup`) and `src/routes/settings/backup/+page.svelte:23` (`exportSqlite`) both run:
+
+```ts
+db.execute('VACUUM INTO ?', [path])
+```
+
+SQLite **does not allow bound parameters in `VACUUM` statements** — the filename must be a string literal. This throws `near "?": syntax error` on **every** backend: sql.js, the Tauri rusqlite plugin, better-sqlite3. It has never been caught because `src/tests/unit/backup.test.ts` only covers `exportCsv`, `validateImport`, and `getBackupsToDelete` — it deliberately skips `createBackup`. So `createBackup` and the SQLite export button are both broken in production today.
+
+**Fix:** rewrite both call sites to inline an escaped string literal, e.g. `db.execute(\`VACUUM INTO '\${path.replace(/'/g, "''")}'\`)`. With this fix, the mock passes the statement straight through to sql.js — **no VACUUM override needed at all.** (The earlier "special-case VACUUM INTO via `db.export()`" idea is dropped: it would have masked this bug instead of surfacing it.)
+
+This is the first task in the implementation plan, with its own unit test added to `backup.test.ts` so `createBackup` is never untested again.
+
 ## The Tauri-FS Mock (`fixtures/tauri-mock.ts`)
 
 Injected via `page.addInitScript` *before* the app loads, so by the time `getDb()` runs, the seams resolve to the mock. This is what makes backup/restore and reload-survival provable.
 
 ### What it fakes
 
-1. **`window.__TAURI_INTERNALS__`** — presence-only flag. `getDb()` (`src/lib/db/index.ts`) and `runAutoBackup()` (`src/lib/backup/index.ts`) both gate on `!!window.__TAURI_INTERNALS__`. Setting it flips both onto the Tauri path.
-2. **`@tauri-apps/plugin-sql` `Database.load('sqlite:<path>')`** — intercepted at the **Tauri IPC boundary**. The plugin ultimately calls `__TAURI_INTERNALS__.invoke(cmd, args)`. The mock supplies an `invoke` that handles `plugin:sql|*` commands by routing them to a **real sql.js instance** from a `path → sql.js` registry. `notchy.db` is one instance; a backup file is another. The real plugin code runs; only the IPC transport is faked — maximal fidelity.
-3. **`@tauri-apps/plugin-fs`** (`copyFile`, `mkdir`, `readDir`, `remove`, `stat`) + **`@tauri-apps/api/path`** (`appDataDir`, `join`) — also routed through `invoke` to an in-memory virtual filesystem: `Map<path, Uint8Array>`. `copyFile` copies bytes between paths. `appDataDir()` returns a fixed `/notchy/appdata`.
-4. **The persist layer** — a `persistMode` flag set via `persistDb(page)`. Off (default): `notchy.db` is a plain in-memory sql.js DB, fresh per test, fast. On: the mock serializes the DB to **IndexedDB** on every write and rehydrates on `Database.load('sqlite:notchy.db')`, so a `page.reload()` reopens the same data.
+1. **`window.__TAURI_INTERNALS__`** — set to an object exposing `.invoke(cmd, args)`, `.transformCallback`, and `.convertFileSrc`. Presence-only flag gates `getDb()` (`src/lib/db/index.ts:16`) and `runAutoBackup()` (`src/lib/backup/index.ts:30`) onto the Tauri path. `transformCallback`/`convertFileSrc` are stubbed (no-op / identity) because `@tauri-apps/api/core` touches them; `plugin-dialog` handling is scoped out (see below).
+2. **`@tauri-apps/plugin-sql`** — intercepted at the **Tauri IPC boundary**. The plugin calls `__TAURI_INTERNALS__.invoke(cmd, args)` (`node_modules/@tauri-apps/api/core.js`). The mock's `invoke` routes SQL commands to a **real sql.js instance** looked up in a `path → sql.js` registry. `notchy.db` is one instance; a backup file is another. The real plugin code runs; only the IPC transport is faked — maximal fidelity.
+3. **`@tauri-apps/plugin-fs` + `@tauri-apps/api/path`** — also routed through `invoke` to an in-memory virtual filesystem: `Map<path, Uint8Array>`. `appDataDir()` returns a fixed `/notchy/appdata`.
+4. **The persist layer** — a `persistMode` flag set via `persistDb(page)` (separate mechanism, see "Two persistence mechanisms" below).
 
-### Targeted override: `VACUUM INTO`
+### IPC command → return-shape contract
 
-`createBackup` runs `db.execute('VACUUM INTO ?', [path])`. sql.js (in-memory) cannot VACUUM INTO an arbitrary filesystem path. The mock's SQL executor **special-cases this single statement**: instead of passing it to sql.js, it serializes the current DB to bytes via `db.export()` and writes them to the virtual FS at `path`. This is the *only* place the mock re-interprets SQL rather than passing it through — documented in the mock. Everything else is real SQL on real sqlite.
+The mock's `invoke` must return the exact shape each plugin expects, or it breaks silently. Verified against `node_modules/@tauri-apps/plugin-sql/dist-js/index.js` and the FS/path plugins:
 
-### Persistence toggle (`fixtures/persist.ts`)
+| IPC command | Arg keys | Must return |
+|---|---|---|
+| `plugin:sql|load` | `{ db }` | **the path string** (plugin stores it as `this.path`, reused by every later call) |
+| `plugin:sql|select` | `{ db, query, values }` | array of row objects |
+| `plugin:sql|execute` | `{ db, query, values }` | `[rowsAffected, lastInsertId]` tuple |
+| `plugin:sql|close` | `{ db }` | void |
+| `plugin:fs|copy_file` | `{ fromPath, toPath, options }` | void (copies bytes in the virtual FS) |
+| `plugin:fs|mkdir` | `{ path, options }` | void |
+| `plugin:fs|read_dir` | `{ path, options }` | array of `{ name, ... }` entries |
+| `plugin:fs|remove` | `{ path, options }` | void |
+| `plugin:fs|stat` | `{ path, options }` | `{ size, ... }` |
+| `plugin:fs|write_text_file` | `{ path, contents, options }` | void (CSV export path) |
+| `plugin:path|resolve_directory` / `plugin:path|join` | varies | string |
 
-`persistDb(page)` calls `page.evaluate` to flip a flag the mock reads. Subsequent writes also flush to IndexedDB; `Database.load('sqlite:notchy.db')` checks IndexedDB first. Powers the reload-survival test.
+**Registry key contract:** the mock registers/looks up sql.js instances keyed by the **path string that `plugin:sql|load` returns** (i.e. what becomes `this.path`). All subsequent `execute`/`select`/`close` calls carry that same `db` arg, so the registry key stays consistent. The live DB is keyed by `'sqlite:notchy.db'`; a backup file is keyed by its full path. This must be consistent or `select` calls won't find their instance.
+
+### Two persistence mechanisms (do not conflate)
+
+The spec previously blurred these. They are distinct:
+
+1. **Virtual FS as source of truth (for backup/restore round-trip).** `exportSqlite` does `VACUUM INTO '<path>'`, writing real sqlite bytes into the virtual FS at `path`. `importDatabase` (`src/lib/backup/index.ts:170`) opens the candidate via `createTauriDb('sqlite:<path>?readonly')` (the mock must honor `?readonly` or fall back to the non-readonly open, `backup/index.ts:182-186`), validates it, then `closeDb()` + `copyFile(sourcePath, livePath)`. `closeDb()` nulls the cached `_db` (`db/index.ts:30-35`); the UI then `setTimeout(reload, 800)` (`backup/+page.svelte:65`). On reload, `getDb()` re-runs and `Database.load('sqlite:notchy.db')` must serve the **copied bytes** from the virtual FS. So the restore test asserts against the virtual-FS file contents, not IndexedDB.
+2. **IndexedDB persist (for reload-survival only).** `persistDb(page)` flips a flag; the mock flushes the live sql.js bytes to IndexedDB keyed by path on every write, and `plugin:sql|load('sqlite:notchy.db')` checks IndexedDB first. This is a *separate* mechanism from the virtual FS. Only the reload-survival test uses it. (Note: a full JS-context `page.reload()` resets the module-scoped `_db` cache in `db/index.ts:9`, so `getDb()` genuinely re-runs and rehydrates — viable only because the mock's `load` reads IndexedDB.)
+
+### Pre-init seed hook (for the auto-backup test)
+
+`runAutoBackup` is fire-and-forget during `dbStore.init()` (`src/lib/stores/db.svelte.ts`), which runs at app startup — before any test body can touch the page. It also skips if `app_meta.last_backup_at` is <1 hour old (`backup/index.ts:35-41`). To make the auto-backup test deterministic, the mock must accept an **init-time seed**: a spec declares `{ seedMeta: { 'last_backup_at': '<old timestamp>' } }` passed via `addInitScript`, and the mock writes those rows into the live sql.js instance immediately after `plugin:sql|load` creates it (before `runAutoBackup` reads them). Without this hook the auto-backup test is unwritable.
+
+### Scope: `plugin-dialog` is OUT for the button path
+
+The real export/import buttons call `save()` / `open()` from `@tauri-apps/plugin-dialog` (`backup/+page.svelte:4`), which also touch `__TAURI_INTERNALS__`. Rather than stub the OS file picker, the backup/restore **round-trip and validation tests drive the logic directly** — call `createBackup(db, dir)` / `importDatabase(path, 3)` from the test (via `page.evaluate`) against the mock-backed DB and virtual FS. This proves the full SQL+FS chain (write bytes → validate → copy → reopen) through the real plugin SQL/FS code, while skipping the native dialog. A *separate*, lightweight UI smoke test confirms the Export/Import buttons render and are clickable; if a future story needs the literal dialog path, a `plugin:dialog` mock (returning canned paths) is a known follow-up.
 
 ### Honest caveat
 
-The `VACUUM INTO` override and the IPC-boundary interception are the two places this mock re-interprets rather than replays. Both are documented in `tauri-mock.ts`. The trade-off (vs. a pure logic-level test of `validateImport`/`importDatabase`) is accepted because the goal is to prove the whole button → file → restored-DB chain through the real plugin boundary.
+IPC-boundary interception is the one place the mock re-interprets rather than replays — and even there, the real plugin code runs unchanged; only the `invoke` transport is faked. The `VACUUM INTO` override is gone (replaced by the source fix). The trade-off (vs. a pure logic-level test of `validateImport`/`importDatabase`) is accepted because the goal is to prove the whole SQL+FS chain through the real plugin boundary.
 
 ## Test Inventory
 
@@ -106,11 +149,12 @@ The `VACUUM INTO` override and the IPC-boundary interception are the two places 
 - Create a category; merge if the UI exposes it.
 
 ### `backup-restore.spec.ts` (depth — opts into `tauriMockPage`)
-- **Backup → restore round-trip:** seed data → backup → diverge (add txns) → restore from the backup file → original data returns.
-- **Corrupt import rejected:** restore from a non-Notchy/corrupt file → error shown, live DB untouched.
-- **Schema-version mismatch rejected:** wrong-version file → error, untouched.
-- **Auto-backup runs on launch** and prunes to 10 (set `last_backup_at` old; assert a backup file appears).
-- **Reload-survival** (calls `persistDb`): add tx → `page.reload()` → tx still present. *The local-first promise.*
+- **Backup → restore round-trip** (drives `createBackup`/`importDatabase` directly via `page.evaluate`, not the OS dialog — see scope note): seed data → `createBackup(db, dir)` writes real sqlite bytes to the virtual FS → diverge (add txns) → `importDatabase('<backup-path>', 3)` validates + copies over live DB → reload → original data returns, divergent txns gone.
+- **Corrupt import rejected:** mint a non-Notchy/corrupt file in the virtual FS (e.g. a sql.js DB missing `app_meta`) → `importDatabase` returns `{valid:false, error}`, live DB untouched (assert the live DB's data is unchanged).
+- **Schema-version mismatch rejected:** mint a valid-shape sql.js DB with `app_meta.schema_version != 3` (current version per `migrations/index.ts`) → rejected, untouched.
+- **Auto-backup runs on launch** (uses the pre-init seed hook: `{ seedMeta: { last_backup_at: '<old>' } }`) → assert a `notchy-backup-*.sqlite` file appears in the virtual FS under `/notchy/appdata/backups`; poll the FS map (mock resolves FS writes synchronously), do not assume timing.
+- **UI smoke** (lightweight): the Export/Import buttons render and are clickable; does not exercise the OS dialog path.
+- **Reload-survival** (calls `persistDb`): add tx → `page.reload()` → tx still present. *The local-first promise.* Uses the IndexedDB-persist mechanism, separate from the virtual-FS round-trip.
 
 ## Conventions
 
@@ -133,8 +177,11 @@ The `VACUUM INTO` override and the IPC-boundary interception are the two places 
 ## Known Failure Modes the Suite Must Handle (not paper over)
 
 - *sql.js WASM init latency on first load* — covered by the 10s expect timeout.
-- *`VACUUM INTO` override* — if sql.js can't produce valid bytes, backup fails loudly, not silently. Mock logs every FS write to a debug array the spec can inspect.
-- *Auto-backup racing app startup* — `runAutoBackup` is fire-and-forget; backup specs asserting "backup exists" must poll the FS map (the mock resolves FS writes synchronously), not assume.
+- *Mock return-shape / command-name traps* — the mock must dispatch on snake_case IPC strings (`plugin:fs|copy_file`, not `copyFile`) and return the exact shape per command (table above). A wrong shape fails silently. Mitigation: assert the mock's debug log in an early sanity test.
+- *Registry key drift* — `plugin:sql|load` must return the same path it registers under, or subsequent `select` calls miss their instance. Mitigation: key the registry on the returned path string.
+- *`VACUUM INTO` source bug* — fixed in the precondition step (inlined literal), so backup runs real SQL on sql.js with no override. The added `backup.test.ts` unit test guards against regression.
+- *Auto-backup racing app startup* — `runAutoBackup` is fire-and-forget during `dbStore.init()` and skips if <1h since `last_backup_at`. Mitigation: the pre-init seed hook sets `last_backup_at` old; specs poll the FS map (mock resolves FS writes synchronously), do not assume timing.
+- *`closeDb` + reload ordering on restore* — `importDatabase` nulls the cached `_db` and the UI reloads 800ms later; the mock's `Database.load('sqlite:notchy.db')` must serve the copied bytes. Mitigation: reload-survival and restore tests wait for the app `ready` signal, not a fixed 800ms.
 - *CSS `@import` warnings* — out of scope (cosmetic, separate fix).
 
 ## Success Criteria — "battle-tested" means
@@ -143,9 +190,10 @@ The `VACUUM INTO` override and the IPC-boundary interception are the two places 
 2. Transactions: add/edit/delete for all three kinds proven.
 3. Account reconciliation: happy + large-discrepancy warning proven.
 4. Budgets: per-month allocation isolation proven.
-5. Backup/restore: round-trip + corrupt/mismatch rejection proven through the real IPC boundary (not a logic-only stub).
-6. Reload-survival: data persists across `page.reload()` (the local-first promise), proven via `persistDb`.
-7. Full suite green on `pnpm test:e2e`; CI-ready (`reuseExistingServer: !CI` already set).
+5. Backup/restore: round-trip + corrupt/mismatch rejection proven through the real plugin SQL+FS code (OS dialog scoped out).
+6. Reload-survival: data persists across `page.reload()` (the local-first promise), proven via `persistDb` (IndexedDB path).
+7. The `VACUUM INTO ?` production bug is fixed and covered by a new `createBackup` unit test.
+8. Full suite green on `pnpm test:e2e`; CI-ready (`reuseExistingServer: !CI` already set).
 
 ## Out of Scope
 
