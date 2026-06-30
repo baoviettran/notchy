@@ -4,9 +4,19 @@ A local-first personal finance application. Your data stays on your device — n
 
 ## Install
 
-### Build from Source (current)
+### Download
 
-> **Pre-built binaries are not available yet.** Build from source following the instructions below.
+Pre-built Linux binaries are available from the [latest release](https://github.com/baoviettran/notchy/releases):
+
+| Platform | File |
+|---|---|
+| Linux (Debian/Ubuntu) | `Notchy_0.1.0_amd64.deb` |
+| Linux (Fedora/RHEL) | `Notchy-0.1.0-1.x86_64.rpm` |
+| Linux (any) | `Notchy_0.1.0_amd64.AppImage` |
+| macOS | `Notchy_0.1.0_x64.dmg` (planned) |
+| Windows | `Notchy_0.1.0_x64-setup.exe` (planned) |
+
+### Build from Source
 
 Requirements: Node.js 22, pnpm 10, Rust 1.77+, and Tauri system dependencies.
 
@@ -15,7 +25,7 @@ Requirements: Node.js 22, pnpm 10, Rust 1.77+, and Tauri system dependencies.
 sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
 
 # Clone and build
-git clone <repo-url>
+git clone https://github.com/baoviettran/notchy.git
 cd notchy
 pnpm install
 pnpm tauri build
@@ -29,18 +39,6 @@ Or use Docker for a reproducible build:
 docker build -t notchy .
 docker cp $(docker create notchy):/app/src-tauri/target/release/bundle ./release
 ```
-
-### Download (planned)
-
-Once a release is published, pre-built binaries will be available:
-
-| Platform | File |
-|---|---|
-| Linux (Debian/Ubuntu) | `notchy_0.1.0_amd64.deb` |
-| Linux (Fedora/RHEL) | `notchy-0.1.0-1.x86_64.rpm` |
-| Linux (any) | `notchy_0.1.0_amd64.AppImage` |
-| macOS | `notchy_0.1.0_x64.dmg` (planned) |
-| Windows | `notchy_0.1.0_x64-setup.exe` (planned) |
 
 ## Usage
 
