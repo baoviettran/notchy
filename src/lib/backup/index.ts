@@ -14,8 +14,9 @@ export async function createBackup(db: DatabaseService, backupDir: string): Prom
 	const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
 	const filename = `notchy-backup-${timestamp}.sqlite`;
 	const path = `${backupDir}/${filename}`;
-
-	await db.execute(`VACUUM INTO ?`, [path]);
+	// VACUUM INTO does not accept a bound parameter for the filename — it must be
+	// a string literal. Inline an escaped literal (SQL doubles single-quotes).
+	await db.execute(`VACUUM INTO '${path.replace(/'/g, "''")}'`);
 	return path;
 }
 

@@ -2,9 +2,13 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createTestDb } from './helpers/test-db';
 import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
-import { exportCsv, validateImport, getBackupsToDelete } from '$lib/backup';
+import { exportCsv, validateImport, getBackupsToDelete, createBackup } from '$lib/backup';
 import * as accounts from '$lib/db/repos/accounts';
 import type { DatabaseService } from '$lib/db/service';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import BetterSqlite3 from 'better-sqlite3';
 
 let db: DatabaseService;
 
@@ -77,5 +81,33 @@ describe('getBackupsToDelete', () => {
 		}));
 		const toDelete = getBackupsToDelete(backups, 10);
 		expect(toDelete).toHaveLength(2);
+	});
+});
+
+describe('createBackup', () => {
+	it('writes a valid backup file via VACUUM INTO', async () => {
+		const db = createTestDb();
+		await runMigrations(db, migrations);
+		// Seed a row so the backup isn't empty.
+		await db.execute(
+			`INSERT INTO accounts (id, name, type, currency, created_at, updated_at)
+			 VALUES ('01TEST', 'Checking', 'checking', 'VND', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`
+		);
+
+		const tmpDir = mkdtempSync(join(tmpdir(), 'notchy-backup-'));
+		try {
+			const path = await createBackup(db, tmpDir);
+			// Path is the full file under backupDir.
+			expect(path.startsWith(tmpDir)).toBe(true);
+			expect(path.endsWith('.sqlite')).toBe(true);
+			expect(existsSync(path)).toBe(true);
+			// The backup is a real SQLite file — reopen it and confirm the row survived.
+			const backup = new BetterSqlite3(path, { readonly: true });
+			const rows = backup.prepare('SELECT name FROM accounts').all();
+			expect(rows.length).toBe(1);
+			backup.close();
+		} finally {
+			rmSync(tmpDir, { recursive: true, force: true });
+		}
 	});
 });

@@ -20,7 +20,7 @@
 			});
 			if (!path) return;
 			const db = await getDb();
-			await db.execute(`VACUUM INTO ?`, [path]);
+			await db.execute(`VACUUM INTO '${path.replace(/'/g, "''")}'`);
 			toast.show(m.settings_backup_toast_exported());
 		} catch (e) {
 			toast.show(m.settings_backup_toast_export_failed({ error: String(e) }));
