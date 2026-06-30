@@ -150,13 +150,50 @@ function flushLiveDb() {
 	return flushInFlight;
 }
 
+// Normalize a connection string before keying the DB registry / FS. The Tauri
+// SQL plugin passes '?readonly' (and other query params) through verbatim, so
+// 'sqlite:foo?readonly' and 'sqlite:foo' would otherwise be distinct registry
+// entries pointing at the same file. importDatabase relies on this: it opens
+// the candidate as 'sqlite:<path>?readonly', validates, then the live DB uses
+// 'sqlite:notchy.db' (no suffix). Stripping the query string makes both refer
+// to the same sql.js instance / FS bytes.
+function normalizePath(p) {
+	return String(p).split('?')[0];
+}
+
+// A 'sqlite:' connection string maps to a virtual-FS path without the prefix.
+// The live DB ('sqlite:notchy.db') resolves to '<appDataDir>/notchy.db' on disk;
+// createBackup/importDatabase write backup files to bare FS paths. This returns
+// the FS key a given connection string would read from, or null if it's not a
+// file-backed path.
+function fsKeyFor(connStr) {
+	const p = normalizePath(connStr);
+	if (p.startsWith('sqlite:')) {
+		const rest = p.slice('sqlite:'.length);
+		// The live DB connection string is bare ('sqlite:notchy.db'); resolve it
+		// to its on-disk app-data path so restore-copied bytes are found.
+		if (rest === 'notchy.db') return APP_DATA_DIR + '/notchy.db';
+		return rest;
+	}
+	return p;
+}
+
 async function loadDb(path, SQL_JS) {
+	path = normalizePath(path);
 	if (dbs.has(path)) return dbs.get(path);
 	// Rehydrate from IndexedDB if persist is on; else from the virtual FS
 	// (restore path copied bytes there); else fresh.
 	let bytes = null;
 	if (opts.persist) bytes = await idbGet(idbKey(path));
-	if (!bytes && fs.has(path)) bytes = fs.get(path);
+	if (!bytes) {
+		// Try the connection string directly, then its file-backed FS key
+		// (strips 'sqlite:' prefix and resolves 'notchy.db' to the app-data dir).
+		if (fs.has(path)) bytes = fs.get(path);
+		else {
+			const k = fsKeyFor(path);
+			if (k && fs.has(k)) bytes = fs.get(k);
+		}
+	}
 	const db = bytes ? new SQL_JS.Database(bytes) : new SQL_JS.Database();
 	dbs.set(path, db);
 
@@ -195,17 +232,21 @@ window.__TAURI_INTERNALS__ = {
 		const SQL_JS = await sqlReady;
 		args = args || {};
 		// --- SQL plugin ---
+		// Normalize the connection string (strip '?readonly' etc.) so the live
+		// DB and a readonly candidate-open of the same file share one registry
+		// entry. The plugin stores invoke's return as this.path; we echo the
+		// normalized path so subsequent execute/select/close calls key correctly.
+		const dbKey = normalizePath(args.db);
 		if (cmd === 'plugin:sql|load') {
-			await loadDb(args.db, SQL_JS);
-			// Echo the path: the plugin stores invoke's return as this.path.
-			return args.db;
+			await loadDb(dbKey, SQL_JS);
+			return dbKey;
 		}
 		if (cmd === 'plugin:sql|select') {
-			const db = await loadDb(args.db, SQL_JS);
+			const db = await loadDb(dbKey, SQL_JS);
 			return select(db, args.query, args.values);
 		}
 		if (cmd === 'plugin:sql|execute') {
-			const db = await loadDb(args.db, SQL_JS);
+			const db = await loadDb(dbKey, SQL_JS);
 			// VACUUM INTO must be intercepted before sql.js sees it — sql.js's
 			// in-memory VFS can't open an arbitrary path. createBackup issues this
 			// as a top-level execute (no SAVEPOINT), so exporting here is safe.
@@ -223,8 +264,8 @@ window.__TAURI_INTERNALS__ = {
 			return [rowsAffected, 0];
 		}
 		if (cmd === 'plugin:sql|close') {
-			const db = dbs.get(args.db);
-			if (db) { db.close(); dbs.delete(args.db); }
+			const db = dbs.get(dbKey);
+			if (db) { db.close(); dbs.delete(dbKey); }
 			return {};
 		}
 		// --- Path plugin ---
@@ -232,7 +273,19 @@ window.__TAURI_INTERNALS__ = {
 		if (cmd === 'plugin:path|join') return join(...(args.paths || []));
 		// --- FS plugin ---
 		if (cmd === 'plugin:fs|copy_file') {
-			fs.set(args.toPath, fs.get(args.fromPath));
+			const data = fs.get(args.fromPath);
+			fs.set(args.toPath, data);
+			// Restoring the live DB: copyFile(<backup>, <appData>/notchy.db) is
+			// the importDatabase success path. A real copy_file writes to disk
+			// (persistent), so the reloaded page reopens the replaced file. The
+			// virtual FS is per-page-load and does NOT survive reload, so mirror
+			// the disk write into IndexedDB under the live connection key — the
+			// only store that crosses page.reload(). This mirrors real FS
+			// persistence (copy_file to disk is durable regardless of the
+			// in-memory DB's persist flag, which only governs auto-flushing).
+			if (data && args.toPath === APP_DATA_DIR + '/notchy.db') {
+				idbSet(idbKey(LIVE_PATH), data);
+			}
 			return {};
 		}
 		if (cmd === 'plugin:fs|mkdir') { return {}; }
@@ -260,12 +313,17 @@ window.__TAURI_INTERNALS__ = {
 	convertFileSrc: (p) => p,
 };
 
-// Expose a way for tests to read the virtual FS + flush the persist DB.
+// Expose a way for tests to read the virtual FS + flush the persist DB, plus a
+// sql.js factory so tests can mint corrupt / mismatched candidate DBs through
+// the same sql.js build the mock uses internally.
 window.__notchyMock = {
 	readFs: (path) => fs.get(path),
 	listFs: (dir) => [...fs.keys()].filter((p) => p.startsWith(dir)),
 	writeFs: (path, bytes) => fs.set(path, bytes),
 	flushLiveDb: () => flushLiveDb(),
+	// Resolves once sql.js is loaded; returns the SQL namespace (initSqlJs result).
+	// Tests use this to build a throwaway Database, run DDL, and export() bytes.
+	sqlReady: () => sqlReady,
 };
 	`);
 }
@@ -276,6 +334,15 @@ interface NotchyMockWindow {
 	listFs: (dir: string) => string[];
 	writeFs: (path: string, bytes: Uint8Array) => void;
 	flushLiveDb: () => Promise<void>;
+	sqlReady: () => Promise<SqlJsNamespace>;
+}
+
+/** The sql.js namespace shape tests use to mint candidate DBs. */
+interface SqlJsNamespace {
+	Database: new () => {
+		run: (sql: string) => void;
+		export: () => Uint8Array;
+	};
 }
 
 /** Inspect a virtual-FS file from the test. */
