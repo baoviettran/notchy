@@ -253,8 +253,12 @@ window.__TAURI_INTERNALS__ = {
 			// NOTE: this init script is injected via addInitScript as a template
 			// literal and eval'd in-page, so regex escapes must be doubled (\\s,
 			// not \s) or they cook to a bare letter and the match silently fails.
-			const vac = args.query.match(/^\\s*VACUUM\\s+INTO\\s+'([^']+)'/i);
-			if (vac) { fs.set(vac[1], db.export()); return [0, 0]; }
+			// Capture the full escaped single-quoted literal (handle '' as an
+			// escaped quote per SQLite string-literal rules), then un-escape to
+			// the real path before writing bytes into the virtual FS. Matches
+			// real SQLite, which parses '' as a literal quote inside the string.
+			const vac = args.query.match(/^\\s*VACUUM\\s+INTO\\s+'((?:[^']|'')*)'/i);
+			if (vac) { fs.set(vac[1].replace(/''/g, "'"), db.export()); return [0, 0]; }
 			db.run(args.query, args.values || []);
 			const rowsAffected = db.getRowsModified();
 			// Persist mode does NOT auto-flush here: db.export() is O(DB size)
@@ -264,8 +268,35 @@ window.__TAURI_INTERNALS__ = {
 			return [rowsAffected, 0];
 		}
 		if (cmd === 'plugin:sql|close') {
-			const db = dbs.get(dbKey);
-			if (db) { db.close(); dbs.delete(dbKey); }
+			// Model the real Tauri SQL plugin: when close is invoked with no
+			// db arg (TauriDatabase.close() passes nothing — the live pool is
+			// referenced by handle, not by the connection string), the real
+			// plugin closes ALL registered pools. So: a string db closes just
+			// that one; undefined/null/absent closes every entry in the registry.
+			// Guard double-close: sql.js throws if close() is called on an
+			// already-closed Database instance.
+			//
+			// Before dropping a registry entry, persist its bytes back to the
+			// virtual FS under the connection's file-backed key. The real
+			// plugin's pool reopens the on-disk file on the next load, so a
+			// close-then-reopen must see the same data — without this, closing
+			// the live pool mid-importDatabase (validation failure path) would
+			// leave the next getDb() to rehydrate from an empty FS and silently
+			// wipe the live DB. Skipping the persist for read-only candidate
+			// connections (no file-backed key / not the live path) mirrors that
+			// those files are never written through by the plugin.
+			const closeOne = (k) => {
+				const db = dbs.get(k);
+				if (!db) return;
+				const fsk = fsKeyFor(k);
+				if (fsk) {
+					try { fs.set(fsk, db.export()); } catch {}
+				}
+				try { db.close(); } catch {}
+				dbs.delete(k);
+			};
+			if (typeof args.db === 'string') closeOne(dbKey);
+			else for (const k of [...dbs.keys()]) closeOne(k);
 			return {};
 		}
 		// --- Path plugin ---
