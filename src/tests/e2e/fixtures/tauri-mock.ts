@@ -284,7 +284,7 @@ window.__TAURI_INTERNALS__ = {
 			// persistence (copy_file to disk is durable regardless of the
 			// in-memory DB's persist flag, which only governs auto-flushing).
 			if (data && args.toPath === APP_DATA_DIR + '/notchy.db') {
-				idbSet(idbKey(LIVE_PATH), data);
+				await idbSet(idbKey(LIVE_PATH), data);
 			}
 			return {};
 		}

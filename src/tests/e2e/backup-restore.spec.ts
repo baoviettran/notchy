@@ -141,8 +141,13 @@ test.describe('import rejection (Tauri IPC mock)', () => {
 		expect(after[0].c).toBe(before[0].c);
 	});
 
-	test('schema-version mismatch is rejected', async ({ tauriMockPage: page }) => {
+	test('schema-version mismatch is rejected, live DB untouched', async ({ tauriMockPage: page }) => {
 		await onboard(page, { accountName: 'VersionGuard' });
+
+		const before = await liveQuery<{ c: number }>(
+			page,
+			'SELECT COUNT(*) AS c FROM accounts WHERE deleted_at IS NULL'
+		);
 
 		// Build a full-shape DB (passes integrity + required-tables) but with a
 		// schema_version the app does not expect.
@@ -168,6 +173,14 @@ test.describe('import rejection (Tauri IPC mock)', () => {
 		) as { valid: boolean; error?: string };
 		expect(result.valid).toBe(false);
 		expect(result.error).toContain('Schema version');
+
+		// Live DB unchanged: validation failed, so importDatabase must never
+		// reach copyFile. The account count is identical to before.
+		const after = await liveQuery<{ c: number }>(
+			page,
+			'SELECT COUNT(*) AS c FROM accounts WHERE deleted_at IS NULL'
+		);
+		expect(after[0].c).toBe(before[0].c);
 	});
 });
 
