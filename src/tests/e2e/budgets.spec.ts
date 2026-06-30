@@ -13,7 +13,7 @@ import { test, expect } from './fixtures/onboarded';
 //    Saving) so a row is always present without setup.
 
 test.describe('budgets', () => {
-	test('allocate to a category and it persists', async ({ onboardedPage: page }) => {
+	test('allocate to a category and it persists across SPA navigation', async ({ onboardedPage: page }) => {
 		await page.getByRole('link', { name: 'Budgets', exact: true }).click();
 		await expect(page.getByRole('heading', { name: 'Budgets' })).toBeVisible();
 
