@@ -206,6 +206,14 @@ window.__TAURI_INTERNALS__ = {
 		}
 		if (cmd === 'plugin:sql|execute') {
 			const db = await loadDb(args.db, SQL_JS);
+			// VACUUM INTO must be intercepted before sql.js sees it — sql.js's
+			// in-memory VFS can't open an arbitrary path. createBackup issues this
+			// as a top-level execute (no SAVEPOINT), so exporting here is safe.
+			// NOTE: this init script is injected via addInitScript as a template
+			// literal and eval'd in-page, so regex escapes must be doubled (\\s,
+			// not \s) or they cook to a bare letter and the match silently fails.
+			const vac = args.query.match(/^\\s*VACUUM\\s+INTO\\s+'([^']+)'/i);
+			if (vac) { fs.set(vac[1], db.export()); return [0, 0]; }
 			db.run(args.query, args.values || []);
 			const rowsAffected = db.getRowsModified();
 			// Persist mode does NOT auto-flush here: db.export() is O(DB size)
