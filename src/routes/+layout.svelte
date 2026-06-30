@@ -1,5 +1,11 @@
 <script lang="ts">
 	import '../app.css';
+	// IBM Plex Mono — the VFD/display face. Imported here (not via a CSS
+	// @import in app.css) so Vite resolves the @fontsource bare specifier
+	// through node_modules; a CSS @import makes Tailwind's resolver fail.
+	import '@fontsource/ibm-plex-mono/400.css';
+	import '@fontsource/ibm-plex-mono/500.css';
+	import '@fontsource/ibm-plex-mono/600.css';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';

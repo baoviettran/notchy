@@ -3,10 +3,11 @@
 @tailwind utilities;
 
 /* IBM Plex Mono — the VFD/display face. Self-hosted so it ships offline
-   with the app instead of drifting to Consolas/SF Mono per OS. */
-@import '@fontsource/ibm-plex-mono/400.css';
-@import '@fontsource/ibm-plex-mono/500.css';
-@import '@fontsource/ibm-plex-mono/600.css';
+   with the app instead of drifting to Consolas/SF Mono per OS. The
+   @fontsource CSS is imported from +layout.svelte (not via a CSS @import
+   here) so Vite resolves the bare specifier through node_modules; a CSS
+   @import at the top of this file makes Tailwind's resolver fail (ENOENT)
+   and one after @tailwind only emits a PostCSS ordering warning. */
 
 /* ===========================================================
    Notchy — Adding Machine design system
