@@ -1,5 +1,7 @@
 # Notchy
 
+[English](README.md) | [Tiếng Việt](README.vi.md)
+
 A local-first personal finance application. Your data stays on your device — no cloud, no accounts, no subscriptions.
 
 ## Install
