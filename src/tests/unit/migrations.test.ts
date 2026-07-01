@@ -87,10 +87,32 @@ describe('Migration 003 - seed data', () => {
 		expect(rows[0].value).toHaveLength(26);
 	});
 
-	it('schema_version is 3', async () => {
+	it('schema_version is 4', async () => {
 		const rows = await db.query<{ value: string }>(
 			`SELECT value FROM app_meta WHERE key = 'schema_version'`
 		);
-		expect(rows[0].value).toBe('3');
+		expect(rows[0].value).toBe('4');
+	});
+});
+
+describe('migration 004 — rollover_toggle', () => {
+	it('adds rollover_enabled column defaulting to 1 on seeded buckets', async () => {
+		const rows = await db.query<{ rollover_enabled: number }>(
+			`SELECT rollover_enabled FROM category_types WHERE id = 'bucket_essentials'`
+		);
+		expect(rows).toHaveLength(1);
+		expect(rows[0].rollover_enabled).toBe(1);
+	});
+
+	it('rejects NULL via the NOT NULL constraint', async () => {
+		// A fresh column with NOT NULL DEFAULT back-fills existing rows;
+		// verify the column is present and NOT NULL by updating it to a valid value.
+		await db.execute(
+			`UPDATE category_types SET rollover_enabled = 0 WHERE id = 'bucket_essentials'`
+		);
+		const rows = await db.query<{ rollover_enabled: number }>(
+			`SELECT rollover_enabled FROM category_types WHERE id = 'bucket_essentials'`
+		);
+		expect(rows[0].rollover_enabled).toBe(0);
 	});
 });

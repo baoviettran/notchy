@@ -56,7 +56,7 @@ describe('exportCsv', () => {
 
 describe('validateImport', () => {
 	it('validates a correct database', async () => {
-		const result = await validateImport(db, 3);
+		const result = await validateImport(db, 4);
 		expect(result.valid).toBe(true);
 	});
 
