@@ -78,6 +78,20 @@ describe('saveProfile', () => {
 		// Missing optional `encoding` defaults to utf-8 rather than throwing.
 		expect(all[0].encoding).toBe('utf-8');
 	});
+
+	it('tolerates a profile missing the defaults object (forward-compatible)', async () => {
+		await db.execute(
+			`INSERT OR REPLACE INTO app_meta (key, value) VALUES ('csv_import_profiles', ?)`,
+			[JSON.stringify({
+				version: 1,
+				profiles: [{ id: 'nohdef', name: 'NoDefaults', delimiter: ',', hasHeader: true, mappings: { amount: 0 } }]
+			})]
+		);
+		const all = await getProfiles(db);
+		expect(all).toHaveLength(1);
+		expect(all[0].defaults.account_id).toBe('');
+		expect(all[0].defaults.kind).toBe('expense');
+	});
 });
 
 describe('deleteProfile', () => {

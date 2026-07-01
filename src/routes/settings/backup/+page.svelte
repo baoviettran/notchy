@@ -54,7 +54,7 @@
 			});
 			if (!path) return;
 			busy = true;
-			const result = await importDatabase(path, 3);
+			const result = await importDatabase(path, 4);
 			if (!result.valid) {
 				toast.show(m.settings_backup_toast_import_rejected({ error: result.error ?? '' }));
 				return;

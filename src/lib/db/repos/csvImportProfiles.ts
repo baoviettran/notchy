@@ -33,6 +33,7 @@ function normalize(raw: Partial<CsvImportProfile>): CsvImportProfile {
 	return {
 		encoding: 'utf-8',
 		mappings: {},
+		defaults: { account_id: '', kind: 'expense' },
 		...raw
 	} as CsvImportProfile;
 }

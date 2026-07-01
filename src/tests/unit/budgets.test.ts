@@ -153,6 +153,23 @@ describe('getRolledOver', () => {
 		expect(rolled).toBe(0);
 	});
 
+		it('ignores the rollover_enabled toggle (toggle gates display, not history)', async () => {
+			// Two budgeted prior months with surplus.
+			await repo.setAllocation(db, 'bucket_essentials', '2026-03', 1000000);
+			const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+			await seedExpense(tagId, 400000, '2026-03-10'); // surplus 600,000
+			await repo.setAllocation(db, 'bucket_essentials', '2026-04', 1000000);
+			await seedExpense(tagId, 500000, '2026-04-10'); // surplus 500,000
+
+			// Disable the toggle for the type — getRolledOver must still return full cumulative.
+			await db.execute(
+				`UPDATE category_types SET rollover_enabled = 0 WHERE id = 'bucket_essentials'`
+			);
+
+			const rolled = await repo.getRolledOver(db, 'bucket_essentials', '2026-05');
+			expect(rolled).toBe(1100000); // 600,000 + 500,000, toggle ignored
+		});
+
 	it('sums surplus (allocated - spent) across prior budgeted months', async () => {
 		// 2026-03: allocated 1,000,000, spent 400,000 → surplus 600,000
 		await repo.setAllocation(db, 'bucket_essentials', '2026-03', 1000000);
