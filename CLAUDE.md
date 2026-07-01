@@ -78,3 +78,9 @@ UI (Svelte 5 components, $props, $state, $derived, $effect)
 - Svelte 5 runes (`$state`, `$derived`, `$effect`, `$props`), not legacy stores
 - IDs are ULIDs (custom implementation in `src/lib/utils/id.ts`)
 - Supports `en` and `vi` locales
+
+## Repo Layout — `docs/` submodule & specs/plans
+- `docs/` is a **git submodule** (`notchy-docs`), not part of the main repo. Anything written under `docs/` is invisible to the main repo's commits.
+- **Design specs** live at `specs/` (repo root), e.g. `specs/2026-07-01-v0.1.x-quality-of-life-design.md`.
+- **Implementation plans** live at `specs/plans/`, e.g. `specs/plans/2026-07-01-v0.1.2-tray-quick-capture.md`.
+- Ignore the superpowers skill's default `docs/superpowers/specs/` and `docs/superpowers/plans/` paths — redirect both to `specs/` and `specs/plans/` respectively.
