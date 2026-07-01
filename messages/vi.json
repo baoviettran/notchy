@@ -67,6 +67,10 @@
 	"forms_type": "Loại",
 	"forms_search_tags_placeholder": "Tìm nhãn...",
 	"forms_amount_placeholder": "vd. 50k, 1.5tr, 100+50",
+	"quick_add_placeholder": "Nhập số tiền…",
+	"quick_add_payee_hint": "nhập người nhận",
+	"quick_add_save": "LƯU",
+	"quick_add_today": "HÔM NAY",
 	"forms_transaction_updated": "Đã cập nhật giao dịch.",
 	"forms_saved": "Đã lưu · {kind} · {amount}",
 	"forms_account_updated": "Đã cập nhật tài khoản.",
@@ -203,7 +207,10 @@
 	"settings_theme_light": "sáng",
 	"settings_theme_dark": "tối",
 	"settings_language": "Ngôn ngữ",
-	"settings_version": "Notchy v0.1.0",
+	"settings_quick_account": "Tài khoản nhập nhanh",
+	"settings_quick_account_desc": "Tài khoản dùng cho cửa sổ nhập nhanh",
+	"settings_quick_account_none": "— Không —",
+	"settings_version": "Notchy v0.1.2",
 	"categories_title": "Nhãn",
 	"categories_add_tag": "+ Thêm nhãn",
 	"categories_no_tags": "Chưa có nhãn.",
@@ -291,5 +298,6 @@
 	"errors_bucket_has_transactions": "Không thể xoá nhóm khi còn giao dịch đang dùng",
 	"errors_tag_not_found": "Không tìm thấy nhãn",
 	"errors_system_tag_no_delete": "Không thể xoá nhãn hệ thống",
-	"errors_unknown": "Đã xảy ra lỗi. Vui lòng thử lại."
+	"errors_unknown": "Đã xảy ra lỗi. Vui lòng thử lại.",
+	"quick_add_no_account": "Chưa có tài khoản"
 }

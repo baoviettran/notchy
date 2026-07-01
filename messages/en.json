@@ -67,6 +67,10 @@
 	"forms_type": "Type",
 	"forms_search_tags_placeholder": "Search tags...",
 	"forms_amount_placeholder": "e.g. 50k, 1.5tr, 100+50",
+	"quick_add_placeholder": "Type an amount…",
+	"quick_add_payee_hint": "payee shows here",
+	"quick_add_save": "SAVE",
+	"quick_add_today": "TODAY",
 	"forms_transaction_updated": "Transaction updated.",
 	"forms_saved": "Saved · {kind} · {amount}",
 	"forms_account_updated": "Account updated.",
@@ -203,7 +207,10 @@
 	"settings_theme_light": "light",
 	"settings_theme_dark": "dark",
 	"settings_language": "Language",
-	"settings_version": "Notchy v0.1.0",
+	"settings_quick_account": "Quick-add account",
+	"settings_quick_account_desc": "Account used by the quick-capture window",
+	"settings_quick_account_none": "— None —",
+	"settings_version": "Notchy v0.1.2",
 	"categories_title": "Categories",
 	"categories_add_tag": "+ Add tag",
 	"categories_no_tags": "No tags yet.",
@@ -291,5 +298,6 @@
 	"errors_bucket_has_transactions": "Cannot delete bucket with active transactions",
 	"errors_tag_not_found": "Tag not found",
 	"errors_system_tag_no_delete": "System tags cannot be deleted",
-	"errors_unknown": "Something went wrong. Please try again."
+	"errors_unknown": "Something went wrong. Please try again.",
+	"quick_add_no_account": "No account available"
 }
