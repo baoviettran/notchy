@@ -55,3 +55,4 @@ backups/
 *.tmp
 *.swp
 *~
+.superpowers/
