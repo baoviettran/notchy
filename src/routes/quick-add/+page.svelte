@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { emit } from '@tauri-apps/api/event';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import * as m from '$lib/paraglide/messages';
@@ -17,6 +17,7 @@
 	let activeAccount = $state<{ id: string; name: string } | null>(null);
 	let ready = $state(false);
 	let submitting = $state(false);
+	let unlistenFocus: (() => void) | undefined;
 
 	const accountName = $derived(activeAccount?.name ?? '');
 
@@ -34,7 +35,20 @@
 		await loadDefaultAccount();
 		ready = true;
 		queueMicrotask(() => document.getElementById('qa-input')?.focus());
+
+		// The quick-add window is shown/hidden (not destroyed) for the app's
+		// lifetime, so onMount runs once. Re-resolve the default account each
+		// time the window gains focus: the user may have changed the default
+		// (or created the first account) in the main window since the last show.
+		if (isTauri()) {
+			const win = getCurrentWindow();
+			unlistenFocus = await win.onFocusChanged(({ payload: focused }) => {
+				if (focused) void loadDefaultAccount();
+			});
+		}
 	});
+
+	onDestroy(() => { unlistenFocus?.(); });
 
 	async function hideWindow(): Promise<void> {
 		if (isTauri()) await getCurrentWindow().hide();
