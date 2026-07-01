@@ -105,6 +105,47 @@ describe('getBudgetsForMonth', () => {
 	});
 });
 
+describe('getBudgetsForMonth — roll-over aware', () => {
+	it('available = allocated + rolledOver - spent when rollover enabled (default)', async () => {
+		// Prior month surplus of 600,000
+		await repo.setAllocation(db, 'bucket_essentials', '2026-03', 1000000);
+		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+		await seedExpense(tagId, 400000, '2026-03-10');
+
+		// This month: allocated 1,000,000, spent 300,000
+		await repo.setAllocation(db, 'bucket_essentials', '2026-04', 1000000);
+		await seedExpense(tagId, 300000, '2026-04-10');
+
+		const budgets = await repo.getBudgetsForMonth(db, '2026-04');
+		const b = budgets.find((x) => x.type_id === 'bucket_essentials')!;
+		expect(b.rolled_over).toBe(600000);
+		expect(b.spent).toBe(300000);
+		expect(b.available).toBe(1300000); // 1,000,000 + 600,000 - 300,000
+		expect(b.remaining).toBe(700000); // back-compat: allocated - spent
+	});
+
+	it('available = allocated - spent (month-only) when rollover disabled', async () => {
+		// Prior month surplus that should NOT carry forward.
+		await repo.setAllocation(db, 'bucket_essentials', '2026-03', 1000000);
+		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+		await seedExpense(tagId, 400000, '2026-03-10');
+
+		// Disable roll-over for this bucket.
+		await db.execute(
+			`UPDATE category_types SET rollover_enabled = 0 WHERE id = 'bucket_essentials'`
+		);
+
+		// This month: allocated 1,000,000, spent 300,000
+		await repo.setAllocation(db, 'bucket_essentials', '2026-04', 1000000);
+		await seedExpense(tagId, 300000, '2026-04-10');
+
+		const budgets = await repo.getBudgetsForMonth(db, '2026-04');
+		const b = budgets.find((x) => x.type_id === 'bucket_essentials')!;
+		expect(b.rolled_over).toBe(0); // reported 0 when disabled
+		expect(b.available).toBe(700000); // 1,000,000 - 300,000 (no roll-over)
+	});
+});
+
 describe('getRolledOver', () => {
 	it('returns 0 for the first budgeted month (no prior history)', async () => {
 		await repo.setAllocation(db, 'bucket_essentials', '2026-03', 1000000);
