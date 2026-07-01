@@ -43,6 +43,7 @@
 	}
 
 	const isOnboarding = $derived($page.url.pathname === '/onboarding');
+	const isQuickAdd = $derived($page.url.pathname.startsWith('/quick-add'));
 </script>
 
 <svelte:window onkeydown={onKeydown} />
@@ -52,6 +53,8 @@
 		<div class="figures-glow text-2xl animate-flash">▮▮▮</div>
 		<p class="plate">{m.layout_warming_up()}</p>
 	</div>
+{:else if isQuickAdd}
+	{@render children()}
 {:else if isOnboarding}
 	{@render children()}
 {:else}
