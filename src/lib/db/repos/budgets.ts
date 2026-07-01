@@ -58,6 +58,28 @@ export async function getSpentForBucket(db: DatabaseService, typeId: string, mon
 	return rows[0]?.total ?? 0;
 }
 
+/**
+ * Cumulative roll-over for a category before `month`: sum of (allocated − spent)
+ * over every prior month that has a budgets row for this type. Spending in
+ * months with no budget row is ignored (budget-row gating, YNAB-style).
+ * Can go negative when a budgeted month is overspent.
+ */
+export async function getRolledOver(db: DatabaseService, typeId: string, month: string): Promise<number> {
+	// Prior budgeted months for this type.
+	const months = await db.query<{ month: string; allocated: number }>(
+		`SELECT month, allocated FROM budgets
+		 WHERE type_id = ? AND month < ? AND deleted_at IS NULL`,
+		[typeId, month]
+	);
+
+	let rolled = 0;
+	for (const m of months) {
+		const spent = await getSpentForBucket(db, typeId, m.month);
+		rolled += m.allocated - spent;
+	}
+	return rolled;
+}
+
 export async function setAllocation(db: DatabaseService, typeId: string, month: string, allocated: number): Promise<void> {
 	const now = new Date().toISOString();
 	const existing = await db.query<{ id: string }>(
