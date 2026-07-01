@@ -6,11 +6,14 @@
 	import '@fontsource/ibm-plex-mono/400.css';
 	import '@fontsource/ibm-plex-mono/500.css';
 	import '@fontsource/ibm-plex-mono/600.css';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
+	import { listen } from '@tauri-apps/api/event';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { dbStore } from '$lib/stores/db.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
+	import { transactions } from '$lib/stores/transactions.svelte';
+	import { attachTransactionSavedListener } from '$lib/stores/quick-refresh';
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
 	import TopBar from '$lib/components/layout/TopBar.svelte';
 	import BottomNav from '$lib/components/layout/BottomNav.svelte';
@@ -22,6 +25,7 @@
 
 	let { children } = $props();
 	let showTxModal = $state(false);
+	let unlisten: (() => void) | undefined;
 
 	onMount(async () => {
 		await dbStore.init();
@@ -30,6 +34,11 @@
 		}
 		if (dbStore.ready && dbStore.firstRunComplete) {
 			await settings.load();
+		}
+		if (dbStore.ready && dbStore.firstRunComplete && !$page.url.pathname.startsWith('/quick-add')) {
+			unlisten = await attachTransactionSavedListener(listen, async () => {
+				await transactions.load();
+			});
 		}
 	});
 
@@ -44,6 +53,10 @@
 
 	const isOnboarding = $derived($page.url.pathname === '/onboarding');
 	const isQuickAdd = $derived($page.url.pathname.startsWith('/quick-add'));
+
+	onDestroy(() => {
+		unlisten?.();
+	});
 </script>
 
 <svelte:window onkeydown={onKeydown} />
