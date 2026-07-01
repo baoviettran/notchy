@@ -13,7 +13,7 @@ let _db: DatabaseService | null = null;
  * absent we're in a plain browser (Playwright / dev / preview) where the Tauri
  * SQL plugin cannot function, so fall back to the in-memory sql.js service.
  */
-function isTauri(): boolean {
+export function isTauri(): boolean {
 	return typeof window !== 'undefined' && !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 }
 

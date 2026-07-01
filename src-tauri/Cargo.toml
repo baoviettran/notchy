@@ -1,6 +1,6 @@
 [package]
 name = "notchy"
-version = "0.1.0"
+version = "0.1.2"
 description = "A local-first personal finance application"
 authors = ["hoangtu34"]
 license = "MIT"

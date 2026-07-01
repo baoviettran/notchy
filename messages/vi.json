@@ -298,5 +298,6 @@
 	"errors_bucket_has_transactions": "Không thể xoá nhóm khi còn giao dịch đang dùng",
 	"errors_tag_not_found": "Không tìm thấy nhãn",
 	"errors_system_tag_no_delete": "Không thể xoá nhãn hệ thống",
-	"errors_unknown": "Đã xảy ra lỗi. Vui lòng thử lại."
+	"errors_unknown": "Đã xảy ra lỗi. Vui lòng thử lại.",
+	"quick_add_no_account": "Chưa có tài khoản"
 }

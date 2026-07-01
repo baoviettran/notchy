@@ -5,7 +5,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import { dbStore } from '$lib/stores/db.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
-	import { getDb } from '$lib/db';
+	import { getDb, isTauri } from '$lib/db';
 	import { listAccounts } from '$lib/db/repos/accounts';
 	import { getDefaultQuickAccount } from '$lib/db/repos/quick_account';
 	import { createTransaction } from '$lib/db/repos/transactions';
@@ -14,22 +14,18 @@
 
 	let value = $state('');
 	let error = $state<string | null>(null);
-	let accountName = $state('');
+	let activeAccount = $state<{ id: string; name: string } | null>(null);
 	let ready = $state(false);
+	let submitting = $state(false);
 
-	function isTauri(): boolean {
-		return (
-			typeof window !== 'undefined' &&
-			!!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
-		);
-	}
+	const accountName = $derived(activeAccount?.name ?? '');
 
 	async function loadDefaultAccount(): Promise<void> {
 		const db = await getDb();
 		const id = await getDefaultQuickAccount(db);
 		const accounts = await listAccounts(db);
 		const chosen = (id && accounts.find((a) => a.id === id)) || accounts[0];
-		accountName = chosen?.name ?? '';
+		activeAccount = chosen ? { id: chosen.id, name: chosen.name } : null;
 	}
 
 	onMount(async () => {
@@ -45,43 +41,47 @@
 	}
 
 	async function submit(): Promise<void> {
-		error = null;
-		const db = await getDb();
-		let parsed;
+		// Guard against rapid Enter re-entering submit and re-parsing an
+		// already-cleared value.
+		if (submitting) return;
+		submitting = true;
 		try {
-			parsed = parseQuickInput(value, settings.locale, settings.currency);
-		} catch (e) {
-			error = e instanceof AppError ? m.quick_add_placeholder() : 'Error';
-			return;
+			error = null;
+			if (!activeAccount) {
+				error = m.quick_add_no_account();
+				return;
+			}
+			const db = await getDb();
+			let parsed;
+			try {
+				parsed = parseQuickInput(value, settings.locale, settings.currency);
+			} catch (e) {
+				error = e instanceof AppError ? m.quick_add_placeholder() : m.errors_unknown();
+				return;
+			}
+
+			await createTransaction(db, {
+				kind: parsed.kind,
+				date: new Date().toISOString().slice(0, 10),
+				amount: parsed.amount,
+				account_id: activeAccount.id,
+				payee: parsed.payee,
+				description: null,
+				tag_id: null
+			});
+
+			// Only emit when running inside Tauri — Playwright/web has no event bus,
+			// and emit() there throws. The E2E suite (Task 9) exercises the real
+			// save path against sql.js and re-reads /transactions on mount instead.
+			if (isTauri()) {
+				await emit('transaction:saved', { accountId: activeAccount.id });
+			}
+
+			value = '';
+			await hideWindow();
+		} finally {
+			submitting = false;
 		}
-
-		const id = await getDefaultQuickAccount(db);
-		const accounts = await listAccounts(db);
-		const account = (id && accounts.find((a) => a.id === id)) || accounts[0];
-		if (!account) {
-			error = 'No account';
-			return;
-		}
-
-		await createTransaction(db, {
-			kind: parsed.kind,
-			date: new Date().toISOString().slice(0, 10),
-			amount: parsed.amount,
-			account_id: account.id,
-			payee: parsed.payee,
-			description: null,
-			tag_id: null
-		});
-
-		// Only emit when running inside Tauri — Playwright/web has no event bus,
-		// and emit() there throws. The E2E suite (Task 9) exercises the real
-		// save path against sql.js and re-reads /transactions on mount instead.
-		if (isTauri()) {
-			await emit('transaction:saved', { accountId: account.id });
-		}
-
-		value = '';
-		await hideWindow();
 	}
 
 	function onKeydown(e: KeyboardEvent) {
@@ -111,7 +111,7 @@
 		placeholder={m.quick_add_placeholder()}
 		bind:value
 		onkeydown={onKeydown}
-		disabled={!ready}
+		disabled={!ready || !activeAccount}
 	/>
 
 	<div class="rule"></div>

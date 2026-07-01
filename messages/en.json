@@ -298,5 +298,6 @@
 	"errors_bucket_has_transactions": "Cannot delete bucket with active transactions",
 	"errors_tag_not_found": "Tag not found",
 	"errors_system_tag_no_delete": "System tags cannot be deleted",
-	"errors_unknown": "Something went wrong. Please try again."
+	"errors_unknown": "Something went wrong. Please try again.",
+	"quick_add_no_account": "No account available"
 }

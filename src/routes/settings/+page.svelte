@@ -21,6 +21,7 @@
 	let quickAccountId = $state<string>('');
 	let accounts = $state<AccountWithBalance[]>([]);
 	let quickAccountLoaded = $state(false);
+	let quickAccountError = $state<string | null>(null);
 
 	const quickAccountOptions = $derived([
 		{ value: '', label: m.settings_quick_account_none() },
@@ -44,14 +45,26 @@
 		if (!quickAccountLoaded) return;
 		const id = quickAccountId;
 		if (id === lastPersisted) return;
-		lastPersisted = id;
-		const db = getDb();
-		if (id === '') {
-			db.then((d) => clearDefaultQuickAccount(d));
-			return;
-		}
-		db.then((d) => setDefaultQuickAccount(d, id));
+		void persistQuickAccount(id);
 	});
+
+	async function persistQuickAccount(id: string): Promise<void> {
+		try {
+			const db = await getDb();
+			if (id === '') {
+				await clearDefaultQuickAccount(db);
+			} else {
+				await setDefaultQuickAccount(db, id);
+			}
+			// Mark as persisted only after the write succeeds, so a failed write
+			// is retried on the next change rather than silently dropped.
+			lastPersisted = id;
+			quickAccountError = null;
+		} catch (e) {
+			console.error('Failed to persist quick account', e);
+			quickAccountError = m.errors_unknown();
+		}
+	}
 
 	onMount(loadQuickAccount);
 </script>
@@ -100,6 +113,9 @@
 				options={quickAccountOptions}
 				disabled={!quickAccountLoaded}
 			/>
+			{#if quickAccountError}
+				<div class="text-xs text-phosphor mt-2">{quickAccountError}</div>
+			{/if}
 		</div>
 		<div class="bg-tape rounded-lg border border-line p-4">
 			<div class="text-xs text-dim">{m.settings_version()}</div>
