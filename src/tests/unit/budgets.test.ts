@@ -18,6 +18,15 @@ async function seedExpense(tagId: string, amount: number, date: string) {
 	);
 }
 
+async function seedRefund(tagId: string, amount: number, date: string) {
+	const { ulid } = await import('$lib/utils/id');
+	await db.execute(
+		`INSERT INTO transactions (id, kind, date, amount, account_id, tag_id, created_at, updated_at)
+		 VALUES (?, 'refund', ?, ?, 'acc1', ?, ?, ?)`,
+		[ulid(), date, amount, tagId, NOW, NOW]
+	);
+}
+
 beforeEach(async () => {
 	db = createTestDb();
 	await runMigrations(db, migrations);
@@ -93,5 +102,130 @@ describe('getBudgetsForMonth', () => {
 		const budgets = await repo.getBudgetsForMonth(db, '2026-05');
 		expect(budgets[0].spent).toBe(5000000);
 		expect(budgets[0].remaining).toBe(10000000);
+	});
+});
+
+describe('getBudgetsForMonth — roll-over aware', () => {
+	it('available = allocated + rolledOver - spent when rollover enabled (default)', async () => {
+		// Prior month surplus of 600,000
+		await repo.setAllocation(db, 'bucket_essentials', '2026-03', 1000000);
+		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+		await seedExpense(tagId, 400000, '2026-03-10');
+
+		// This month: allocated 1,000,000, spent 300,000
+		await repo.setAllocation(db, 'bucket_essentials', '2026-04', 1000000);
+		await seedExpense(tagId, 300000, '2026-04-10');
+
+		const budgets = await repo.getBudgetsForMonth(db, '2026-04');
+		const b = budgets.find((x) => x.type_id === 'bucket_essentials')!;
+		expect(b.rolled_over).toBe(600000);
+		expect(b.spent).toBe(300000);
+		expect(b.available).toBe(1300000); // 1,000,000 + 600,000 - 300,000
+		expect(b.remaining).toBe(700000); // back-compat: allocated - spent
+	});
+
+	it('available = allocated - spent (month-only) when rollover disabled', async () => {
+		// Prior month surplus that should NOT carry forward.
+		await repo.setAllocation(db, 'bucket_essentials', '2026-03', 1000000);
+		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+		await seedExpense(tagId, 400000, '2026-03-10');
+
+		// Disable roll-over for this bucket.
+		await db.execute(
+			`UPDATE category_types SET rollover_enabled = 0 WHERE id = 'bucket_essentials'`
+		);
+
+		// This month: allocated 1,000,000, spent 300,000
+		await repo.setAllocation(db, 'bucket_essentials', '2026-04', 1000000);
+		await seedExpense(tagId, 300000, '2026-04-10');
+
+		const budgets = await repo.getBudgetsForMonth(db, '2026-04');
+		const b = budgets.find((x) => x.type_id === 'bucket_essentials')!;
+		expect(b.rolled_over).toBe(0); // reported 0 when disabled
+		expect(b.available).toBe(700000); // 1,000,000 - 300,000 (no roll-over)
+	});
+});
+
+describe('getRolledOver', () => {
+	it('returns 0 for the first budgeted month (no prior history)', async () => {
+		await repo.setAllocation(db, 'bucket_essentials', '2026-03', 1000000);
+		const rolled = await repo.getRolledOver(db, 'bucket_essentials', '2026-03');
+		expect(rolled).toBe(0);
+	});
+
+		it('ignores the rollover_enabled toggle (toggle gates display, not history)', async () => {
+			// Two budgeted prior months with surplus.
+			await repo.setAllocation(db, 'bucket_essentials', '2026-03', 1000000);
+			const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+			await seedExpense(tagId, 400000, '2026-03-10'); // surplus 600,000
+			await repo.setAllocation(db, 'bucket_essentials', '2026-04', 1000000);
+			await seedExpense(tagId, 500000, '2026-04-10'); // surplus 500,000
+
+			// Disable the toggle for the type — getRolledOver must still return full cumulative.
+			await db.execute(
+				`UPDATE category_types SET rollover_enabled = 0 WHERE id = 'bucket_essentials'`
+			);
+
+			const rolled = await repo.getRolledOver(db, 'bucket_essentials', '2026-05');
+			expect(rolled).toBe(1100000); // 600,000 + 500,000, toggle ignored
+		});
+
+	it('sums surplus (allocated - spent) across prior budgeted months', async () => {
+		// 2026-03: allocated 1,000,000, spent 400,000 → surplus 600,000
+		await repo.setAllocation(db, 'bucket_essentials', '2026-03', 1000000);
+		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+		await seedExpense(tagId, 400000, '2026-03-10');
+
+		// 2026-04: allocated 1,000,000, spent 1,000,000 → surplus 0
+		await repo.setAllocation(db, 'bucket_essentials', '2026-04', 1000000);
+		await seedExpense(tagId, 1000000, '2026-04-10');
+
+		const rolled = await repo.getRolledOver(db, 'bucket_essentials', '2026-05');
+		expect(rolled).toBe(600000); // 600,000 + 0
+	});
+
+	it('goes negative when overspent (deficit rolls forward)', async () => {
+		// 2026-03: allocated 500,000, spent 800,000 → deficit -300,000
+		await repo.setAllocation(db, 'bucket_essentials', '2026-03', 500000);
+		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+		await seedExpense(tagId, 800000, '2026-03-10');
+
+		const rolled = await repo.getRolledOver(db, 'bucket_essentials', '2026-04');
+		expect(rolled).toBe(-300000);
+	});
+
+	it('ignores spending in months that have no budget row (budget-row gating)', async () => {
+		// 2026-03: spending but NO allocation → ignored
+		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+		await seedExpense(tagId, 999999, '2026-03-10');
+
+		// 2026-04: first budget row, allocated 1,000,000, spent 200,000
+		await repo.setAllocation(db, 'bucket_essentials', '2026-04', 1000000);
+		await seedExpense(tagId, 200000, '2026-04-10');
+
+		const rolled = await repo.getRolledOver(db, 'bucket_essentials', '2026-05');
+		expect(rolled).toBe(800000); // only April contributes; March ignored
+	});
+
+	it('nets refunds in a prior month (refund reduces spent)', async () => {
+		// 2026-03: allocated 1,000,000, expense 500,000, refund 100,000 → spent 400,000 → surplus 600,000
+		await repo.setAllocation(db, 'bucket_essentials', '2026-03', 1000000);
+		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+		await seedExpense(tagId, 500000, '2026-03-10');
+		await seedRefund(tagId, 100000, '2026-03-15');
+
+		const rolled = await repo.getRolledOver(db, 'bucket_essentials', '2026-04');
+		expect(rolled).toBe(600000);
+	});
+
+	it('preserves cumulative balance across a zero-activity budgeted month', async () => {
+		// 2026-03: allocated 1,000,000, spent 0 → surplus 1,000,000
+		await repo.setAllocation(db, 'bucket_essentials', '2026-03', 1000000);
+
+		// 2026-04: allocated 1,000,000, spent 0 → surplus 1,000,000 (cumulative now 2,000,000)
+		await repo.setAllocation(db, 'bucket_essentials', '2026-04', 1000000);
+
+		const rolled = await repo.getRolledOver(db, 'bucket_essentials', '2026-05');
+		expect(rolled).toBe(2000000);
 	});
 });

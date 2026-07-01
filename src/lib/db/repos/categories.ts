@@ -7,6 +7,7 @@ export interface Bucket {
 	name: string;
 	is_system: number;
 	budgetable: number;
+	rollover_enabled: number;
 	sort_order: number;
 	created_at: string;
 	updated_at: string;
@@ -31,7 +32,7 @@ export interface TagDeleteInfo {
 
 export async function listBuckets(db: DatabaseService): Promise<Bucket[]> {
 	return db.query<Bucket>(
-		`SELECT id, name, is_system, budgetable, sort_order, created_at, updated_at
+		`SELECT id, name, is_system, budgetable, rollover_enabled, sort_order, created_at, updated_at
 		 FROM category_types WHERE deleted_at IS NULL ORDER BY sort_order`
 	);
 }
@@ -55,6 +56,14 @@ export async function renameBucket(db: DatabaseService, id: string, name: string
 	await db.execute(
 		`UPDATE category_types SET name = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`,
 		[name, now, id]
+	);
+}
+
+export async function setRolloverEnabled(db: DatabaseService, id: string, enabled: boolean): Promise<void> {
+	const now = new Date().toISOString();
+	await db.execute(
+		`UPDATE category_types SET rollover_enabled = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`,
+		[enabled ? 1 : 0, now, id]
 	);
 }
 

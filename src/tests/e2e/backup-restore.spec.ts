@@ -80,7 +80,7 @@ test.describe('backup -> diverge -> restore round-trip', () => {
 		// read-only, validates schema/version/tables, closes the live DB, and
 		// copies the backup bytes over the live path.
 		const result = await page.evaluate(
-			hookExpr(`return h.importDatabase(${JSON.stringify(backupPath)}, 3);`)
+			hookExpr(`return h.importDatabase(${JSON.stringify(backupPath)}, 4);`)
 		);
 		expect(result).toEqual({ valid: true });
 
@@ -128,7 +128,7 @@ test.describe('import rejection (Tauri IPC mock)', () => {
 		await writeVirtualFs(page, APP_DATA_DIR + '/corrupt.sqlite', new Uint8Array(corruptBytes));
 
 		const result = await page.evaluate(
-			hookExpr(`return h.importDatabase(${JSON.stringify(APP_DATA_DIR + '/corrupt.sqlite')}, 3);`)
+			hookExpr(`return h.importDatabase(${JSON.stringify(APP_DATA_DIR + '/corrupt.sqlite')}, 4);`)
 		) as { valid: boolean; error?: string };
 		expect(result.valid).toBe(false);
 
@@ -169,7 +169,7 @@ test.describe('import rejection (Tauri IPC mock)', () => {
 		await writeVirtualFs(page, APP_DATA_DIR + '/wrongver.sqlite', new Uint8Array(mismatchBytes));
 
 		const result = await page.evaluate(
-			hookExpr(`return h.importDatabase(${JSON.stringify(APP_DATA_DIR + '/wrongver.sqlite')}, 3);`)
+			hookExpr(`return h.importDatabase(${JSON.stringify(APP_DATA_DIR + '/wrongver.sqlite')}, 4);`)
 		) as { valid: boolean; error?: string };
 		expect(result.valid).toBe(false);
 		expect(result.error).toContain('Schema version');

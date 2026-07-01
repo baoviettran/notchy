@@ -15,7 +15,9 @@ export interface BudgetSummary {
 	month: string;
 	allocated: number;
 	spent: number;
-	remaining: number;
+	remaining: number;   // allocated - spent (back-compat)
+	rolled_over: number; // cumulative prior surplus/deficit (0 if rollover disabled)
+	available: number;   // allocated + rolled_over - spent when enabled, else allocated - spent
 }
 
 export async function getBudgetsForMonth(db: DatabaseService, month: string): Promise<BudgetSummary[]> {
@@ -25,15 +27,31 @@ export async function getBudgetsForMonth(db: DatabaseService, month: string): Pr
 		[month]
 	);
 
+	// Resolve the roll-over flag per type in one query.
+	const typeIds = budgets.map((b) => b.type_id);
+	const flagByType = new Map<string, number>();
+	if (typeIds.length > 0) {
+		const placeholders = typeIds.map(() => '?').join(',');
+		const flags = await db.query<{ id: string; rollover_enabled: number }>(
+			`SELECT id, rollover_enabled FROM category_types WHERE id IN (${placeholders})`,
+			typeIds
+		);
+		for (const f of flags) flagByType.set(f.id, f.rollover_enabled);
+	}
+
 	const result: BudgetSummary[] = [];
 	for (const b of budgets) {
 		const spent = await getSpentForBucket(db, b.type_id, month);
+		const enabled = (flagByType.get(b.type_id) ?? 1) === 1;
+		const rolled_over = enabled ? await getRolledOver(db, b.type_id, month) : 0;
 		result.push({
 			type_id: b.type_id,
 			month: b.month,
 			allocated: b.allocated,
 			spent,
-			remaining: b.allocated - spent
+			remaining: b.allocated - spent,
+			rolled_over,
+			available: enabled ? b.allocated + rolled_over - spent : b.allocated - spent
 		});
 	}
 	return result;
@@ -56,6 +74,28 @@ export async function getSpentForBucket(db: DatabaseService, typeId: string, mon
 		[typeId, month, nextMonth(month)]
 	);
 	return rows[0]?.total ?? 0;
+}
+
+/**
+ * Cumulative roll-over for a category before `month`: sum of (allocated − spent)
+ * over every prior month that has a budgets row for this type. Spending in
+ * months with no budget row is ignored (budget-row gating, YNAB-style).
+ * Can go negative when a budgeted month is overspent.
+ */
+export async function getRolledOver(db: DatabaseService, typeId: string, month: string): Promise<number> {
+	// Prior budgeted months for this type.
+	const months = await db.query<{ month: string; allocated: number }>(
+		`SELECT month, allocated FROM budgets
+		 WHERE type_id = ? AND month < ? AND deleted_at IS NULL`,
+		[typeId, month]
+	);
+
+	let rolled = 0;
+	for (const m of months) {
+		const spent = await getSpentForBucket(db, typeId, m.month);
+		rolled += m.allocated - spent;
+	}
+	return rolled;
 }
 
 export async function setAllocation(db: DatabaseService, typeId: string, month: string, allocated: number): Promise<void> {
