@@ -13,6 +13,11 @@ describe('parseQuickInput', () => {
     expect(r).toEqual({ kind: 'expense', amount: 1200000, payee: 'rent' });
   });
 
+  it('parses m suffix under vi locale', () => {
+    const r = parseQuickInput('1.2m rent', 'vi');
+    expect(r).toEqual({ kind: 'expense', amount: 1200000, payee: 'rent' });
+  });
+
   it('parses tr suffix under vi with Vietnamese payee diacritics', () => {
     const r = parseQuickInput('1.5tr lương', 'vi');
     expect(r).toEqual({ kind: 'expense', amount: 1500000, payee: 'lương' });

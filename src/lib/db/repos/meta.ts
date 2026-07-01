@@ -12,6 +12,10 @@ export async function setMeta(db: DatabaseService, key: string, value: string): 
 	);
 }
 
+export async function deleteMeta(db: DatabaseService, key: string): Promise<void> {
+	await db.execute(`DELETE FROM app_meta WHERE key = ?`, [key]);
+}
+
 export async function isFirstRunComplete(db: DatabaseService): Promise<boolean> {
 	const val = await getMeta(db, 'first_run_complete');
 	return val === '1';

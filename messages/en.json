@@ -210,7 +210,7 @@
 	"settings_quick_account": "Quick-add account",
 	"settings_quick_account_desc": "Account used by the quick-capture window",
 	"settings_quick_account_none": "— None —",
-	"settings_version": "Notchy v0.1.0",
+	"settings_version": "Notchy v0.1.2",
 	"categories_title": "Categories",
 	"categories_add_tag": "+ Add tag",
 	"categories_no_tags": "No tags yet.",

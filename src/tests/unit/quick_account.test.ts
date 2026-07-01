@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createTestDb } from './helpers/test-db';
 import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
-import { getDefaultQuickAccount, setDefaultQuickAccount } from '$lib/db/repos/quick_account';
+import { getDefaultQuickAccount, setDefaultQuickAccount, clearDefaultQuickAccount } from '$lib/db/repos/quick_account';
 import { createAccount } from '$lib/db/repos/accounts';
 import type { DatabaseService } from '$lib/db/service';
 
@@ -21,6 +21,19 @@ describe('default quick account meta', () => {
     const id = await createAccount(db, { name: 'Checking', type: 'checking', currency: 'VND' });
     await setDefaultQuickAccount(db, id);
     expect(await getDefaultQuickAccount(db)).toBe(id);
+  });
+
+  it('clears a previously set value back to null', async () => {
+    const id = await createAccount(db, { name: 'Checking', type: 'checking', currency: 'VND' });
+    await setDefaultQuickAccount(db, id);
+    expect(await getDefaultQuickAccount(db)).toBe(id);
+    await clearDefaultQuickAccount(db);
+    expect(await getDefaultQuickAccount(db)).toBeNull();
+  });
+
+  it('clearDefaultQuickAccount is a no-op when unset', async () => {
+    await clearDefaultQuickAccount(db);
+    expect(await getDefaultQuickAccount(db)).toBeNull();
   });
 
   it('overwrites the previous value', async () => {

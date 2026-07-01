@@ -4,7 +4,7 @@
 	import Select from '$lib/components/primitives/Select.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { getDb } from '$lib/db';
-	import { getDefaultQuickAccount, setDefaultQuickAccount } from '$lib/db/repos/quick_account';
+	import { getDefaultQuickAccount, setDefaultQuickAccount, clearDefaultQuickAccount } from '$lib/db/repos/quick_account';
 	import { listAccounts, type AccountWithBalance } from '$lib/db/repos/accounts';
 	import * as m from '$lib/paraglide/messages';
 
@@ -38,14 +38,18 @@
 	}
 
 	// Persist when the user changes the selection. Skips the seed value (set in
-	// loadQuickAccount) and the empty "None" option.
+	// loadQuickAccount). The empty "None" option clears the meta key so the
+	// accounts[0] fallback takes effect downstream.
 	$effect(() => {
 		if (!quickAccountLoaded) return;
 		const id = quickAccountId;
 		if (id === lastPersisted) return;
 		lastPersisted = id;
-		if (id === '') return;
 		const db = getDb();
+		if (id === '') {
+			db.then((d) => clearDefaultQuickAccount(d));
+			return;
+		}
 		db.then((d) => setDefaultQuickAccount(d, id));
 	});
 
