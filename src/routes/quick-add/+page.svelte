@@ -74,7 +74,8 @@
 		});
 
 		// Only emit when running inside Tauri — Playwright/web has no event bus,
-		// and emit() there throws. Task 9 (E2E) intercepts createTransaction.
+		// and emit() there throws. The E2E suite (Task 9) exercises the real
+		// save path against sql.js and re-reads /transactions on mount instead.
 		if (isTauri()) {
 			await emit('transaction:saved', { accountId: account.id });
 		}
