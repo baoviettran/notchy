@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Notchy",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "identifier": "com.notchy.app",
   "build": {
     "frontendDist": "../build",
@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Notchy",
         "width": 1200,
         "height": 800,
@@ -19,6 +20,18 @@
         "minHeight": 600,
         "resizable": true,
         "fullscreen": false
+      },
+      {
+        "label": "quick-add",
+        "url": "/quick-add",
+        "title": "Notchy · Quick Add",
+        "width": 360,
+        "height": 200,
+        "resizable": false,
+        "decorations": false,
+        "visible": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true
       }
     ],
     "security": {
