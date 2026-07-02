@@ -165,6 +165,60 @@ Route: `/budgets`. Monthly envelope budgets per category bucket, with month navi
 - [ ] **Edge case: over-allocate the total available income across envelopes** — _App warns or blocks when allocations exceed available funds (per the budget model)._
   - 🐛 BUG:
 
+## Section 6 — Goals (≈10 min)
+
+Route: `/goals`. Goals with target, progress, lifecycle, and velocity tracking.
+
+- [ ] **Create a goal (name, target amount, target date)** — _Goal appears in the list with 0% progress and a velocity indicator._
+  - 🐛 BUG:
+- [ ] **Contribute to a goal (add funds toward it)** — _Progress percentage and saved amount increase; the goal moves toward its target._
+  - 🐛 BUG:
+- [ ] **Velocity tracking: the goal shows a savings-velocity figure based on contribution history** — _Velocity updates as contributions are added across the timeline._
+  - 🐛 BUG:
+- [ ] **Lifecycle: complete a goal (reach the target amount)** — _Goal is marked complete/done; the UI reflects the finished state._
+  - 🐛 BUG:
+- [ ] **Edit a goal (change target amount or date)** — _Changes persist; progress/velocity recalculate._
+  - 🐛 BUG:
+- [ ] **Delete a goal** — _Goal is removed without error._
+  - 🐛 BUG:
+- [ ] **Dark mode (default): goals view renders in the dark theme** — _Progress bars, velocity, and dates are readable._
+  - 🐛 BUG:
+- [ ] **Vietnamese: switch to Tiếng Việt** — _Goal labels, progress text, and lifecycle states render in Vietnamese._
+  - 🐛 BUG:
+- [ ] **Light mode: switch to Light** — _Progress bars and figures are readable with correct contrast._
+  - 🐛 BUG:
+- [ ] **Empty state: no goals created** — _Shows an empty-state prompt to create a goal._
+  - 🐛 BUG:
+- [ ] **Error state: create a goal with an invalid target (negative/non-numeric) or past target date** — _Form rejects with a validation error; no bad goal is saved._
+  - 🐛 BUG:
+
+## Section 7 — Debts (≈10 min)
+
+Route: `/debts`. Personal debts split into "I owe" and "Owed to me", each with a counterparty.
+
+- [ ] **Create a debt under "I owe" with a counterparty, amount, and date** — _Debt appears in the "I owe" list with the counterparty name and outstanding balance._
+  - 🐛 BUG:
+- [ ] **Create a debt under "Owed to me" with a counterparty** — _Debt appears in the "Owed to me" list._
+  - 🐛 BUG:
+- [ ] **Record a payment against a debt** — _Outstanding balance decreases; the debt moves toward settled._
+  - 🐛 BUG:
+- [ ] **Mark a debt as fully settled (pay off the balance)** — _Debt is marked settled/closed; the UI reflects the finished state._
+  - 🐛 BUG:
+- [ ] **Edit a debt (amount, counterparty)** — _Changes persist; balance recalculates._
+  - 🐛 BUG:
+- [ ] **Delete a debt** — _Debt is removed without error._
+  - 🐛 BUG:
+- [ ] **Dark mode (default): debts view renders in the dark theme** — _The two sections (I owe / Owed to me), counterparty names, and balances are readable._
+  - 🐛 BUG:
+- [ ] **Vietnamese: switch to Tiếng Việt** — _Section headers, counterparty labels, and status terms render in Vietnamese._
+  - 🐛 BUG:
+- [ ] **Light mode: switch to Light** — _Debt lists are readable with correct contrast._
+  - 🐛 BUG:
+- [ ] **Empty state: no debts recorded** — _Both sections show empty-state prompts._
+  - 🐛 BUG:
+- [ ] **Error state: create a debt with an invalid amount or empty counterparty** — _Form rejects with a validation error; no bad debt is saved._
+  - 🐛 BUG:
+
 ## Results Summary
 
 Fill in after completing all sections.
