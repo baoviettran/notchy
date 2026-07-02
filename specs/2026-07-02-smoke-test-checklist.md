@@ -74,6 +74,43 @@ Route: `/` (the app shell landing).
 - [ ] **Error state: malformed/missing data — delete the DB file while the app is running, then trigger a dashboard refetch (e.g. window focus / add a transaction)** — _App handles the missing DB gracefully (re-onboards or shows an error), does not crash to a white screen._
   - 🐛 BUG:
 
+## Section 3 — Transactions (≈15 min)
+
+Route: `/transactions`. Covers all 5 transaction kinds, CRUD, locale shorthand, and edge cases.
+
+- [ ] **Add an expense: open the transaction form, choose an account + category, enter an amount and payee, save** — _Row appears in the transaction list with the correct kind, amount (formatted in the active locale), and reduced account balance._
+  - 🐛 BUG:
+- [ ] **Add an income (e.g. `+` prefix or kind selector = income)** — _Row appears as income; the account balance increases by that amount._
+  - 🐛 BUG:
+- [ ] **Add a transfer between two different accounts** — _A single transfer row is created (shared `transfer_pair_id`); source balance decreases and destination balance increases by the amount._
+  - 🐛 BUG:
+- [ ] **Add a refund** — _Refund row is created and linked correctly; the refunded expense/category balance reflects the refund._
+  - 🐛 BUG:
+- [ ] **Add an adjustment** — _Adjustment row is created; the account balance is corrected by the adjustment amount._
+  - 🐛 BUG:
+- [ ] **Edit an existing transaction (change amount and payee)** — _Row updates in place; the affected account balance recalculates._
+  - 🐛 BUG:
+- [ ] **Delete a transaction** — _Row is removed; the affected account balance recalculates._
+  - 🐛 BUG:
+- [ ] **Dark mode (default): transaction list and form render in the dark theme** — _Amounts, kind icons, and dates are readable._
+  - 🐛 BUG:
+- [ ] **Vietnamese: switch to Tiếng Việt; add a transaction using shorthand `1.5tr lương`** — _Parses to 1,500,000; payee `lương` is saved with diacritics intact; the list renders Vietnamese labels and the locale-formatted amount._
+  - 🐛 BUG:
+- [ ] **Vietnamese: add `50k cà phê` (expense) and `+50k lương` (income)** — _`50k` expands to 50,000; income prefix `+` is honoured; diacritics preserved._
+  - 🐛 BUG:
+- [ ] **Light mode: switch to Light** — _Transaction list, form, and modal are readable in light mode (correct contrast on amounts, rows, and buttons)._
+  - 🐛 BUG:
+- [ ] **Empty state: with no transactions (fresh data after onboarding)** — _List shows an empty-state message, not a blank table or `undefined`._
+  - 🐛 BUG:
+- [ ] **Error state: submit the form with a missing required field (no account or no amount)** — _Save is blocked with a clear validation error; no partial transaction is written._
+  - 🐛 BUG:
+- [ ] **Error state: enter a non-numeric / negative amount where not allowed** — _`parseAmount` rejects it; the form shows an error and does not save a negative expense._
+  - 🐛 BUG:
+- [ ] **Edge case: very large amount with suffix (e.g. `2tr`)** — _Expands to 2,000,000 and saves correctly; the formatted value does not overflow its column._
+  - 🐛 BUG:
+- [ ] **Edge case: transfer from an account to itself** — _Rejected or handled without creating a bogus balance change (no self-transfer double-count)._
+  - 🐛 BUG:
+
 ## Results Summary
 
 Fill in after completing all sections.
