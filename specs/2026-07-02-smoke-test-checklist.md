@@ -111,6 +111,35 @@ Route: `/transactions`. Covers all 5 transaction kinds, CRUD, locale shorthand, 
 - [ ] **Edge case: transfer from an account to itself** — _Rejected or handled without creating a bogus balance change (no self-transfer double-count)._
   - 🐛 BUG:
 
+## Section 4 — Accounts & Reconciliation (≈10 min)
+
+Routes: `/accounts` (list) and `/accounts/[id]` (detail).
+
+- [ ] **Accounts list loads and shows every account with its current balance** — _Each account row shows name, type, and a balance formatted in the active locale; balances match the dashboard._
+  - 🐛 BUG:
+- [ ] **Create an account of each of the 6 supported types (checking, savings, cash, credit card, personal loan, …)** — _Each type is selectable in the create form and saves successfully; the new account appears in the list._
+  - 🐛 BUG:
+- [ ] **Edit an account (rename, change opening balance)** — _Changes persist and the balance recalculates._
+  - 🐛 BUG:
+- [ ] **Delete an account that has no transactions** — _Account is removed from the list without error._
+  - 🐛 BUG:
+- [ ] **Delete an account that still has transactions** — _App either blocks deletion with a clear error or requires confirmation; no orphaned transactions are left in a broken state._
+  - 🐛 BUG:
+- [ ] **Open an account detail page (`/accounts/[id]`)** — _Detail shows the account's transaction history filtered to that account, plus balance and type._
+  - 🐛 BUG:
+- [ ] **Reconciliation: from an account detail, start a reconciliation, mark transactions cleared, and finish with an out-of-balance adjustment** — _An adjustment transaction is created to close the gap; the account balance and cleared-balance update correctly._
+  - 🐛 BUG:
+- [ ] **Dark mode (default): account list and detail render in the dark theme** — _Balances, type badges, and the reconciliation UI are readable._
+  - 🐛 BUG:
+- [ ] **Vietnamese: switch to Tiếng Việt** — _Account type names, list headers, detail labels, and reconciliation prompts render in Vietnamese._
+  - 🐛 BUG:
+- [ ] **Light mode: switch to Light** — _Account list, detail, and reconciliation dialog are readable with correct contrast._
+  - 🐛 BUG:
+- [ ] **Empty state: delete all accounts except the onboarding one (or reach a state with a single account)** — _List still renders cleanly with the remaining account; no layout breakage._
+  - 🐛 BUG:
+- [ ] **Error state: create an account with an invalid opening balance (non-numeric) or empty name** — _Form rejects with a validation error; no account is created with bad data._
+  - 🐛 BUG:
+
 ## Results Summary
 
 Fill in after completing all sections.
