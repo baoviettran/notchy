@@ -283,6 +283,50 @@ Routes: `/settings`, `/settings/categories`, `/settings/backup`.
 - [ ] **Error state: cancel the file dialog mid-export/import** — _App returns to the backup page without error or partial write._
   - 🐛 BUG:
 
+## Section 10 — Tauri Desktop Smoke (≈10 min)
+
+OS-level desktop features that Playwright cannot exercise. Run `pnpm tauri dev`. No mode/locale sub-checks here (covered in sections 1–9).
+
+- [ ] **A tray icon is present in the OS tray** — _Icon appears in the system tray area._
+  - 🐛 BUG:
+- [ ] **Left-click the tray icon** — _The quick-add window appears (360×200, decoration-less "tape" style)._
+  - 🐛 BUG:
+- [ ] **Tray menu → Quick Add** — _Opens the quick-add window._
+  - 🐛 BUG:
+- [ ] **Tray menu → Show Notchy** — _Focuses/shows the main window._
+  - 🐛 BUG:
+- [ ] **Tray menu → Quit** — _The app exits cleanly._
+  - 🐛 BUG:
+- [ ] **Global shortcut `Cmd/Ctrl+Shift+N`** — _Opens the quick-add window. If the OS rejects the combo (another app owns it), the app logs and continues without crashing._
+  - 🐛 BUG:
+- [ ] **In the quick-add window, type `50k coffee` and press Enter** — _Window hides; the transaction is saved; on focusing the main window the new expense row appears in `/transactions`._
+  - 🐛 BUG:
+- [ ] **Vietnamese quick-add: type `1.5tr lương` and press Enter** — _Saves 1,500,000 with payee `lương` (diacritics intact); the row appears in the main transaction list._
+  - 🐛 BUG:
+- [ ] **Income quick-add: type `+50k salary` and press Enter** — _Saves as income (kind = income); the row appears and the account balance increases._
+  - 🐛 BUG:
+- [ ] **Cross-window refresh: after a quick-add save, focus the main window** — _The main transaction list has refreshed to show the new row without a manual reload (the `transaction:saved` event refetched the list)._
+  - 🐛 BUG:
+- [ ] **Press Escape in the quick-add window** — _The quick-add window dismisses/hides without saving._
+  - 🐛 BUG:
+- [ ] **Quick-add only supports expense and income** — _Attempting a transfer/refund shorthand does not produce those kinds (they require the full form) — confirm the quick-add does not crash or mis-categorise._
+  - 🐛 BUG:
+
+## Section 11 — Release Build (≈5 min)
+
+Run `pnpm tauri build`, then launch the produced binary. No mode/locale sub-checks here.
+
+- [ ] **`pnpm tauri build` completes without errors** — _A release binary is produced in the Tauri output directory._
+  - 🐛 BUG:
+- [ ] **Launch the release binary** — _The app opens to the dashboard/onboarding without crashing._
+  - 🐛 BUG:
+- [ ] **About/Settings version string** — _Displays `v0.1.2` (no leftover `v0.1.0`)._
+  - 🐛 BUG:
+- [ ] **No dev artifacts visible in the release binary** — _No devtools auto-open, no source maps exposed in the UI, no dev-only console logs/errors shown to the user, no "development build" banner._
+  - 🐛 BUG:
+- [ ] **Core round-trip in the release binary: add an account, add a transaction, view it on the dashboard, export a backup** — _The release binary performs the core flow end-to-end with no errors._
+  - 🐛 BUG:
+
 ## Results Summary
 
 Fill in after completing all sections.
