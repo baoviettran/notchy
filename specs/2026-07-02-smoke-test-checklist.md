@@ -140,6 +140,31 @@ Routes: `/accounts` (list) and `/accounts/[id]` (detail).
 - [ ] **Error state: create an account with an invalid opening balance (non-numeric) or empty name** — _Form rejects with a validation error; no account is created with bad data._
   - 🐛 BUG:
 
+## Section 5 — Budgets (≈10 min)
+
+Route: `/budgets`. Monthly envelope budgets per category bucket, with month navigation and roll-over.
+
+- [ ] **Create a monthly envelope budget for a category/bucket and allocate funds to it** — _The envelope shows the allocated amount and the spent/remaining against transactions in that category for the month._
+  - 🐛 BUG:
+- [ ] **Spend against a budgeted category (add an expense in that category)** — _The envelope's spent amount increases and remaining decreases in real time._
+  - 🐛 BUG:
+- [ ] **Navigate to the next month and the previous month** — _Budget view switches months; allocations for the new month load (or show as unset for a future month)._
+  - 🐛 BUG:
+- [ ] **Roll-over: overspend a category in month N, then navigate to month N+1** — _The overspent amount (or unspent surplus) rolls over into month N+1 per the v0.1.1 roll-over rules; the starting available balance for N+1 reflects it._
+  - 🐛 BUG:
+- [ ] **Dark mode (default): budget view renders in the dark theme** — _Envelope bars, allocated/remaining figures, and month nav are readable._
+  - 🐛 BUG:
+- [ ] **Vietnamese: switch to Tiếng Việt** — _Budget headers, category names, month labels, and roll-over indicators render in Vietnamese._
+  - 🐛 BUG:
+- [ ] **Light mode: switch to Light** — _Envelope bars and figures are readable with correct contrast._
+  - 🐛 BUG:
+- [ ] **Empty state: a month with no budgets allocated** — _Shows an empty-state prompt to create a budget, not a blank page or `undefined`._
+  - 🐛 BUG:
+- [ ] **Error state: allocate a negative or non-numeric amount to an envelope** — _Input is rejected with a validation error; no negative allocation is saved._
+  - 🐛 BUG:
+- [ ] **Edge case: over-allocate the total available income across envelopes** — _App warns or blocks when allocations exceed available funds (per the budget model)._
+  - 🐛 BUG:
+
 ## Results Summary
 
 Fill in after completing all sections.
