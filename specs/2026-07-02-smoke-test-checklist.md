@@ -244,6 +244,45 @@ Routes: `/reports` (overview), `/reports/trend` (trend), `/reports/compare` (com
 - [ ] **Edge case: a range with a single transaction** — _Reports render correctly without division-by-zero or empty-axis artifacts._
   - 🐛 BUG:
 
+## Section 9 — Settings (≈15 min)
+
+Routes: `/settings`, `/settings/categories`, `/settings/backup`.
+
+- [ ] **Settings page loads showing: Categories link, Backup link, Theme (auto/light/dark), Language (English/Tiếng Việt), Quick-add account picker, and a version line** — _All sections render; version shows `v0.1.2`._
+  - 🐛 BUG:
+- [ ] **Theme → Auto: select Auto** — _Theme follows the OS preference (verify against your OS light/dark setting)._
+  - 🐛 BUG:
+- [ ] **Theme → Light / Dark: select each** — _App immediately switches theme and persists the choice across a window reload._
+  - 🐛 BUG:
+- [ ] **Language → Tiếng Việt / English: select each** — _App immediately switches locale and persists the choice across a window reload._
+  - 🐛 BUG:
+- [ ] **Categories (`/settings/categories`): create, rename, and delete a category** — _Changes persist and are reflected in the transaction form's category list._
+  - 🐛 BUG:
+- [ ] **Backup → CSV export (`/settings/backup`): export transactions/accounts to CSV** — _A CSV file is written to the chosen path; opening it shows the expected rows and locale-formatted amounts._
+  - 🐛 BUG:
+- [ ] **Backup → SQLite export: export the database file** — _A `.sqlite`/DB file is written to the chosen path._
+  - 🐛 BUG:
+- [ ] **Backup → SQLite import: import the file just exported** — _Round-trip succeeds; data is restored with no loss or schema-version error._
+  - 🐛 BUG:
+- [ ] **Backup → Auto-backup: confirm auto-backup is configured/triggered per the app's schedule** — _A backup is produced automatically (verify the backup location or indicator)._
+  - 🐛 BUG:
+- [ ] **Quick-add account picker: select an account and reload the window** — _The chosen account persists as the default quick-add account._
+  - 🐛 BUG:
+- [ ] **Quick-add account picker: select "None"** — _The meta key is cleared (the `accounts[0]` fallback takes effect); the picker persists "None" across a reload._
+  - 🐛 BUG:
+- [ ] **Keyboard shortcuts: trigger the documented shortcuts (e.g. new transaction, navigation)** — _Each shortcut performs its documented action._
+  - 🐛 BUG:
+- [ ] **Dark mode (default): all settings pages render in the dark theme** — _Forms, pickers, and links are readable._
+  - 🐛 BUG:
+- [ ] **Vietnamese: with locale = Tiếng Việt, view all settings pages** — _Every label, description, and button renders in Vietnamese (no English fallback)._
+  - 🐛 BUG:
+- [ ] **Light mode: switch to Light and view all settings pages** — _All pages are readable with correct contrast._
+  - 🐛 BUG:
+- [ ] **Error state: import a corrupted / wrong-schema SQLite file** — _Import is rejected with a clear error; the existing DB is left intact._
+  - 🐛 BUG:
+- [ ] **Error state: cancel the file dialog mid-export/import** — _App returns to the backup page without error or partial write._
+  - 🐛 BUG:
+
 ## Results Summary
 
 Fill in after completing all sections.
