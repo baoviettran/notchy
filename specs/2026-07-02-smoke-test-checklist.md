@@ -219,6 +219,31 @@ Route: `/debts`. Personal debts split into "I owe" and "Owed to me", each with a
 - [ ] **Error state: create a debt with an invalid amount or empty counterparty** — _Form rejects with a validation error; no bad debt is saved._
   - 🐛 BUG:
 
+## Section 8 — Reports (≈10 min)
+
+Routes: `/reports` (overview), `/reports/trend` (trend), `/reports/compare` (compare).
+
+- [ ] **Overview report (`/reports`) loads with charts/summaries** — _Income, expense, and net figures render for the current period; charts display using the data from earlier sections._
+  - 🐛 BUG:
+- [ ] **Trend report (`/reports/trend`) loads** — _The trend chart shows changes over time (monthly buckets); axis labels and values are legible._
+  - 🐛 BUG:
+- [ ] **Compare report (`/reports/compare`) loads** — _The comparison view shows two periods/categories side by side with deltas._
+  - 🐛 BUG:
+- [ ] **Change the report date range / period selector on each report** — _Charts and figures update to reflect the selected range; no stale data remains._
+  - 🐛 BUG:
+- [ ] **Dark mode (default): all three reports render in the dark theme** — _Chart series, legends, and figures are readable on the tape background._
+  - 🐛 BUG:
+- [ ] **Vietnamese: switch to Tiếng Việt** — _Report titles, axis labels, legends, and period selectors render in Vietnamese._
+  - 🐛 BUG:
+- [ ] **Light mode: switch to Light** — _Charts are legible in light mode (series colours distinguishable, no low-contrast lines)._
+  - 🐛 BUG:
+- [ ] **Empty state: a report range with no transactions** — _Reports show an empty-state message or a zeroed chart, not a broken/blank render or `undefined`._
+  - 🐛 BUG:
+- [ ] **Error state: select an invalid range (e.g. end date before start date, if supported)** — _App blocks or handles gracefully; no crash or malformed chart._
+  - 🐛 BUG:
+- [ ] **Edge case: a range with a single transaction** — _Reports render correctly without division-by-zero or empty-axis artifacts._
+  - 🐛 BUG:
+
 ## Results Summary
 
 Fill in after completing all sections.
