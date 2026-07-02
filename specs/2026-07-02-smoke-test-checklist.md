@@ -48,6 +48,8 @@ Fresh-start path. To reach onboarding, wipe the app data (delete the Tauri app-d
   - 🐛 BUG:
 - [ ] **Light mode: switch theme to Light (Settings → Light), then re-run onboarding** — _Onboarding screens are readable in light mode (correct contrast, no dark-on-dark text)._
   - 🐛 BUG:
+- [ ] **Dark mode (default): onboarding screens render in the dark theme** — _Onboarding screens are readable in dark mode (correct contrast, no washed-out text)._
+  - 🐛 BUG:
 - [ ] **Empty state: fresh launch with no data** — _Onboarding is the only screen offered; no empty dashboard or broken nav is reachable before the first account is created._
   - 🐛 BUG:
 - [ ] **Error state: try to advance past the currency/account step without making a selection** — _The Continue/Next button is disabled or shows a validation error; the app does not proceed with empty required fields._
@@ -278,6 +280,8 @@ Routes: `/settings`, `/settings/categories`, `/settings/backup`.
   - 🐛 BUG:
 - [ ] **Light mode: switch to Light and view all settings pages** — _All pages are readable with correct contrast._
   - 🐛 BUG:
+- [ ] **Empty state: with no categories created, the Categories page shows an empty-state prompt** — _Categories page shows a prompt to create a category, not a blank page or `undefined`._
+  - 🐛 BUG:
 - [ ] **Error state: import a corrupted / wrong-schema SQLite file** — _Import is rejected with a clear error; the existing DB is left intact._
   - 🐛 BUG:
 - [ ] **Error state: cancel the file dialog mid-export/import** — _App returns to the backup page without error or partial write._
@@ -341,4 +345,14 @@ Fill in after completing all sections.
 
 ## Quick Bug Report Template
 
-(Appended in the final task.)
+Copy this block, fill it in, and paste it into chat to report a single urgent bug mid-run (without finishing the whole checklist).
+
+**Section:** [section number and name]
+**Check item:** [the failing check]
+**What happened:** [observed behavior]
+**What was expected:** [expected behavior per the check]
+**Screenshot (if helpful):** [paste or describe]
+
+### After the run
+
+When you have finished (or want a batch fix), say "done" or "ready for review" in chat. The assistant reads this file, processes every filled `🐛 BUG:` entry, and works through fixes one at a time.
