@@ -16,6 +16,7 @@
 	let accountType = $state<'checking' | 'savings' | 'cash' | 'credit_card'>('checking');
 	let initialBalance = $state('');
 	let saving = $state(false);
+	let error = $state('');
 
 	function langButtonClass(value: Locale) {
 		return locale === value ? 'border-phosphor bg-phosphor/10' : 'border-line hover:border-dim';
@@ -44,15 +45,22 @@
 	}
 
 	async function finish() {
-		if (!accountName || saving) return;
+		if (!accountName.trim() || saving) return;
+		error = '';
 		saving = true;
 		try {
 			let balance: number | undefined;
-			if (initialBalance) {
-				try { balance = parseAmount(initialBalance, locale, currency); } catch { balance = undefined; }
+			if (initialBalance.trim()) {
+				try {
+					balance = parseAmount(initialBalance, locale, currency);
+				} catch {
+					error = m.validation_invalid_amount();
+					saving = false;
+					return;
+				}
 			}
 			await accounts.create({
-				name: accountName,
+				name: accountName.trim(),
 				type: accountType,
 				currency,
 				initial_balance: balance,
@@ -133,12 +141,13 @@
 					</div>
 					<Input label={m.common_name()} bind:value={accountName} placeholder={m.onboarding_account_name_placeholder()} />
 					<Input label={m.forms_initial_balance()} bind:value={initialBalance} placeholder={m.onboarding_amount_hint()} />
+					{#if error}<p class="text-sm text-debit">{error}</p>{/if}
 				</div>
 				<div class="flex items-center justify-between pt-2">
 					<div class="flex gap-1.5"><span class="w-2 h-2 rounded-full bg-phosphor"></span><span class="w-2 h-2 rounded-full bg-phosphor"></span><span class="w-2 h-2 rounded-full bg-phosphor"></span></div>
 					<div class="flex gap-2">
 						<Button variant="ghost" onclick={() => step = 2}>{m.onboarding_back()}</Button>
-						<Button onclick={finish} disabled={!accountName || saving}>{m.onboarding_finish()}</Button>
+						<Button onclick={finish} disabled={!accountName.trim() || saving}>{m.onboarding_finish()}</Button>
 					</div>
 				</div>
 			</div>

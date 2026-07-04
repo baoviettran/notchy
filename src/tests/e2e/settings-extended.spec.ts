@@ -74,19 +74,19 @@ test.describe('settings — extended', () => {
 	});
 
 	test('quick-add account picker updates the selection in-session', async ({ onboardedPage: page }) => {
-		// NOTE: the picker's DB persistence (setDefaultQuickAccount via a
-		// fire-and-forget $effect) does not reliably land before a same-session
-		// SPA navigation — across-nav persistence is flaky and looks like a
-		// real reactivity gap in the $effect. Here we assert the in-session
-		// selection (the bound value) updates, which is the user-visible
-		// behaviour on the settings page itself.
+		// KNOWN GAP: the picker's DB persistence (setDefaultQuickAccount via a
+		// fire-and-forget $effect) is flaky — the $effect does not reliably
+		// flush the write before an SPA navigation reads the meta back, so the
+		// selection is sometimes lost across nav. This is a deeper reactivity
+		// issue (Svelte 5 $effect + <select bind:value> + async DB write) that
+		// needs its own investigation; the in-session bound-value update is the
+		// reliable user-visible behaviour. The accounts[0] fallback covers the
+		// quick-add window regardless.
 		await page.getByRole('link', { name: 'Settings', exact: true }).click();
 		const select = page.getByRole('main').locator('select').last();
-		// Defaults to "— None —" (empty value).
 		await expect(select).toHaveValue('');
 		await select.selectOption({ label: 'Test Checking' });
-		await expect(select).toHaveValue(/.+/); // an account id
-		// Reverting to None clears the bound value in-session.
+		await expect(select).toHaveValue(/.+/);
 		await select.selectOption({ label: '— None —' });
 		await expect(select).toHaveValue('');
 	});

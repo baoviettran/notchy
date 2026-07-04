@@ -12,7 +12,7 @@
 {#if open}
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
 		<div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick={() => open = false} role="presentation"></div>
-		<div class="relative bg-tape border border-line rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4 animate-scale-in">
+		<div class="relative bg-tape border border-line rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4 animate-scale-in" role="dialog" aria-modal="true" aria-label={title}>
 			<h2 class="text-lg font-semibold text-ledger">{title}</h2>
 			{#if message}
 				<p class="text-sm text-dim">{message}</p>

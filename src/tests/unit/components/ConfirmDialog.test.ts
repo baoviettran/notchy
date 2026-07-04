@@ -42,4 +42,12 @@ describe('ConfirmDialog', () => {
 		render(ConfirmDialog, { open: true, title: 'Reset?', message: 'Sure?', confirmLabel: 'Reset' });
 		expect(screen.getByText('Reset')).toBeInTheDocument();
 	});
+
+	it('renders as an accessible dialog (role=dialog, aria-modal) when open', () => {
+		// Must be announced as a dialog to assistive tech, like Modal.svelte.
+		render(ConfirmDialog, { open: true, title: 'Delete?', message: 'Sure?' });
+		const dialog = screen.getByRole('dialog');
+		expect(dialog).toBeInTheDocument();
+		expect(dialog.getAttribute('aria-modal')).toBe('true');
+	});
 });

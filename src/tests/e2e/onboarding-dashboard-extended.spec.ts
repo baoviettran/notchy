@@ -48,26 +48,23 @@ baseTest.describe('onboarding — extended (§1)', () => {
 		await expect(page.getByRole('button', { name: 'Finish setup' })).toBeEnabled();
 	});
 
-	baseTest('GAP: whitespace-only account name is accepted (no trim validation)', async ({ page }) => {
-		// KNOWN GAP: onboarding finish() (line 47) checks !accountName, not
-		// name.trim() — so a spaces-only name passes. (AccountForm.create uses
-		// trim validation, but onboarding bypasses it.) This test documents the
-		// current behaviour; if the gap is fixed, flip the assertion.
+	baseTest('whitespace-only account name is rejected (trim validation)', async ({ page }) => {
+		// onboarding finish() must trim-check the name so a spaces-only name is
+		// rejected — matching AccountForm's name.trim() validation.
 		await page.goto('/');
 		await page.getByRole('button', { name: /^English/ }).click();
 		await page.getByRole('button', { name: 'Continue →' }).click();
 		await page.getByRole('button', { name: 'Continue →' }).click();
 		await page.getByLabel('Name').fill('   ');
-		// The button enables (truthy string) — Finish is NOT blocked.
-		await expect(page.getByRole('button', { name: 'Finish setup' })).toBeEnabled();
+		// Finish stays disabled (or surfaces an error) for whitespace-only.
+		const finish = page.getByRole('button', { name: 'Finish setup' });
+		await expect(finish).toBeDisabled();
 	});
 
-	baseTest('GAP: invalid opening balance is silently ignored, not rejected', async ({ page }) => {
-		// KNOWN GAP: onboarding finish() (line 52) catches parseAmount failure
-		// and sets balance=undefined — the account is created with NO opening
-		// balance and the user gets NO error. (AccountForm surfaces
-		// validation_invalid_amount; onboarding does not.) This test documents
-		// the current behaviour; if the gap is fixed, expect an error instead.
+	baseTest('invalid opening balance is rejected with an error, not silently ignored', async ({ page }) => {
+		// onboarding finish() must surface a validation error when the initial
+		// balance can't be parsed, rather than swallowing it and creating the
+		// account with no opening balance.
 		await page.goto('/');
 		await page.getByRole('button', { name: /^English/ }).click();
 		await page.getByRole('button', { name: 'Continue →' }).click();
@@ -75,9 +72,9 @@ baseTest.describe('onboarding — extended (§1)', () => {
 		await page.getByLabel('Name').fill('Bad Balance');
 		await page.getByLabel('Initial balance (optional)').fill('not a number');
 		await page.getByRole('button', { name: 'Finish setup' }).click();
-		// Onboarding completes (lands on dashboard) despite the bad balance —
-		// no validation error blocked it.
-		await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+		// An inline error appears and onboarding does NOT advance to dashboard.
+		await expect(page.getByText('Invalid amount')).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Dashboard' })).toHaveCount(0);
 	});
 });
 
