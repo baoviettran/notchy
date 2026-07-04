@@ -23,11 +23,11 @@ Automated gates must be green before manual testing begins.
 
 - [ ] **`pnpm install` completes with no errors** — _Dependencies resolve cleanly._
   - 🐛 BUG:
-- [ ] **`pnpm test` — all unit/component tests pass** — _Expected: 297/297 passing (Vitest)._
+- [ ] **`pnpm test` — all unit/component tests pass** — _Expected: ≥ 297 passing (Vitest); count is a floor, not an exact target — it grows as tests are added. Note the actual count and confirm none fail._
   - 🐛 BUG:
 - [ ] **`pnpm check` — type check clean** — _Expected: 0 errors, 0 warnings (svelte-check)._
   - 🐛 BUG:
-- [ ] **`pnpm test:e2e` — all Playwright tests pass** — _Expected: 22/22 passing._
+- [ ] **`pnpm test:e2e` — all Playwright tests pass** — _Expected: ≥ 22 passing; count is a floor, not an exact target. Note the actual count and confirm none fail._
   - 🐛 BUG:
 - [ ] **`pnpm tauri dev` launches the desktop app** — _Main window opens, no errors in the dev console (open devtools), app loads on the dashboard or onboarding._
   - 🐛 BUG:
@@ -94,6 +94,14 @@ Route: `/transactions`. Covers all 5 transaction kinds, CRUD, locale shorthand, 
   - 🐛 BUG:
 - [ ] **Delete a transaction** — _Row is removed; the affected account balance recalculates._
   - 🐛 BUG:
+- [ ] **Tag a transaction (pick a tag via the autocomplete in the form) and save** — _The row shows the tag; filtering the list by that tag returns the transaction._
+  - 🐛 BUG:
+- [ ] **Search: type a payee or description fragment into the search box and submit** — _The list filters to matching transactions; clearing the search restores the full list._
+  - 🐛 BUG:
+- [ ] **Filter by kind: use the kind filter (expense / income / transfer / refund / adjustment)** — _Only rows of the selected kind are shown; counts and balances respect the filter._
+  - 🐛 BUG:
+- [ ] **Payee autocomplete: start typing a known payee in the transaction form** — _The autocomplete surfaces matching existing payees; selecting one fills the field._
+  - 🐛 BUG:
 - [ ] **Dark mode (default): transaction list and form render in the dark theme** — _Amounts, kind icons, and dates are readable._
   - 🐛 BUG:
 - [ ] **Vietnamese: switch to Tiếng Việt; add a transaction using shorthand `1.5tr lương`** — _Parses to 1,500,000; payee `lương` is saved with diacritics intact; the list renders Vietnamese labels and the locale-formatted amount._
@@ -130,6 +138,12 @@ Routes: `/accounts` (list) and `/accounts/[id]` (detail).
 - [ ] **Open an account detail page (`/accounts/[id]`)** — _Detail shows the account's transaction history filtered to that account, plus balance and type._
   - 🐛 BUG:
 - [ ] **Reconciliation: from an account detail, start a reconciliation, mark transactions cleared, and finish with an out-of-balance adjustment** — _An adjustment transaction is created to close the gap; the account balance and cleared-balance update correctly._
+  - 🐛 BUG:
+- [ ] **Reconciliation cancel/restart: start a reconcile, then cancel it without finishing; start again** — _Cancelling leaves balances and cleared flags unchanged; a fresh reconcile can be started with no leftover state._
+  - 🐛 BUG:
+- [ ] **Liability balance sign: create a credit-card and a `loan_from_person` account with an opening balance** — _Both display as negative (money owed) in the list, detail, and dashboard totals; an asset account (checking) still shows positive._
+  - 🐛 BUG:
+- [ ] **Loan-type account: create a `loan_to_person` / `loan_from_person` account** — _A counterparty is required and saved; the account cannot be edited to a non-loan type (or vice-versa) — the change is rejected with the `account_type_loan` error, not silently allowed._
   - 🐛 BUG:
 - [ ] **Dark mode (default): account list and detail render in the dark theme** — _Balances, type badges, and the reconciliation UI are readable._
   - 🐛 BUG:
@@ -246,7 +260,7 @@ Routes: `/reports` (overview), `/reports/trend` (trend), `/reports/compare` (com
 - [ ] **Edge case: a range with a single transaction** — _Reports render correctly without division-by-zero or empty-axis artifacts._
   - 🐛 BUG:
 
-## Section 9 — Settings (≈15 min)
+## Section 9 — Settings (≈20 min)
 
 Routes: `/settings`, `/settings/categories`, `/settings/backup`.
 
@@ -258,13 +272,19 @@ Routes: `/settings`, `/settings/categories`, `/settings/backup`.
   - 🐛 BUG:
 - [ ] **Language → Tiếng Việt / English: select each** — _App immediately switches locale and persists the choice across a window reload._
   - 🐛 BUG:
-- [ ] **Categories (`/settings/categories`): create, rename, and delete a category** — _Changes persist and are reflected in the transaction form's category list._
+- [ ] **Categories (`/settings/categories`): create a tag in a bucket, rename it, and move it to another bucket** — _Changes persist and the tag appears under the new bucket; the tag is selectable in the transaction form's category/tag field._
   - 🐛 BUG:
-- [ ] **Backup → CSV export (`/settings/backup`): export transactions/accounts to CSV** — _A CSV file is written to the chosen path; opening it shows the expected rows and locale-formatted amounts._
+- [ ] **Delete a tag that is in use → choose "Uncategorise"** — _The tag is removed; its transactions are left with no tag (`tag_id` nulled); no transactions are deleted; balances unchanged._
+  - 🐛 BUG:
+- [ ] **Delete a tag that is in use → choose "Merge into another tag"** — _All transactions on the deleted tag are reassigned to the chosen target tag; the combined tag's totals reflect the merge._
+  - 🐛 BUG:
+- [ ] **Backup → CSV export (`/settings/backup`): export transactions/accounts to CSV** — _A CSV file is written to the chosen path; opening it shows the expected rows and locale-formatted amounts. Note: CSV **import** has no UI in v0.1.2 (the `csvImportProfiles` repo is backend-only and not wired to any route) — do not look for an import-CSV button; only SQLite import is exposed._
   - 🐛 BUG:
 - [ ] **Backup → SQLite export: export the database file** — _A `.sqlite`/DB file is written to the chosen path._
   - 🐛 BUG:
 - [ ] **Backup → SQLite import: import the file just exported** — _Round-trip succeeds; data is restored with no loss or schema-version error._
+  - 🐛 BUG:
+- [ ] **Backup → SQLite import rejects a schema-version mismatch: import a backup whose `app_meta.schema_version` is older than the current version (e.g. a v3 backup on a v4 app)** — _Import is rejected with the "Schema version mismatch: expected 4, got 3" error (exact-match, no auto-migrate); the existing live DB is left completely intact; reload the app and confirm pre-import data is unchanged. This guards the schema-version call-site gotcha: the `expectedVersion` literal must stay in sync with the latest migration._
   - 🐛 BUG:
 - [ ] **Backup → Auto-backup: confirm auto-backup is configured/triggered per the app's schedule** — _A backup is produced automatically (verify the backup location or indicator)._
   - 🐛 BUG:
@@ -336,7 +356,7 @@ Run `pnpm tauri build`, then launch the produced binary. No mode/locale sub-chec
 Fill in after completing all sections.
 
 - Sections passed: ___ / 12
-- Total check items: ___
+- Total check items: 136
 - Items passed: ___
 - Items failed: ___
 - Total bugs logged: ___
