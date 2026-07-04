@@ -159,7 +159,7 @@
 	{/if}
 
 	{#if mode === 'full'}
-		<Autocomplete label={m.forms_payee()} bind:value={payee} options={payeeOptions} placeholder={m.forms_who_paid()} />
+		<Autocomplete label={m.forms_payee()} bind:value={payee} options={payeeOptions} allowFreeText={true} placeholder={m.forms_who_paid()} />
 		<div class="grid grid-cols-2 gap-3">
 			<Input label={m.common_date()} type="date" bind:value={date} />
 			<Input label={m.common_description()} bind:value={description} placeholder={m.common_optional()} maxlength={1024} />

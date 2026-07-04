@@ -1,29 +1,55 @@
 <script lang="ts">
-	let { label = '', value = $bindable(''), options = [], placeholder = '', onselect = (_v: string) => {} }: {
+	let { label = '', value = $bindable(''), options = [], placeholder = '', allowFreeText = false, onselect = (_v: string) => {} }: {
 		label?: string;
 		value?: string;
 		options: { value: string; label: string }[];
 		placeholder?: string;
+		allowFreeText?: boolean;
 		onselect?: (value: string) => void;
 	} = $props();
 
+	// Two modes share one component:
+	//  - id mode (allowFreeText=false, e.g. Tag → tagId ULID): `value` holds an
+	//    option id; `query` is transient typing used only to filter the listbox,
+	//    and is discarded on blur (the input reverts to the selected option's
+	//    label). Typing never corrupts the id.
+	//  - free-text mode (allowFreeText=true, e.g. Payee): `value` IS the text.
+	//    The input binds directly to `value` so every keystroke keeps it live —
+	//    a novel value survives a save even if blur's close-on-click timer is
+	//    still pending. `query` is unused here; filtering reads `value`.
 	let query = $state('');
 	let open = $state(false);
 	let inputEl: HTMLInputElement;
 	const listboxId = `listbox-${Math.random().toString(36).slice(2, 9)}`;
 	const inputId = `ac-${Math.random().toString(36).slice(2, 9)}`;
 
+	// The filter term: free-text filters on the live value; id mode filters on
+	// the transient query typed since focus.
+	let term = $derived(allowFreeText ? value : query);
 	let filtered = $derived(
-		query
-			? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase())).slice(0, 8)
+		term
+			? options.filter((o) => o.label.toLowerCase().includes(term.toLowerCase())).slice(0, 8)
 			: options.slice(0, 8)
 	);
 
 	let displayValue = $derived(options.find((o) => o.value === value)?.label ?? '');
 
 	function onFocus() { open = true; query = ''; }
-	function onBlur() { setTimeout(() => { open = false; }, 150); }
-	function onInput(e: Event) { query = (e.target as HTMLInputElement).value; open = true; }
+	function onBlur() {
+		// Close on a short delay so an option click (mousedown) isn't pre-empted
+		// by the input blur. id mode discards the transient query; free-text
+		// mode keeps `value` as-is (it already tracks the input).
+		setTimeout(() => { open = false; query = ''; }, 150);
+	}
+	function onInput(e: Event) {
+		const v = (e.target as HTMLInputElement).value;
+		if (allowFreeText) {
+			value = v;
+		} else {
+			query = v;
+		}
+		open = true;
+	}
 
 	function select(opt: { value: string; label: string }) {
 		value = opt.value;
@@ -45,11 +71,11 @@
 		id={inputId}
 		bind:this={inputEl}
 		type="text"
-		value={open ? query : displayValue}
 		{placeholder}
+		value={allowFreeText ? value : (open ? query : displayValue)}
+		oninput={onInput}
 		onfocus={onFocus}
 		onblur={onBlur}
-		oninput={onInput}
 		onkeydown={onKeydown}
 		class="w-full px-3 py-2 text-base rounded-md border border-line bg-ink text-ledger"
 		role="combobox"
