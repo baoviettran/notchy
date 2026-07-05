@@ -1,8 +1,8 @@
 # Notchy — Smoke Test Gaps & Follow-ups
 
 **Source:** surfaced during the 2026-07-04 smoke-test E2E effort (branch `feat/smoke-test-e2e-coverage`).
-**Updated:** 2026-07-05 — resolved #2, #3, #4, #5, #6, #7, #8. Only #1 (quick-add persistence reactivity) remains open.
-**Status of suite:** 295 unit / 82 E2E / 0 svelte-check errors, all green.
+**Updated:** 2026-07-05 — ALL 8 gaps resolved (#1 was a test-harness issue, not an app bug).
+**Status of suite:** 295 unit / 83 E2E / 0 svelte-check errors, all green.
 
 Each item below is a genuine gap found while writing E2E coverage — not a guessed
 or hypothetical issue. Bugs already fixed are not listed here; this is the open
@@ -12,23 +12,17 @@ work. Ordered by rough severity / user-visibility.
 
 ## Bugs (unambiguous intended behaviour, needs fix)
 
-### 1. Quick-add account picker persistence is flaky (deeper reactivity issue)
-**Where:** `src/routes/settings/+page.svelte` — the quick-add account `<Select>`.
-**Symptom:** The `$effect` that persists the selection to the DB meta
-(`setDefaultQuickAccount`) does not reliably flush before an SPA navigation
-reads the meta back. The selection is sometimes lost across nav. Debugging
-showed even an explicit `onchange` handler fires inconsistently under
-Playwright, and a `console.log` inside the handler appeared on some runs and
-not others — pointing at a Svelte 5 `$effect` + `<select bind:value>` +
-async-DB-write interaction, not a simple race.
-**Mitigation in place:** `accounts[0]` fallback means the quick-add window
-still functions; the in-session bound-value update works reliably.
-**Test status:** `settings-extended.spec.ts` asserts in-session behaviour
-only; cross-nav assertion is documented as a KNOWN GAP in the test.
-**To fix:** Reproduce in isolation (component test, not E2E). Likely needs
-the persist driven synchronously from the Select change event with the
-`Select` primitive forwarding `onchange` (currently it doesn't), or a
-rework of the `$effect` dependency tracking.
+### 1. Quick-add account picker persistence — ✅ RESOLVED 2026-07-05
+**Resolution:** The app code was correct all along. Instrumented tracing
+(`[DBG $effect/persist/load]` logs) proved the full chain works when the
+Select's value changes: `$effect` fires → `setDefaultQuickAccount` writes →
+`loadQuickAccount` reads it back after nav. The "flakiness" was in the
+**E2E test driving a Svelte 5 `bind:value` `<select>`**: Playwright's
+`selectOption({ label })` doesn't deterministically trigger Svelte's bind
+handler. Selecting **by value** (`selectOption(value)` after the option is
+attached and the select enabled) is deterministic — 5/5 clean runs.
+`settings-extended.spec.ts` now has reliable persistence + "None" tests via a
+`changeQuickSelect` helper. No app change needed.
 
 ---
 

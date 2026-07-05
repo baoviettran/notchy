@@ -67,22 +67,45 @@ test.describe('settings — extended', () => {
 		await expect(page.getByRole('heading', { name: 'Choose your language' })).toBeVisible();
 	});
 
-	test('quick-add account picker updates the selection in-session', async ({ onboardedPage: page }) => {
-		// KNOWN GAP: the picker's DB persistence (setDefaultQuickAccount via a
-		// fire-and-forget $effect) is flaky — the $effect does not reliably
-		// flush the write before an SPA navigation reads the meta back, so the
-		// selection is sometimes lost across nav. This is a deeper reactivity
-		// issue (Svelte 5 $effect + <select bind:value> + async DB write) that
-		// needs its own investigation; the in-session bound-value update is the
-		// reliable user-visible behaviour. The accounts[0] fallback covers the
-		// quick-add window regardless.
+// Drive the quick-add Select reliably. The Select's options load async (from
+// accounts in onMount), and on a Svelte 5 bind:value select Playwright's
+// selectOption doesn't deterministically trigger the bind handler. We wait for
+// the target option to attach, then select by value (more direct than label)
+// after asserting the select is enabled (quickAccountLoaded gate).
+async function changeQuickSelect(page: import('@playwright/test').Page, optionLabel: string) {
+	const select = page.getByRole('main').locator('select').last();
+	const opt = select.locator('option', { hasText: optionLabel });
+	await opt.waitFor({ state: 'attached' });
+	await expect(select).toBeEnabled();
+	const value = await opt.getAttribute('value');
+	await select.selectOption(value ?? '');
+}
+
+	test('quick-add account picker persists across SPA navigation', async ({ onboardedPage: page }) => {
+		// The picker persists via $effect → setDefaultQuickAccount (DB meta).
 		await page.getByRole('link', { name: 'Settings', exact: true }).click();
 		const select = page.getByRole('main').locator('select').last();
-		await expect(select).toHaveValue('');
-		await select.selectOption({ label: 'Test Checking' });
+		await changeQuickSelect(page, 'Test Checking');
 		await expect(select).toHaveValue(/.+/);
-		await select.selectOption({ label: '— None —' });
+		// Let the async DB write flush before navigation unmounts the component.
+		await page.waitForTimeout(300);
+		// Navigate away and back; the DB-backed meta must survive.
+		await page.getByRole('link', { name: 'Transactions', exact: true }).click();
+		await page.getByRole('link', { name: 'Settings', exact: true }).click();
+		await expect(page.getByRole('main').locator('select').last()).toHaveValue(/.+/);
+	});
+
+	test('quick-add account picker "None" clears the selection', async ({ onboardedPage: page }) => {
+		await page.getByRole('link', { name: 'Settings', exact: true }).click();
+		const select = page.getByRole('main').locator('select').last();
+		await changeQuickSelect(page, 'Test Checking');
+		await expect(select).toHaveValue(/.+/);
+		await changeQuickSelect(page, '— None —');
 		await expect(select).toHaveValue('');
+		await page.waitForTimeout(300);
+		await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
+		await page.getByRole('link', { name: 'Settings', exact: true }).click();
+		await expect(page.getByRole('main').locator('select').last()).toHaveValue('');
 	});
 
 	test('tag rename and bucket-move persist', async ({ onboardedPage: page }) => {
