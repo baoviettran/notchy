@@ -6,7 +6,7 @@ export const migration001: Migration = {
 	async up(db) {
 		// app_meta is created by the migration runner before any migration runs
 		await db.execute(`
-			CREATE TABLE accounts (
+			CREATE TABLE IF NOT EXISTS accounts (
 				id           TEXT PRIMARY KEY,
 				name         TEXT NOT NULL CHECK (length(name) <= 64),
 				type         TEXT NOT NULL CHECK (type IN (
@@ -23,7 +23,7 @@ export const migration001: Migration = {
 		`);
 
 		await db.execute(`
-			CREATE TABLE category_types (
+			CREATE TABLE IF NOT EXISTS category_types (
 				id         TEXT PRIMARY KEY,
 				name       TEXT NOT NULL CHECK (length(name) <= 64),
 				is_system  INTEGER NOT NULL DEFAULT 0,
@@ -36,7 +36,7 @@ export const migration001: Migration = {
 		`);
 
 		await db.execute(`
-			CREATE TABLE category_tags (
+			CREATE TABLE IF NOT EXISTS category_tags (
 				id         TEXT PRIMARY KEY,
 				type_id    TEXT NOT NULL REFERENCES category_types(id),
 				name       TEXT NOT NULL CHECK (length(name) <= 64),
@@ -50,7 +50,7 @@ export const migration001: Migration = {
 		`);
 
 		await db.execute(`
-			CREATE TABLE transactions (
+			CREATE TABLE IF NOT EXISTS transactions (
 				id                  TEXT PRIMARY KEY,
 				kind                TEXT NOT NULL CHECK (kind IN (
 				                      'expense', 'income', 'transfer', 'refund', 'adjustment'
@@ -76,7 +76,7 @@ export const migration001: Migration = {
 		`);
 
 		await db.execute(`
-			CREATE TABLE budgets (
+			CREATE TABLE IF NOT EXISTS budgets (
 				id         TEXT PRIMARY KEY,
 				type_id    TEXT NOT NULL REFERENCES category_types(id),
 				month      TEXT NOT NULL CHECK (month GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]'),
@@ -89,7 +89,7 @@ export const migration001: Migration = {
 		`);
 
 		await db.execute(`
-			CREATE TABLE goals (
+			CREATE TABLE IF NOT EXISTS goals (
 				id                TEXT PRIMARY KEY,
 				name              TEXT NOT NULL CHECK (length(name) <= 64),
 				type              TEXT NOT NULL CHECK (type IN ('savings', 'debt_payoff', 'net_worth')),
@@ -108,7 +108,7 @@ export const migration001: Migration = {
 		`);
 
 		await db.execute(`
-			CREATE TABLE reconciliations (
+			CREATE TABLE IF NOT EXISTS reconciliations (
 				id                        TEXT PRIMARY KEY,
 				account_id                TEXT NOT NULL REFERENCES accounts(id),
 				date                      TEXT NOT NULL,
@@ -123,7 +123,7 @@ export const migration001: Migration = {
 		`);
 
 		await db.execute(`
-			CREATE TABLE change_log (
+			CREATE TABLE IF NOT EXISTS change_log (
 				id         INTEGER PRIMARY KEY AUTOINCREMENT,
 				table_name TEXT NOT NULL,
 				row_id     TEXT NOT NULL,
@@ -135,18 +135,18 @@ export const migration001: Migration = {
 		`);
 
 		// Indexes
-		await db.execute(`CREATE INDEX idx_accounts_type ON accounts(type) WHERE deleted_at IS NULL`);
-		await db.execute(`CREATE INDEX idx_accounts_archived ON accounts(archived) WHERE deleted_at IS NULL`);
-		await db.execute(`CREATE INDEX idx_transactions_date ON transactions(date)`);
-		await db.execute(`CREATE INDEX idx_transactions_account ON transactions(account_id)`);
-		await db.execute(`CREATE INDEX idx_transactions_tag ON transactions(tag_id)`);
-		await db.execute(`CREATE INDEX idx_transactions_payee ON transactions(payee)`);
-		await db.execute(`CREATE INDEX idx_transactions_kind_date ON transactions(kind, date)`);
-		await db.execute(`CREATE INDEX idx_transactions_pair ON transactions(transfer_pair_id)`);
-		await db.execute(`CREATE INDEX idx_transactions_refund ON transactions(refund_of_id)`);
-		await db.execute(`CREATE INDEX idx_transactions_deleted ON transactions(deleted_at) WHERE deleted_at IS NOT NULL`);
-		await db.execute(`CREATE INDEX idx_goals_status ON goals(status) WHERE deleted_at IS NULL`);
-		await db.execute(`CREATE INDEX idx_reconciliations_account ON reconciliations(account_id, date)`);
-		await db.execute(`CREATE INDEX idx_change_log_timestamp ON change_log(timestamp)`);
+		await db.execute(`CREATE INDEX IF NOT EXISTS idx_accounts_type ON accounts(type) WHERE deleted_at IS NULL`);
+		await db.execute(`CREATE INDEX IF NOT EXISTS idx_accounts_archived ON accounts(archived) WHERE deleted_at IS NULL`);
+		await db.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date)`);
+		await db.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_account ON transactions(account_id)`);
+		await db.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_tag ON transactions(tag_id)`);
+		await db.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_payee ON transactions(payee)`);
+		await db.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_kind_date ON transactions(kind, date)`);
+		await db.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_pair ON transactions(transfer_pair_id)`);
+		await db.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_refund ON transactions(refund_of_id)`);
+		await db.execute(`CREATE INDEX IF NOT EXISTS idx_transactions_deleted ON transactions(deleted_at) WHERE deleted_at IS NOT NULL`);
+		await db.execute(`CREATE INDEX IF NOT EXISTS idx_goals_status ON goals(status) WHERE deleted_at IS NULL`);
+		await db.execute(`CREATE INDEX IF NOT EXISTS idx_reconciliations_account ON reconciliations(account_id, date)`);
+		await db.execute(`CREATE INDEX IF NOT EXISTS idx_change_log_timestamp ON change_log(timestamp)`);
 	}
 };

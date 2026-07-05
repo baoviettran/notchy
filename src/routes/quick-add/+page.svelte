@@ -3,7 +3,6 @@
 	import { emit } from '@tauri-apps/api/event';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import * as m from '$lib/paraglide/messages';
-	import { dbStore } from '$lib/stores/db.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { getDb, isTauri } from '$lib/db';
 	import { listAccounts } from '$lib/db/repos/accounts';
@@ -30,8 +29,16 @@
 	}
 
 	onMount(async () => {
-		await dbStore.init();
-		if (dbStore.ready) await settings.load();
+		// quick-add must NOT run dbStore.init(): that re-runs migrations,
+		// integrity checks, and runAutoBackup (VACUUM INTO — an exclusive lock)
+		// from this window's JS context. The main window owns DB lifecycle.
+		// tauri-plugin-sql pools one connection per DB path shared across all
+		// webview windows, so getDb() here reuses the connection the main
+		// window already initialized — no second boot, no lock contention.
+		// Concurrent VACUUM from two windows was bricking writes
+		// ("no such savepoint" after a 5s busy_timeout).
+		await getDb();
+		await settings.load();
 		await loadDefaultAccount();
 		ready = true;
 		queueMicrotask(() => document.getElementById('qa-input')?.focus());

@@ -14,7 +14,16 @@ export interface DatabaseService {
 	close(): Promise<void>;
 }
 
-let savepointCounter = 0;
+// Each Tauri webview window is a separate JS context, but tauri-plugin-sql
+// routes them to ONE pooled connection per DB path. A module-level counter
+// resets to 0 in every context, so two windows would both emit sp_1, sp_2, …
+// on the shared connection — colliding on SQLite's LIFO savepoint stack and
+// corrupting transactions ("no such savepoint"). A per-call random name makes
+// collisions effectively impossible regardless of how many contexts share it.
+export function uniqueSavepointName(): string {
+	const rand = crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+	return `sp_${rand}`;
+}
 
 export class TauriDatabase implements DatabaseService {
 	constructor(private db: Database) {}
@@ -29,7 +38,7 @@ export class TauriDatabase implements DatabaseService {
 	}
 
 	async transaction<T>(fn: (tx: DatabaseService) => Promise<T>): Promise<T> {
-		const name = `sp_${++savepointCounter}`;
+		const name = uniqueSavepointName();
 		await this.execute(`SAVEPOINT ${name}`);
 		try {
 			const result = await fn(this);

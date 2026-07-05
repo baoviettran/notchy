@@ -1,7 +1,12 @@
 import BetterSqlite3 from 'better-sqlite3';
 import type { DatabaseService, QueryResult, Row } from '$lib/db/service';
 
-let savepointCounter = 0;
+// Mirror TauriDatabase's savepoint naming: unique per call so two contexts
+// sharing a pooled connection can't collide on SQLite's LIFO savepoint stack.
+function uniqueSavepointName(): string {
+	const rand = crypto.randomUUID().replace(/-/g, '').slice(0, 12);
+	return `sp_${rand}`;
+}
 
 export class TestDatabase implements DatabaseService {
 	private db: BetterSqlite3.Database;
@@ -22,7 +27,7 @@ export class TestDatabase implements DatabaseService {
 	}
 
 	async transaction<T>(fn: (tx: DatabaseService) => Promise<T>): Promise<T> {
-		const name = `sp_test_${++savepointCounter}`;
+		const name = uniqueSavepointName();
 		this.db.exec(`SAVEPOINT ${name}`);
 		try {
 			const result = await fn(this);

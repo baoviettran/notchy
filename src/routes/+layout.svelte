@@ -28,6 +28,19 @@
 	let unlisten: (() => void) | undefined;
 
 	onMount(async () => {
+		// Only the main window owns DB lifecycle (migrations, integrity checks,
+		// runAutoBackup → VACUUM INTO, an exclusive lock). tauri-plugin-sql pools
+		// one connection per DB path across all webview windows, so if the
+		// quick-add window also ran dbStore.init() its runAutoBackup would
+		// contend with the main window's writes — bricking them after a 5s
+		// busy_timeout with "no such savepoint". quick-add reuses the pool via
+		// getDb() directly (see src/routes/quick-add/+page.svelte).
+		const isQuickAddWindow = $page.url.pathname.startsWith('/quick-add');
+		if (isQuickAddWindow) {
+			// quick-add still needs settings + its own transaction:saved handling
+			// is unnecessary (it emits, doesn't receive). Nothing to do here.
+			return;
+		}
 		await dbStore.init();
 		if (dbStore.ready && !dbStore.firstRunComplete && $page.url.pathname !== '/onboarding') {
 			goto('/onboarding');
@@ -35,7 +48,7 @@
 		if (dbStore.ready && dbStore.firstRunComplete) {
 			await settings.load();
 		}
-		if (dbStore.ready && dbStore.firstRunComplete && !$page.url.pathname.startsWith('/quick-add')) {
+		if (dbStore.ready && dbStore.firstRunComplete) {
 			unlisten = await attachTransactionSavedListener(listen, async () => {
 				await transactions.load();
 			});
@@ -61,13 +74,16 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-{#if !dbStore.ready}
+{#if isQuickAdd}
+	<!-- quick-add does not run dbStore.init() (see onMount), so dbStore.ready
+	     stays false in its JS context. Render its content directly; it manages
+	     its own ready state internally. -->
+	{@render children()}
+{:else if !dbStore.ready}
 	<div class="h-screen flex flex-col items-center justify-center bg-ink gap-3">
 		<div class="figures-glow text-2xl animate-flash">▮▮▮</div>
 		<p class="plate">{m.layout_warming_up()}</p>
 	</div>
-{:else if isQuickAdd}
-	{@render children()}
 {:else if isOnboarding}
 	{@render children()}
 {:else}
