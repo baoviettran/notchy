@@ -37,7 +37,7 @@ export const migration002: Migration = {
 			const payloadOld = jsonObjectExpr('OLD', cols);
 
 			await db.execute(`
-				CREATE TRIGGER trg_${table}_insert AFTER INSERT ON ${table}
+				CREATE TRIGGER IF NOT EXISTS trg_${table}_insert AFTER INSERT ON ${table}
 				BEGIN
 					INSERT INTO change_log (table_name, row_id, operation, timestamp, device_id, payload)
 					VALUES (
@@ -50,7 +50,7 @@ export const migration002: Migration = {
 			`);
 
 			await db.execute(`
-				CREATE TRIGGER trg_${table}_update AFTER UPDATE ON ${table}
+				CREATE TRIGGER IF NOT EXISTS trg_${table}_update AFTER UPDATE ON ${table}
 				BEGIN
 					INSERT INTO change_log (table_name, row_id, operation, timestamp, device_id, payload)
 					VALUES (
@@ -63,7 +63,7 @@ export const migration002: Migration = {
 			`);
 
 			await db.execute(`
-				CREATE TRIGGER trg_${table}_delete AFTER DELETE ON ${table}
+				CREATE TRIGGER IF NOT EXISTS trg_${table}_delete AFTER DELETE ON ${table}
 				BEGIN
 					INSERT INTO change_log (table_name, row_id, operation, timestamp, device_id, payload)
 					VALUES (

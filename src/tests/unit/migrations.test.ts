@@ -2,6 +2,10 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createTestDb } from './helpers/test-db';
 import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
+import { migration001 } from '$lib/db/migrations/001_initial';
+import { migration002 } from '$lib/db/migrations/002_triggers';
+import { migration003 } from '$lib/db/migrations/003_seed';
+import { migration004 } from '$lib/db/migrations/004_rollover_toggle';
 import type { DatabaseService } from '$lib/db/service';
 
 let db: DatabaseService;
@@ -96,6 +100,13 @@ describe('Migration 003 - seed data', () => {
 });
 
 describe('migration 004 — rollover_toggle', () => {
+	it('is idempotent: re-running when the column already exists does not throw (recovers from a half-applied state)', async () => {
+		// Reproduce the stuck-DB state: the column exists (004 partially applied)
+		// but schema_version was never bumped. Re-running migration004 must not
+		// throw "duplicate column name" — otherwise boot is bricked forever.
+		await expect(migration004.up(db)).resolves.not.toThrow();
+	});
+
 	it('adds rollover_enabled column defaulting to 1 on seeded buckets', async () => {
 		const rows = await db.query<{ rollover_enabled: number }>(
 			`SELECT rollover_enabled FROM category_types WHERE id = 'bucket_essentials'`
@@ -114,5 +125,45 @@ describe('migration 004 — rollover_toggle', () => {
 			`SELECT rollover_enabled FROM category_types WHERE id = 'bucket_essentials'`
 		);
 		expect(rows[0].rollover_enabled).toBe(0);
+	});
+});
+
+describe('runMigrations — recovery from a half-applied state', () => {
+	it('un-bricks a DB where 004 partially applied (column exists, schema_version=3)', async () => {
+		// `db` is already fully migrated by beforeEach. Simulate the stuck state:
+		// roll schema_version back to 3 while keeping the rollover_enabled column.
+		// This is exactly the on-disk state that bricked boot with "duplicate
+		// column name". runMigrations must converge to schema_version=4 cleanly.
+		await db.execute(
+			`UPDATE app_meta SET value = '3' WHERE key = 'schema_version'`
+		);
+		await expect(runMigrations(db, migrations)).resolves.not.toThrow();
+		const rows = await db.query<{ value: string }>(
+			`SELECT value FROM app_meta WHERE key = 'schema_version'`
+		);
+		expect(rows[0].value).toBe('4');
+	});
+});
+
+describe('migrations are idempotent (race-safe on a shared DB)', () => {
+	// Two Tauri webview contexts can both call getDb() on the same notchy.db and
+	// race on schema_version. Every migration must therefore be safe to re-run
+	// against a DB that already has its changes. This is the guard that, combined
+	// with per-migration version bumps, makes concurrent boot non-bricking.
+
+	it('migration 001 (initial schema) is idempotent', async () => {
+		await expect(migration001.up(db)).resolves.not.toThrow();
+	});
+
+	it('migration 002 (triggers) is idempotent', async () => {
+		await expect(migration002.up(db)).resolves.not.toThrow();
+	});
+
+	it('migration 003 (seed) is idempotent', async () => {
+		await expect(migration003.up(db)).resolves.not.toThrow();
+	});
+
+	it('migration 004 (rollover) is idempotent', async () => {
+		await expect(migration004.up(db)).resolves.not.toThrow();
 	});
 });
