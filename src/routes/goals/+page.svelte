@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import Button from '$lib/components/primitives/Button.svelte';
 	import Modal from '$lib/components/primitives/Modal.svelte';
+	import ConfirmDialog from '$lib/components/primitives/ConfirmDialog.svelte';
 	import Progress from '$lib/components/primitives/Progress.svelte';
 	import GoalForm from '$lib/components/forms/GoalForm.svelte';
 	import { goals } from '$lib/stores/goals.svelte';
@@ -13,6 +14,7 @@
 
 	let showForm = $state(false);
 	let editing = $state<GoalWithProgress | null>(null);
+	let confirmDelete = $state<GoalWithProgress | null>(null);
 
 	const statusIcons: Record<string, string> = { on_track: '✓', behind: '⚠', ahead: '★', overdue: '⏰', insufficient_data: '…' };
 
@@ -40,6 +42,13 @@
 		await goals.update(g.id, { status: 'abandoned' });
 		toast.show(m.goals_abandoned());
 	}
+
+	async function doDelete() {
+		if (!confirmDelete) return;
+		await goals.delete(confirmDelete.id);
+		toast.show(m.goals_deleted_toast());
+		confirmDelete = null;
+	}
 </script>
 
 <div class="space-y-6">
@@ -60,7 +69,10 @@
 					<div class="bg-tape rounded-lg border border-line p-4 space-y-2 group">
 						<div class="flex items-center justify-between">
 							<button onclick={() => openEdit(g)} class="figures text-sm font-medium text-ledger text-left">{g.name}</button>
-							<span class="text-xs text-dim">{statusIcons[g.velocity_status] ?? ''} {goalStatusLabel(g.velocity_status)}</span>
+							<div class="flex items-center gap-2">
+								<span class="text-xs text-dim">{statusIcons[g.velocity_status] ?? ''} {goalStatusLabel(g.velocity_status)}</span>
+								<button onclick={() => confirmDelete = g} class="text-xs text-dim hover:text-debit opacity-0 group-hover:opacity-100 transition-opacity px-1">{m.goals_delete()}</button>
+							</div>
 						</div>
 						<Progress value={g.progress_pct} max={100} size="sm" />
 						<div class="flex justify-between text-xs text-dim">
@@ -98,3 +110,11 @@
 <Modal bind:open={showForm} title={editing ? m.goals_edit() : m.goals_add_modal()}>
 	<GoalForm goal={editing} onclose={() => showForm = false} />
 </Modal>
+
+<ConfirmDialog
+	open={confirmDelete !== null}
+	title={m.goals_delete_confirm_title()}
+	message={m.goals_delete_confirm_body()}
+	confirmLabel={m.common_delete()}
+	onconfirm={doDelete}
+/>

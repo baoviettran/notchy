@@ -76,7 +76,8 @@
 			{@const b = getBudget(bucket.id)}
 			{@const allocated = b?.allocated ?? 0}
 			{@const spent = b?.spent ?? 0}
-			{@const remaining = allocated - spent}
+			{@const rolledOver = b?.rolled_over ?? 0}
+			{@const available = b?.available ?? allocated - spent}
 			{@const pct = allocated > 0 ? Math.round((spent / allocated) * 100) : 0}
 			<div class="bg-tape rounded-lg border border-line p-4 space-y-2">
 				<div class="flex items-center justify-between">
@@ -99,9 +100,14 @@
 					{/if}
 				</div>
 				<Progress value={pct} max={100} size="sm" />
+				{#if rolledOver !== 0}
+					<div class="text-xs text-dim">
+						{m.budgets_rolled_in({ amount: formatCurrency(rolledOver, settings.currency, settings.locale) })}
+					</div>
+				{/if}
 				<div class="flex justify-between text-xs text-dim">
 					<span>{pct}% {m.budgets_used()}</span>
-					<span>{formatCurrency(remaining, settings.currency, settings.locale)} {m.budgets_remaining()}</span>
+					<span>{formatCurrency(available, settings.currency, settings.locale)} {m.budgets_available()}</span>
 				</div>
 			</div>
 		{/each}

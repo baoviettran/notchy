@@ -134,4 +134,20 @@ test.describe('goals — extended', () => {
 		// GoalForm.svelte:40 → validation_target_date_required.
 		await expect(modal.getByText('Target date is required')).toBeVisible();
 	});
+
+	test('delete a goal via the hover-revealed Delete + confirm dialog', async ({ onboardedPage: page }) => {
+		// Goals page now exposes a Delete affordance on each active card
+		// (goals/+page.svelte) gated by ConfirmDialog — previously the only way
+		// to remove a goal was the store API (no UI).
+		await createGoal(page, 'Delete Me', '1m', '2027-12-31');
+		const card = page.getByRole('main').locator('div.group', { hasText: 'Delete Me' });
+		await card.getByRole('button', { name: 'Delete', exact: true }).click();
+		// ConfirmDialog (role=dialog after the a11y fix) → confirm.
+		const confirm = page.getByRole('dialog');
+		await expect(confirm.getByText('Delete goal?')).toBeVisible();
+		await confirm.getByRole('button', { name: 'Delete', exact: true }).click();
+		await expect(page.getByText('Goal deleted.')).toBeVisible();
+		// Goal removed from the active list.
+		await expect(page.getByRole('main').getByText('Delete Me')).toHaveCount(0);
+	});
 });

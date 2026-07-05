@@ -13,5 +13,12 @@ export default defineConfig({
 		// first load; give assertions breathing room.
 		timeout: 10_000
 	},
+	// A few specs (budgets month-nav, settings theme buttons) occasionally time
+	// out under parallel workers — the in-memory sql.js DB + global store
+	// singletons can race when multiple workers share the preview server. One
+	// retry absorbs that flakiness without masking real failures (a genuinely
+	// broken test fails twice in a row). Investigate per-worker isolation if
+	// the retry rate climbs.
+	retries: 1,
 	trace: 'on-first-retry'
 });

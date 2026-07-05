@@ -105,29 +105,32 @@ test.describe('budgets — extended', () => {
 		await expect(page.locator('main button.figures').first()).toContainText('0');
 	});
 
-	test('prior-month allocation persists and is isolated from the current month', async ({ onboardedPage: page }) => {
-		// NOTE: the roll-over FEATURE is computed in the repo (BudgetSummary.
-		// available = allocated + rolled_over − spent, repos/budgets.ts:54) and
-		// unit-tested (budgets.test.ts), but the budgets PAGE does not render
-		// `available` or `rolled_over` anywhere — only `remaining` (allocated −
-		// spent). So the roll-over is currently invisible to users. That gap is
-		// tracked as a bug (roll-over UI missing); this test asserts the
-		// user-visible behavior that DOES exist: per-month allocation isolation.
-		// When the roll-over UI is added, replace this with an `available` assertion.
+	test('prior-month allocation persists, and roll-over surfaces in the next month', async ({ onboardedPage: page }) => {
+		// Two things under test:
+		//  (a) per-month allocation isolation (the basic behaviour).
+		//  (b) the roll-over FEATURE now rendered in the UI — a prior-month
+		//      surplus carries forward as `available` and a "rolled over" line.
+		//      getRolledOver (repos/budgets.ts:85) sums (allocated − spent) over
+		//      prior budgeted months; available = allocated + rolled_over − spent.
 
-		// Allocate 500k in the previous month.
+		// Allocate 500k in the PREVIOUS month with no spend there → 500k surplus.
 		await page.getByRole('link', { name: 'Budgets', exact: true }).click();
 		await page.getByRole('button', { name: '◀' }).click();
 		await allocateFirstBucket(page, '500000');
-		// Previous month's first bucket shows the 500k allocation.
 		await expect(page.locator('main button.figures').first()).toContainText('500,000');
 
-		// Navigate to the current month: allocation is independent (0 by default).
+		// Current month: allocation is independent (0 by default).
 		await page.getByRole('button', { name: '▶' }).click();
 		await expect(page.locator('main button.figures').first()).toContainText('₫0');
 
-		// Return to previous month — allocation still there (persisted, isolated).
-		await page.getByRole('button', { name: '◀' }).click();
-		await expect(page.locator('main button.figures').first()).toContainText('500,000');
+		// Allocate 500k in the current month too. The prior 500k surplus rolls
+		// in, so available = 500k (allocated) + 500k (rolled) − 0 (spent) = 1,000k,
+		// and a "rolled over ₫500,000" line appears under the bar.
+		await allocateFirstBucket(page, '500000');
+		const firstBucket = page.locator('main .bg-tape.rounded-lg.border.border-line').first();
+		await expect(firstBucket.getByText(/rolled over/i)).toBeVisible();
+		await expect(firstBucket.getByText(/rolled over ₫500,000/)).toBeVisible();
+		// Available figure (₫1,000,000) is shown with the "available" label.
+		await expect(firstBucket.getByText(/1,000,000/)).toBeVisible();
 	});
 });
