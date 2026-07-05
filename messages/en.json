@@ -113,6 +113,7 @@
 	"budgets_remaining": "remaining",
 	"budgets_available": "available",
 	"budgets_rolled_in": "rolled over {amount}",
+	"budgets_over_allocated": "Over budget by {amount} this month.",
 	"budgets_updated": "Budget updated.",
 	"reports_title": "Reports",
 	"reports_overview": "Overview",

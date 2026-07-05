@@ -71,6 +71,7 @@
 							<button onclick={() => openEdit(g)} class="figures text-sm font-medium text-ledger text-left">{g.name}</button>
 							<div class="flex items-center gap-2">
 								<span class="text-xs text-dim">{statusIcons[g.velocity_status] ?? ''} {goalStatusLabel(g.velocity_status)}</span>
+								<button onclick={() => markComplete(g)} class="text-xs text-dim hover:text-phosphor opacity-0 group-hover:opacity-100 transition-opacity px-1">{m.goals_mark_complete()}</button>
 								<button onclick={() => confirmDelete = g} class="text-xs text-dim hover:text-debit opacity-0 group-hover:opacity-100 transition-opacity px-1">{m.goals_delete()}</button>
 							</div>
 						</div>
@@ -82,7 +83,6 @@
 						{#if g.velocity_status === 'overdue'}
 							<div class="flex gap-2 pt-2 border-t border-line">
 								<button onclick={() => openEdit(g)} class="text-xs text-phosphor hover:underline">{m.goals_extend_date()}</button>
-								<button onclick={() => markComplete(g)} class="text-xs text-phosphor hover:underline">{m.goals_mark_complete()}</button>
 								<button onclick={() => markAbandoned(g)} class="text-xs text-dim hover:underline">{m.goals_mark_abandoned()}</button>
 							</div>
 						{/if}

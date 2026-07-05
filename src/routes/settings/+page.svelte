@@ -18,6 +18,14 @@
 		settings.setTheme(theme);
 	}
 
+	// Paraglide's m.*() calls are not reactive to Svelte's render cycle, so the
+	// page text only re-renders on a fresh load. Persist the new locale, then
+	// reload so all text updates immediately. (setTheme IS reactive — no reload.)
+	async function setLocale(locale: 'en' | 'vi') {
+		await settings.setLocale(locale);
+		globalThis.location.reload();
+	}
+
 	let quickAccountId = $state<string>('');
 	let accounts = $state<AccountWithBalance[]>([]);
 	let quickAccountLoaded = $state(false);
@@ -96,11 +104,11 @@
 			<div class="plate mb-1">{m.settings_language()}</div>
 			<div class="flex gap-2">
 				<button
-					onclick={() => settings.setLocale('en')}
+					onclick={() => setLocale('en')}
 					class="px-3 py-1.5 text-sm rounded-md border transition-colors {settings.locale === 'en' ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
 				>{m.lang_english()}</button>
 				<button
-					onclick={() => settings.setLocale('vi')}
+					onclick={() => setLocale('vi')}
 					class="px-3 py-1.5 text-sm rounded-md border transition-colors {settings.locale === 'vi' ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
 				>{m.lang_vietnamese()}</button>
 			</div>

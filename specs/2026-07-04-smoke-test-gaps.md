@@ -1,8 +1,8 @@
 # Notchy — Smoke Test Gaps & Follow-ups
 
 **Source:** surfaced during the 2026-07-04 smoke-test E2E effort (branch `feat/smoke-test-e2e-coverage`).
-**Updated:** 2026-07-05 — resolved #2 (roll-over UI), #4 (goal delete), #8 (E2E retries).
-**Status of suite:** 303 unit / 80 E2E / 0 svelte-check errors, all green.
+**Updated:** 2026-07-05 — resolved #2, #3, #4, #5, #6, #7, #8. Only #1 (quick-add persistence reactivity) remains open.
+**Status of suite:** 295 unit / 82 E2E / 0 svelte-check errors, all green.
 
 Each item below is a genuine gap found while writing E2E coverage — not a guessed
 or hypothetical issue. Bugs already fixed are not listed here; this is the open
@@ -40,51 +40,34 @@ and a "rolled over {amount}" line on each bucket when `rolled_over !== 0`.
 E2E in `budgets-extended.spec.ts` asserts the roll-over surfaces across
 months.
 
-### 3. No auto-complete when a goal reaches its target
-**Where:** `src/lib/db/repos/goals.ts` — `status` changes only via explicit
-`update(status: 'completed'|'abandoned')`. Reaching 100% progress raises the
-bar visually but does not mark the goal complete. The only user-driven
-completion path is the "Mark complete" button, exposed solely in the
-**overdue** panel (`goals/+page.svelte:70-76`) — so a goal fulfilled on-track
-stays "active" forever unless it goes overdue.
-**Design call:** auto-complete at 100%, or keep manual? If manual, surface
-"Mark complete" outside the overdue panel too.
+### 3. No auto-complete when a goal reaches its target — ✅ RESOLVED 2026-07-05
+**Decision: stay manual** (no auto-complete — avoids surprises when a linked-
+account balance fluctuates). "Mark complete" is now surfaced on **all active
+goal cards** (hover-revealed), not only in the overdue panel. E2E in
+`goals-extended.spec.ts` covers manual completion of an on-track goal.
 
 ### 4. No delete affordance on goals — ✅ RESOLVED 2026-07-05
 Active goal cards now have a hover-revealed Delete button gated by
 ConfirmDialog (matching the accounts-page pattern). E2E in
 `goals-extended.spec.ts` covers create → delete → confirm.
 
-### 5. Locale switch does not re-render the page live
-**Where:** `src/routes/settings/+page.svelte` → `settings.setLocale()` →
-Paraglide `setLanguageTag()`. The bound `settings.locale` updates reactively
-(the active-button class flips), but the rendered `m.*()` text does not
-re-evaluate — Paraglide's message calls aren't reactive to Svelte's render
-cycle. The new locale only takes effect after a full reload.
-**Checklist impact:** the §9 "immediately switches locale" item is only
-half-true.
-**To fix (design call):** either (a) reload the page on locale switch
-(simple, slightly jarring), or (b) wire Paraglide's language tag into a
-reactive trigger so `m.*()` calls re-run (more work, smoother). The
-`settings-extended.spec.ts` locale test asserts the active-class flip only
-and documents this limitation.
+### 5. Locale switch does not re-render the page live — ✅ RESOLVED 2026-07-05
+**Decision: auto-reload on switch.** `setLocale` now persists the locale then
+calls `globalThis.location.reload()`, so all `m.*()` text updates immediately.
+Trade-off: a ~1s reload flash; Paraglide 1.11.8 (pinned) made the reactive
+option risky. E2E in `settings-extended.spec.ts` asserts the reload fires.
 
-### 6. Budgets: no over-allocate guard
-**Where:** `src/lib/db/repos/budgets.ts` `setAllocation` sets any value
-unconditionally; there's no available-income ceiling. The §5 checklist's
-"over-allocate warn/block" item describes non-existent behaviour.
-**Design call:** should allocations exceeding available income be blocked or
-warned? (YNAB blocks; many apps don't.) If yes, decide the rule and add it;
-if no, drop the checklist item.
+### 6. Budgets: no over-allocate guard — ✅ RESOLVED 2026-07-05
+**Decision: soft warn only.** Allocations exceeding this month's available
+funds (income + positive rolled-over surpluses) trigger a non-blocking
+"Over budget by X" banner; allocation is still stored. No hard block —
+allows intentional forecasting. New EN/VI key `budgets_over_allocated`.
+E2E in `budgets-extended.spec.ts`.
 
-### 7. CSV import is unwired
-**Where:** `src/lib/db/repos/csvImportProfiles.ts` is a complete repo (with
-unit tests in `repos/csvImportProfiles.test.ts`) but no route or component
-imports it. `src/lib/backup/index.ts` exports only `exportCsv` +
-`importDatabase` (SQLite). The §9 checklist notes CSV import has no UI.
-**To fix (design call):** either wire a CSV-import route (bank-statement
-import via profiles) for a future release, or delete the dead repo + its
-tests to avoid confusion.
+### 7. CSV import is unwired — ✅ RESOLVED 2026-07-05
+**Decision: delete the dead repo.** Removed
+`src/lib/db/repos/csvImportProfiles.ts` + its unit test (no route/component
+imported it). Re-add cleanly when a CSV-import feature is actually scoped.
 
 ---
 
