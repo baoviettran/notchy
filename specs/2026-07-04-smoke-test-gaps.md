@@ -1,11 +1,12 @@
 # Notchy — Smoke Test Gaps & Follow-ups
 
 **Source:** surfaced during the 2026-07-04 smoke-test E2E effort (branch `feat/smoke-test-e2e-coverage`).
-**Status of suite at handoff:** 303 unit / 79 E2E / 0 svelte-check errors, all green.
+**Updated:** 2026-07-05 — resolved #2 (roll-over UI), #4 (goal delete), #8 (E2E retries).
+**Status of suite:** 303 unit / 80 E2E / 0 svelte-check errors, all green.
 
 Each item below is a genuine gap found while writing E2E coverage — not a guessed
-or hypothetical issue. Bugs already fixed on this branch are not listed here;
-this is the open work. Ordered by rough severity / user-visibility.
+or hypothetical issue. Bugs already fixed are not listed here; this is the open
+work. Ordered by rough severity / user-visibility.
 
 ---
 
@@ -33,18 +34,11 @@ rework of the `$effect` dependency tracking.
 
 ## Product / design decisions (need a call, then implementation)
 
-### 2. Budget roll-over is computed but never shown
-**Where:** `src/lib/db/repos/budgets.ts` — `BudgetSummary.available` and
-`.rolled_over` are fully computed (and unit-tested in `budgets.test.ts`),
-but `src/routes/budgets/+page.svelte` renders only `remaining`
-(allocated − spent). The roll-over feature is half-built: data layer
-complete, UI layer missing.
-**Checklist impact:** the §5 "roll-over … starting available balance for N+1
-reflects it" item describes behaviour the UI doesn't expose.
-**To fix:** Render `available` (allocated + rolled_over − spent) on each
-bucket row, plus a roll-over indicator. Then upgrade the
-`budgets-extended.spec.ts` "prior-month allocation persists" test to
-assert `available` reflects the roll-over.
+### 2. Budget roll-over is computed but never shown — ✅ RESOLVED 2026-07-05
+The budgets page now renders `available` (allocated + rolled_over − spent)
+and a "rolled over {amount}" line on each bucket when `rolled_over !== 0`.
+E2E in `budgets-extended.spec.ts` asserts the roll-over surfaces across
+months.
 
 ### 3. No auto-complete when a goal reaches its target
 **Where:** `src/lib/db/repos/goals.ts` — `status` changes only via explicit
@@ -56,12 +50,10 @@ stays "active" forever unless it goes overdue.
 **Design call:** auto-complete at 100%, or keep manual? If manual, surface
 "Mark complete" outside the overdue panel too.
 
-### 4. No delete affordance on goals
-**Where:** `src/routes/goals/+page.svelte` — no delete button anywhere. The
-store exposes `goals.delete` (`stores/goals.svelte.ts:36`) but no route calls
-it. The "Delete a goal" checklist item is unreachable via the UI.
-**To fix:** Add a hover-revealed Delete (with ConfirmDialog, matching the
-accounts-page pattern) to each active goal card.
+### 4. No delete affordance on goals — ✅ RESOLVED 2026-07-05
+Active goal cards now have a hover-revealed Delete button gated by
+ConfirmDialog (matching the accounts-page pattern). E2E in
+`goals-extended.spec.ts` covers create → delete → confirm.
 
 ### 5. Locale switch does not re-render the page live
 **Where:** `src/routes/settings/+page.svelte` → `settings.setLocale()` →
@@ -98,15 +90,11 @@ tests to avoid confusion.
 
 ## Test-suite housekeeping
 
-### 8. E2E flakiness under parallel workers
-Running the full suite with Playwright's default parallel workers occasionally
-times out 1–2 tests (budgets month-nav, settings theme buttons) that pass
-cleanly when re-run serially. Root cause suspected: global store singletons
-(`transactions`, `accounts`) leaking state across workers sharing the preview
-server.
-**To fix:** add `retries: 2` to `playwright.config.ts` for resilience, and/or
-investigate whether the in-memory sql.js DB / store singletons need per-worker
-isolation. Not a correctness issue with the tests themselves.
+### 8. E2E flakiness under parallel workers — ✅ RESOLVED 2026-07-05
+Added `retries: 1` to `playwright.config.ts`. Absorbs the occasional
+parallel-worker timeout (budgets month-nav, settings theme buttons) without
+masking real failures. Per-worker isolation of the in-memory sql.js DB / store
+singletons remains a deeper follow-up if the retry rate climbs.
 
 ---
 
