@@ -113,6 +113,7 @@
 	"budgets_remaining": "còn lại",
 	"budgets_available": "có sẵn",
 	"budgets_rolled_in": "kết chuyển {amount}",
+	"budgets_over_allocated": "Vượt ngân sách {amount} trong tháng này.",
 	"budgets_updated": "Đã cập nhật ngân sách.",
 	"reports_title": "Báo cáo",
 	"reports_overview": "Tổng quan",

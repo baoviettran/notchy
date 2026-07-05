@@ -150,4 +150,17 @@ test.describe('goals — extended', () => {
 		// Goal removed from the active list.
 		await expect(page.getByRole('main').getByText('Delete Me')).toHaveCount(0);
 	});
+
+	test('Mark complete is available on any active goal (not only overdue)', async ({ onboardedPage: page }) => {
+		// goals/+page.svelte now surfaces Mark complete on all active cards
+		// (hover-revealed), not just in the overdue panel — so an on-track goal
+		// can be completed manually. No auto-complete at 100% by design.
+		await createGoal(page, 'Finishable', '1m', '2027-12-31');
+		const card = page.getByRole('main').locator('div.group', { hasText: 'Finishable' });
+		await card.getByRole('button', { name: 'Mark complete' }).click();
+		await expect(page.getByText('Goal marked complete.')).toBeVisible();
+		// Moves to the Completed section.
+		const completedSection = page.getByRole('main').locator('section', { hasText: 'Completed' });
+		await expect(completedSection.getByText('Finishable')).toBeVisible();
+	});
 });

@@ -105,6 +105,18 @@ test.describe('budgets — extended', () => {
 		await expect(page.locator('main button.figures').first()).toContainText('0');
 	});
 
+	test('over-allocating beyond available income shows a soft warning', async ({ onboardedPage: page }) => {
+		// No income this month → any allocation exceeds available funds. The
+		// page shows a non-blocking "Over budget by X" banner; allocation is
+		// still allowed (soft warn, not a hard block).
+		await page.getByRole('link', { name: 'Budgets', exact: true }).click();
+		await allocateFirstBucket(page, '500000');
+		// Banner surfaces (budgets/+page.svelte budgets_over_allocated).
+		await expect(page.getByRole('main').getByText(/Over budget by/)).toBeVisible();
+		// The allocation itself is still stored (not blocked).
+		await expect(page.locator('main button.figures').first()).toContainText('500,000');
+	});
+
 	test('prior-month allocation persists, and roll-over surfaces in the next month', async ({ onboardedPage: page }) => {
 		// Two things under test:
 		//  (a) per-month allocation isolation (the basic behaviour).

@@ -51,26 +51,20 @@ test.describe('settings — extended', () => {
 		await expect(lightBtn).not.toHaveClass(/border-phosphor/);
 	});
 
-	test('language buttons update the locale store selection (EN ↔ VI)', async ({ onboardedPage: page }) => {
-		// NOTE: clicking a language button updates settings.locale (persisted to
-		// the DB meta) and calls Paraglide setLanguageTag, BUT the currently-
-		// rendered page text does NOT re-render live — Paraglide's m.*() calls
-		// are not reactive to Svelte's render cycle, so the new locale only
-		// takes effect after a reload. That is a known limitation, tracked
-		// separately. Here we assert what IS reactive: the active-button class
-		// flips with settings.locale (settings/+page.svelte:100,104).
+	test('language buttons reload the page so the new locale takes effect', async ({ onboardedPage: page }) => {
+		// setLocale persists the locale then calls location.reload(), because
+		// Paraglide's m.*() calls are not reactive to Svelte's render cycle —
+		// the text only updates on a fresh load. In the E2E harness a reload
+		// wipes the in-memory sql.js DB and re-triggers onboarding, so the
+		// proof the reload happened is: onboarding re-appears.
 		await page.getByRole('link', { name: 'Settings', exact: true }).click();
 		const main = page.getByRole('main');
-		const enBtn = main.getByRole('button', { name: 'English' });
 		const viBtn = main.getByRole('button', { name: 'Tiếng Việt' });
-		// English is active by default post-onboarding.
-		await expect(enBtn).toHaveClass(/border-phosphor/);
+		// English active by default post-onboarding.
+		await expect(main.getByRole('button', { name: 'English' })).toHaveClass(/border-phosphor/);
+		// Click VI → reload fires → onboarding re-appears (Choose your language).
 		await viBtn.click();
-		await expect(viBtn).toHaveClass(/border-phosphor/);
-		await expect(enBtn).not.toHaveClass(/border-phosphor/);
-		// Switch back.
-		await enBtn.click();
-		await expect(enBtn).toHaveClass(/border-phosphor/);
+		await expect(page.getByRole('heading', { name: 'Choose your language' })).toBeVisible();
 	});
 
 	test('quick-add account picker updates the selection in-session', async ({ onboardedPage: page }) => {

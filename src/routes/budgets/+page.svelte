@@ -6,14 +6,45 @@
 	import { categories } from '$lib/stores/categories.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
+	import { getDb } from '$lib/db';
 	import { formatCurrency } from '$lib/utils/currency';
 	import { parseAmount } from '$lib/utils/number_parse';
 	import * as m from '$lib/paraglide/messages';
 
 	let editing = $state<string | null>(null);
 	let editValue = $state('');
+	let monthIncome = $state(0);
 
-	onMount(async () => { await categories.load(); await budgets.load(); });
+	async function loadMonthIncome() {
+		// Soft over-allocation ceiling: this month's income (kind='income') plus
+		// cumulative rolled-over surpluses. A non-blocking warning fires when
+		// total allocated exceeds it.
+		const db = await getDb();
+		const [y, mo] = budgets.month.split('-').map(Number);
+		const start = `${y}-${String(mo).padStart(2, '0')}`;
+		const next = mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, '0')}`;
+		const rows = await db.query<{ total: number | null }>(
+			`SELECT SUM(amount) AS total FROM transactions
+			 WHERE kind = 'income' AND date >= ? || '-01' AND date < ? || '-01' AND deleted_at IS NULL`,
+			[start, next]
+		);
+		monthIncome = rows[0]?.total ?? 0;
+		const rolled = budgets.items.reduce((s, b) => s + (b.rolled_over > 0 ? b.rolled_over : 0), 0);
+		monthIncome += rolled;
+	}
+
+	onMount(async () => {
+		await categories.load();
+		await budgets.load();
+		await loadMonthIncome();
+	});
+
+	// Refresh the ceiling whenever allocations change (e.g. after a roll-over or
+	// a new month). loadMonthIncome re-reads budgets.items for the rolled total.
+	$effect(() => { budgets.items; budgets.month; void loadMonthIncome(); });
+
+	let totalAllocated = $derived(budgets.items.reduce((s, b) => s + b.allocated, 0));
+	let overAmount = $derived(Math.max(0, totalAllocated - monthIncome));
 
 	function bucketName(typeId: string): string {
 		return categories.buckets.find((b) => b.id === typeId)?.name ?? typeId;
@@ -68,6 +99,12 @@
 		<div class="bg-phosphor/10 border border-phosphor/30 rounded-lg p-4 flex items-center justify-between">
 			<p class="text-sm text-phosphor">{m.budgets_no_budget_for_month()}</p>
 			<Button size="sm" variant="secondary" onclick={() => budgets.copyFromPrevious()}>{m.budgets_copy_from_previous()}</Button>
+		</div>
+	{/if}
+
+	{#if overAmount > 0}
+		<div class="bg-debit/10 border border-debit/30 rounded-lg p-3">
+			<p class="text-sm text-debit">{m.budgets_over_allocated({ amount: formatCurrency(overAmount, settings.currency, settings.locale) })}</p>
 		</div>
 	{/if}
 
