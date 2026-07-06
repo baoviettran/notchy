@@ -103,6 +103,26 @@ CREATE INDEX IF NOT EXISTS idx_categorize_rules_enabled
 
 The matching layer never touches SQL — specificity ranking lives in the pure `rules_matcher.ts`. The repo loads enabled, non-deleted rules; the util ranks them. This honors the "pure function, no DB" discipline.
 
+## Vietnamese-aware normalization
+
+Vietnamese (`vi`) is a primary locale, and Vietnamese input frequently varies in diacritics — most often when typed quickly via the quick-add tray: `ca phe` vs `cà phê`, `cho` vs `chợ`, `nguyen` vs `nguyễn`. Naive "trim + lowercase" matching is **diacritic-sensitive**, so it would (a) fail to auto-fill a tag learned from `cà phê` when the next transaction is typed `ca phe`, and (b) never group diacritic variants together for the 3-transaction auto-learn query, so learning would often not fire. For a Vi-first app this is a primary path, not an edge case.
+
+Fix: one new pure util, `src/lib/utils/normalize_payee.ts`, reused by both matching and learning (mirrors how `number_parse.ts` is locale-aware and pure):
+
+```typescript
+export function normalizePayee(s: string | null): string;
+// trim → lowercase → collapse internal whitespace → NFC compose →
+// NFD decompose → strip Unicode combining marks (U+0300–U+036F) → đ→d, Đ→d
+```
+
+- **Combining-mark stripping** handles `á→a, ạ→a, ơ→o, ư→u, ê→e` (standard diacritic folding via NFD).
+- **Explicit `đ→d`** is required because Vietnamese `đ` is a distinct letter, not a decomposable combining form — NFD leaves it untouched. This is the detail a generic "strip accents" util gets wrong.
+- **NFC compose first** to normalize equivalent byte sequences before decomposing (so a precomposed `á` and a decomposed `a` + combining-acute fold identically).
+
+Normalization is **on by default** and applied symmetrically to both the input payee and each rule's `payee_term`, in-memory only. Rules store `payee_term` as the user typed it (`cà phê`); the management UI shows real names. `is`-match means "exact after normalization," so exact-match users lose nothing and everyone gets typo/diacritic tolerance. There is no opt-out toggle — folding only makes matching more correct, never less, and a toggle would add UI surface for no real benefit.
+
+`normalizePayee` is pure and DB-free, so it is trivially unit-testable with Vi fixtures (`cà phê` ↔ `ca phe`, `nguyễn` ↔ `nguyen`, `đ` ↔ `d`). This keeps all Unicode logic in the pure layer; SQLite never sees Unicode collation complexity.
+
 ## The three units
 
 ### Unit 1 — `src/lib/utils/rules_matcher.ts` (pure)
@@ -122,7 +142,7 @@ export function matchRules(payee: string | null, rules: CategorizeRuleLite[]): s
 ```
 
 Behavior:
-- **Normalization** — trim, lowercase, collapse internal whitespace, applied to both payee and `payee_term` before comparing. So `STARBUCKS #4` and `starbucks #4` match.
+- **Normalization** — `normalizePayee(payee)` and `normalizePayee(rule.payee_term)` applied before comparing (see the Vietnamese-aware normalization section). So `STARBUCKS #4` and `starbucks #4` match, and `cà phê` matches `ca phe`.
 - **Selection** — collect all matching rules; return the `tag_id` of the highest-ranked.
 - **Ties within the same rank** — if two rules of equal rank match and target *different* tags, there is no deterministic winner. Return `null` (no auto-fill); the user picks manually. This avoids silently choosing an arbitrary category.
 - **Empty/null payee** — return `null` immediately.
@@ -146,8 +166,8 @@ Runes store, mirroring `accounts.svelte.ts`:
 - `create / update / delete` — write DB via repo, then refresh cache (`load()`).
 - **`learnRule(payee, tag_id)`** — the auto-learn brain:
   - Guard: no-op if `payee` empty/null or `tag_id` empty.
-  - Query the last **N = 3** non-deleted transactions for that payee (via `transactions.ts` repo), ordered by `date DESC, created_at DESC` (most recent first).
-  - If all N share the same `tag_id` → `upsertLearned(db, normalizedPayee, tag_id)`. Learned rules use `match_mode:'is'` (exact match — learned rules are specific). An existing learned rule for that payee updates its `tag_id` rather than duplicating.
+  - Group the recent transactions **in JS by `normalizePayee(payee)`** — not via SQL `WHERE payee = ?`, which is diacritic-sensitive and would never group `ca phe` + `cà phê` (see the Vietnamese-aware normalization section). Fetch the last **50** transactions (ordered `date DESC, created_at DESC`), normalize each payee, and take the N = 3 most recent whose normalized payee equals `normalizePayee(inputPayee)`. The 50-row window bounds the query cost; a payee that hasn't appeared in 50 transactions is no longer a strong enough signal to learn from.
+  - If all 3 share the same `tag_id` → `upsertLearned(db, inputPayee, tag_id)`. Store the payee as the user typed it (not the normalized form); `match_mode:'is'` means "exact after normalization." An existing learned rule for a normalized-payee match updates its `tag_id` rather than duplicating.
   - If fewer than N transactions, or inconsistent tags → no-op. No partial learning, no prompts.
   - Must not throw into the save path; failures are logged and surfaced as a toast at most.
 
@@ -179,17 +199,18 @@ A simple route/view to list, create, edit, enable/disable, and delete rules — 
 
 Following project TDD discipline (red-green-refactor) and the "do not mock the DB / pure functions" conventions:
 
+- **`normalize_payee.test.ts`** (pure) — Vietnamese fixtures: `cà phê` ↔ `ca phe`, `nguyễn` ↔ `nguyen`, `đ` ↔ `d` (the `đ→d` case a generic accent-stripper misses), case + whitespace folding, null/empty input.
 - **`rules_matcher.test.ts`** (pure) — exhaustive edge cases:
   - exact `is` beats `starts_with` beats `contains` for the same payee.
-  - normalization (case, whitespace) matches.
+  - normalization (case, whitespace, **and diacritics**: `is cà phê` matches input `ca phe`) matches.
   - tie within same rank targeting different tags → `null`.
   - tie within same rank targeting the same tag → that tag.
   - empty/null payee → `null`.
   - no rules / no match → `null`.
 - **`rules.test.ts`** (repo, DB-pattern with `createTestDb` + `runMigrations`) — create/read/update/soft-delete; `upsertLearned` inserts then updates; `listRules` filters enabled + non-deleted.
-- **`rules.svelte.test.ts`** (store) — `matchTag` delegates correctly; `learnRule` creates a rule after N consistent transactions, no-op on inconsistency or < N, upserts existing.
+- **`rules.svelte.test.ts`** (store) — `matchTag` delegates correctly; `learnRule` groups diacritic-variant payees (`ca phe` + `cà phê`) as the same payee via normalization and creates a rule after 3 consistent, no-op on inconsistency or < 3, upserts existing.
 - **Component test** — `TransactionForm` auto-fills `tagId` from payee when empty, does not overwrite a manually-set tag, calls `learnRule` after save.
-- **E2E** — create 3 transactions with the same payee + tag; a 4th transaction with the same payee auto-fills the tag. (E2E uses the sql.js in-memory fallback per project setup.)
+- **E2E** — create 3 transactions with the same payee + tag; a 4th transaction with the same payee auto-fills the tag. Plus a Vietnamese variant: 3 transactions under `cà phê`, then a 4th typed `ca phe` (no diacritics) still auto-fills the same tag. (E2E uses the sql.js in-memory fallback per project setup.)
 
 ## Migration / rollout
 
@@ -198,4 +219,4 @@ Following project TDD discipline (red-green-refactor) and the "do not mock the D
 
 ## Open questions
 
-None at design time. Defaults are pinned in the body: **N = 3** consistent transactions, ordered `date DESC, created_at DESC`, learned rules use `match_mode:'is'`. The implementation plan may revisit these values but should treat them as the baseline.
+None at design time. Defaults are pinned in the body: **N = 3** consistent transactions, ordered `date DESC, created_at DESC`, learned rules use `match_mode:'is'`, normalization folds diacritics + `đ→d` and is on by default. The implementation plan may revisit these values but should treat them as the baseline.
