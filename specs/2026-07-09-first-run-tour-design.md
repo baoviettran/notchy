@@ -1,7 +1,7 @@
 # First-run product tour (spotlight coachmarks)
 
 **Date:** 2026-07-09  
-**Status:** Approved for implementation
+**Status:** Spec only — not yet implemented
 
 ## Problem
 
@@ -33,6 +33,8 @@ Setup onboarding (`/onboarding`: language → currency → first account) leaves
 
 **Grandfather rule:** On tour load, if `first_run_complete=1` and `tour_complete` is missing → set `tour_complete=1`. New onboarding finish does **not** set `tour_complete`, so the tour auto-starts.
 
+**Grandfather invariant (critical):** A brand-new user who *just* finished onboarding is in the exact same meta state as an upgraded user (`first_run_complete=1`, `tour_complete` missing). The tour survives for fresh users only because `tour.load()` runs once at main-layout boot — **before** onboarding completes — and sees `first_run_complete=0`, so it does not grandfather. `load()` / `ensureTourGrandfathered` must therefore run **once at main-layout boot, never after the onboarding→`/` navigation**. Per the per-window-JS-context gotcha, only the **main window** wires the tour; a quick-add window booting after onboarding would otherwise call `load()`, grandfather, and write `tour_complete=1` to the shared DB — silently killing the tour for the fresh user.
+
 ### Flow
 
 1. Onboarding finish → `first_run_complete=1` → `goto('/')`.
@@ -63,6 +65,7 @@ When multiple elements share a `data-tour` id (sidebar + bottom nav), pick the *
 ### UX
 
 - Modal overlay blocks app interaction; Escape = skip.
+- **Host-shortcut suppression:** while `tour.active`, the layout's own `keydown` handlers must be gated (e.g. guard on `!tour.active`) so the **N** "add transaction" shortcut and any other host bindings don't fire behind the overlay. The overlay does not itself handle every host shortcut — the host must yield.
 - Progress “n / 5”; Back disabled on first step.
 - Re-measure on resize/scroll; reduced-motion: no animation.
 - Do not open the transaction modal during the tour.
@@ -70,5 +73,6 @@ When multiple elements share a `data-tour` id (sidebar + bottom nav), pick the *
 ## Testing
 
 - Unit: meta helpers, store start/next/back/skip/finish, grandfather, force replay.
+- **Fresh-user grandfather test:** assert that on `load()` with `first_run_complete=0` (and `tour_complete` missing), the store does **not** set `tour_complete` and `tour.complete` stays `false` — guards the grandfather invariant above. (The existing test only covers the already-complete user being grandfathered.)
 - Optional component smoke for TourOverlay.
 - Manual: fresh onboarding path + Settings replay + mobile/desktop targets.
