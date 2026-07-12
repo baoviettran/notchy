@@ -46,6 +46,10 @@
 	}
 
 	function measure() {
+		if (!tour.active) {
+			targetRect = null;
+			return;
+		}
 		const target = findTarget();
 		if (target) {
 			targetRect = target.getBoundingClientRect();
@@ -84,9 +88,10 @@
 		window.removeEventListener('scroll', measure, true);
 	});
 
-	// Re-measure when step changes
+	// Re-measure when step or active state changes
 	$effect(() => {
 		void tour.currentStep;
+		void tour.active;
 		measure();
 	});
 </script>
@@ -119,7 +124,7 @@
 		<!-- Highlight ring around target -->
 		{#if targetRect}
 			<div
-				class="absolute rounded-lg border-2 border-phosphor pointer-events-none transition-all duration-200"
+				class="tour-highlight-ring absolute rounded-lg border-2 border-phosphor pointer-events-none transition-all duration-200"
 				style="top: {targetRect.y - 4}px; left: {targetRect.x - 4}px; width: {targetRect.width + 8}px; height: {targetRect.height + 8}px;"
 			></div>
 		{/if}
@@ -168,3 +173,11 @@
 		</div>
 	</div>
 {/if}
+
+<style>
+	@media (prefers-reduced-motion: reduce) {
+		.tour-highlight-ring {
+			transition: none;
+		}
+	}
+</style>

@@ -77,9 +77,9 @@
 		}
 	}
 
-	function replayTour() {
+	async function replayTour() {
 		if ($page.url.pathname !== '/') {
-			goto('/');
+			await goto('/');
 		}
 		tour.start({ force: true });
 	}
