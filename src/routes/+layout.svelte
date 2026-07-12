@@ -28,6 +28,7 @@
 	let { children } = $props();
 	let showTxModal = $state(false);
 	let unlisten: (() => void) | undefined;
+	let tourInitialized = false;
 
 	onMount(async () => {
 		// Only the main window owns DB lifecycle (migrations, integrity checks,
@@ -47,17 +48,24 @@
 		if (dbStore.ready && !dbStore.firstRunComplete && $page.url.pathname !== '/onboarding') {
 			goto('/onboarding');
 		}
-		if (dbStore.ready && dbStore.firstRunComplete) {
-			await settings.load();
-			await tour.load();
-			if (!tour.complete) {
-				tour.start();
-			}
-		}
-		if (dbStore.ready && dbStore.firstRunComplete) {
-			unlisten = await attachTransactionSavedListener(listen, async () => {
-				await transactions.load();
-			});
+	});
+
+	$effect(() => {
+		const isQuickAddWindow = $page.url.pathname.startsWith('/quick-add');
+		if (isQuickAddWindow) return;
+
+		if (dbStore.ready && dbStore.firstRunComplete && !tourInitialized) {
+			tourInitialized = true;
+			(async () => {
+				await settings.load();
+				await tour.load();
+				if (!tour.complete) {
+					tour.start();
+				}
+				unlisten = await attachTransactionSavedListener(listen, async () => {
+					await transactions.load();
+				});
+			})();
 		}
 	});
 
