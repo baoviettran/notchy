@@ -12,6 +12,7 @@
 	import { page } from '$app/stores';
 	import { dbStore } from '$lib/stores/db.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
+	import { tour } from '$lib/stores/tour.svelte';
 	import { transactions } from '$lib/stores/transactions.svelte';
 	import { attachTransactionSavedListener } from '$lib/stores/quick-refresh';
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
@@ -21,11 +22,13 @@
 	import Modal from '$lib/components/primitives/Modal.svelte';
 	import TransactionForm from '$lib/components/forms/TransactionForm.svelte';
 	import GlobalToast from '$lib/components/primitives/GlobalToast.svelte';
+	import TourOverlay from '$lib/components/tour/TourOverlay.svelte';
 	import * as m from '$lib/paraglide/messages';
 
 	let { children } = $props();
 	let showTxModal = $state(false);
 	let unlisten: (() => void) | undefined;
+	let tourInitialized = false;
 
 	onMount(async () => {
 		// Only the main window owns DB lifecycle (migrations, integrity checks,
@@ -45,17 +48,30 @@
 		if (dbStore.ready && !dbStore.firstRunComplete && $page.url.pathname !== '/onboarding') {
 			goto('/onboarding');
 		}
-		if (dbStore.ready && dbStore.firstRunComplete) {
-			await settings.load();
-		}
-		if (dbStore.ready && dbStore.firstRunComplete) {
-			unlisten = await attachTransactionSavedListener(listen, async () => {
-				await transactions.load();
-			});
+	});
+
+	$effect(() => {
+		const isQuickAddWindow = $page.url.pathname.startsWith('/quick-add');
+		if (isQuickAddWindow) return;
+
+		if (dbStore.ready && dbStore.firstRunComplete && !tourInitialized) {
+			tourInitialized = true;
+			(async () => {
+				await settings.load();
+				await tour.load();
+				if (!tour.complete) {
+					tour.start();
+				}
+				unlisten = await attachTransactionSavedListener(listen, async () => {
+					await transactions.load();
+				});
+			})();
 		}
 	});
 
 	function onKeydown(e: KeyboardEvent) {
+		// Host shortcuts yield to the tour overlay
+		if (tour.active) return;
 		const target = e.target as HTMLElement;
 		const inInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
 		if (e.key === 'Escape') { showTxModal = false; return; }
@@ -101,5 +117,6 @@
 			<TransactionForm onclose={() => showTxModal = false} />
 		</Modal>
 		<GlobalToast />
+		<TourOverlay />
 	</div>
 {/if}

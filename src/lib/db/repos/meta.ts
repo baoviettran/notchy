@@ -28,3 +28,12 @@ export async function getLocale(db: DatabaseService): Promise<string> {
 export async function getCurrency(db: DatabaseService): Promise<string> {
 	return (await getMeta(db, 'currency')) ?? 'VND';
 }
+
+export async function isTourComplete(db: DatabaseService): Promise<boolean> {
+	const val = await getMeta(db, 'tour_complete');
+	return val === '1';
+}
+
+export async function setTourComplete(db: DatabaseService): Promise<void> {
+	await setMeta(db, 'tour_complete', '1');
+}

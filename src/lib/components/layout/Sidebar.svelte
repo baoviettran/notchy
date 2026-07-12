@@ -4,15 +4,15 @@
 
 	const primaryNav = [
 		{ href: '/', key: 'dashboard', label: () => m.nav_dashboard() },
-		{ href: '/transactions', key: 'transactions', label: () => m.nav_transactions() },
-		{ href: '/budgets', key: 'budgets', label: () => m.nav_budgets() },
+		{ href: '/transactions', key: 'transactions', label: () => m.nav_transactions(), tourId: 'transactions' },
+		{ href: '/budgets', key: 'budgets', label: () => m.nav_budgets(), tourId: 'budgets' },
 		{ href: '/reports', key: 'reports', label: () => m.nav_reports() }
 	];
 	const secondaryNav = [
-		{ href: '/accounts', key: 'accounts', label: () => m.nav_accounts() },
+		{ href: '/accounts', key: 'accounts', label: () => m.nav_accounts(), tourId: 'accounts' },
 		{ href: '/goals', key: 'goals', label: () => m.nav_goals() },
 		{ href: '/debts', key: 'debts', label: () => m.nav_debts() },
-		{ href: '/settings', key: 'settings', label: () => m.nav_settings() }
+		{ href: '/settings', key: 'settings', label: () => m.nav_settings(), tourId: 'settings' }
 	];
 
 	function isActive(href: string, path: string): boolean {
@@ -42,6 +42,7 @@
 		{#each primaryNav as item}
 			<a
 				href={item.href}
+				data-tour={item.tourId}
 				aria-current={isActive(item.href, $page.url.pathname) ? 'page' : undefined}
 				class="group flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors
 					{isActive(item.href, $page.url.pathname)
@@ -59,6 +60,7 @@
 		{#each secondaryNav as item}
 			<a
 				href={item.href}
+				data-tour={item.tourId}
 				aria-current={isActive(item.href, $page.url.pathname) ? 'page' : undefined}
 				class="group flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors
 					{isActive(item.href, $page.url.pathname)

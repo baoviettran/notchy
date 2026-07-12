@@ -1,8 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import Button from '$lib/components/primitives/Button.svelte';
 	import Select from '$lib/components/primitives/Select.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
+	import { tour } from '$lib/stores/tour.svelte';
 	import { getDb } from '$lib/db';
 	import { getDefaultQuickAccount, setDefaultQuickAccount, clearDefaultQuickAccount } from '$lib/db/repos/quick_account';
 	import { listAccounts, type AccountWithBalance } from '$lib/db/repos/accounts';
@@ -74,6 +77,13 @@
 		}
 	}
 
+	async function replayTour() {
+		if ($page.url.pathname !== '/') {
+			await goto('/');
+		}
+		tour.start({ force: true });
+	}
+
 	onMount(loadQuickAccount);
 </script>
 
@@ -124,6 +134,14 @@
 			{#if quickAccountError}
 				<div class="text-xs text-phosphor mt-2">{quickAccountError}</div>
 			{/if}
+		</div>
+		<div class="bg-tape rounded-lg border border-line p-4">
+			<div class="font-medium text-ledger">{m.tour_replay()}</div>
+			<div class="text-sm text-dim mb-3">{m.tour_replay_desc()}</div>
+			<button
+				onclick={replayTour}
+				class="px-3 py-1.5 text-sm rounded-md bg-phosphor text-ink font-medium hover:bg-phosphor-bright transition-colors"
+			>{m.tour_replay()}</button>
 		</div>
 		<div class="bg-tape rounded-lg border border-line p-4">
 			<div class="text-xs text-dim">{m.settings_version()}</div>
