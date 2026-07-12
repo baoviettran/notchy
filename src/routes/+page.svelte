@@ -47,7 +47,7 @@
 	</header>
 
 	<!-- SIGNATURE: net position as a VFD readout. -->
-	<section class="surface rounded-lg p-5 md:p-6 relative overflow-hidden">
+	<section class="surface rounded-lg p-5 md:p-6 relative overflow-hidden" data-tour="net">
 		<div class="flex items-center justify-between mb-4">
 			<h2 class="plate">{m.dashboard_net_position()}</h2>
 			<a href="/accounts" class="plate hover:text-ledger transition-colors">{m.dashboard_accounts_link()}</a>
