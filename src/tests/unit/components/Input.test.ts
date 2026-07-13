@@ -43,4 +43,14 @@ describe('Input', () => {
 		render(Input, { type: 'number', placeholder: 'amount' });
 		expect(screen.getByPlaceholderText('amount')).toHaveAttribute('type', 'number');
 	});
+
+	it('does not autofocus by default', () => {
+		render(Input, { label: 'Amount', value: '' });
+		expect(screen.getByLabelText('Amount')).not.toHaveAttribute('autofocus');
+	});
+
+	it('sets autofocus attribute when autofocus=true', () => {
+		render(Input, { label: 'Amount', value: '', autofocus: true });
+		expect(screen.getByLabelText('Amount')).toHaveAttribute('autofocus');
+	});
 });
