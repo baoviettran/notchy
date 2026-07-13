@@ -140,6 +140,10 @@
 		<p class="text-sm text-debit">{error}</p>
 	{/if}
 
+	<!-- AMOUNT: primary input, autofocus -->
+	<Input label={m.common_amount()} bind:value={amount} placeholder={m.forms_amount_placeholder()} autofocus />
+
+	<!-- KIND: secondary toggle -->
 	<div class="flex flex-wrap gap-2">
 		{#each kinds as k}
 			<button onclick={() => kind = k.value as TransactionKind} disabled={isEdit}
@@ -148,16 +152,16 @@
 		{/each}
 	</div>
 
-	<Input label={m.common_amount()} bind:value={amount} placeholder={m.forms_amount_placeholder()} />
-
+	<!-- ACCOUNT/TAG -->
 	{#if kind === 'transfer'}
 		<Select label={m.forms_from_account()} bind:value={accountId} options={accountOptions} disabled={isEdit} />
 		<Select label={m.forms_to_account()} bind:value={transferAccountId} options={accountOptions} disabled={isEdit} />
 	{:else}
-		<Autocomplete label={m.forms_tag()} bind:value={tagId} options={tagOptions} placeholder={m.forms_search_tags_placeholder()} />
 		<Select label={m.forms_account()} bind:value={accountId} options={accountOptions} disabled={isEdit} />
+		<Autocomplete label={m.forms_tag()} bind:value={tagId} options={tagOptions} placeholder={m.forms_search_tags_placeholder()} />
 	{/if}
 
+	<!-- PAYEE + DATE/DESCRIPTION (full mode only) -->
 	{#if mode === 'full'}
 		<Autocomplete label={m.forms_payee()} bind:value={payee} options={payeeOptions} allowFreeText={true} placeholder={m.forms_who_paid()} />
 		<div class="grid grid-cols-2 gap-3">
