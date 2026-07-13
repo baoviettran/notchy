@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Progress from '$lib/components/primitives/Progress.svelte';
-	import TransactionForm from '$lib/components/forms/TransactionForm.svelte';
+	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
 	import FrequentTransactions from '$lib/components/sections/FrequentTransactions.svelte';
 	import { accounts } from '$lib/stores/accounts.svelte';
 	import { budgets } from '$lib/stores/budgets.svelte';
@@ -109,12 +109,6 @@
 		{/if}
 	</section>
 
-	<!-- QUICK ENTRY: the keypad. -->
-	<section class="surface rounded-lg p-5">
-		<h2 class="plate mb-3">{m.dashboard_quick_entry()}</h2>
-		<TransactionForm mode="quick" onclose={() => {}} onsave={async () => { await transactions.load({ limit: 5 }); }} />
-	</section>
-
 	<FrequentTransactions />
 
 	<!-- RECENT: the ledger tape. -->
@@ -124,9 +118,8 @@
 			<a href="/transactions" class="plate hover:text-ledger transition-colors">{m.dashboard_view_all()}</a>
 		</div>
 		{#if recentTxns.length === 0}
-			<div class="px-5 pb-6 pt-2 text-dim">
-				<p class="figures-glow text-xl mb-1">▮▯▯▯</p>
-				<p class="text-sm">{m.dashboard_no_txns_yet({ shortcut: 'N' })}</p>
+			<div class="px-5 pb-2">
+				<EmptyState message={m.dashboard_no_txns_yet({ shortcut: 'N' })} icon="▮▯▯▯" />
 			</div>
 		{:else}
 			<ul class="divide-y divide-line border-t border-line">

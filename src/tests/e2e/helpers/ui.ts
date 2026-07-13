@@ -38,8 +38,8 @@ export async function expectOnDashboard(page: Page): Promise<void> {
 /**
  * Add a transaction via the dashboard FAB + modal. `amount` is the raw string
  * typed into the Amount field — pass '50k' to exercise parseAmount's shortcut.
- * The modal is scoped via getByRole('dialog') because the dashboard also has an
- * inline quick form with its own Amount/Save controls.
+ * The modal is scoped via getByRole('dialog') to isolate the Amount/Save
+ * controls in case other dialogs or inputs appear on the page.
  */
 export async function addTransaction(
 	page: Page,
