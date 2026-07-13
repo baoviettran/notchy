@@ -31,7 +31,7 @@
 			onkeydown={(e) => e.key === 'Escape' && close()}
 		></div>
 		<div
-			class="absolute right-0 mt-1 w-40 bg-tape border border-line rounded-md shadow-lg z-20"
+			class="absolute right-0 mt-1 w-40 bg-tape border border-line rounded-md shadow-lg z-20 animate-scale-in"
 			role="menu"
 			tabindex="-1"
 			onkeydown={(e) => e.key === 'Escape' && close()}
