@@ -12,6 +12,8 @@
 	import { accountTypeLabel } from '$lib/utils/account-type';
 	import * as m from '$lib/paraglide/messages';
 	import { mapError } from '$lib/utils/errors';
+	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
+	import ContextMenu from '$lib/components/primitives/ContextMenu.svelte';
 
 	let showForm = $state(false);
 	let editing = $state<AccountWithBalance | null>(null);
@@ -48,8 +50,8 @@
 	<section>
 		<h2 class="plate mb-2">{m.accounts_assets()}</h2>
 		{#if accounts.assets.length === 0}
-			<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
-				<p class="text-sm">{m.accounts_empty_assets()}</p>
+			<div class="bg-tape rounded-lg border border-line">
+				<EmptyState message={m.accounts_empty_assets()} icon="▮▯▯▯" />
 			</div>
 		{:else}
 			<div class="bg-tape rounded-lg border border-line divide-y divide-line">
@@ -60,11 +62,11 @@
 							<div class="text-xs text-dim">{accountTypeLabel(acc.type)}{acc.counterparty ? ` · ${acc.counterparty}` : ''}</div>
 						</a>
 						<span class="figures text-sm text-ledger mr-3">{formatCurrency(acc.balance, settings.currency, settings.locale)}</span>
-						<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-							<button onclick={() => openEdit(acc)} class="text-xs text-dim hover:text-phosphor px-2">{m.common_edit()}</button>
-							<button onclick={() => archiveAccount(acc)} class="text-xs text-dim hover:text-phosphor px-2">{m.accounts_archive()}</button>
-							<button onclick={() => confirmDelete = acc} class="text-xs text-dim hover:text-debit px-2">{m.common_delete()}</button>
-						</div>
+						<ContextMenu label={m.common_edit()}>
+							<button onclick={() => openEdit(acc)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-ledger hover:bg-line/40">{m.common_edit()}</button>
+							<button onclick={() => archiveAccount(acc)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-ledger hover:bg-line/40">{acc.archived ? m.accounts_unarchive() : m.accounts_archive()}</button>
+							<button onclick={() => confirmDelete = acc} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.common_delete()}</button>
+						</ContextMenu>
 					</div>
 				{/each}
 			</div>
@@ -74,8 +76,8 @@
 	<section>
 		<h2 class="plate mb-2">{m.accounts_liabilities()}</h2>
 		{#if accounts.liabilities.length === 0}
-			<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
-				<p class="text-sm">{m.accounts_empty_liabilities()}</p>
+			<div class="bg-tape rounded-lg border border-line">
+				<EmptyState message={m.accounts_empty_liabilities()} icon="▮▯▯▯" />
 			</div>
 		{:else}
 			<div class="bg-tape rounded-lg border border-line divide-y divide-line">
@@ -86,10 +88,10 @@
 							<div class="text-xs text-dim">{accountTypeLabel(acc.type)}{acc.counterparty ? ` · ${acc.counterparty}` : ''}</div>
 						</a>
 						<span class="figures text-sm text-debit mr-3">{formatCurrency(Math.abs(acc.balance), settings.currency, settings.locale)}</span>
-						<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-							<button onclick={() => openEdit(acc)} class="text-xs text-dim hover:text-phosphor px-2">{m.common_edit()}</button>
-							<button onclick={() => confirmDelete = acc} class="text-xs text-dim hover:text-debit px-2">{m.common_delete()}</button>
-						</div>
+						<ContextMenu label={m.common_edit()}>
+							<button onclick={() => openEdit(acc)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-ledger hover:bg-line/40">{m.common_edit()}</button>
+							<button onclick={() => confirmDelete = acc} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.common_delete()}</button>
+						</ContextMenu>
 					</div>
 				{/each}
 			</div>

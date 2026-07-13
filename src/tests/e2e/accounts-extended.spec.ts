@@ -84,9 +84,11 @@ test.describe('accounts — extended', () => {
 
 	test('edit account: name change persists; type Select is disabled', async ({ onboardedPage: page }) => {
 		await page.getByRole('link', { name: 'Accounts', exact: true }).click();
-		// Hover-revealed Edit button (accounts/+page.svelte:64). The onboarding
-		// account ("Test Checking") is the first asset row.
-		await page.getByRole('main').getByRole('button', { name: 'Edit', exact: true }).first().click();
+		// Edit now lives inside a ContextMenu. The row's last button is the
+		// ContextMenu trigger (⋮); open it, then click the Edit menuitem.
+		const checkingRow = page.getByRole('main').locator('.group', { hasText: 'Test Checking' });
+		await checkingRow.getByRole('button').last().click();
+		await page.getByRole('menuitem', { name: 'Edit' }).click();
 		const modal = page.getByRole('dialog');
 		await expect(modal.getByRole('heading', { name: 'Edit account' })).toBeVisible();
 		// Type Select is disabled in edit mode (AccountForm.svelte:69).
@@ -107,13 +109,14 @@ test.describe('accounts — extended', () => {
 		await createModal.getByRole('button', { name: 'Create' }).click();
 		await expect(page.getByRole('dialog')).toBeHidden();
 
-		// Click its hover-revealed Delete (accounts/+page.svelte:66/91). Scope
-		// the Delete button to the row by anchoring on the account-name link.
+		// Delete now lives inside a ContextMenu. Open the row's context menu
+		// trigger (⋮), then click the Delete menuitem.
 		// NOTE: ConfirmDialog (primitives/ConfirmDialog.svelte) renders a plain
 		// <div>, NOT role="dialog" (an a11y gap — tracked separately). So we
 		// target the confirm UI by its heading text + button.
-		const disposableRow = page.getByRole('main').getByRole('link', { name: 'Disposable' }).locator('xpath=ancestor::div[contains(@class,"group")]');
-		await disposableRow.getByRole('button', { name: 'Delete', exact: true }).click();
+		const disposableRow = page.getByRole('main').locator('.group', { hasText: 'Disposable' });
+		await disposableRow.getByRole('button').last().click();
+		await page.getByRole('menuitem', { name: 'Delete' }).click();
 		await expect(page.getByText('Delete account?')).toBeVisible();
 		await page.getByText('Delete account?').locator('xpath=ancestor::div[contains(@class,"max-w-sm")]').getByRole('button', { name: 'Delete', exact: true }).click();
 		await expect(page.getByText('Delete account?')).toHaveCount(0);
@@ -129,8 +132,9 @@ test.describe('accounts — extended', () => {
 		// delete succeeds without error.
 		await addTransaction(page, { kind: 'expense', amount: '10k' });
 		await page.getByRole('link', { name: 'Accounts', exact: true }).click();
-		const checkingRow = page.getByRole('main').getByRole('link', { name: 'Test Checking' }).locator('xpath=ancestor::div[contains(@class,"group")]');
-		await checkingRow.getByRole('button', { name: 'Delete', exact: true }).click();
+		const checkingRow = page.getByRole('main').locator('.group', { hasText: 'Test Checking' });
+		await checkingRow.getByRole('button').last().click();
+		await page.getByRole('menuitem', { name: 'Delete' }).click();
 		await expect(page.getByText('Delete account?')).toBeVisible();
 		await page.getByText('Delete account?').locator('xpath=ancestor::div[contains(@class,"max-w-sm")]').getByRole('button', { name: 'Delete', exact: true }).click();
 		await expect(page.getByText('Delete account?')).toHaveCount(0);
@@ -159,8 +163,9 @@ test.describe('accounts — extended', () => {
 
 		// Now try to delete the linked account.
 		await page.getByRole('link', { name: 'Accounts', exact: true }).click();
-		const checkingRow = page.getByRole('main').getByRole('link', { name: 'Test Checking' }).locator('xpath=ancestor::div[contains(@class,"group")]');
-		await checkingRow.getByRole('button', { name: 'Delete', exact: true }).click();
+		const checkingRow = page.getByRole('main').locator('.group', { hasText: 'Test Checking' });
+		await checkingRow.getByRole('button').last().click();
+		await page.getByRole('menuitem', { name: 'Delete' }).click();
 		await page.getByText('Delete account?').locator('xpath=ancestor::div[contains(@class,"max-w-sm")]').getByRole('button', { name: 'Delete', exact: true }).click();
 		// The block surfaces as a toast (accounts/+page.svelte:35-37 mapError).
 		await expect(page.getByText(/Cannot delete account.*active goal/)).toBeVisible();

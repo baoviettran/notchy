@@ -64,10 +64,11 @@ test.describe('transactions', () => {
 		await addTransaction(page, { kind: 'expense', amount: '50k' });
 		await page.getByRole('link', { name: 'Transactions', exact: true }).click();
 		await expect(page.getByRole('main').getByText('-₫50,000')).toBeVisible();
-		// Delete is a direct ✕ button (transactions/+page.svelte:106); no
-		// ConfirmDialog — doDelete runs immediately. The ✕ alone is ambiguous
-		// (a modal close ✕ also exists), so scope by its title="Delete".
-		await page.getByRole('main').getByTitle('Delete').click();
+		// Delete now lives inside a ContextMenu. The row's last button is the
+		// ContextMenu trigger (⋮); open it, then click the Delete menuitem.
+		const txRow = page.getByRole('main').locator('.group', { hasText: '-₫50,000' });
+		await txRow.getByRole('button').last().click();
+		await page.getByRole('menuitem', { name: 'Delete' }).click();
 		await expect(page.getByRole('main').getByText('-₫50,000')).toHaveCount(0);
 	});
 

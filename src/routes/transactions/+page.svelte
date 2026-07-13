@@ -12,6 +12,8 @@
 	import { labelFor } from '$lib/utils/tx-kind';
 	import type { Transaction } from '$lib/db/repos/transactions';
 	import * as m from '$lib/paraglide/messages';
+	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
+	import ContextMenu from '$lib/components/primitives/ContextMenu.svelte';
 
 	let search = $state('');
 	let editing = $state<Transaction | null>(null);
@@ -82,10 +84,7 @@
 
 	<div class="bg-tape rounded-lg border border-line divide-y divide-line">
 		{#if displayItems.length === 0}
-			<div class="text-center py-12 text-dim">
-				<p class="text-3xl mb-2">📋</p>
-				<p class="text-sm">{m.transactions_empty_state()}</p>
-			</div>
+			<EmptyState message={m.transactions_empty_state()} icon="▮▯▯▯" />
 		{:else}
 			{#each displayItems as tx}
 				<div class="p-4 flex items-center justify-between group">
@@ -101,10 +100,10 @@
 					<span class="figures text-sm mr-3 {tx.kind === 'expense' ? 'text-debit' : tx.kind === 'income' ? 'text-phosphor' : 'text-dim'}">
 						{tx.kind === 'expense' ? '-' : ''}{formatCurrency(tx.amount, settings.currency, settings.locale)}
 					</span>
-					<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-						<button onclick={() => doDuplicate(tx)} class="text-xs text-dim hover:text-phosphor px-2" title={m.transactions_duplicate()}>↻</button>
-						<button onclick={() => doDelete(tx)} class="text-xs text-dim hover:text-debit px-2" title={m.common_delete()}>✕</button>
-					</div>
+					<ContextMenu label={m.transactions_duplicate() + ' · ' + m.common_delete()}>
+						<button onclick={() => doDuplicate(tx)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-ledger hover:bg-line/40">{m.transactions_duplicate()}</button>
+						<button onclick={() => doDelete(tx)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.common_delete()}</button>
+					</ContextMenu>
 				</div>
 			{/each}
 		{/if}
