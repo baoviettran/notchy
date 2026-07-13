@@ -132,9 +132,14 @@ test.describe('debts — extended', () => {
 		// the debts page reflects it.
 		await createLoanAccount(page, 'Loan from Person', 'Carol', 'Carol Debt');
 		await page.getByRole('link', { name: 'Accounts', exact: true }).click();
-		// Liability rows have hover-revealed Edit (accounts/+page.svelte:90).
+		// Liability rows have a ContextMenu trigger (⋮ button) that opens a dropdown with Edit.
 		const liabilitiesRow = page.getByRole('main').locator('section', { hasText: 'Liabilities' }).locator('div.group', { hasText: 'Carol' });
-		await liabilitiesRow.getByRole('button', { name: 'Edit', exact: true }).click();
+		const editButton = liabilitiesRow.getByRole('button', { name: /Edit/ });
+		await editButton.waitFor({ state: 'visible' });
+		await editButton.click();
+		const editMenuItem = page.getByRole('menuitem', { name: 'Edit' });
+		await editMenuItem.waitFor({ state: 'visible' });
+		await editMenuItem.click();
 		const editModal = page.getByRole('dialog');
 		await editModal.getByLabel('Counterparty').fill('Caroline');
 		await editModal.getByRole('button', { name: 'Save' }).click();

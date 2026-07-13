@@ -35,6 +35,7 @@
 			role="menu"
 			tabindex="-1"
 			onkeydown={(e) => e.key === 'Escape' && close()}
+			onclick={close}
 		>
 			{@render children()}
 		</div>

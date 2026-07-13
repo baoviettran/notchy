@@ -1,7 +1,7 @@
 # UX Friction Reduction — Phase 1 Audit
 
 **Date:** 2026-07-07
-**Status:** Design — pending implementation plan
+**Status:** Phase 1 implemented
 **Scope:** Behavioral UX audit of the current UI, identifying friction points and proposing phased fixes. No new features. Pure UX polish.
 
 ---
