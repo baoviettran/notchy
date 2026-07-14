@@ -2,6 +2,10 @@
 
 [English](README.md) | [Tiếng Việt](README.vi.md)
 
+<p align="center">
+  <img src="src-tauri/icons/icon.png" alt="Notchy" width="128" height="128">
+</p>
+
 Ứng dụng quản lý tài chính cá nhân cục bộ (local-first). Dữ liệu của bạn nằm trên thiết bị của bạn — không đám mây, không tài khoản, không đăng ký trả phí.
 
 ## Cài đặt

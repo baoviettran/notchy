@@ -2,6 +2,10 @@
 
 [English](README.md) | [Tiếng Việt](README.vi.md)
 
+<p align="center">
+  <img src="src-tauri/icons/icon.png" alt="Notchy" width="128" height="128">
+</p>
+
 A local-first personal finance application. Your data stays on your device — no cloud, no accounts, no subscriptions.
 
 ## Install

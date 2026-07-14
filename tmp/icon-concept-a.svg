@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" rx="200" fill="#14110C"/>
+  <defs>
+    <filter id="g" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+  </defs>
+  <!-- N glow -->
+  <path d="M352 692V332h56l208 280V332h56v360h-56L408 412v280z" fill="#FFB454" opacity="0.3" filter="url(#g)"/>
+  <!-- N -->
+  <path d="M352 692V332h56l208 280V332h56v360h-56L408 412v280z" fill="#FFB454"/>
+  <!-- underline -->
+  <rect x="352" y="720" width="320" height="10" rx="5" fill="#FFB454" opacity="0.35"/>
+</svg>
