@@ -2,7 +2,7 @@
 
 **Date run:** _______________
 **Tester:** _______________
-**App version:** v0.1.2
+**App version:** v0.1.3
 **Spec:** `specs/2026-07-02-smoke-test-checklist-design.md`
 
 ## How to use this checklist
@@ -23,11 +23,11 @@ Automated gates must be green before manual testing begins.
 
 - [ ] **`pnpm install` completes with no errors** — _Dependencies resolve cleanly._
   - 🐛 BUG:
-- [ ] **`pnpm test` — all unit/component tests pass** — _Expected: ≥ 297 passing (Vitest); count is a floor, not an exact target — it grows as tests are added. Note the actual count and confirm none fail._
+- [ ] **`pnpm test` — all unit/component tests pass** — _Expected: ≥ 345 passing (Vitest); count is a floor, not an exact target — it grows as tests are added. Note the actual count and confirm none fail._
   - 🐛 BUG:
 - [ ] **`pnpm check` — type check clean** — _Expected: 0 errors, 0 warnings (svelte-check)._
   - 🐛 BUG:
-- [ ] **`pnpm test:e2e` — all Playwright tests pass** — _Expected: ≥ 22 passing; count is a floor, not an exact target. Note the actual count and confirm none fail._
+- [ ] **`pnpm test:e2e` — all Playwright tests pass** — _Expected: ≥ 83 passing; count is a floor, not an exact target. Note the actual count and confirm none fail._
   - 🐛 BUG:
 - [ ] **`pnpm tauri dev` launches the desktop app** — _Main window opens, no errors in the dev console (open devtools), app loads on the dashboard or onboarding._
   - 🐛 BUG:
@@ -56,10 +56,24 @@ Fresh-start path. To reach onboarding, wipe the app data (delete the Tauri app-d
   - 🐛 BUG:
 - [ ] **Error state: enter an invalid account name (e.g. whitespace-only) or invalid opening balance** — _Input is rejected with a clear error message; no account is created with bad data._
   - 🐛 BUG:
+- [ ] **Tour: after completing onboarding, the tour auto-starts with a spotlight overlay** — _The first tour step highlights the Dashboard with a tooltip explaining the section; navigation is blocked until the tour completes or is skipped._
+  - 🐛 BUG:
+- [ ] **Tour: progress through all 5 steps (Dashboard, Transactions, Budgets, Reports, Settings)** — _Each step highlights the correct section with a clear tooltip; the "Next" button advances, "Back" returns to the previous step._
+  - 🐛 BUG:
+- [ ] **Dark mode (default): tour renders in the dark theme** — _Tour spotlight and tooltip are readable with correct contrast._
+  - 🐛 BUG:
+- [ ] **Vietnamese: with locale set to Tiếng Việt during onboarding, the tour tooltips render in Vietnamese** — _No English fallback strings appear in the tour overlay._
+  - 🐛 BUG:
+- [ ] **Light mode: switch theme to Light during the tour** — _Tour spotlight and tooltip are readable with correct contrast._
+  - 🐛 BUG:
+- [ ] **Edge case: skip the tour mid-way** — _Clicking "Skip" exits the tour immediately and lands on the current section; the tour does not auto-start again on the next app launch (tour_complete flag is set)._
+  - 🐛 BUG:
+- [ ] **Edge case: replay from Settings** — _After completing or skipping the tour, go to Settings → About → "Replay Tour"; the tour restarts from step 1._
+  - 🐛 BUG:
+- [ ] **Edge case: reduced motion preference** — _With OS reduced-motion preference enabled, the tour spotlight animation is disabled (no fade/scale transitions); the tour still functions normally._
+  - 🐛 BUG:
 
 ## Section 2 — Dashboard (≈5 min)
-
-Route: `/` (the app shell landing).
 
 - [ ] **Dashboard loads with widgets visible** — _Account-balance summary, recent-transactions list, and any budget/goal status widgets render with real values from the data created in Section 1._
   - 🐛 BUG:
@@ -71,7 +85,11 @@ Route: `/` (the app shell landing).
   - 🐛 BUG:
 - [ ] **Navigation: click each nav item (Transactions, Accounts, Budgets, Goals, Debts, Reports, Settings)** — _Each route loads without error and shows its own header/content._
   - 🐛 BUG:
-- [ ] **Empty state: with a fresh DB (only the onboarding account, no transactions/budgets/goals/debts)** — _Dashboard shows sensible empty states (e.g. "no recent transactions") rather than blank panels or `undefined`._
+- [ ] **Empty state: with a fresh DB (only the onboarding account, no transactions/budgets/goals/debts)** — _Dashboard shows sensible empty states (EmptyState component with icon, title, description) rather than blank panels or `undefined`._
+  - 🐛 BUG:
+- [ ] **BottomNav (mobile viewport ≤ 768px): resize the window to mobile width** — _The BottomNav shows primary items (Dashboard, Transactions, Budgets) and a "More" button; clicking "More" opens a slide-up sheet with secondary nav items (Goals, Debts, Reports, Settings)._
+  - 🐛 BUG:
+- [ ] **BottomNav: click a secondary nav item from the "More" sheet** — _The sheet closes and the app navigates to the selected route._
   - 🐛 BUG:
 - [ ] **Error state: malformed/missing data — delete the DB file while the app is running, then trigger a dashboard refetch (e.g. window focus / add a transaction)** — _App handles the missing DB gracefully (re-onboards or shows an error), does not crash to a white screen._
   - 🐛 BUG:
@@ -101,6 +119,10 @@ Route: `/transactions`. Covers all 5 transaction kinds, CRUD, locale shorthand, 
 - [ ] **Filter by kind: use the kind filter (expense / income / transfer / refund / adjustment)** — _Only rows of the selected kind are shown; counts and balances respect the filter._
   - 🐛 BUG:
 - [ ] **Payee autocomplete: start typing a known payee in the transaction form** — _The autocomplete surfaces matching existing payees; selecting one fills the field._
+  - 🐛 BUG:
+- [ ] **ContextMenu: right-click a transaction row** — _A context menu appears with actions (Edit, Delete); clicking Edit opens the transaction form pre-filled, clicking Delete removes the row after confirmation._
+  - 🐛 BUG:
+- [ ] **TransactionForm autofocus: open the add transaction form** — _The amount field is focused first (autofocus), not the account or date field; the form layout shows amount at the top._
   - 🐛 BUG:
 - [ ] **Dark mode (default): transaction list and form render in the dark theme** — _Amounts, kind icons, and dates are readable._
   - 🐛 BUG:
@@ -144,6 +166,8 @@ Routes: `/accounts` (list) and `/accounts/[id]` (detail).
 - [ ] **Liability balance sign: create a credit-card and a `loan_from_person` account with an opening balance** — _Both display as negative (money owed) in the list, detail, and dashboard totals; an asset account (checking) still shows positive._
   - 🐛 BUG:
 - [ ] **Loan-type account: create a `loan_to_person` / `loan_from_person` account** — _A counterparty is required and saved; the account cannot be edited to a non-loan type (or vice-versa) — the change is rejected with the `account_type_loan` error, not silently allowed._
+  - 🐛 BUG:
+- [ ] **ContextMenu: right-click an account row** — _A context menu appears with actions (Edit, Delete); clicking Edit opens the account form pre-filled, clicking Delete removes the account after confirmation._
   - 🐛 BUG:
 - [ ] **Dark mode (default): account list and detail render in the dark theme** — _Balances, type badges, and the reconciliation UI are readable._
   - 🐛 BUG:
@@ -264,7 +288,7 @@ Routes: `/reports` (overview), `/reports/trend` (trend), `/reports/compare` (com
 
 Routes: `/settings`, `/settings/categories`, `/settings/backup`.
 
-- [ ] **Settings page loads showing: Categories link, Backup link, Theme (auto/light/dark), Language (English/Tiếng Việt), Quick-add account picker, and a version line** — _All sections render; version shows `v0.1.2`._
+- [ ] **Settings page loads showing: Categories link, Backup link, Theme (auto/light/dark), Language (English/Tiếng Việt), Quick-add account picker, and a version line** — _All sections render; version shows `v0.1.3`._
   - 🐛 BUG:
 - [ ] **Theme → Auto: select Auto** — _Theme follows the OS preference (verify against your OS light/dark setting)._
   - 🐛 BUG:
@@ -278,7 +302,7 @@ Routes: `/settings`, `/settings/categories`, `/settings/backup`.
   - 🐛 BUG:
 - [ ] **Delete a tag that is in use → choose "Merge into another tag"** — _All transactions on the deleted tag are reassigned to the chosen target tag; the combined tag's totals reflect the merge._
   - 🐛 BUG:
-- [ ] **Backup → CSV export (`/settings/backup`): export transactions/accounts to CSV** — _A CSV file is written to the chosen path; opening it shows the expected rows and locale-formatted amounts. Note: CSV **import** has no UI in v0.1.2 (the `csvImportProfiles` repo is backend-only and not wired to any route) — do not look for an import-CSV button; only SQLite import is exposed._
+- [ ] **Backup → CSV export (`/settings/backup`): export transactions/accounts to CSV** — _A CSV file is written to the chosen path; opening it shows the expected rows and locale-formatted amounts. Note: CSV **import** has no UI in v0.1.3 (the `csvImportProfiles` repo is backend-only and not wired to any route) — do not look for an import-CSV button; only SQLite import is exposed._
   - 🐛 BUG:
 - [ ] **Backup → SQLite export: export the database file** — _A `.sqlite`/DB file is written to the chosen path._
   - 🐛 BUG:
@@ -344,7 +368,7 @@ Run `pnpm tauri build`, then launch the produced binary. No mode/locale sub-chec
   - 🐛 BUG:
 - [ ] **Launch the release binary** — _The app opens to the dashboard/onboarding without crashing._
   - 🐛 BUG:
-- [ ] **About/Settings version string** — _Displays `v0.1.2` (no leftover `v0.1.0`)._
+- [ ] **About/Settings version string** — _Displays `v0.1.3` (no leftover `v0.1.0`)._
   - 🐛 BUG:
 - [ ] **No dev artifacts visible in the release binary** — _No devtools auto-open, no source maps exposed in the UI, no dev-only console logs/errors shown to the user, no "development build" banner._
   - 🐛 BUG:
