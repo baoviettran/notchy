@@ -1,10 +1,10 @@
 # Notchy — Roadmap
 
-## Current: v0.1.0 ✅
+## Current: v0.1.3 ✅
 
-Single-device desktop application. Local-first, no sync, no cloud.
+Quality-of-life improvements and UX polish. Local-first desktop application.
 
-**Delivered:**
+**v0.1.0 — Foundation:**
 - 6 account types (checking, savings, cash, credit card, personal loans)
 - 5 transaction kinds (expense, income, transfer, refund, adjustment)
 - Monthly envelope budgets per bucket
@@ -17,6 +17,27 @@ Single-device desktop application. Local-first, no sync, no cloud.
 - English and Vietnamese (Paraglide JS)
 - Dark mode
 - Keyboard shortcuts
+
+**v0.1.1 — Budget Roll-overs + CSV Profile Model:**
+- Per-category budget roll-overs (cumulative, budget-row-gated, toggleable)
+- CSV import mapping-profile storage model (data layer only, no UI)
+
+**v0.1.2 — Tray Quick-Capture (Desktop):**
+- System tray icon with global shortcut `CmdOrCtrl+Shift+N`
+- 360×200 decoration-less "tape" quick-add window
+- Single-line tokenizer (`quick_parse.ts`)
+- Default quick-account persisted in `app_meta`
+- Cross-window refresh via Tauri `transaction:saved` event
+
+**v0.1.3 — First-Run Tour + UX Friction-Reduction:**
+- 5-step spotlight coachmark tour auto-starting after onboarding
+- Tour grandfather logic for existing users + replay button in Settings
+- EmptyState + ContextMenu primitives for consistent empty states and actions
+- TopBar utility bar (dead hamburger menu removed)
+- BottomNav "More" sheet for mobile secondary navigation
+- TransactionForm reordered (amount first with autofocus)
+- Dashboard inline quick-entry removed, EmptyState adopted for recent list
+- App icon and favicon updated to match VFD design system
 
 ---
 

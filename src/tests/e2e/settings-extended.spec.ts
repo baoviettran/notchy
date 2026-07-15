@@ -9,7 +9,7 @@ import { test, expect } from './fixtures/onboarded';
 //    87-93, active = border-phosphor); language buttons EN/VI (lines 98-106);
 //    quick-add account Select with a "— None —" option (lines 111-115,
 //    persists via setDefaultQuickAccount / clearDefaultQuickAccount); version
-//    line (line 121, settings_version = "Notchy v0.1.2").
+//    line (line 121, settings_version = "Notchy v0.1.3").
 //  - src/routes/settings/categories/+page.svelte: tag create/edit form with
 //    Name + Bucket Select (lines 116-117); rename + move-bucket on save
 //    (lines 37-38); delete with action Select offering "Uncategorise" or
@@ -29,10 +29,10 @@ import { test, expect } from './fixtures/onboarded';
 // for the quick-add picker (DB-backed, survives SPA navigation).
 
 test.describe('settings — extended', () => {
-	test('version line shows v0.1.2', async ({ onboardedPage: page }) => {
+	test('version line shows v0.1.3', async ({ onboardedPage: page }) => {
 		await page.getByRole('link', { name: 'Settings', exact: true }).click();
-		// settings/+page.svelte:121 settings_version = "Notchy v0.1.2".
-		await expect(page.getByRole('main').getByText(/v0\.1\.2/)).toBeVisible();
+		// settings/+page.svelte:121 settings_version = "Notchy v0.1.3".
+		await expect(page.getByRole('main').getByText(/v0\.1\.3/)).toBeVisible();
 	});
 
 	test('theme buttons switch the active selection (Auto / Light / Dark)', async ({ onboardedPage: page }) => {
