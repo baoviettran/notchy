@@ -119,6 +119,37 @@ export async function createTransaction(db: DatabaseService, input: NewTransacti
 	return id;
 }
 
+export async function createTransactions(db: DatabaseService, inputs: NewTransaction[]): Promise<string[]> {
+	if (inputs.length === 0) return [];
+
+	const now = new Date().toISOString();
+	const ids: string[] = [];
+
+	await db.transaction(async (tx) => {
+		for (const input of inputs) {
+			// Import rows are only expense or income — reject other kinds defensively.
+			if (input.kind !== 'expense' && input.kind !== 'income') {
+				throw new AppError('import_invalid_kind', { kind: input.kind });
+			}
+			if (input.refund_of_id) throw new AppError('import_no_refunds');
+
+			const description = input.description != null ? stripControlChars(input.description) : null;
+			const id = ulid();
+
+			await tx.execute(
+				`INSERT INTO transactions (id, kind, date, amount, account_id, refund_of_id, tag_id, payee, description, created_at, updated_at)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				[id, input.kind, input.date, input.amount, input.account_id,
+				 null, input.tag_id ?? null, input.payee ?? null, description, now, now]
+			);
+
+			ids.push(id);
+		}
+	});
+
+	return ids;
+}
+
 async function validateRefundTarget(db: DatabaseService, refundOfId: string): Promise<void> {
 	const rows = await db.query<{ kind: string }>(
 		`SELECT kind FROM transactions WHERE id = ? AND deleted_at IS NULL`,
