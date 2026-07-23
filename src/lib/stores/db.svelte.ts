@@ -18,8 +18,8 @@ class DbStore {
 
 			// E2E test hook: expose db + backup entry points on window so Playwright
 			// page.evaluate can drive the REAL createBackup/importDatabase against
-			// the Tauri IPC mock. Gated on a marker ONLY the e2e mock sets — real
-			// Tauri (production) never defines __NOTCHY_TAURI_MOCK_OPTIONS__, so this
+			// the Tauri IPC mock. Gated on the e2e mock marker — real Tauri
+			// (production) never defines __NOTCHY_TAURI_MOCK_OPTIONS__, so this
 			// branch is dead code in shipped builds and carries no surface/risk.
 			if (typeof window !== 'undefined' &&
 				(window as unknown as { __NOTCHY_TAURI_MOCK_OPTIONS__?: unknown }).__NOTCHY_TAURI_MOCK_OPTIONS__ !== undefined) {
