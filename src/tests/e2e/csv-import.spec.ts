@@ -20,10 +20,9 @@ test.describe('CSV import', () => {
 
     // Upload a CSV: row 1 duplicates the seeded 100 VND expense on today's date.
     // Use the seeded transaction's date (today) + amount 100 so dedup matches.
-    // addTransaction defaults the date to today in local timezone, so the CSV must use local date too.
-    // Note: Use local date, not UTC, to avoid timezone mismatch at midnight boundaries.
+    // The transaction form uses UTC date (toISOString().split('T')[0]), so the CSV must too.
     const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const todayStr = today.toISOString().split('T')[0];
     const csv = `date,amount,payee\n${todayStr},100,Duplicate Payee\n${todayStr},200,New Payee`;
     const fileInput = modal.locator('input[type="file"]');
     await fileInput.setInputFiles({
