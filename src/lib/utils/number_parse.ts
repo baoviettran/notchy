@@ -3,7 +3,7 @@ import { AppError } from '$lib/errors';
 export type Locale = 'en' | 'vi';
 
 /** Fraction digits per currency (smallest-unit storage). Mirrors currency.ts. */
-const FRACTION_DIGITS: Record<string, number> = {
+export const FRACTION_DIGITS: Record<string, number> = {
 	VND: 0,
 	USD: 2
 };
