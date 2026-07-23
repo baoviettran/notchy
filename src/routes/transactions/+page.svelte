@@ -14,10 +14,12 @@
 	import * as m from '$lib/paraglide/messages';
 	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
 	import ContextMenu from '$lib/components/primitives/ContextMenu.svelte';
+	import ImportTransactionsModal from '$lib/components/modals/ImportTransactionsModal.svelte';
 
 	let search = $state('');
 	let editing = $state<Transaction | null>(null);
 	let showEditModal = $state(false);
+	let showImport = $state(false);
 	let page = $state(0);
 	let hasNextPage = $state(false);
 	const PAGE_SIZE = 50;
@@ -73,6 +75,7 @@
 		<div class="flex-1">
 			<Input type="search" placeholder={m.transactions_search_placeholder()} bind:value={search} />
 		</div>
+		<Button size="sm" variant="secondary" onclick={() => showImport = true}>{m.import_tx_title()}</Button>
 		<Button size="sm" onclick={onSearch}>{m.common_search()}</Button>
 	</div>
 
@@ -114,6 +117,8 @@
 		<span class="text-dim">{m.transactions_page({ page: page + 1 })}</span>
 		<Button variant="ghost" size="sm" disabled={!hasNextPage} onclick={nextPage}>{m.transactions_next()}</Button>
 	</div>
+
+	<ImportTransactionsModal bind:open={showImport} />
 </div>
 
 <Modal bind:open={showEditModal} title={m.transactions_edit()}>
