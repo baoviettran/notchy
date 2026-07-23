@@ -58,7 +58,7 @@ test.describe('CSV import', () => {
     await modal.getByLabel('Select account').selectOption('Test Checking');
 
     const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const todayStr = today.toISOString().split('T')[0];
     const csv = `date,amount,payee\n${todayStr},300,Once Only`;
     await modal.locator('input[type="file"]').setInputFiles({
       name: 'test.csv', mimeType: 'text/csv', buffer: Buffer.from(csv)

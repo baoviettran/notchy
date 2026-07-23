@@ -161,7 +161,7 @@
             <span class="text-xs text-dim">{m.import_tx_mapping_date()}</span>
             <select bind:value={s.mapping.date} class="mt-1 w-full bg-ink border border-line rounded-md px-2 py-1.5 text-sm text-ledger">
               <option value={null}>{m.import_tx_mapping_ignore()}</option>
-              {#each s.rows[0].raw as header, i}<option value={i}>{header || `Column ${i + 1}`}</option>{/each}
+              {#each s.headerRow as header, i}<option value={i}>{header || `Column ${i + 1}`}</option>{/each}
             </select>
           </label>
 
@@ -170,7 +170,7 @@
               <span class="text-xs text-dim">{m.import_tx_mapping_amount()}</span>
               <select bind:value={s.mapping.amount} class="mt-1 w-full bg-ink border border-line rounded-md px-2 py-1.5 text-sm text-ledger">
                 <option value={null}>{m.import_tx_mapping_ignore()}</option>
-                {#each s.rows[0].raw as header, i}<option value={i}>{header || `Column ${i + 1}`}</option>{/each}
+                {#each s.headerRow as header, i}<option value={i}>{header || `Column ${i + 1}`}</option>{/each}
               </select>
             </label>
           {:else}
@@ -178,7 +178,7 @@
               <span class="text-xs text-dim">{m.import_tx_mapping_debit()}</span>
               <select bind:value={s.mapping.debit} class="mt-1 w-full bg-ink border border-line rounded-md px-2 py-1.5 text-sm text-ledger">
                 <option value={null}>{m.import_tx_mapping_ignore()}</option>
-                {#each s.rows[0].raw as header, i}<option value={i}>{header || `Column ${i + 1}`}</option>{/each}
+                {#each s.headerRow as header, i}<option value={i}>{header || `Column ${i + 1}`}</option>{/each}
               </select>
             </label>
 
@@ -186,7 +186,7 @@
               <span class="text-xs text-dim">{m.import_tx_mapping_credit()}</span>
               <select bind:value={s.mapping.credit} class="mt-1 w-full bg-ink border border-line rounded-md px-2 py-1.5 text-sm text-ledger">
                 <option value={null}>{m.import_tx_mapping_ignore()}</option>
-                {#each s.rows[0].raw as header, i}<option value={i}>{header || `Column ${i + 1}`}</option>{/each}
+                {#each s.headerRow as header, i}<option value={i}>{header || `Column ${i + 1}`}</option>{/each}
               </select>
             </label>
           {/if}
@@ -195,7 +195,7 @@
             <span class="text-xs text-dim">{m.import_tx_mapping_payee()}</span>
             <select bind:value={s.mapping.payee} class="mt-1 w-full bg-ink border border-line rounded-md px-2 py-1.5 text-sm text-ledger">
               <option value={null}>{m.import_tx_mapping_ignore()}</option>
-              {#each s.rows[0].raw as header, i}<option value={i}>{header || `Column ${i + 1}`}</option>{/each}
+              {#each s.headerRow as header, i}<option value={i}>{header || `Column ${i + 1}`}</option>{/each}
             </select>
           </label>
 
@@ -203,7 +203,7 @@
             <span class="text-xs text-dim">{m.import_tx_mapping_notes()}</span>
             <select bind:value={s.mapping.notes} class="mt-1 w-full bg-ink border border-line rounded-md px-2 py-1.5 text-sm text-ledger">
               <option value={null}>{m.import_tx_mapping_ignore()}</option>
-              {#each s.rows[0].raw as header, i}<option value={i}>{header || `Column ${i + 1}`}</option>{/each}
+              {#each s.headerRow as header, i}<option value={i}>{header || `Column ${i + 1}`}</option>{/each}
             </select>
           </label>
         </div>

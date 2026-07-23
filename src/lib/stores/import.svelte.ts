@@ -25,6 +25,7 @@ export interface ImportRow {
 export class ImportStore {
   phase = $state<Phase>('select');
   rows = $state<ImportRow[]>([]);
+  headerRow = $state<string[]>([]);
   mapping = $state<InferredMapping>({
     date: null, amount: null, payee: null, notes: null,
     debit: null, credit: null, signConvention: 'signed',
@@ -52,7 +53,14 @@ export class ImportStore {
     const header = parsed.rows[0];
     const dataRows = parsed.rows.slice(1);
 
+    this.headerRow = header;
     this.mapping = inferColumns(header, dataRows.slice(0, 20));
+
+    // If date format inference fails, default to YYYY-MM-DD so rows aren't all invalid
+    if (this.mapping.dateFormat === null) {
+      this.mapping.dateFormat = 'YYYY-MM-DD';
+    }
+
     this.rows = dataRows.map(raw => ({ raw, status: 'new' as RowStatus, included: true }));
 
     await this.loadExistingTransactions();
