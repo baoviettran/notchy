@@ -18,17 +18,22 @@ class DbStore {
 
 			// E2E test hook: expose db + backup entry points on window so Playwright
 			// page.evaluate can drive the REAL createBackup/importDatabase against
-			// the Tauri IPC mock. Gated on the e2e mock marker — real Tauri
-			// (production) never defines __NOTCHY_TAURI_MOCK_OPTIONS__, so this
-			// branch is dead code in shipped builds and carries no surface/risk.
-			if (typeof window !== 'undefined' &&
-				(window as unknown as { __NOTCHY_TAURI_MOCK_OPTIONS__?: unknown }).__NOTCHY_TAURI_MOCK_OPTIONS__ !== undefined) {
-				const backup = await import('$lib/backup');
-				(window as unknown as { __notchyTestHooks?: Record<string, unknown> }).__notchyTestHooks = {
-					getDb,
-					createBackup: backup.createBackup,
-					importDatabase: backup.importDatabase
-				};
+			// the Tauri IPC mock. Gated on the e2e mock marker OR the absence of
+			// Tauri (in-memory fallback path). Real Tauri (production) never defines
+			// __NOTCHY_TAURI_MOCK_OPTIONS__ and always has __TAURI_INTERNALS__, so
+			// this branch is dead code in shipped builds and carries no surface/risk.
+			if (typeof window !== 'undefined') {
+				const hasMockMarker = (window as unknown as { __NOTCHY_TAURI_MOCK_OPTIONS__?: unknown }).__NOTCHY_TAURI_MOCK_OPTIONS__ !== undefined;
+				const hasTauri = (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ !== undefined;
+
+				if (hasMockMarker || !hasTauri) {
+					const backup = await import('$lib/backup');
+					(window as unknown as { __notchyTestHooks?: Record<string, unknown> }).__notchyTestHooks = {
+						getDb,
+						createBackup: backup.createBackup,
+						importDatabase: backup.importDatabase
+					};
+				}
 			}
 		} catch (e) {
 			this.error = mapError(e);
