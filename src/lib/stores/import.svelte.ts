@@ -84,7 +84,8 @@ export class ImportStore {
     this.existingTx = await txRepo.listTransactions(this.db, {
       account_id: this.accountId,
       date_from: minDate,
-      date_to: maxDate
+      date_to: maxDate,
+      limit: 100_000
     });
   }
 

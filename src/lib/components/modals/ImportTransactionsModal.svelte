@@ -82,6 +82,8 @@
       }
       open = false;
       reset();
+    } catch (e) {
+      errorMsg = m.import_tx_error_commit();
     } finally {
       loading = false;
     }
@@ -243,6 +245,10 @@
         <p class="text-sm text-dim">
           {m.import_tx_summary({ count: newCount, duplicates: dupCount, invalid: invalidCount })}
         </p>
+
+        {#if errorMsg}
+          <p class="text-sm text-debit">{errorMsg}</p>
+        {/if}
 
         <div class="max-h-96 overflow-y-auto border border-line rounded-md">
           <table class="w-full text-sm">

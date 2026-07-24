@@ -75,6 +75,35 @@ describe('ImportStore', () => {
     expect(txs[0].payee).toBe('Store B');
   });
 
+  it('detects duplicates among transactions older than the default limit of 50', async () => {
+    // Insert 60 transactions spanning Jan 1 – Mar 1 2024 (60 days).
+    // listTransactions orders by date DESC, so with limit=50 the 10 oldest
+    // (Jan 1–10) would be missed. The CSV duplicates Jan 5 (day 5, oldest
+    // decile) to prove the explicit large limit loads all rows for dedup.
+    for (let i = 0; i < 60; i++) {
+      const d = new Date(2024, 0, 1 + i); // Jan 1 + i days
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      await txRepo.createTransaction(db, {
+        kind: 'expense',
+        date: iso,
+        amount: 100 * (i + 1),
+        account_id: 'acc1',
+        payee: `Store ${i + 1}`
+      });
+    }
+
+    // Row 1 duplicates Jan 5 (amount=500, the 5th inserted, beyond top-50 DESC).
+    // Row 2 is genuinely new.
+    const csv = 'date,amount,payee\n2024-01-05,500,Store 5\n2024-07-01,999,New Store';
+    await store.loadFile(csv, 'acc1');
+
+    expect(store.rows).toHaveLength(2);
+    expect(store.rows[0].status).toBe('duplicate');
+    expect(store.rows[0].included).toBe(false);
+    expect(store.rows[1].status).toBe('new');
+    expect(store.rows[1].included).toBe(true);
+  });
+
   it('reclassifies amounts when the user switches the amount locale to vi', async () => {
     // EU-format amounts under a US-inferred locale parse wrong until overridden.
     // Amount field is quoted because it contains an embedded comma (1.234,56).
