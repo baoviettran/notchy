@@ -48,6 +48,13 @@ describe('parseCsv', () => {
     expect(result.rows[1]).toEqual(['Store "A"', '100']);
   });
 
+  it('strips UTF-8 BOM from start of file', () => {
+    const csv = '﻿date,amount,payee\n2024-01-01,100,Store';
+    const result = parseCsv(csv);
+    expect(result.rows[0]).toEqual(['date', 'amount', 'payee']);
+    expect(result.rows[1]).toEqual(['2024-01-01', '100', 'Store']);
+  });
+
   it('throws AppError on empty file', () => {
     expect(() => parseCsv('')).toThrow();
     expect(() => parseCsv('   \n  ')).toThrow();

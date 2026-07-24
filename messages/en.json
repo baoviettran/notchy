@@ -206,6 +206,7 @@
 	"import_tx_commit_success": "Imported {count} transactions",
 	"import_tx_done": "Done",
 	"import_tx_error_commit": "Could not import transactions. Please try again.",
+	"import_tx_error_file_too_large": "File too large (>10MB). Please choose a smaller file.",
 	"import_tx_error_parse": "Could not parse this CSV file. Check that it is a valid CSV.",
 	"import_tx_load": "Load file",
 	"import_tx_mapping_amount": "Amount column",

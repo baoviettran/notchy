@@ -206,6 +206,7 @@
 	"import_tx_commit_success": "Đã nhập {count} giao dịch",
 	"import_tx_done": "Xong",
 	"import_tx_error_commit": "Không thể nhập giao dịch. Vui lòng thử lại.",
+	"import_tx_error_file_too_large": "File quá lớn (>10MB). Vui lòng chọn file nhỏ hơn.",
 	"import_tx_error_parse": "Không thể đọc file CSV. Kiểm tra lại file hợp lệ.",
 	"import_tx_load": "Tải file",
 	"import_tx_mapping_amount": "Cột số tiền",

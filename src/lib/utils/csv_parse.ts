@@ -10,6 +10,11 @@ export interface CsvParseResult {
 }
 
 export function parseCsv(text: string, opts?: CsvParseOptions): CsvParseResult {
+  // Strip UTF-8 BOM if present (common in Windows-exported CSV files)
+  if (text.charCodeAt(0) === 0xFEFF) {
+    text = text.slice(1);
+  }
+
   if (!text || text.trim() === '') {
     throw new AppError('import_csv_parse_failed', { reason: 'empty' });
   }

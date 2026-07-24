@@ -39,6 +39,13 @@
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
+
+    // Warn if file > 10MB
+    if (file.size > 10 * 1024 * 1024) {
+      errorMsg = m.import_tx_error_file_too_large();
+      return;
+    }
+
     fileText = await file.text();
   }
 
