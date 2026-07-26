@@ -35,7 +35,7 @@ describe('Migration 001 - schema', () => {
 		const indexes = await db.query<{ name: string }>(
 			`SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'`
 		);
-		expect(indexes.length).toBe(13);
+		expect(indexes.length).toBe(14);
 	});
 });
 
@@ -91,11 +91,11 @@ describe('Migration 003 - seed data', () => {
 		expect(rows[0].value).toHaveLength(26);
 	});
 
-	it('schema_version is 4', async () => {
+	it('schema_version is 5', async () => {
 		const rows = await db.query<{ value: string }>(
 			`SELECT value FROM app_meta WHERE key = 'schema_version'`
 		);
-		expect(rows[0].value).toBe('4');
+		expect(rows[0].value).toBe('5');
 	});
 });
 
@@ -133,7 +133,7 @@ describe('runMigrations — recovery from a half-applied state', () => {
 		// `db` is already fully migrated by beforeEach. Simulate the stuck state:
 		// roll schema_version back to 3 while keeping the rollover_enabled column.
 		// This is exactly the on-disk state that bricked boot with "duplicate
-		// column name". runMigrations must converge to schema_version=4 cleanly.
+		// column name". runMigrations must converge to schema_version=5 cleanly.
 		await db.execute(
 			`UPDATE app_meta SET value = '3' WHERE key = 'schema_version'`
 		);
@@ -141,7 +141,7 @@ describe('runMigrations — recovery from a half-applied state', () => {
 		const rows = await db.query<{ value: string }>(
 			`SELECT value FROM app_meta WHERE key = 'schema_version'`
 		);
-		expect(rows[0].value).toBe('4');
+		expect(rows[0].value).toBe('5');
 	});
 });
 
