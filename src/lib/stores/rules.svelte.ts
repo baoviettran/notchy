@@ -72,16 +72,16 @@ class RulesStore {
 
 			// Normalize each payee and find matches
 			const normalizedInput = normalizePayee(payee);
-			const matches = recent
-				.filter((t) => t.payee && normalizePayee(t.payee) === normalizedInput)
-				.slice(0, 3);
+			const matches = recent.filter(
+				(t) => t.payee && normalizePayee(t.payee) === normalizedInput
+			);
 
 			// Need at least 3
 			if (matches.length < 3) {
 				return { learned: false };
 			}
 
-			// Check if all 3 have the same tag_id
+			// Check if all matching transactions have the same tag_id
 			const tagIds = new Set(matches.map((t) => t.tag_id));
 			if (tagIds.size !== 1) {
 				return { learned: false };
