@@ -38,17 +38,34 @@ export async function expectOnDashboard(page: Page): Promise<void> {
 /**
  * Add a transaction via the dashboard FAB + modal. `amount` is the raw string
  * typed into the Amount field — pass '50k' to exercise parseAmount's shortcut.
- * The modal is scoped via getByRole('dialog') to isolate the Amount/Save
- * controls in case other dialogs or inputs appear on the page.
+ * `payee` and `tag` are optional: `payee` fills the Payee autocomplete (free-text),
+ * `tag` fills the Tag autocomplete (id-mode, selects by name).
+ * The modal is scoped via getByRole('dialog') to isolate the controls.
  */
 export async function addTransaction(
 	page: Page,
-	opts: { kind: 'expense' | 'income' | 'transfer'; amount: string }
+	opts: { kind: 'expense' | 'income' | 'transfer' | 'refund' | 'adjustment'; amount: string; payee?: string; tag?: string }
 ): Promise<void> {
 	await page.getByRole('button', { name: 'Add transaction' }).click();
 	const modal = page.getByRole('dialog');
 	await expect(modal.getByRole('heading', { name: 'Add transaction' })).toBeVisible();
 	await modal.getByRole('button', { name: opts.kind === 'transfer' ? 'Transfer' : capitalize(opts.kind), exact: true }).click();
+
+	// Fill payee first (triggers auto-fill if a rule exists)
+	if (opts.payee) {
+		await modal.getByLabel('Payee').fill(opts.payee);
+	}
+
+	// Tag — explicitly select, overriding any auto-fill. The Tag Autocomplete
+	// is id-mode (allowFreeText=false), so fill typed text → click the matching option.
+	if (opts.tag) {
+		const tagCombo = modal.getByLabel('Tag');
+		await tagCombo.fill(opts.tag);
+		const option = page.getByRole('option', { name: opts.tag });
+		await expect(option).toBeVisible();
+		await option.click();
+	}
+
 	await modal.getByLabel('Amount').fill(opts.amount);
 	await modal.getByRole('button', { name: 'Save' }).click();
 }
