@@ -2,6 +2,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/svelte';
 
+const mockMatchTag = vi.hoisted(() => vi.fn());
+
 // Mock stores to avoid sql.js wasm initialization in jsdom
 vi.mock('$lib/stores/transactions.svelte', () => ({
 	transactions: { items: [], load: vi.fn(), create: vi.fn(), update: vi.fn() }
@@ -20,6 +22,9 @@ vi.mock('$lib/stores/session.svelte', () => ({
 }));
 vi.mock('$lib/stores/toast.svelte', () => ({
 	toast: { show: vi.fn() }
+}));
+vi.mock('$lib/stores/rules.svelte', () => ({
+	rules: { matchTag: mockMatchTag, learnRule: vi.fn() }
 }));
 
 import TransactionForm from '$lib/components/forms/TransactionForm.svelte';
@@ -41,5 +46,12 @@ describe('TransactionForm', () => {
 		// Amount appears before Account in DOM order
 		expect(amountInput.compareDocumentPosition(accountSelect!))
 			.toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+	});
+
+	it('shows auto indicator when tag is auto-filled by rule', () => {
+		const tagId = '01ARZ3NDEKTSV4RRFFQ69G5FAV';
+		mockMatchTag.mockReturnValue(tagId);
+		render(TransactionForm, { mode: 'full' });
+		expect(screen.getByText('Auto')).toBeInTheDocument();
 	});
 });

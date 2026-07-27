@@ -226,6 +226,14 @@ describe('wave 6 messages', () => {
 	});
 });
 
+	it('renders forms_tag_auto in both locales', () => {
+		setLanguageTag('en');
+		expect(m.forms_tag_auto()).toBe('Auto');
+		setLanguageTag('vi');
+		expect(m.forms_tag_auto()).toBe('Tự động');
+		setLanguageTag('en');
+	});
+
 import { mapError } from '$lib/utils/errors';
 
 describe('backend error mapping', () => {
