@@ -160,6 +160,7 @@
 	"forms_saved": "Đã lưu · {kind} · {amount}",
 	"forms_saving": "Đang lưu...",
 	"forms_search_tags_placeholder": "Tìm nhãn...",
+	"forms_tag_auto": "Tự động",
 	"forms_select_account": "Chọn tài khoản",
 	"forms_select_destination": "Chọn tài khoản nhận",
 	"forms_tag": "Nhãn",

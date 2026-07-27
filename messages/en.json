@@ -160,6 +160,7 @@
 	"forms_saved": "Saved · {kind} · {amount}",
 	"forms_saving": "Saving...",
 	"forms_search_tags_placeholder": "Search tags...",
+	"forms_tag_auto": "Auto",
 	"forms_select_account": "Select an account",
 	"forms_select_destination": "Select a destination account",
 	"forms_tag": "Tag",

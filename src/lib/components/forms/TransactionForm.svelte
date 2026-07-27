@@ -176,6 +176,9 @@
 	{:else}
 		<Select label={m.forms_account()} bind:value={accountId} options={accountOptions} disabled={isEdit} />
 		<Autocomplete label={m.forms_tag()} bind:value={tagId} options={tagOptions} placeholder={m.forms_search_tags_placeholder()} />
+		{#if suggestedTag && tagId === suggestedTag}
+			<span class="text-xs text-dim mt-1">{m.forms_tag_auto()}</span>
+		{/if}
 	{/if}
 
 	<!-- PAYEE + DATE/DESCRIPTION (full mode only) -->
