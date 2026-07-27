@@ -39,6 +39,14 @@ Quality-of-life improvements and UX polish. Local-first desktop application.
 - Dashboard inline quick-entry removed, EmptyState adopted for recent list
 - App icon and favicon updated to match VFD design system
 
+**v0.1.4 — Categorize Rules Engine:**
+- Auto-categorization rules that learn from user behavior (3+ consistent transactions)
+- Vietnamese diacritic normalization (cà phê = ca phe)
+- Specificity ranking (exact > starts_with > contains)
+- Auto-fill tag in TransactionForm when payee matches a rule
+- "Auto" indicator showing when tag was auto-filled
+- Schema version bumped to 5
+
 ---
 
 ## v0.2 — Web Build

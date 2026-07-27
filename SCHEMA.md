@@ -154,3 +154,21 @@ Audit trail of all data changes. Written automatically by triggers.
 | payload | TEXT | JSON snapshot of the row at time of change |
 
 This table is used for auditing in v0.1 and will power the synchronisation engine in v0.4.
+
+## categorize_rules
+
+Auto-categorization rules that learn from user behavior.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | TEXT (PK) | ULID identifier |
+| payee_term | TEXT | Payee pattern to match (1-128 chars) |
+| match_mode | TEXT | One of: `is`, `starts_with`, `contains` |
+| tag_id | TEXT (FK) | References `category_tags.id` — the tag to auto-apply |
+| source | TEXT | One of: `manual`, `learned` |
+| enabled | INTEGER | 1 = active, 0 = disabled |
+| created_at | TEXT | ISO 8601 timestamp |
+| updated_at | TEXT | ISO 8601 timestamp |
+| deleted_at | TEXT | Soft-delete timestamp (NULL = active) |
+
+Rules are created automatically when the user categorizes 3+ transactions with the same payee and tag. Vietnamese diacritics are normalized (cà phê = ca phe). Specificity ranking: `is` > `starts_with` > `contains`. When multiple rules match, the most specific wins; ties with different tags are ambiguous and return no match.
