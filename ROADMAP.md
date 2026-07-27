@@ -1,8 +1,10 @@
 # Notchy — Roadmap
 
-## Current: v0.1.3 ✅
+## Current release: v0.1.3 ✅
 
 Quality-of-life improvements and UX polish. Local-first desktop application.
+
+**Next release: v0.1.4 — Categorize Rules Engine (implemented; unreleased).**
 
 **v0.1.0 — Foundation:**
 - 6 account types (checking, savings, cash, credit card, personal loans)
@@ -39,7 +41,7 @@ Quality-of-life improvements and UX polish. Local-first desktop application.
 - Dashboard inline quick-entry removed, EmptyState adopted for recent list
 - App icon and favicon updated to match VFD design system
 
-**v0.1.4 — Categorize Rules Engine:**
+**v0.1.4 — Categorize Rules Engine (implemented; unreleased):**
 - Auto-categorization rules that learn from user behavior (3+ consistent transactions)
 - Vietnamese diacritic normalization (cà phê = ca phe)
 - Specificity ranking (exact > starts_with > contains)
