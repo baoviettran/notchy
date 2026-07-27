@@ -9,6 +9,7 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import { session } from '$lib/stores/session.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
+	import { rules } from '$lib/stores/rules.svelte';
 	import { parseAmount } from '$lib/utils/number_parse';
 	import { formatCurrency } from '$lib/utils/currency';
 	import { onMount } from 'svelte';
@@ -35,6 +36,14 @@
 	let transferAccountId = $state(existing?.transfer_account_id ?? '');
 	let saving = $state(false);
 	let error = $state('');
+
+	let suggestedTag = $derived(rules.matchTag(payee));
+
+	$effect(() => {
+		if (suggestedTag && !tagId) {
+			tagId = suggestedTag;
+		}
+	});
 
 	const DRAFT_KEY = 'notchy_tx_draft';
 
