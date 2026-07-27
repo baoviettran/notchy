@@ -125,6 +125,14 @@
 					payee: payee || undefined,
 					description: description || undefined
 				});
+
+				// Learn rule from this transaction (fire-and-forget)
+				if (payee && tagId && kind !== 'transfer') {
+					rules.learnRule(payee, tagId).catch(() => {
+						// Learning failure is non-fatal; logged in learnRule
+					});
+				}
+
 				session.lastUsedAccountId = accountId;
 				session.lastEnteredDate = date;
 				toast.show(m.forms_saved({ kind, amount: formatCurrency(parsedAmount, settings.currency, settings.locale) }));
