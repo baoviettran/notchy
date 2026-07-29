@@ -83,11 +83,23 @@ export function parseTasks(planText) {
   const tasks = [];
   const taskHeaderRegex = /^(#{2,3})\s+Task\s+(\d+):\s*(.+)$/gm;
   const terminalSectionRegex = /^## (Self-Review|Self-Review Notes|Summary|Acceptance|Out of Scope|Open Questions)/m;
-  const stepRegex = /^- \[([ x])\]\s+\*\*Step\s+(\d+):\s*(.+?)\*\*\s*$/gm;
+  const stepRegex = /^- \[([ x])\]\s+\*\*Step\s+(\d+):\s*(.*?)\*\*\s*/gm;
+
+  // Filter out code block content to avoid extracting example tasks from code blocks.
+  // Replace code-block lines with same-length blank strings to preserve character offsets.
+  const lines = planText.split('\n');
+  let inCodeBlock = false;
+  const cleanText = lines.map(line => {
+    if (line.trim().startsWith('```')) {
+      inCodeBlock = !inCodeBlock;
+      return line; // keep fence lines as-is (they don't match task/step regex)
+    }
+    return inCodeBlock ? ' '.repeat(line.length) : line;
+  }).join('\n');
 
   let match;
   const taskStarts = [];
-  while ((match = taskHeaderRegex.exec(planText)) !== null) {
+  while ((match = taskHeaderRegex.exec(cleanText)) !== null) {
     taskStarts.push({
       headerLevel: match[1].length,
       number: parseInt(match[2]),
@@ -99,23 +111,50 @@ export function parseTasks(planText) {
 
   for (let i = 0; i < taskStarts.length; i++) {
     const task = taskStarts[i];
-    const nextTaskStart = i + 1 < taskStarts.length ? taskStarts[i + 1].startIndex : planText.length;
-    let taskBody = planText.slice(task.headerEnd, nextTaskStart);
+    const nextTaskStart = i + 1 < taskStarts.length ? taskStarts[i + 1].startIndex : cleanText.length;
+
+    // Use cleanText for finding task/step positions (avoids phantom tasks in code blocks)
+    let cleanTaskBody = cleanText.slice(task.headerEnd, nextTaskStart);
 
     // Stop at terminal section
-    const terminalMatch = taskBody.match(terminalSectionRegex);
+    const terminalMatch = cleanTaskBody.match(terminalSectionRegex);
     if (terminalMatch) {
-      taskBody = taskBody.slice(0, terminalMatch.index);
+      cleanTaskBody = cleanTaskBody.slice(0, terminalMatch.index);
     }
 
-    const steps = [];
+    // Use original planText for step content extraction (preserves code blocks with directives)
+    const originalTaskBody = planText.slice(task.headerEnd, nextTaskStart);
+    let originalBoundedBody = originalTaskBody;
+    if (terminalMatch) {
+      originalBoundedBody = originalTaskBody.slice(0, terminalMatch.index);
+    }
+
+    // Find step positions using cleanText
+    const stepPositions = [];
     let stepMatch;
     stepRegex.lastIndex = 0;
-    while ((stepMatch = stepRegex.exec(taskBody)) !== null) {
-      steps.push({
+    while ((stepMatch = stepRegex.exec(cleanTaskBody)) !== null) {
+      stepPositions.push({
         checkbox: stepMatch[1],
         stepNum: parseInt(stepMatch[2]),
-        text: stepMatch[3]
+        title: stepMatch[3],
+        index: stepMatch.index,
+        end: stepMatch.index + stepMatch[0].length
+      });
+    }
+
+    // Extract step content from original text (includes code blocks)
+    // Text = bold title + body (everything after closing ** up to next step or end of task)
+    const steps = [];
+    for (let j = 0; j < stepPositions.length; j++) {
+      const pos = stepPositions[j];
+      const nextPos = j + 1 < stepPositions.length ? stepPositions[j + 1].index : originalBoundedBody.length;
+      const body = originalBoundedBody.slice(pos.end, nextPos).trim();
+      const text = body ? `${pos.title}\n\n${body}` : pos.title;
+      steps.push({
+        checkbox: pos.checkbox,
+        stepNum: pos.stepNum,
+        text
       });
     }
 
