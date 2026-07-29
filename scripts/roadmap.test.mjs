@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeSubject, extractCommitSubject, parseTasks, matchGit, rollupStatus, validateStaleness } from './roadmap.mjs';
+import { normalizeSubject, extractCommitSubject, parseTasks, matchGit, rollupStatus, validateStaleness, renderMarkdown, renderStdoutTable } from './roadmap.mjs';
 
 describe('normalizeSubject', () => {
   it('parses type(scope): body', () => {
@@ -218,5 +218,47 @@ describe('validateStaleness', () => {
     const commits = [{ sha: 'abc1234', subject: 'test' }];
     const result = validateStaleness(statusMd, commits);
     expect(result.warnings).toContain('⚠ stale: SHA def5678 no longer in history (rebased/amended)');
+  });
+});
+
+describe('renderMarkdown', () => {
+  it('renders header with timestamp and summary', () => {
+    const plans = [
+      {
+        topic: 'test-confidence',
+        planPath: 'specs/plans/2026-07-27-test-confidence-improvement.md',
+        specPath: 'specs/2026-07-27-test-confidence-audit.md',
+        status: 'implemented-pending-checkbox',
+        tasks: [
+          {
+            number: 1,
+            title: 'Add migration fixtures',
+            steps: [{ checkbox: ' ' }, { checkbox: ' ' }],
+            directive: 'test: cover upgrades',
+            gitMatch: { sha: 'abc1234' }
+          }
+        ]
+      }
+    ];
+    const md = renderMarkdown(plans, 231);
+    expect(md).toContain('<!-- AUTO-GENERATED');
+    expect(md).toContain('# Roadmap Status');
+    expect(md).toContain('Plans: 1 | Commits: 231');
+    expect(md).toContain('## Plan: test-confidence');
+    expect(md).toContain('implemented-pending-checkbox');
+  });
+});
+
+describe('renderStdoutTable', () => {
+  it('renders one row per plan', () => {
+    const plans = [
+      { topic: 'test-confidence', status: 'implemented', tasks: [{ steps: [{ checkbox: 'x' }] }, { steps: [{ checkbox: 'x' }] }] },
+      { topic: 'categorize-rules', status: 'in-progress', tasks: [{ steps: [{ checkbox: 'x' }] }, { steps: [{ checkbox: ' ' }] }] }
+    ];
+    const table = renderStdoutTable(plans);
+    expect(table).toContain('test-confidence');
+    expect(table).toContain('implemented');
+    expect(table).toContain('categorize-rules');
+    expect(table).toContain('in-progress');
   });
 });
