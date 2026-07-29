@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeSubject, extractCommitSubject, parseTasks, matchGit, rollupStatus } from './roadmap.mjs';
+import { normalizeSubject, extractCommitSubject, parseTasks, matchGit, rollupStatus, validateStaleness } from './roadmap.mjs';
 
 describe('normalizeSubject', () => {
   it('parses type(scope): body', () => {
@@ -188,5 +188,35 @@ describe('rollupStatus', () => {
       { steps: [{ checkbox: 'x' }], directive: 'test: missing', gitMatch: null }
     ];
     expect(rollupStatus(tasks)).toBe('stale');
+  });
+});
+
+describe('validateStaleness', () => {
+  it('returns empty warnings if STATUS.md does not exist', () => {
+    const result = validateStaleness(null, []);
+    expect(result.warnings).toHaveLength(0);
+  });
+
+  it('returns empty warnings if all SHAs present', () => {
+    const statusMd = `
+| Task | SHA |
+| --- | --- |
+| 1 | abc1234 |
+`;
+    const commits = [{ sha: 'abc1234', subject: 'test' }];
+    const result = validateStaleness(statusMd, commits);
+    expect(result.warnings).toHaveLength(0);
+  });
+
+  it('warns if SHA in STATUS.md not in git log', () => {
+    const statusMd = `
+| Task | SHA |
+| --- | --- |
+| 1 | abc1234 |
+| 2 | def5678 |
+`;
+    const commits = [{ sha: 'abc1234', subject: 'test' }];
+    const result = validateStaleness(statusMd, commits);
+    expect(result.warnings).toContain('⚠ stale: SHA def5678 no longer in history (rebased/amended)');
   });
 });

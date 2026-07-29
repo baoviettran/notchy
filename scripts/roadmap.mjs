@@ -129,3 +129,20 @@ export function parseTasks(planText) {
 
   return tasks;
 }
+
+export function validateStaleness(existingStatusMd, commits) {
+  const warnings = [];
+  if (!existingStatusMd) return { warnings };
+
+  const shaRegex = /\|\s*([0-9a-f]{7})\s*\|/g;
+  const commitShas = new Set(commits.map(c => c.sha));
+  let match;
+  while ((match = shaRegex.exec(existingStatusMd)) !== null) {
+    const sha = match[1];
+    if (!commitShas.has(sha)) {
+      warnings.push(`⚠ stale: SHA ${sha} no longer in history (rebased/amended)`);
+    }
+  }
+
+  return { warnings };
+}
