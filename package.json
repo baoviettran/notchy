@@ -15,6 +15,7 @@
     "test:mutation:pure": "stryker run",
     "test:mutation:db": "stryker run stryker.db.conf.mjs",
     "test:release-smoke": "node -e \"import('./package.json', { with: { type: 'json' } }).then(({ default: pkg }) => console.log('Desktop release checklist: specs/2026-07-27-desktop-release-smoke-checklist.md\\nPackage version: ' + pkg.version))\"",
+    "test:roadmap": "node scripts/roadmap.mjs",
     "test:e2e": "playwright test",
     "tauri": "tauri"
   },
