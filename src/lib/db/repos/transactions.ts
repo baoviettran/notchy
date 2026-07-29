@@ -61,11 +61,11 @@ export async function listTransactions(db: DatabaseService, filter: TransactionF
 	if (filter.date_from) { conditions.push('t.date >= ?'); params.push(filter.date_from); }
 	if (filter.date_to) { conditions.push('t.date <= ?'); params.push(filter.date_to); }
 	if (filter.payee) {
-		conditions.push('t.payee LIKE ?');
+		conditions.push(`t.payee LIKE ? ESCAPE '\\'`);
 		params.push(`%${escapeLike(filter.payee)}%`);
 	}
 	if (filter.query) {
-		conditions.push('(t.payee LIKE ? OR t.description LIKE ?)');
+		conditions.push(`(t.payee LIKE ? ESCAPE '\\' OR t.description LIKE ? ESCAPE '\\')`);
 		const q = `%${escapeLike(filter.query)}%`;
 		params.push(q, q);
 	}

@@ -11,8 +11,8 @@ function uniqueSavepointName(): string {
 export class TestDatabase implements DatabaseService {
 	private db: BetterSqlite3.Database;
 
-	constructor() {
-		this.db = new BetterSqlite3(':memory:');
+	constructor(path = ':memory:') {
+		this.db = new BetterSqlite3(path);
 	}
 
 	async execute(sql: string, params: unknown[] = []): Promise<QueryResult> {
@@ -49,4 +49,8 @@ export class TestDatabase implements DatabaseService {
 
 export function createTestDb(): DatabaseService {
 	return new TestDatabase();
+}
+
+export function createTestDbFromPath(path: string): DatabaseService {
+	return new TestDatabase(path);
 }
