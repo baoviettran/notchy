@@ -55,6 +55,13 @@ UI (Svelte 5 components, $props, $state, $derived, $effect)
 - **Implementation plans** live at `specs/plans/`, e.g. `specs/plans/2026-07-01-v0.1.2-tray-quick-capture.md`.
 - Ignore the superpowers skill's default `docs/superpowers/specs/` and `docs/superpowers/plans/` paths — redirect both to `specs/` and `specs/plans/` respectively.
 
+## Spec/Plan Tracking
+
+- To answer "what's the roadmap progress / which specs are implemented," run `pnpm test:roadmap` and read `specs/STATUS.md` — do NOT re-scan plans + git log by hand.
+- `specs/STATUS.md` is **generated** (from `specs/plans/*.md` checkboxes + `git log`). Never hand-edit it; re-run `pnpm test:roadmap` to refresh.
+- **Checkbox discipline:** when a plan task's commit lands, flip that task's step checkboxes `- [ ]`→`- [x]` in the plan file. A task counts as done only if its box is `[x]` AND git log has the matching commit.
+- If `pnpm test:roadmap` prints `⚠ stale`, the rollup can't be trusted — regenerate it before relying on it. Nonzero exit = staleness detected.
+
 ## Gotchas
 - **`docs/` is a submodule** — see Repo Layout above. Files under `docs/` will not commit with the main repo.
 - **Schema-version call sites** — every migration that bumps the schema version must update *all* `importDatabase`/`validateImport` version literals (UI, unit, E2E fixtures). Updating only some breaks E2E silently.
