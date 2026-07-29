@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:mutation": "stryker run",
     "test:e2e": "playwright test",
     "tauri": "tauri"
   },
@@ -27,6 +28,8 @@
   "devDependencies": {
     "@fontsource/ibm-plex-mono": "5.2.7",
     "@playwright/test": "1.52.0",
+    "@stryker-mutator/core": "9.6.1",
+    "@stryker-mutator/vitest-runner": "9.6.1",
     "@sveltejs/adapter-static": "3.0.8",
     "@sveltejs/kit": "2.21.1",
     "@sveltejs/vite-plugin-svelte": "5.0.3",

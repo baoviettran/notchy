@@ -22,6 +22,18 @@ describe('matchRules', () => {
 		expect(matchRules('starbucks', rules)).toBe('tag-1');
 	});
 
+	it('does not match a different or empty normalized payee', () => {
+		const exactRules: CategorizeRuleLite[] = [
+			{ payee_term: 'starbucks', match_mode: 'is', tag_id: 'tag-1' }
+		];
+		expect(matchRules('Starbucks Reserve', exactRules)).toBeNull();
+
+		const emptyTermRules: CategorizeRuleLite[] = [
+			{ payee_term: '', match_mode: 'contains', tag_id: 'tag-1' }
+		];
+		expect(matchRules('   ', emptyTermRules)).toBeNull();
+	});
+
 	it('matches starts_with rule', () => {
 		const rules: CategorizeRuleLite[] = [
 			{ payee_term: 'star', match_mode: 'starts_with', tag_id: 'tag-1' }
@@ -42,6 +54,16 @@ describe('matchRules', () => {
 			{ payee_term: 'star', match_mode: 'starts_with', tag_id: 'tag-starts' },
 			{ payee_term: 'starbucks', match_mode: 'is', tag_id: 'tag-is' }
 		];
+		expect(matchRules('starbucks', rules)).toBe('tag-is');
+	});
+
+	it('ignores non-matching rules when resolving the highest rank', () => {
+		const rules: CategorizeRuleLite[] = [
+			{ payee_term: 'coffee', match_mode: 'contains', tag_id: 'tag-contains' },
+			{ payee_term: 'starbucks', match_mode: 'is', tag_id: 'tag-is' },
+			{ payee_term: 'starbucks reserve', match_mode: 'is', tag_id: 'tag-unmatched-is' }
+		];
+
 		expect(matchRules('starbucks', rules)).toBe('tag-is');
 	});
 

@@ -32,6 +32,26 @@ describe('exportCsv', () => {
 		expect(csvMap.get('transactions')).toBe('');
 	});
 
+	it('exports only rows that are not soft-deleted', async () => {
+		const visibleAccount = await accounts.createAccount(db, { name: 'Visible', type: 'checking', currency: 'VND' });
+		const deletedAccount = await accounts.createAccount(db, { name: 'Deleted', type: 'checking', currency: 'VND' });
+		await db.execute(`UPDATE accounts SET deleted_at = '2026-01-01T00:00:00.000Z' WHERE id = ?`, [deletedAccount]);
+		await db.execute(
+			`INSERT INTO transactions (id, kind, date, amount, account_id, created_at, updated_at, deleted_at)
+			 VALUES
+			 ('visible-transaction', 'expense', '2026-01-01', 100, ?, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z', NULL),
+			 ('deleted-transaction', 'expense', '2026-01-02', 200, ?, '2026-01-02T00:00:00.000Z', '2026-01-02T00:00:00.000Z', '2026-01-02T00:00:00.000Z')`,
+			[visibleAccount, visibleAccount]
+		);
+
+		const csvMap = await exportCsv(db);
+
+		expect(csvMap.get('accounts')).toContain('Visible');
+		expect(csvMap.get('accounts')).not.toContain('Deleted');
+		expect(csvMap.get('transactions')).toContain('visible-transaction');
+		expect(csvMap.get('transactions')).not.toContain('deleted-transaction');
+	});
+
 	it('neutralizes CSV formula injection in user content', async () => {
 		// A payee/description beginning with = + - @ or TAB is executed as a
 		// formula when the CSV is opened in Excel/LibreOffice — a real
@@ -46,6 +66,7 @@ describe('exportCsv', () => {
 		);
 		const csvMap = await exportCsv(db);
 		const accountsCsv = csvMap.get('accounts')!;
+
 		// The leading = must be neutralized to a text literal.
 		expect(accountsCsv).toContain("'=CMD|");
 		expect(accountsCsv).not.toMatch(/[^']=[A-Z]/); // no un-neutralized =formula
@@ -64,6 +85,14 @@ describe('validateImport', () => {
 		const result = await validateImport(db, 99);
 		expect(result.valid).toBe(false);
 		expect(result.error).toContain('Schema version mismatch');
+	});
+
+	it('rejects a database missing a required table', async () => {
+		await db.execute('DROP TABLE category_tags');
+
+		const result = await validateImport(db, 5);
+
+		expect(result).toEqual({ valid: false, error: 'Missing required table: category_tags' });
 	});
 });
 
@@ -109,5 +138,39 @@ describe('createBackup', () => {
 		} finally {
 			rmSync(tmpDir, { recursive: true, force: true });
 		}
+	});
+});
+
+describe('backup mutation boundaries', () => {
+	it('formats backup filenames without SQL-unsafe timestamp punctuation', async () => {
+		const tmpDir = mkdtempSync(join(tmpdir(), 'notchy-backup-name-'));
+		try {
+			const path = await createBackup(db, tmpDir);
+			const filename = path.slice(tmpDir.length + 1);
+			expect(filename).toMatch(/^notchy-backup-[^:.]+\.sqlite$/);
+		} finally {
+			rmSync(tmpDir, { recursive: true, force: true });
+		}
+	});
+
+	it('returns exactly the oldest paths while preserving the caller order', () => {
+		const backups = [
+			{ path: '/backup/newest.sqlite', timestamp: '2026-05-12', size: 1 },
+			{ path: '/backup/oldest.sqlite', timestamp: '2026-05-01', size: 1 },
+			{ path: '/backup/middle.sqlite', timestamp: '2026-05-06', size: 1 }
+		];
+
+		expect(getBackupsToDelete(backups, 1)).toEqual(['/backup/middle.sqlite', '/backup/oldest.sqlite']);
+		expect(backups.map((backup) => backup.path)).toEqual([
+			'/backup/newest.sqlite', '/backup/oldest.sqlite', '/backup/middle.sqlite'
+		]);
+	});
+
+	it('quotes CSV fields containing commas, quotes, and newlines', async () => {
+		await accounts.createAccount(db, { name: 'Comma, "quoted"\nnext line', type: 'checking', currency: 'VND' });
+
+		const csv = (await exportCsv(db)).get('accounts')!;
+
+		expect(csv).toContain('"Comma, ""quoted""\nnext line"');
 	});
 });

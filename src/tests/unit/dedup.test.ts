@@ -11,6 +11,19 @@ describe('classifyRow', () => {
     expect(result.status).toBe('new');
   });
 
+  it('requires account, date, and amount to all match before classifying a duplicate', () => {
+    const candidate = { accountId: 'acc1', date: '2024-01-01', amount: 100, kind: 'expense' as const };
+    const existingRows = [
+      { id: 'different-account', accountId: 'acc2', date: '2024-01-01', amount: 100, kind: 'expense' },
+      { id: 'different-date', accountId: 'acc1', date: '2024-01-02', amount: 100, kind: 'expense' },
+      { id: 'different-amount', accountId: 'acc1', date: '2024-01-01', amount: 200, kind: 'expense' }
+    ];
+
+    for (const existing of existingRows) {
+      expect(classifyRow(candidate, [existing])).toEqual({ status: 'new' });
+    }
+  });
+
   it('classifies row as duplicate when match found', () => {
     const candidate = { accountId: 'acc1', date: '2024-01-01', amount: 100, kind: 'expense' as const };
     const existing = [
