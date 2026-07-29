@@ -21,7 +21,9 @@ export function matchRules(payee: string | null, rules: CategorizeRuleLite[]): s
 	for (const rule of rules) {
 		const normalizedTerm = normalizePayee(rule.payee_term);
 		if (!normalizedTerm) continue;
-		let isMatch = false;
+		// Every case below reassigns isMatch; the false default only guards an
+	// out-of-type match_mode at runtime (TS prevents that at compile time).
+	let isMatch = false;
 
 		switch (rule.match_mode) {
 			case 'is':
