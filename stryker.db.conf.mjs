@@ -6,7 +6,14 @@ const config = {
 	testRunner: 'vitest',
 	mutate: [
 		'src/lib/db/repos/transactions.ts',
-		'src/lib/backup/index.ts'
+		// The Tauri-only runAutoBackup/importDatabase paths are exercised by
+		// Playwright, which Vitest/Stryker does not run. Keep this target to the
+		// backup helpers covered by the real-SQL Vitest suite.
+		'src/lib/backup/index.ts:13-21',
+		'src/lib/backup/index.ts:96-100',
+		'src/lib/backup/index.ts:105-123',
+		'src/lib/backup/index.ts:129-163',
+		'src/lib/backup/index.ts:209-222'
 	]
 };
 

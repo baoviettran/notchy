@@ -34,6 +34,14 @@ describe('matchRules', () => {
 		expect(matchRules('   ', emptyTermRules)).toBeNull();
 	});
 
+	it('ignores a whitespace-only contains term for a nonempty payee', () => {
+		const rules: CategorizeRuleLite[] = [
+			{ payee_term: '   ', match_mode: 'contains', tag_id: 'tag-1' }
+		];
+
+		expect(matchRules('starbucks', rules)).toBeNull();
+	});
+
 	it('matches starts_with rule', () => {
 		const rules: CategorizeRuleLite[] = [
 			{ payee_term: 'star', match_mode: 'starts_with', tag_id: 'tag-1' }

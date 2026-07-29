@@ -20,6 +20,7 @@ export function matchRules(payee: string | null, rules: CategorizeRuleLite[]): s
 
 	for (const rule of rules) {
 		const normalizedTerm = normalizePayee(rule.payee_term);
+		if (!normalizedTerm) continue;
 		let isMatch = false;
 
 		switch (rule.match_mode) {
