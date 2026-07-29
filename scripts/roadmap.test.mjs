@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeSubject, extractCommitSubject, parseTasks, matchGit } from './roadmap.mjs';
+import { normalizeSubject, extractCommitSubject, parseTasks, matchGit, rollupStatus } from './roadmap.mjs';
 
 describe('normalizeSubject', () => {
   it('parses type(scope): body', () => {
@@ -147,5 +147,46 @@ describe('matchGit', () => {
     ];
     const result = matchGit('test: cover upgrades from released database fixtures', commitsWithDupes);
     expect(result).toEqual({ sha: 'aaa1111', additionalMatches: 1 });
+  });
+});
+
+describe('rollupStatus', () => {
+  it('returns planned when no tasks done', () => {
+    const tasks = [
+      { steps: [{ checkbox: ' ' }], directive: null, gitMatch: null },
+      { steps: [{ checkbox: ' ' }], directive: null, gitMatch: null }
+    ];
+    expect(rollupStatus(tasks)).toBe('planned');
+  });
+
+  it('returns in-progress when some tasks done', () => {
+    const tasks = [
+      { steps: [{ checkbox: 'x' }], directive: 'test: done', gitMatch: { sha: 'abc1234' } },
+      { steps: [{ checkbox: ' ' }], directive: null, gitMatch: null }
+    ];
+    expect(rollupStatus(tasks)).toBe('in-progress');
+  });
+
+  it('returns implemented when all tasks have box [x] and commit matched', () => {
+    const tasks = [
+      { steps: [{ checkbox: 'x' }], directive: 'test: one', gitMatch: { sha: 'abc1234' } },
+      { steps: [{ checkbox: 'x' }], directive: 'test: two', gitMatch: { sha: 'def5678' } }
+    ];
+    expect(rollupStatus(tasks)).toBe('implemented');
+  });
+
+  it('returns implemented-pending-checkbox when all commits present but boxes open', () => {
+    const tasks = [
+      { steps: [{ checkbox: ' ' }], directive: 'test: one', gitMatch: { sha: 'abc1234' } },
+      { steps: [{ checkbox: ' ' }], directive: 'test: two', gitMatch: { sha: 'def5678' } }
+    ];
+    expect(rollupStatus(tasks)).toBe('implemented-pending-checkbox');
+  });
+
+  it('returns stale when box [x] but no matching commit', () => {
+    const tasks = [
+      { steps: [{ checkbox: 'x' }], directive: 'test: missing', gitMatch: null }
+    ];
+    expect(rollupStatus(tasks)).toBe('stale');
   });
 });

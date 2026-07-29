@@ -51,6 +51,34 @@ export function matchGit(directiveSubject, commits) {
   return match;
 }
 
+export function rollupStatus(tasks) {
+  let stale = false;
+  let allDone = true;
+  let doneCount = 0;
+  let allHaveCommits = tasks.length > 0;
+
+  for (const task of tasks) {
+    const allChecked = task.steps.length > 0 && task.steps.every(s => s.checkbox === 'x');
+    const hasMatch = !!task.gitMatch;
+
+    if (allChecked && !hasMatch) {
+      stale = true;
+    }
+
+    const taskDone = allChecked && hasMatch;
+    if (taskDone) doneCount++;
+    else allDone = false;
+
+    if (!hasMatch) allHaveCommits = false;
+  }
+
+  if (stale) return 'stale';
+  if (allDone) return 'implemented';
+  if (doneCount > 0) return 'in-progress';
+  if (allHaveCommits) return 'implemented-pending-checkbox';
+  return 'planned';
+}
+
 export function parseTasks(planText) {
   const tasks = [];
   const taskHeaderRegex = /^(#{2,3})\s+Task\s+(\d+):\s*(.+)$/gm;
