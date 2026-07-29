@@ -190,3 +190,85 @@ export function renderStdoutTable(plans) {
   }
   return table;
 }
+
+import { readFileSync, writeFileSync, existsSync, globSync } from 'node:fs';
+import { execSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+async function main() {
+  // 1. Gather inputs
+  const planPaths = globSync('specs/plans/*.md');
+  const specPaths = globSync('specs/*.md');
+  const gitLogOutput = execSync('git log --format="%h\t%s"', { encoding: 'utf-8' });
+  const commits = gitLogOutput.trim().split('\n').map(line => {
+    const [sha, ...subjectParts] = line.split('\t');
+    return { sha, subject: subjectParts.join('\t') };
+  });
+
+  // 2. Build spec index by topic slug
+  const specIndex = {};
+  for (const specPath of specPaths) {
+    const filename = specPath.split('/').pop();
+    const match = filename.match(/^\d{4}-\d{2}-\d{2}-(.+?)(?:-design)?\.md$/);
+    if (match) {
+      specIndex[match[1]] = specPath;
+    }
+  }
+
+  // 3. Parse each plan
+  const plans = [];
+  for (const planPath of planPaths.sort().reverse()) {
+    const planText = readFileSync(planPath, 'utf-8');
+    const filename = planPath.split('/').pop();
+    const match = filename.match(/^\d{4}-\d{2}-\d{2}-(.+)\.md$/);
+    const topic = match ? match[1] : filename;
+
+    const tasks = parseTasks(planText);
+    for (const task of tasks) {
+      const finalStep = task.steps[task.steps.length - 1];
+      const directive = finalStep ? extractCommitSubject(finalStep.text) : null;
+      const gitMatch = directive ? matchGit(directive, commits) : null;
+      task.directive = directive;
+      task.gitMatch = gitMatch;
+    }
+
+    const status = rollupStatus(tasks);
+    const specPath = specIndex[topic] || null;
+
+    plans.push({ topic, planPath, specPath, status, tasks });
+  }
+
+  // 4. Validate staleness
+  const existingStatusMd = existsSync('specs/STATUS.md') ? readFileSync('specs/STATUS.md', 'utf-8') : null;
+  const { warnings } = validateStaleness(existingStatusMd, commits);
+  for (const plan of plans) {
+    const allBoxesFlipped = plan.tasks.every(t => t.steps.every(s => s.checkbox === 'x'));
+    const noCommits = plan.tasks.every(t => !t.gitMatch);
+    if (allBoxesFlipped && noCommits && plan.tasks.length > 0) {
+      warnings.push(`⚠ stale: plan ${plan.topic} has all boxes flipped but no matching commits`);
+    }
+  }
+
+  // 5. Render and write
+  const markdown = renderMarkdown(plans, commits.length);
+  writeFileSync('specs/STATUS.md', markdown);
+
+  // 6. Print stdout table
+  console.log(renderStdoutTable(plans));
+
+  // 7. Exit with appropriate code
+  if (warnings.length > 0) {
+    for (const warning of warnings) {
+      console.error(warning);
+    }
+    process.exit(1);
+  }
+}
+
+const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+if (isMain) {
+  main().catch(err => {
+    console.error(err);
+    process.exit(1);
+  });
+}
