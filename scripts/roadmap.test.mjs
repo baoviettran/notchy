@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeSubject, extractCommitSubject, parseTasks } from './roadmap.mjs';
+import { normalizeSubject, extractCommitSubject, parseTasks, matchGit } from './roadmap.mjs';
 
 describe('normalizeSubject', () => {
   it('parses type(scope): body', () => {
@@ -114,5 +114,38 @@ This is not a task.
     const tasks = parseTasks(planText);
     expect(tasks).toHaveLength(1);
     expect(tasks[0].title).toBe('Real task');
+  });
+});
+
+describe('matchGit', () => {
+  const commits = [
+    { sha: 'abc1234', subject: 'feat(db): add migration 005 for categorize_rules table' },
+    { sha: 'def5678', subject: 'test: cover upgrades from released database fixtures' },
+    { sha: 'ghi9012', subject: 'docs: add desktop release smoke checklist' }
+  ];
+
+  it('matches scope-agnostic body substring', () => {
+    const result = matchGit('feat(categorize-rules): add migration 005 for categorize_rules table', commits);
+    expect(result).toEqual({ sha: 'abc1234', additionalMatches: 0 });
+  });
+
+  it('matches unscoped directive', () => {
+    const result = matchGit('test: cover upgrades from released database fixtures', commits);
+    expect(result).toEqual({ sha: 'def5678', additionalMatches: 0 });
+  });
+
+  it('returns null if no match', () => {
+    const result = matchGit('feat: nonexistent feature', commits);
+    expect(result).toBeNull();
+  });
+
+  it('counts additional matches', () => {
+    const commitsWithDupes = [
+      { sha: 'aaa1111', subject: 'test: cover upgrades from released database fixtures' },
+      { sha: 'bbb2222', subject: 'test: cover upgrades from released database fixtures' },
+      { sha: 'ccc3333', subject: 'docs: something else' }
+    ];
+    const result = matchGit('test: cover upgrades from released database fixtures', commitsWithDupes);
+    expect(result).toEqual({ sha: 'aaa1111', additionalMatches: 1 });
   });
 });

@@ -29,6 +29,28 @@ export function extractCommitSubject(taskFinalStepText) {
   return null;
 }
 
+export function matchGit(directiveSubject, commits) {
+  const directiveBody = normalizeSubject(directiveSubject).body;
+  let match = null;
+  let additionalMatches = 0;
+
+  for (const commit of commits) {
+    const commitBody = normalizeSubject(commit.subject).body;
+    if (commitBody.includes(directiveBody)) {
+      if (!match) {
+        match = { sha: commit.sha, additionalMatches: 0 };
+      } else {
+        additionalMatches++;
+      }
+    }
+  }
+
+  if (match) {
+    match.additionalMatches = additionalMatches;
+  }
+  return match;
+}
+
 export function parseTasks(planText) {
   const tasks = [];
   const taskHeaderRegex = /^(#{2,3})\s+Task\s+(\d+):\s*(.+)$/gm;
