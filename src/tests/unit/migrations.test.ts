@@ -1,5 +1,9 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { createTestDb } from './helpers/test-db';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { copyFile, mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createTestDb, createTestDbFromPath } from './helpers/test-db';
 import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
 import { migration001 } from '$lib/db/migrations/001_initial';
@@ -9,10 +13,116 @@ import { migration004 } from '$lib/db/migrations/004_rollover_toggle';
 import type { DatabaseService } from '$lib/db/service';
 
 let db: DatabaseService;
+const temporaryPaths: string[] = [];
+const fixtureDbs: DatabaseService[] = [];
+
+afterEach(async () => {
+	await Promise.all(fixtureDbs.splice(0).map((fixtureDb) => fixtureDb.close()));
+	await Promise.all(temporaryPaths.splice(0).map((path) => rm(path, { recursive: true, force: true })));
+});
+
+async function copyMigrationFixture(name: string): Promise<DatabaseService> {
+	const directory = await mkdtemp(join(tmpdir(), 'notchy-migration-fixture-'));
+	temporaryPaths.push(directory);
+	const path = join(directory, name);
+	await copyFile(fileURLToPath(new URL(`../fixtures/migrations/${name}`, import.meta.url)), path);
+	const fixtureDb = createTestDbFromPath(path);
+	fixtureDbs.push(fixtureDb);
+	return fixtureDb;
+}
 
 beforeEach(async () => {
 	db = createTestDb();
 	await runMigrations(db, migrations);
+});
+
+describe('test database fixture helper', () => {
+	it('opens a file-backed database at the supplied path', async () => {
+		const directory = await mkdtemp(join(tmpdir(), 'notchy-migration-test-'));
+		temporaryPaths.push(directory);
+		const fixtureDb = createTestDbFromPath(join(directory, 'fixture.sqlite'));
+
+		await fixtureDb.execute('CREATE TABLE test_rows (id TEXT PRIMARY KEY)');
+		await fixtureDb.execute(`INSERT INTO test_rows (id) VALUES ('persisted')`);
+		await fixtureDb.close();
+
+		const reopenedDb = createTestDbFromPath(join(directory, 'fixture.sqlite'));
+		expect(await reopenedDb.query<{ id: string }>('SELECT id FROM test_rows')).toEqual([
+			{ id: 'persisted' }
+		]);
+		await reopenedDb.close();
+	});
+});
+
+describe('released database fixtures', () => {
+	it.each([
+		['v003.sqlite', '3', 'acct_fixture_v003', 'tag_fixture_v003', 'txn_fixture_v003', 123456789],
+		['v004.sqlite', '4', 'acct_fixture_v004', 'tag_fixture_v004', 'txn_fixture_v004', 987654321]
+	])(
+		'upgrades %s while preserving the seeded rows',
+		async (fixture, releasedSchemaVersion, accountId, tagId, transactionId, amount) => {
+			const fixtureDb = await copyMigrationFixture(fixture);
+			expect(
+				await fixtureDb.query<{ value: string }>(
+					`SELECT value FROM app_meta WHERE key = 'schema_version'`
+				)
+			).toEqual([{ value: releasedSchemaVersion }]);
+			await runMigrations(fixtureDb, migrations);
+
+			expect(
+				await fixtureDb.query<{ value: string }>(
+					`SELECT value FROM app_meta WHERE key = 'schema_version'`
+				)
+			).toEqual([{ value: '5' }]);
+			expect(await fixtureDb.query<{ id: string }>(`SELECT id FROM accounts WHERE id = ?`, [accountId])).toEqual([
+				{ id: accountId }
+			]);
+			expect(await fixtureDb.query<{ id: string }>(`SELECT id FROM category_tags WHERE id = ?`, [tagId])).toEqual([
+				{ id: tagId }
+			]);
+			expect(
+				await fixtureDb.query<{ id: string; amount: number; tag_id: string }>(
+					`SELECT id, amount, tag_id FROM transactions WHERE id = ?`,
+					[transactionId]
+				)
+			).toEqual([{ id: transactionId, amount, tag_id: tagId }]);
+
+			const rolledBackAccountId = `rollback-${accountId}`;
+			await expect(
+				fixtureDb.transaction(async (tx) => {
+					await tx.execute(
+						`INSERT INTO accounts (id, name, type, currency, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+						[
+							rolledBackAccountId,
+							'Rollback account',
+							'checking',
+							'VND',
+							'2025-03-01T00:00:00.000Z',
+							'2025-03-01T00:00:00.000Z'
+						]
+					);
+					await tx.execute(
+						`INSERT INTO transactions (id, kind, date, amount, account_id, tag_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+						[
+							`rollback-${transactionId}`,
+							'expense',
+							'2025-03-01',
+							0,
+							rolledBackAccountId,
+							tagId,
+							'2025-03-01T00:00:00.000Z',
+							'2025-03-01T00:00:00.000Z'
+						]
+					);
+				})
+			).rejects.toThrow();
+			expect(
+				await fixtureDb.query<{ id: string }>(`SELECT id FROM accounts WHERE id = ?`, [
+					rolledBackAccountId
+				])
+			).toEqual([]);
+		}
+	);
 });
 
 describe('Migration 001 - schema', () => {
