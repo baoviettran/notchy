@@ -1,6 +1,6 @@
 # Light Machine Rollout Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Finish the Adding Machine design system across the whole app and make it consistent in both light and dark modes, with light as the primary surface.
 
@@ -66,7 +66,7 @@ This is the foundation. Everything else depends on it. The Tailwind token *names
 
 This is a configuration/CSS change (CLAUDE.md "configuration files" exception — verified by `pnpm check` + visual sweep, not unit tests).
 
-- [ ] **Step 1: Rewrite the color tokens in `tailwind.config.ts`**
+- [x] **Step 1: Rewrite the color tokens in `tailwind.config.ts`**
 
 Replace the entire `colors` object inside `theme.extend` with variable-backed tokens. The `fontFamily` block stays untouched.
 
@@ -100,7 +100,7 @@ export default {
 } satisfies Config;
 ```
 
-- [ ] **Step 2: Rewrite the base + components layer of `src/app.css`**
+- [x] **Step 2: Rewrite the base + components layer of `src/app.css`**
 
 Replace everything from `/* ===...` down through the end of `@layer components { ... }` (the `@layer utilities` block and the `@keyframes` + `@media (prefers-reduced-motion)` blocks at the bottom stay untouched). The new version defines the variable blocks and re-points every hardcoded hex at a variable.
 
@@ -207,17 +207,17 @@ Replace everything from `/* ===...` down through the end of `@layer components {
 
 Note: the existing `@keyframes flash` keyframes hardcode amber RGBA — leave them (dark-only animation; acceptable since `.animate-flash` is only used on the loading splash in dark-first contexts). Do not touch the `@layer utilities` or reduced-motion blocks.
 
-- [ ] **Step 3: Verify TypeScript + build still pass**
+- [x] **Step 3: Verify TypeScript + build still pass**
 
 Run: `pnpm check`
 Expected: no errors (config + CSS are not type-checked, but this confirms nothing else broke).
 
-- [ ] **Step 4: Run the existing component tests to confirm no regressions**
+- [x] **Step 4: Run the existing component tests to confirm no regressions**
 
 Run: `pnpm test`
 Expected: all pass. The tests assert class *names* (`bg-phosphor`, `bg-debit`, Modal `aria-label="Close"`), which are unchanged.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tailwind.config.ts src/app.css
@@ -245,7 +245,7 @@ This is a behavioral change to a store with logic, so it gets a unit test (TDD).
 - Consumes: `meta.getMeta` / `setMeta` (existing) — unchanged.
 - Produces: `settings.theme` initial value is `'light'`; `settings.load()` applies the `html.light`/`html.dark` class; `settings.setTheme(t)` sets state and applies the class (existing behavior, preserved).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/tests/unit/stores/settings.theme.test.ts`:
 
@@ -284,12 +284,12 @@ describe('settings theme', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm test src/tests/unit/stores/settings.theme.test.ts`
 Expected: FAIL — `defaults to light` fails because the current default is `'auto'`.
 
-- [ ] **Step 3: Change the default and apply the class on load**
+- [x] **Step 3: Change the default and apply the class on load**
 
 In `src/lib/stores/settings.svelte.ts`, change line 9 from:
 
@@ -330,17 +330,17 @@ Replace the `setTheme` method (lines 37–43) with:
 	}
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm test src/tests/unit/stores/settings.theme.test.ts`
 Expected: PASS — all four cases green.
 
-- [ ] **Step 5: Run the full suite to confirm no regressions**
+- [x] **Step 5: Run the full suite to confirm no regressions**
 
 Run: `pnpm test`
 Expected: all pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/lib/stores/settings.svelte.ts src/tests/unit/stores/settings.theme.test.ts
@@ -366,7 +366,7 @@ These are markup-only changes (no behavioral/API change), so they are verified b
 
 **Interfaces:** unchanged (same props, same snippets).
 
-- [ ] **Step 1: `Select.svelte`**
+- [x] **Step 1: `Select.svelte`**
 
 Replace the label class and the `<select>` class.
 
@@ -388,7 +388,7 @@ to:
 		class="w-full px-3 py-2 text-base rounded-md border border-line bg-ink text-ledger"
 ```
 
-- [ ] **Step 2: `Autocomplete.svelte`**
+- [x] **Step 2: `Autocomplete.svelte`**
 
 Label (line 35) — from `text-zinc-700 dark:text-zinc-300` to:
 ```svelte
@@ -422,7 +422,7 @@ to:
 					class="w-full text-left px-3 py-2 text-sm hover:bg-line/40 transition-colors {opt.value === value ? 'text-phosphor font-medium' : 'text-ledger'}"
 ```
 
-- [ ] **Step 3: `ConfirmDialog.svelte`**
+- [x] **Step 3: `ConfirmDialog.svelte`**
 
 Backdrop `<div>` (line 16) — keep `bg-black/40 backdrop-blur-sm` (a scrim over content; mode-neutral). Leave it.
 
@@ -445,7 +445,7 @@ Message `<p>` (line 20) — from `text-sm text-zinc-500` to `text-sm text-dim`:
 			<p class="text-sm text-dim">{message}</p>
 ```
 
-- [ ] **Step 4: `Skeleton.svelte`**
+- [x] **Step 4: `Skeleton.svelte`**
 
 Line 7 — from:
 ```svelte
@@ -456,7 +456,7 @@ to:
 		<div class="{height} bg-line rounded"></div>
 ```
 
-- [ ] **Step 5: `Toast.svelte`**
+- [x] **Step 5: `Toast.svelte`**
 
 Line 15 — from:
 ```svelte
@@ -472,7 +472,7 @@ Action button (line 18) — from `text-emerald-400 hover:text-emerald-300` to:
 		<button onclick={onaction} class="font-semibold text-phosphor hover:text-phosphor-bright uppercase text-xs">{action}</button>
 ```
 
-- [ ] **Step 6: `GlobalToast.svelte`**
+- [x] **Step 6: `GlobalToast.svelte`**
 
 Container (line 6) — from:
 ```svelte
@@ -496,7 +496,7 @@ Dismiss button (line 14) — from `text-zinc-400 hover:text-white` to:
 		<button onclick={() => toast.dismiss()} class="text-dim hover:text-ledger ml-2 text-xs">✕</button>
 ```
 
-- [ ] **Step 7: `DonutChart.svelte`**
+- [x] **Step 7: `DonutChart.svelte`**
 
 Inner circle (line in the `<svg>`) — from `class="fill-white dark:fill-zinc-800"` to:
 ```svelte
@@ -509,17 +509,17 @@ Legend label (in the legend `<div>`) — from `text-zinc-600 dark:text-zinc-400`
 				<span class="text-dim">{item.label}</span>
 ```
 
-- [ ] **Step 8: Verify no remaining `zinc`/`emerald`/`red` literals in primitives**
+- [x] **Step 8: Verify no remaining `zinc`/`emerald`/`red` literals in primitives**
 
 Run: `grep -rnE "zinc|emerald|red-[0-9]|bg-white|text-white" src/lib/components/primitives src/lib/components/charts`
 Expected: no matches (or only the deliberate `bg-black/40` scrim in ConfirmDialog, which is not matched by this grep).
 
-- [ ] **Step 9: Run type check + tests**
+- [x] **Step 9: Run type check + tests**
 
 Run: `pnpm check && pnpm test`
 Expected: pass. `Select.test.ts` and `Input.test.ts` assert behavior (render label, render options, disabled), not color classes — they stay green.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add src/lib/components/primitives src/lib/components/charts
@@ -550,7 +550,7 @@ Verified by `pnpm check` + visual sweep (configuration/markup exception).
 - Modify: `src/routes/accounts/+page.svelte`
 - Modify: `src/routes/accounts/[id]/+page.svelte`
 
-- [ ] **Step 1: Rewrite `src/routes/accounts/+page.svelte`**
+- [x] **Step 1: Rewrite `src/routes/accounts/+page.svelte`**
 
 Full file. The `<script>` block is unchanged; only the template classes change. Replace the entire `<div class="space-y-6">…</div>` template (lines 40–112) with:
 
@@ -632,7 +632,7 @@ Full file. The `<script>` block is unchanged; only the template classes change. 
 
 Leave the two `<Modal>` / `<ConfirmDialog>` blocks at the bottom (lines 114–124) untouched.
 
-- [ ] **Step 2: Rewrite `src/routes/accounts/[id]/+page.svelte` template (lines 73–132)**
+- [x] **Step 2: Rewrite `src/routes/accounts/[id]/+page.svelte` template (lines 73–132)**
 
 The `<script>` (lines 1–71) and the `<Modal>` / `<ConfirmDialog>` blocks (lines 134–155) are unchanged. Replace the `<div class="space-y-6">…</div>` template. Note the amount-color ternary and the reconciliation delta: `text-red-500` (expense) → `text-debit`; `text-emerald-500` (income) → `text-phosphor`; `text-zinc-500` (transfer) → `text-dim`. The reconciliation `Δ` is green when balanced (`text-emerald-600` → `text-phosphor`) and amber when off (`text-amber-600` → `text-phosphor` too — consolidate on the system accent; both are "informational", and phosphor is readable either way).
 
@@ -699,12 +699,12 @@ The `<script>` (lines 1–71) and the `<Modal>` / `<ConfirmDialog>` blocks (line
 </div>
 ```
 
-- [ ] **Step 3: Type check**
+- [x] **Step 3: Type check**
 
 Run: `pnpm check`
 Expected: pass.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/routes/accounts/+page.svelte src/routes/accounts/[id]/+page.svelte
@@ -723,7 +723,7 @@ Same mapping as Task 4. Specifics for this page:
 **Files:**
 - Modify: `src/routes/transactions/+page.svelte`
 
-- [ ] **Step 1: Rewrite the template of `src/routes/transactions/+page.svelte`**
+- [x] **Step 1: Rewrite the template of `src/routes/transactions/+page.svelte`**
 
 Replace the template (lines 191–236). The `<script>` and final `<Modal>` are unchanged.
 
@@ -776,12 +776,12 @@ Replace the template (lines 191–236). The `<script>` and final `<Modal>` are u
 </div>
 ```
 
-- [ ] **Step 2: Type check**
+- [x] **Step 2: Type check**
 
 Run: `pnpm check`
 Expected: pass.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/routes/transactions/+page.svelte
@@ -799,7 +799,7 @@ Three list pages, same mapping. Grouped because they share the identical primiti
 - Modify: `src/routes/goals/+page.svelte`
 - Modify: `src/routes/debts/+page.svelte`
 
-- [ ] **Step 1: Rewrite `src/routes/budgets/+page.svelte` template (lines 298–350)**
+- [x] **Step 1: Rewrite `src/routes/budgets/+page.svelte` template (lines 298–350)**
 
 ```svelte
 <div class="space-y-6">
@@ -857,7 +857,7 @@ Three list pages, same mapping. Grouped because they share the identical primiti
 </div>
 ```
 
-- [ ] **Step 2: Rewrite `src/routes/goals/+page.svelte` template (lines 385–436)**
+- [x] **Step 2: Rewrite `src/routes/goals/+page.svelte` template (lines 385–436)**
 
 ```svelte
 <div class="space-y-6">
@@ -916,7 +916,7 @@ Three list pages, same mapping. Grouped because they share the identical primiti
 
 Leave the `<Modal>` (lines 438–440) untouched.
 
-- [ ] **Step 3: Rewrite `src/routes/debts/+page.svelte` template (lines 510–566)**
+- [x] **Step 3: Rewrite `src/routes/debts/+page.svelte` template (lines 510–566)**
 
 Amount color semantics: a debt I owe is negative → `text-debit`; owed to me is positive → `text-phosphor`. `emerald` action links → `phosphor`.
 
@@ -982,12 +982,12 @@ Amount color semantics: a debt I owe is negative → `text-debit`; owed to me is
 
 Leave the `<Modal>` at the bottom (lines 568–579) untouched.
 
-- [ ] **Step 4: Type check**
+- [x] **Step 4: Type check**
 
 Run: `pnpm check`
 Expected: pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/routes/budgets/+page.svelte src/routes/goals/+page.svelte src/routes/debts/+page.svelte
@@ -1009,7 +1009,7 @@ Three report pages. Same mapping plus:
 - Modify: `src/routes/reports/trend/+page.svelte`
 - Modify: `src/routes/reports/compare/+page.svelte`
 
-- [ ] **Step 1: Rewrite `src/routes/reports/+page.svelte` template (lines 619–698)**
+- [x] **Step 1: Rewrite `src/routes/reports/+page.svelte` template (lines 619–698)**
 
 ```svelte
 <div class="space-y-6">
@@ -1095,7 +1095,7 @@ Three report pages. Same mapping plus:
 </div>
 ```
 
-- [ ] **Step 2: Rewrite `src/routes/reports/trend/+page.svelte` template (lines 725–785)**
+- [x] **Step 2: Rewrite `src/routes/reports/trend/+page.svelte` template (lines 725–785)**
 
 ```svelte
 <div class="space-y-6">
@@ -1161,7 +1161,7 @@ Three report pages. Same mapping plus:
 </div>
 ```
 
-- [ ] **Step 3: Rewrite `src/routes/reports/compare/+page.svelte` template (lines 821–873)**
+- [x] **Step 3: Rewrite `src/routes/reports/compare/+page.svelte` template (lines 821–873)**
 
 ```svelte
 <div class="space-y-6">
@@ -1220,12 +1220,12 @@ Three report pages. Same mapping plus:
 </div>
 ```
 
-- [ ] **Step 4: Type check**
+- [x] **Step 4: Type check**
 
 Run: `pnpm check`
 Expected: pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/routes/reports
@@ -1243,7 +1243,7 @@ The three settings pages. The theme selector is the one place accent matters mos
 - Modify: `src/routes/settings/categories/+page.svelte`
 - Modify: `src/routes/settings/backup/+page.svelte`
 
-- [ ] **Step 1: Rewrite `src/routes/settings/+page.svelte` template (lines 886–925)**
+- [x] **Step 1: Rewrite `src/routes/settings/+page.svelte` template (lines 886–925)**
 
 The `<script>` (lines 877–883) is unchanged.
 
@@ -1291,7 +1291,7 @@ The `<script>` (lines 877–883) is unchanged.
 </div>
 ```
 
-- [ ] **Step 2: Rewrite `src/routes/settings/categories/+page.svelte` template (lines 1006–1038)**
+- [x] **Step 2: Rewrite `src/routes/settings/categories/+page.svelte` template (lines 1006–1038)**
 
 The `<script>` and the two `<Modal>` blocks (lines 1040–1070) are unchanged.
 
@@ -1336,7 +1336,7 @@ Also update the delete-modal body text (line 1054) — from `text-sm text-zinc-6
 			<p class="text-sm text-dim">
 ```
 
-- [ ] **Step 3: Rewrite `src/routes/settings/backup/+page.svelte` template (lines 1145–1170)**
+- [x] **Step 3: Rewrite `src/routes/settings/backup/+page.svelte` template (lines 1145–1170)**
 
 The `<script>` and the `<ConfirmDialog>` (lines 1172–1178) are unchanged.
 
@@ -1369,17 +1369,17 @@ The `<script>` and the `<ConfirmDialog>` (lines 1172–1178) are unchanged.
 </div>
 ```
 
-- [ ] **Step 4: Verify no `zinc`/`emerald`/`red-` literals remain anywhere in routes**
+- [x] **Step 4: Verify no `zinc`/`emerald`/`red-` literals remain anywhere in routes**
 
 Run: `grep -rnE "zinc|emerald|red-[0-9]|amber-[0-9]" src/routes src/lib/components`
 Expected: no matches. (Any match is a missed element — fix it before committing.)
 
-- [ ] **Step 5: Full type check + test suite**
+- [x] **Step 5: Full type check + test suite**
 
 Run: `pnpm check && pnpm test`
 Expected: pass — `pnpm check` clean, all component tests green (class names unchanged; behavior assertions unaffected).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/routes/settings
@@ -1392,28 +1392,28 @@ git commit -m "refactor: migrate Settings pages to Machine tokens"
 
 The unit tests can't verify color contrast or visual consistency. This task is the human/agent verification gate. Use the `run` skill to launch the app, then screenshot each route in both themes.
 
-- [ ] **Step 1: Launch the dev app**
+- [x] **Step 1: Launch the dev app**
 
 Use the `run` skill (or `pnpm tauri dev`). Confirm the app boots in **light** (the new default).
 
-- [ ] **Step 2: Sweep every route in light mode**
+- [x] **Step 2: Sweep every route in light mode**
 
 Navigate to each and confirm the palette is consistent (paper-bone ground, ochre figures, no stray white/dark cards, readable contrast):
 `/` (dashboard), `/transactions`, `/accounts`, `/accounts/<id>`, `/budgets`, `/goals`, `/debts`, `/reports`, `/reports/trend`, `/reports/compare`, `/settings`, `/settings/categories`, `/settings/backup`.
 
-- [ ] **Step 3: Toggle to dark and re-sweep**
+- [x] **Step 3: Toggle to dark and re-sweep**
 
 In Settings → Theme → `dark`. Re-confirm each route reads as the original phosphor-on-ink Machine system (no muddy glow, figures crisp).
 
-- [ ] **Step 4: Verify the theme toggle persists across navigation**
+- [x] **Step 4: Verify the theme toggle persists across navigation**
 
 Pick `light`, navigate away and back to `/settings`; confirm the button still shows `light` active. (Note: theme is in-memory only — a full app restart resets to the `light` default, which is expected and in-scope.)
 
-- [ ] **Step 5: Fix any visual regressions found**
+- [x] **Step 5: Fix any visual regressions found**
 
 If a route shows a stray default color or broken contrast, re-edit that file using the same mapping and re-commit with `fix:`.
 
-- [ ] **Step 6: Final full-suite gate**
+- [x] **Step 6: Final full-suite gate**
 
 Run: `pnpm check && pnpm test`
 Expected: pass.

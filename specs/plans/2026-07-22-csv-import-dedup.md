@@ -1,6 +1,6 @@
 # CSV Transaction Import Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Add CSV transaction import with editable column mapping, strict duplicate detection (DB + intra-file), and preview-then-commit flow.
 
@@ -59,7 +59,7 @@
 - Consumes: `AppError` from `$lib/errors`
 - Produces: `parseCsv(text: string, opts?: CsvParseOptions): CsvParseResult`
 
-- [ ] **Step 1: Write failing test for basic CSV parsing**
+- [x] **Step 1: Write failing test for basic CSV parsing**
 
 ```typescript
 // src/tests/unit/csv_parse.test.ts
@@ -79,12 +79,12 @@ describe('parseCsv', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test:watch src/tests/unit/csv_parse.test.ts`
 Expected: FAIL with "Cannot find module '$lib/utils/csv_parse'"
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```typescript
 // src/lib/utils/csv_parse.ts
@@ -188,12 +188,12 @@ function parseRows(text: string, delimiter: string): string[][] {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/csv_parse.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Write test for quoted fields with embedded delimiters and newlines**
+- [x] **Step 5: Write test for quoted fields with embedded delimiters and newlines**
 
 ```typescript
 // Add to src/tests/unit/csv_parse.test.ts
@@ -211,12 +211,12 @@ it('handles embedded newlines inside quoted fields', () => {
 });
 ```
 
-- [ ] **Step 6: Run test to verify it passes**
+- [x] **Step 6: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/csv_parse.test.ts`
 Expected: PASS
 
-- [ ] **Step 7: Write test for semicolon and tab delimiters**
+- [x] **Step 7: Write test for semicolon and tab delimiters**
 
 ```typescript
 // Add to src/tests/unit/csv_parse.test.ts
@@ -238,12 +238,12 @@ it('auto-detects tab delimiter', () => {
 });
 ```
 
-- [ ] **Step 8: Run test to verify it passes**
+- [x] **Step 8: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/csv_parse.test.ts`
 Expected: PASS
 
-- [ ] **Step 9: Write test for escaped quotes and empty file**
+- [x] **Step 9: Write test for escaped quotes and empty file**
 
 ```typescript
 // Add to src/tests/unit/csv_parse.test.ts
@@ -259,12 +259,12 @@ it('throws AppError on empty file', () => {
 });
 ```
 
-- [ ] **Step 10: Run test to verify it passes**
+- [x] **Step 10: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/csv_parse.test.ts`
 Expected: PASS
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add src/lib/utils/csv_parse.ts src/tests/unit/csv_parse.test.ts
@@ -285,7 +285,7 @@ git commit -m "feat(csv-import): add pure CSV parser with delimiter auto-detect"
 - Consumes: Nothing (pure)
 - Produces: `parseCsvAmount(raw: string, locale: 'en' | 'vi'): number | null` (returns float; caller scales to smallest unit)
 
-- [ ] **Step 1: Write failing test for US and EU formats**
+- [x] **Step 1: Write failing test for US and EU formats**
 
 ```typescript
 // src/tests/unit/parse_csv_amount.test.ts
@@ -313,12 +313,12 @@ describe('parseCsvAmount', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test:watch src/tests/unit/parse_csv_amount.test.ts`
 Expected: FAIL with "Cannot find module '$lib/utils/parse_csv_amount'"
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```typescript
 // src/lib/utils/parse_csv_amount.ts
@@ -372,12 +372,12 @@ export function parseCsvAmount(raw: string, locale: AmountLocale): number | null
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/parse_csv_amount.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Write test for negative amounts and currency symbols**
+- [x] **Step 5: Write test for negative amounts and currency symbols**
 
 ```typescript
 // Add to src/tests/unit/parse_csv_amount.test.ts
@@ -392,12 +392,12 @@ it('strips currency symbols and spaces', () => {
 });
 ```
 
-- [ ] **Step 6: Run test to verify it passes**
+- [x] **Step 6: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/parse_csv_amount.test.ts`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/lib/utils/parse_csv_amount.ts src/tests/unit/parse_csv_amount.test.ts
@@ -416,7 +416,7 @@ git commit -m "feat(csv-import): add locale-aware CSV amount parser"
 - Consumes: Nothing (pure)
 - Produces: `inferColumns(header: string[] | null, sampleRows: string[][]): InferredMapping`
 
-- [ ] **Step 1: Write failing test for English header inference**
+- [x] **Step 1: Write failing test for English header inference**
 
 ```typescript
 // src/tests/unit/infer_columns.test.ts
@@ -439,12 +439,12 @@ describe('inferColumns', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test:watch src/tests/unit/infer_columns.test.ts`
 Expected: FAIL with "Cannot find module '$lib/utils/infer_columns'"
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```typescript
 // src/lib/utils/infer_columns.ts
@@ -556,12 +556,12 @@ function inferDateFormat(sample: string, sampleRows: string[][], dateCol: number
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/infer_columns.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Write test for Vietnamese headers and EU date**
+- [x] **Step 5: Write test for Vietnamese headers and EU date**
 
 ```typescript
 // Add to src/tests/unit/infer_columns.test.ts
@@ -586,12 +586,12 @@ it('disambiguates MM/DD when a sample day exceeds 12', () => {
 });
 ```
 
-- [ ] **Step 6: Run test to verify it passes**
+- [x] **Step 6: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/infer_columns.test.ts`
 Expected: PASS
 
-- [ ] **Step 7: Write test for debit/credit separate columns**
+- [x] **Step 7: Write test for debit/credit separate columns**
 
 ```typescript
 // Add to src/tests/unit/infer_columns.test.ts
@@ -607,12 +607,12 @@ it('detects debit/credit separate columns', () => {
 });
 ```
 
-- [ ] **Step 8: Run test to verify it passes**
+- [x] **Step 8: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/infer_columns.test.ts`
 Expected: PASS
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/lib/utils/infer_columns.ts src/tests/unit/infer_columns.test.ts
@@ -631,7 +631,7 @@ git commit -m "feat(csv-import): add pure column inference with EN+Vi headers"
 - Consumes: Nothing (pure)
 - Produces: `classifyRow(candidate, existing[]): ClassifyResult` — `existing` is the combined set of DB transactions AND already-classified pending rows from the same file (enables intra-file dedup).
 
-- [ ] **Step 1: Write failing test for new row**
+- [x] **Step 1: Write failing test for new row**
 
 ```typescript
 // src/tests/unit/dedup.test.ts
@@ -650,12 +650,12 @@ describe('classifyRow', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test:watch src/tests/unit/dedup.test.ts`
 Expected: FAIL with "Cannot find module '$lib/utils/dedup'"
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```typescript
 // src/lib/utils/dedup.ts
@@ -699,12 +699,12 @@ export function classifyRow(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/dedup.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Write tests for duplicate, invalid, and magnitude-only matching**
+- [x] **Step 5: Write tests for duplicate, invalid, and magnitude-only matching**
 
 ```typescript
 // Add to src/tests/unit/dedup.test.ts
@@ -753,12 +753,12 @@ it('matches against the first of multiple existing matches', () => {
 });
 ```
 
-- [ ] **Step 6: Run test to verify it passes**
+- [x] **Step 6: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/dedup.test.ts`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/lib/utils/dedup.ts src/tests/unit/dedup.test.ts
@@ -777,7 +777,7 @@ git commit -m "feat(csv-import): add pure dedup classifier with magnitude matchi
 - Consumes: `DatabaseService`, `NewTransaction`, `ulid`, `stripControlChars`, `AppError`
 - Produces: `createTransactions(db: DatabaseService, inputs: NewTransaction[]): Promise<string[]>`
 
-- [ ] **Step 1: Write failing test for batch insert**
+- [x] **Step 1: Write failing test for batch insert**
 
 ```typescript
 // Add to src/tests/unit/transactions.test.ts (append a new describe block)
@@ -817,12 +817,12 @@ describe('createTransactions (batch)', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test:watch src/tests/unit/transactions.test.ts`
 Expected: FAIL with "repo.createTransactions is not a function"
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Append to `src/lib/db/repos/transactions.ts` after the `createTransaction` function (after line 120):
 
@@ -859,12 +859,12 @@ export async function createTransactions(db: DatabaseService, inputs: NewTransac
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/transactions.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Write test for atomic rollback on constraint violation**
+- [x] **Step 5: Write test for atomic rollback on constraint violation**
 
 ```typescript
 // Add to src/tests/unit/transactions.test.ts in the createTransactions describe block
@@ -882,12 +882,12 @@ it('rolls back entire batch when one row violates a CHECK constraint', async () 
 });
 ```
 
-- [ ] **Step 6: Run test to verify it passes**
+- [x] **Step 6: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/transactions.test.ts`
 Expected: PASS (SQLite CHECK constraint triggers SAVEPOINT rollback)
 
-- [ ] **Step 7: Write test that transfer inputs are rejected**
+- [x] **Step 7: Write test that transfer inputs are rejected**
 
 ```typescript
 // Add to src/tests/unit/transactions.test.ts
@@ -899,12 +899,12 @@ it('rejects transfer rows (import never produces transfers)', async () => {
 });
 ```
 
-- [ ] **Step 8: Run test to verify it passes**
+- [x] **Step 8: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/transactions.test.ts`
 Expected: PASS
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/lib/db/repos/transactions.ts src/tests/unit/transactions.test.ts
@@ -923,7 +923,7 @@ git commit -m "feat(csv-import): add batch createTransactions with atomic rollba
 - Consumes: `parseCsv`, `inferColumns`, `classifyRow`, `parseCsvAmount`, `listTransactions`, `createTransactions`
 - Produces: `ImportStore` class with `phase`, `rows`, `mapping` state; `loadFile`, `reclassify`, `goToPreview`, `commit` methods
 
-- [ ] **Step 1: Write failing test for phase transition after file load**
+- [x] **Step 1: Write failing test for phase transition after file load**
 
 ```typescript
 // src/tests/unit/import.test.ts
@@ -965,12 +965,12 @@ describe('ImportStore', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test:watch src/tests/unit/import.test.ts`
 Expected: FAIL with "Cannot find module '$lib/stores/import.svelte'"
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```typescript
 // src/lib/stores/import.svelte.ts
@@ -1210,12 +1210,12 @@ export class ImportStore {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/import.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Write test for DB-duplicate detection**
+- [x] **Step 5: Write test for DB-duplicate detection**
 
 ```typescript
 // Add to src/tests/unit/import.test.ts
@@ -1235,12 +1235,12 @@ it('flags rows matching an existing DB transaction as duplicate (excluded by def
 });
 ```
 
-- [ ] **Step 6: Run test to verify it passes**
+- [x] **Step 6: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/import.test.ts`
 Expected: PASS
 
-- [ ] **Step 7: Write test for intra-file dedup**
+- [x] **Step 7: Write test for intra-file dedup**
 
 ```typescript
 // Add to src/tests/unit/import.test.ts
@@ -1257,12 +1257,12 @@ it('flags the second identical row in the same file as a duplicate of the first'
 });
 ```
 
-- [ ] **Step 8: Run test to verify it passes**
+- [x] **Step 8: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/import.test.ts`
 Expected: PASS
 
-- [ ] **Step 9: Write test for commit writing only included rows**
+- [x] **Step 9: Write test for commit writing only included rows**
 
 ```typescript
 // Add to src/tests/unit/import.test.ts
@@ -1282,12 +1282,12 @@ it('commits only included non-invalid rows', async () => {
 });
 ```
 
-- [ ] **Step 10: Run test to verify it passes**
+- [x] **Step 10: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/import.test.ts`
 Expected: PASS
 
-- [ ] **Step 11: Write test for reclassify after mapping change (EU amount locale)**
+- [x] **Step 11: Write test for reclassify after mapping change (EU amount locale)**
 
 ```typescript
 // Add to src/tests/unit/import.test.ts
@@ -1307,12 +1307,12 @@ it('reclassifies amounts when the user switches the amount locale to EU', async 
 });
 ```
 
-- [ ] **Step 12: Run test to verify it passes**
+- [x] **Step 12: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/import.test.ts`
 Expected: PASS (if this fails on CSV parsing of the embedded comma, fix the test CSV to use a quoted amount field: `"1.234,56"`, and confirm parseCsv + parseCsvAmount handle it)
 
-- [ ] **Step 13: Commit**
+- [x] **Step 13: Commit**
 
 ```bash
 git add src/lib/stores/import.svelte.ts src/tests/unit/import.test.ts
@@ -1331,7 +1331,7 @@ git commit -m "feat(csv-import): add import store with intra-file dedup and live
 - Consumes: Nothing
 - Produces: `import_tx_*` keys consumed by the modal via `m.import_tx_*()`
 
-- [ ] **Step 1: Add English keys**
+- [x] **Step 1: Add English keys**
 
 Add these keys to `messages/en.json` (maintain alphabetical order within the file; insert before the final closing brace):
 
@@ -1374,7 +1374,7 @@ Add these keys to `messages/en.json` (maintain alphabetical order within the fil
   "import_tx_error_parse": "Could not parse this CSV file. Check that it is a valid CSV."
 ```
 
-- [ ] **Step 2: Add Vietnamese keys**
+- [x] **Step 2: Add Vietnamese keys**
 
 Add matching keys to `messages/vi.json` (before the final closing brace):
 
@@ -1417,12 +1417,12 @@ Add matching keys to `messages/vi.json` (before the final closing brace):
   "import_tx_error_parse": "Không thể đọc file CSV. Kiểm tra lại file hợp lệ."
 ```
 
-- [ ] **Step 3: Regenerate Paraglide and typecheck**
+- [x] **Step 3: Regenerate Paraglide and typecheck**
 
 Run: `pnpm check`
 Expected: Paraglide compiles, no TypeScript/Svelte errors
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add messages/en.json messages/vi.json
@@ -1441,7 +1441,7 @@ git commit -m "feat(csv-import): add import_tx i18n keys (en + vi)"
 - Consumes: `ImportStore`, `accounts` store, `settings` store, i18n `m`, `Modal`/`Button`/`Input` primitives, `toast` store, `getDb`
 - Produces: Modal component `{ onclose }` prop; rendered conditionally by the transactions page
 
-- [ ] **Step 1: Create the modal component**
+- [x] **Step 1: Create the modal component**
 
 ```svelte
 <!-- src/lib/components/modals/ImportTransactionsModal.svelte -->
@@ -1736,7 +1736,7 @@ git commit -m "feat(csv-import): add import_tx i18n keys (en + vi)"
 </Modal>
 ```
 
-- [ ] **Step 2: Wire trigger + modal into the transactions page**
+- [x] **Step 2: Wire trigger + modal into the transactions page**
 
 Modify `src/routes/transactions/+page.svelte`. In the `<script>` block, add the import and a state flag:
 
@@ -1775,17 +1775,17 @@ Then at the end of the template (after the closing of the main container div, be
 	<ImportTransactionsModal bind:open={showImport} />
 ```
 
-- [ ] **Step 3: Typecheck**
+- [x] **Step 3: Typecheck**
 
 Run: `pnpm check`
 Expected: No errors. If `m.import_tx_*` calls error, confirm Task 7 ran and Paraglide regenerated.
 
-- [ ] **Step 4: Run unit tests (regression — the store + repo are still covered)**
+- [x] **Step 4: Run unit tests (regression — the store + repo are still covered)**
 
 Run: `pnpm test`
 Expected: All pass
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/components/modals/ImportTransactionsModal.svelte src/routes/transactions/+page.svelte
@@ -1803,7 +1803,7 @@ git commit -m "feat(csv-import): add import modal with editable mapping and prev
 - Consumes: `onboardedPage` fixture (pre-onboarded app with "Test Checking" account + VND currency), `getByRole`/`getByLabel` selectors
 - Produces: E2E test covering select → load → preview → commit with duplicate detection
 
-- [ ] **Step 1: Write E2E test for import with a duplicate row**
+- [x] **Step 1: Write E2E test for import with a duplicate row**
 
 ```typescript
 // src/tests/e2e/csv-import.spec.ts
@@ -1895,12 +1895,12 @@ test.describe('CSV import', () => {
 });
 ```
 
-- [ ] **Step 2: Run the E2E test**
+- [x] **Step 2: Run the E2E test**
 
 Run: `pnpm test:e2e src/tests/e2e/csv-import.spec.ts`
 Expected: PASS. If the "Select account" label isn't found, scope the select by the visible text or the container — the modal uses a wrapping `<label>` with the i18n string as its text. Adjust the locator to `modal.locator('select').first()` if the accessible label doesn't attach.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/tests/e2e/csv-import.spec.ts
@@ -1913,27 +1913,27 @@ git commit -m "test(csv-import): add E2E for import with duplicate detection"
 
 **Files:** None (verification only)
 
-- [ ] **Step 1: Run all unit tests**
+- [x] **Step 1: Run all unit tests**
 
 Run: `pnpm test`
 Expected: All pass
 
-- [ ] **Step 2: Run all E2E tests**
+- [x] **Step 2: Run all E2E tests**
 
 Run: `pnpm test:e2e`
 Expected: All pass
 
-- [ ] **Step 3: Typecheck**
+- [x] **Step 3: Typecheck**
 
 Run: `pnpm check`
 Expected: No errors
 
-- [ ] **Step 4: Production build**
+- [x] **Step 4: Production build**
 
 Run: `pnpm build`
 Expected: Succeeds
 
-- [ ] **Step 5: Manual smoke test in desktop app**
+- [x] **Step 5: Manual smoke test in desktop app**
 
 Run: `pnpm tauri dev`
 Expected: App launches. On the Transactions page, click "Import Transactions", select the account, load a real bank CSV, verify mapping is editable, preview shows correct new/duplicate/invalid counts, commit writes the rows. Re-import the same file → all duplicate, commit disabled.

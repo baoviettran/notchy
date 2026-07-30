@@ -1,6 +1,6 @@
 # Categorize Rules Engine Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Auto-categorize transactions by payee using a rules engine that learns from user behavior, with Vietnamese diacritic normalization.
 
@@ -106,7 +106,7 @@
 - Consumes: `DatabaseService` from `src/lib/db/service.ts`
 - Produces: Migration object with `up(db: DatabaseService): Promise<void>` method
 
-- [ ] **Step 1: Write the migration file**
+- [x] **Step 1: Write the migration file**
 
 Create `src/lib/db/migrations/005_categorize_rules.ts`:
 
@@ -146,7 +146,7 @@ export async function up(db: DatabaseService): Promise<void> {
 }
 ```
 
-- [ ] **Step 2: Register the migration**
+- [x] **Step 2: Register the migration**
 
 Open `src/lib/db/migrations/index.ts`. Add the import and append to the migrations array:
 
@@ -159,7 +159,7 @@ export const migrations = [
 ];
 ```
 
-- [ ] **Step 3: Update schema-version call sites**
+- [x] **Step 3: Update schema-version call sites**
 
 Search for `importDatabase` and `validateImport` across the codebase. Update all version literals from `4` to `5`. Common locations:
 - `src/lib/db/service.ts` (if present)
@@ -168,7 +168,7 @@ Search for `importDatabase` and `validateImport` across the codebase. Update all
 
 Run `pnpm check` to verify no TypeScript errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/lib/db/migrations/005_categorize_rules.ts src/lib/db/migrations/index.ts
@@ -187,7 +187,7 @@ git commit -m "feat(categorize-rules): add migration 005 for categorize_rules ta
 - Consumes: nothing
 - Produces: `normalizePayee(s: string | null): string`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/tests/unit/normalize_payee.test.ts`:
 
@@ -243,13 +243,13 @@ describe('normalizePayee', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test:watch src/tests/unit/normalize_payee.test.ts`
 
 Expected: FAIL with "Cannot find module '$lib/utils/normalize_payee'"
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `src/lib/utils/normalize_payee.ts`:
 
@@ -275,13 +275,13 @@ export function normalizePayee(s: string | null): string {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/normalize_payee.test.ts`
 
 Expected: All tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/utils/normalize_payee.ts src/tests/unit/normalize_payee.test.ts
@@ -300,7 +300,7 @@ git commit -m "feat(categorize-rules): add normalizePayee util with Vietnamese d
 - Consumes: `normalizePayee` from `src/lib/utils/normalize_payee.ts`
 - Produces: `matchRules(payee: string | null, rules: CategorizeRuleLite[]): string | null`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/tests/unit/rules_matcher.test.ts`:
 
@@ -391,13 +391,13 @@ describe('matchRules', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test:watch src/tests/unit/rules_matcher.test.ts`
 
 Expected: FAIL with "Cannot find module '$lib/utils/rules_matcher'"
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `src/lib/utils/rules_matcher.ts`:
 
@@ -459,13 +459,13 @@ export function matchRules(payee: string | null, rules: CategorizeRuleLite[]): s
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/rules_matcher.test.ts`
 
 Expected: All tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/utils/rules_matcher.ts src/tests/unit/rules_matcher.test.ts
@@ -484,7 +484,7 @@ git commit -m "feat(categorize-rules): add matchRules util with specificity rank
 - Consumes: `DatabaseService`, `ulid`, `AppError`
 - Produces: `listRules`, `listAllRules`, `createRule`, `updateRule`, `deleteRule`, `upsertLearned`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/tests/unit/rules.test.ts`:
 
@@ -651,13 +651,13 @@ describe('rules repo', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test:watch src/tests/unit/rules.test.ts`
 
 Expected: FAIL with "Cannot find module '$lib/db/repos/rules'"
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `src/lib/db/repos/rules.ts`:
 
@@ -833,13 +833,13 @@ export async function upsertLearned(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/rules.test.ts`
 
 Expected: All tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/db/repos/rules.ts src/tests/unit/rules.test.ts
@@ -858,7 +858,7 @@ git commit -m "feat(categorize-rules): add rules repo with CRUD and upsertLearne
 - Consumes: `rules` repo, `matchRules` util, `transactions` repo, `getDb()`
 - Produces: `rules` singleton export with `load`, `matchTag`, `create`, `update`, `delete`, `learnRule`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/tests/unit/rules.svelte.test.ts`:
 
@@ -1081,13 +1081,13 @@ describe('RulesStore', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test:watch src/tests/unit/rules.svelte.test.ts`
 
 Expected: FAIL with "Cannot find module '$lib/stores/rules.svelte'"
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `src/lib/stores/rules.svelte.ts`:
 
@@ -1197,13 +1197,13 @@ class RulesStore {
 export const rules = new RulesStore();
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test:watch src/tests/unit/rules.svelte.test.ts`
 
 Expected: All tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/stores/rules.svelte.ts src/tests/unit/rules.svelte.test.ts
@@ -1221,7 +1221,7 @@ git commit -m "feat(categorize-rules): add RulesStore singleton with matchTag an
 - Consumes: `rules` store from `$lib/stores/rules.svelte.ts`
 - Produces: Auto-fill `tagId` from payee; call `learnRule` after save
 
-- [ ] **Step 1: Import rules store**
+- [x] **Step 1: Import rules store**
 
 Open `src/lib/components/forms/TransactionForm.svelte`. Add the import after the other store imports (around line 6-11):
 
@@ -1229,7 +1229,7 @@ Open `src/lib/components/forms/TransactionForm.svelte`. Add the import after the
 import { rules } from '$lib/stores/rules.svelte';
 ```
 
-- [ ] **Step 2: Add auto-fill logic**
+- [x] **Step 2: Add auto-fill logic**
 
 After the existing `$state` declarations (around line 37), add:
 
@@ -1244,7 +1244,7 @@ $effect(() => {
 });
 ```
 
-- [ ] **Step 3: Call learnRule after successful save**
+- [x] **Step 3: Call learnRule after successful save**
 
 In the `save()` function, after the `transactions.create()` call succeeds (around line 118-122), add:
 
@@ -1290,13 +1290,13 @@ The full save block should look like:
 }
 ```
 
-- [ ] **Step 4: Run all tests to verify no regressions**
+- [x] **Step 4: Run all tests to verify no regressions**
 
 Run: `pnpm test`
 
 Expected: All tests PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/components/forms/TransactionForm.svelte
@@ -1313,7 +1313,7 @@ git commit -m "feat(categorize-rules): integrate auto-fill and learnRule into Tr
 **Interfaces:**
 - Consumes: Playwright test harness, `onboardedPage` fixture, `addTransaction` helper
 
-- [ ] **Step 1: Write the E2E test**
+- [x] **Step 1: Write the E2E test**
 
 Create `src/tests/e2e/categorize-rules.spec.ts`:
 
@@ -1362,13 +1362,13 @@ test.describe('Categorize Rules Engine', () => {
 });
 ```
 
-- [ ] **Step 2: Run E2E test**
+- [x] **Step 2: Run E2E test**
 
 Run: `pnpm test:e2e src/tests/e2e/categorize-rules.spec.ts`
 
 Expected: All tests PASS
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/tests/e2e/categorize-rules.spec.ts
@@ -1384,7 +1384,7 @@ git commit -m "test(categorize-rules): add E2E tests for auto-fill and Vietnames
 - Modify: `messages/vi.json`
 - Modify: `src/lib/components/forms/TransactionForm.svelte`
 
-- [ ] **Step 1: Add i18n strings**
+- [x] **Step 1: Add i18n strings**
 
 Add to `messages/en.json`:
 
@@ -1402,13 +1402,13 @@ Add to `messages/vi.json`:
 }
 ```
 
-- [ ] **Step 2: Regenerate Paraglide**
+- [x] **Step 2: Regenerate Paraglide**
 
 Run: `pnpm check`
 
 Expected: Paraglide regenerates, no errors
 
-- [ ] **Step 3: Update TransactionForm to show "auto" indicator**
+- [x] **Step 3: Update TransactionForm to show "auto" indicator**
 
 In `TransactionForm.svelte`, after the `<Autocomplete>` for tag (around line 161), add:
 
@@ -1427,7 +1427,7 @@ The full tag section should look like:
 {/if}
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add messages/en.json messages/vi.json src/lib/components/forms/TransactionForm.svelte

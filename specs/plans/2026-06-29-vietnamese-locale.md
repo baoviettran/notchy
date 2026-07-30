@@ -1,6 +1,6 @@
 # Vietnamese Bilingual Locale Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Wire every user-facing string through Paraglide i18n so the app is fully bilingual (`en` + `vi`) — switching locale flips the entire app, not just the nav.
 
@@ -110,7 +110,7 @@ Replace `<FEATURE>`, `<prefix>_<key>`, `<expected vi string>` with a real key/st
 **Interfaces:**
 - Produces: `import * as m from '$lib/paraglide/messages'` (named exports, one per underscore key); `setLanguageTag` from `$lib/paraglide/runtime`. All later tasks consume these.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `src/tests/unit/i18n.test.ts`:
 
@@ -132,12 +132,12 @@ describe('paraglide runtime sync', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test src/tests/unit/i18n.test.ts`
 Expected: FAIL — today `nav_dashboard` exists (it's one of the current flat keys) but `m.nav_dashboard()` returns `'Dashboard'` even after `setLanguageTag('vi')` because `setLanguageTag` is never called by the app and nothing proves the vi path resolves at runtime under test. This step confirms the runtime-sync gap before wiring it.
 
-- [ ] **Step 3: Rewrite message files with underscore-namespaced keys**
+- [x] **Step 3: Rewrite message files with underscore-namespaced keys**
 
 Overwrite `messages/en.json`:
 
@@ -219,7 +219,7 @@ Overwrite `messages/vi.json` with the same keys, vi values:
 
 > Note: the existing flat keys (`nav_dashboard`, `action_save`, `onboarding_*`, `lang_*`, `app_name`) already use valid underscore identifiers. This step keeps the same identifier shape, renames the `action_*` verbs into the `common_*` prefix (canonical shared-words namespace), and drops nothing that is referenced (nothing references any message today). The result is a clean underscore-namespaced baseline.
 
-- [ ] **Step 4: Regenerate compiled messages**
+- [x] **Step 4: Regenerate compiled messages**
 
 Run: `pnpm exec paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide`
 Expected: compiles with no errors. Verify the function name produced for key `nav_dashboard`:
@@ -227,12 +227,12 @@ Expected: compiles with no errors. Verify the function name produced for key `na
 Run: `grep -n "nav_dashboard" src/lib/paraglide/messages.js`
 Expected: shows `export const nav_dashboard = (params = {}, options = {}) => {` (or equivalent export) — confirms the underscore key `nav_dashboard` compiles to function `nav_dashboard`. **If a compile error mentions an invalid identifier, you have a dot or other punctuation in a key — fix the JSON and recompile.** Record the confirmed name here: `nav_dashboard`.
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `pnpm test src/tests/unit/i18n.test.ts`
 Expected: PASS — `m.nav_dashboard()` returns `'Tổng quan'` after `setLanguageTag('vi')`.
 
-- [ ] **Step 6: Add runtime sync to SettingsStore**
+- [x] **Step 6: Add runtime sync to SettingsStore**
 
 In `src/lib/stores/settings.svelte.ts`, add the import and explicit sync calls. The full updated file:
 
@@ -294,14 +294,14 @@ export const settings = new SettingsStore();
 
 > Why no `$effect`: Svelte 5 `$effect` only runs inside a component/effect-root context — a plain class constructor is neither, so a constructor `$effect` would silently never fire. There is also nothing for it to react to: `this.locale` is mutated in exactly two places — `load()` (boot) and `setLocale()` (user change) — and both call `setLanguageTag` explicitly. The two explicit calls are the complete coverage; a reactive `$effect` would add nothing.
 
-- [ ] **Step 7: Run typecheck + tests**
+- [x] **Step 7: Run typecheck + tests**
 
 Run: `pnpm check`
 Expected: no errors.
 Run: `pnpm test`
 Expected: all green.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add messages/en.json messages/vi.json src/lib/stores/settings.svelte.ts src/tests/unit/i18n.test.ts
@@ -324,7 +324,7 @@ Migrate the three form components. These define `forms_*` and `validation_*`, us
 - Consumes: `common_*` from Task 1 (save/cancel/name/date/amount/optional/none).
 - Produces: `forms_*` (type labels + field labels), `validation_*` (error messages). Later pages that embed these forms need no extra work — the components self-translate.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `src/tests/unit/i18n.test.ts`:
 
@@ -345,12 +345,12 @@ describe('form messages', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test src/tests/unit/i18n.test.ts`
 Expected: FAIL — `m.forms_expense` is undefined.
 
-- [ ] **Step 3: Add form + validation keys (en + vi)**
+- [x] **Step 3: Add form + validation keys (en + vi)**
 
 Add these keys to BOTH `messages/en.json` and `messages/vi.json` (append inside the closing `}` per the JSON-append discipline).
 
@@ -424,11 +424,11 @@ Vietnamese block to add to `vi.json` (same keys):
 
 > The remaining form strings (toasts like "Account updated."/"Goal created.", and any field labels not listed) are added by reading each form file during the migration loop and appending keys under `forms_*`/`validation_*`/`common_*` using the conventions block. Do not skip any user-facing literal.
 
-- [ ] **Step 4: Regenerate**
+- [x] **Step 4: Regenerate**
 
 Run: `pnpm exec paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide`
 
-- [ ] **Step 5: Replace markup in the three form components**
+- [x] **Step 5: Replace markup in the three form components**
 
 For each of `TransactionForm.svelte`, `AccountForm.svelte`, `GoalForm.svelte`:
 - Add `import * as m from '$lib/paraglide/messages';` to the `<script lang="ts">` block.
@@ -448,12 +448,12 @@ For each of `TransactionForm.svelte`, `AccountForm.svelte`, `GoalForm.svelte`:
   - toasts `Account updated.`/`Account created.` → add `forms_account_updated`/`forms_account_created` (en + vi: "Đã cập nhật tài khoản."/"Đã tạo tài khoản.") and call them.
 - Repeat the full inventory for AccountForm (account types, counterparty, initial balance, toasts) and GoalForm (goal types, target amount/date, linked account, toasts, validation) — every user-facing literal.
 
-- [ ] **Step 6: Run tests**
+- [x] **Step 6: Run tests**
 
 Run: `pnpm test`
 Expected: all green.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add messages/en.json messages/vi.json src/lib/components/forms src/tests/unit/i18n.test.ts
@@ -474,7 +474,7 @@ git commit -m "feat(i18n): migrate forms to Paraglide (en+vi)"
 - Consumes: `common_*`, `forms_*`, `validation_*`.
 - Produces: `transactions_*` (and `dashboard_*` if dashboard has unique strings; otherwise reuse `transactions_*`).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `src/tests/unit/i18n.test.ts`:
 
@@ -495,12 +495,12 @@ describe('transactions messages', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test src/tests/unit/i18n.test.ts`
 Expected: FAIL — `m.transactions_empty_state` undefined.
 
-- [ ] **Step 3: Add keys (en + vi)**
+- [x] **Step 3: Add keys (en + vi)**
 
 Add to `en.json`:
 ```json
@@ -534,7 +534,7 @@ Add to `vi.json`:
 
 > The count is modelled as two plain keys (`transactions_count_none` / `transactions_count_many`) rather than ICU plural — Paraglide 1.11.8 cannot compile ICU `{count, plural, …}` (see Global Constraints: Plurals). Complete the rest of each page's strings via the migration loop (inventory the file → add `transactions_*` / `dashboard_*` keys en+vi → regen → replace). Do not skip any literal.
 
-- [ ] **Step 4: Regenerate and verify the count-key signatures**
+- [x] **Step 4: Regenerate and verify the count-key signatures**
 
 Run: `pnpm exec paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide`
 Expected: compiles with no errors.
@@ -545,16 +545,16 @@ Expected: shows TWO exports — `transactions_count_none` (a paramless function)
 - `m.transactions_count_many({ count: 5 })` → `'5 transactions'` (en) / `'5 giao dịch'` (vi)
 If either returns garbage like `undefined ... }`, the key still contains ICU syntax — fix the JSON and recompile.
 
-- [ ] **Step 5: Replace markup**
+- [x] **Step 5: Replace markup**
 
 For `dashboard/+page.svelte` and `transactions/+page.svelte`: add the import, then replace literals. The count usage: `{count === 0 ? m.transactions_count_none() : m.transactions_count_many({ count })}`.
 
-- [ ] **Step 6: Run tests**
+- [x] **Step 6: Run tests**
 
 Run: `pnpm test`
 Expected: all green.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add messages/en.json messages/vi.json src/routes/+page.svelte src/routes/transactions src/lib/utils/tx-kind.ts src/tests/unit/i18n.test.ts
@@ -575,7 +575,7 @@ git commit -m "feat(i18n): migrate dashboard and transactions to Paraglide (en+v
 - Consumes: `common_*`, `forms_*`, `validation_*`.
 - Produces: `budgets_*`, `reports_*`, `goals_*`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `src/tests/unit/i18n.test.ts`:
 
@@ -591,12 +591,12 @@ describe('wave 3 messages', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test src/tests/unit/i18n.test.ts`
 Expected: FAIL — keys undefined.
 
-- [ ] **Step 3: Add keys (en + vi)**
+- [x] **Step 3: Add keys (en + vi)**
 
 Add to `en.json`:
 ```json
@@ -674,11 +674,11 @@ Add to `vi.json`:
 
 > Complete remaining per-page literals via the migration loop.
 
-- [ ] **Step 4: Regenerate**
+- [x] **Step 4: Regenerate**
 
 Run: `pnpm exec paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide`
 
-- [ ] **Step 5: Replace markup** in `budgets`, `reports`, `goals` pages (import + replace every literal). For status enums rendered from data (on_track/behind/…), use an explicit `switch` in the script block — it keeps `pnpm check` clean (dynamic key access on the `m` namespace trips `Element implicitly has 'any'`):
+- [x] **Step 5: Replace markup** in `budgets`, `reports`, `goals` pages (import + replace every literal). For status enums rendered from data (on_track/behind/…), use an explicit `switch` in the script block — it keeps `pnpm check` clean (dynamic key access on the `m` namespace trips `Element implicitly has 'any'`):
 
 ```svelte
 <script lang="ts">
@@ -697,12 +697,12 @@ Run: `pnpm exec paraglide-js compile --project ./project.inlang --outdir ./src/l
 
 Then `{goalStatusLabel(goal.status)}` in markup. (Dynamic `m[\`goals_status_${status}\`]()` works at runtime but needs a `Record<string, () => string>` cast to satisfy TS; prefer the switch.)
 
-- [ ] **Step 6: Run tests**
+- [x] **Step 6: Run tests**
 
 Run: `pnpm test`
 Expected: all green.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add messages/en.json messages/vi.json src/routes/budgets src/routes/reports src/routes/goals src/tests/unit/i18n.test.ts
@@ -723,7 +723,7 @@ git commit -m "feat(i18n): migrate budgets, reports, goals to Paraglide (en+vi)"
 - Consumes: `common_*`, `forms_*`, `validation_*`.
 - Produces: `accounts_*`, `debts_*`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `src/tests/unit/i18n.test.ts`:
 
@@ -739,12 +739,12 @@ describe('wave 4 messages', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test src/tests/unit/i18n.test.ts`
 Expected: FAIL — keys undefined.
 
-- [ ] **Step 3: Add keys (en + vi)**
+- [x] **Step 3: Add keys (en + vi)**
 
 Add to `en.json`:
 ```json
@@ -814,18 +814,18 @@ Add to `vi.json`:
 
 > Complete remaining literals via the migration loop.
 
-- [ ] **Step 4: Regenerate**
+- [x] **Step 4: Regenerate**
 
 Run: `pnpm exec paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide`
 
-- [ ] **Step 5: Replace markup** in `accounts` and `debts` pages.
+- [x] **Step 5: Replace markup** in `accounts` and `debts` pages.
 
-- [ ] **Step 6: Run tests**
+- [x] **Step 6: Run tests**
 
 Run: `pnpm test`
 Expected: all green.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add messages/en.json messages/vi.json src/routes/accounts src/routes/debts src/tests/unit/i18n.test.ts
@@ -849,7 +849,7 @@ git commit -m "feat(i18n): migrate accounts and debts to Paraglide (en+vi)"
 - Consumes: all prior namespaces.
 - Produces: `settings_*`, `categories_*`, `onboarding_*` (extend), `layout_*`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `src/tests/unit/i18n.test.ts`:
 
@@ -865,12 +865,12 @@ describe('wave 5 messages', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test src/tests/unit/i18n.test.ts`
 Expected: FAIL — keys undefined.
 
-- [ ] **Step 3: Add keys (en + vi)**
+- [x] **Step 3: Add keys (en + vi)**
 
 Add to `en.json`:
 ```json
@@ -940,17 +940,17 @@ Add to `vi.json`:
 
 > Complete remaining literals via the migration loop.
 
-- [ ] **Step 4: Regenerate**
+- [x] **Step 4: Regenerate**
 
 Run: `pnpm exec paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide`
 
-- [ ] **Step 5: Replace markup in all Wave 5 files**
+- [x] **Step 5: Replace markup in all Wave 5 files**
 
 - In `onboarding/+page.svelte`: **remove every `{locale === 'vi' ? '…' : '…'}` inline conditional** and replace with `m.onboarding_*()` calls. For each conditional, add the corresponding `onboarding_*` key (en + vi) using the value already present in the conditional as the source text, then call it.
 - In `+layout.svelte`: replace `Warming up` → `{m.layout_warming_up()}` and the Modal `title="Add transaction"` → `title={m.layout_add_transaction()}`.
 - In layout components: replace `Home`/`Trans`/`Budget`/`Reports` (BottomNav), search placeholders (TopBar), etc.
 
-- [ ] **Step 6: Move date helper vi literals to message keys**
+- [x] **Step 6: Move date helper vi literals to message keys**
 
 In `src/lib/utils/date.ts`, `formatDateRelative` returns hardcoded `'Hôm nay'`/`'Hôm qua'`/`'Today'`/`'Yesterday'`. Refactor to read from messages:
 
@@ -970,14 +970,14 @@ export function formatDateRelative(dateStr: string, locale: Locale): string {
 
 > The `locale` param is kept in the signature so call sites don't need touching, even though it's no longer used inside this branch. (It may still drive the full-date format fallback elsewhere in the function.) The existing `formatDateRelative` tests assert `'Hôm nay'`/`'Today'` — they still pass because the message values match and `setLanguageTag('vi')`/`('en')` is called in the test setup. Run `pnpm test` to confirm.
 
-- [ ] **Step 7: Run typecheck + tests**
+- [x] **Step 7: Run typecheck + tests**
 
 Run: `pnpm check`
 Expected: no errors.
 Run: `pnpm test`
 Expected: all green.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add messages/en.json messages/vi.json src/routes/settings src/routes/onboarding src/lib/components/layout src/routes/+layout.svelte src/lib/utils/date.ts src/tests/unit/i18n.test.ts
@@ -992,12 +992,12 @@ git commit -m "feat(i18n): migrate settings, categories, onboarding, layout (en+
 - Read/verify: `messages/en.json`, `messages/vi.json`, all migrated pages/components
 - Test: `src/tests/unit/i18n.test.ts`
 
-- [ ] **Step 1: Verify en/vi key parity**
+- [x] **Step 1: Verify en/vi key parity**
 
 Run: `pnpm exec paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide`
 Expected: no warnings from `message-lint-rule-missing-translation` or `message-lint-rule-empty-pattern`. If warnings appear, add the missing vi (or en) values.
 
-- [ ] **Step 2: Grep for remaining hardcoded literals**
+- [x] **Step 2: Grep for remaining hardcoded literals**
 
 Run:
 ```bash
@@ -1005,30 +1005,30 @@ grep -rnE "['\"](Save|Cancel|Delete|Edit|Add|Settings|Dashboard|Transactions|Acc
 ```
 This matches both single- and double-quoted literals (svelte markup uses both). Expected: no user-facing literal matches (ignore matches inside `m.*()` calls, `import` paths, or non-user contexts like `data-*` keys / CSS classes). Any remaining literal → add a key and replace.
 
-- [ ] **Step 3: Grep for leftover onboarding conditionals**
+- [x] **Step 3: Grep for leftover onboarding conditionals**
 
 Run: `grep -rn "locale === 'vi'" src/routes/onboarding`
 Expected: no matches.
 
-- [ ] **Step 4: Run full suite**
+- [x] **Step 4: Run full suite**
 
 Run: `pnpm test`
 Expected: all green.
 Run: `pnpm check`
 Expected: no errors.
 
-- [ ] **Step 5: Manual smoke test**
+- [x] **Step 5: Manual smoke test**
 
 Run: `pnpm tauri dev`
 - Switch language to Tiếng Việt in Settings.
 - Visit every page (dashboard, transactions, budgets, reports, accounts, goals, debts, settings, categories). Confirm no English leftovers.
 - Switch back to English. Confirm no Vietnamese leftovers.
 
-- [ ] **Step 6: User reviews vi.json**
+- [x] **Step 6: User reviews vi.json**
 
 Hand `messages/vi.json` to the user for a complete review pass. Apply any terminology corrections (en + vi key parity maintained). Regen + `pnpm test` after corrections.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add messages/en.json messages/vi.json

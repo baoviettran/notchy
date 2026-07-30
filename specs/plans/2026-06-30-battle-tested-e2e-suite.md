@@ -1,6 +1,6 @@
 # Battle-Tested E2E Suite Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Replace the single onboarding E2E spec with a comprehensive, isolated Playwright suite — breadth across every route, depth on transactions/accounts/budgets, and full-IPC-mock depth on backup/restore plus a reload-survival guarantee.
 
@@ -59,7 +59,7 @@ This is a latent bug that would break both real backups and the mock. Fix the so
 **Interfaces:**
 - Produces: `createBackup(db, backupDir)` unchanged signature — still returns the backup path string. Behavior now works on real SQLite.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `src/tests/unit/backup.test.ts` (append after the existing `describe('getBackupsToDelete', …)` block). The test DB is better-sqlite3, which rejects the bound param the same way rusqlite/sql.js do.
 
@@ -106,12 +106,12 @@ import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test src/tests/unit/backup.test.ts -t "writes a valid backup file"`
 Expected: FAIL — `near "?": syntax error` thrown by `createBackup`'s `VACUUM INTO ?`.
 
-- [ ] **Step 3: Fix `createBackup` in `src/lib/backup/index.ts`**
+- [x] **Step 3: Fix `createBackup` in `src/lib/backup/index.ts`**
 
 Replace the body of `createBackup` (lines 13-20). SQLite requires the `VACUUM INTO` target as a string literal, not a bound parameter. Inline an escaped literal (double single-quotes is the SQL string escape).
 
@@ -127,7 +127,7 @@ export async function createBackup(db: DatabaseService, backupDir: string): Prom
 }
 ```
 
-- [ ] **Step 4: Fix `exportSqlite` in `src/routes/settings/backup/+page.svelte`**
+- [x] **Step 4: Fix `exportSqlite` in `src/routes/settings/backup/+page.svelte`**
 
 In the `exportSqlite` function, replace line 23:
 
@@ -143,12 +143,12 @@ with:
 
 (Keep the surrounding try/catch and toast handling unchanged.)
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `pnpm test src/tests/unit/backup.test.ts`
 Expected: PASS — all backup tests including the new `createBackup` test.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/lib/backup/index.ts src/routes/settings/backup/+page.svelte src/tests/unit/backup.test.ts
@@ -176,7 +176,7 @@ Pure UI actions, no assertions. Centralize selectors + the `50k` shortcut knowle
   - `addTransaction(page, opts: { kind: 'expense'|'income'|'transfer'; amount: string; }): Promise<void>` — opens the dashboard FAB, scopes to the modal, clicks the kind button, fills amount, saves. For `transfer`, the second account Select is left at its default (auto-selects the only other account when present; for a single-account onboarded state the test creates a second account first — see Task 4).
   - `expectOnDashboard(page): Promise<void>` — waits for the Dashboard heading.
 
-- [ ] **Step 1: Write the helper file**
+- [x] **Step 1: Write the helper file**
 
 Create `src/tests/e2e/helpers/ui.ts`:
 
@@ -241,12 +241,12 @@ function capitalize(s: string): string {
 }
 ```
 
-- [ ] **Step 2: Verify it type-checks**
+- [x] **Step 2: Verify it type-checks**
 
 Run: `pnpm check`
 Expected: 0 errors (the file is new; if `exact: true` name matching fails typecheck, adjust — the kind buttons use `{exact:true}` per the existing spec pattern).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/tests/e2e/helpers/ui.ts
@@ -264,7 +264,7 @@ git commit -m "test(e2e): add UI helpers (onboard, addTransaction)"
 **Interfaces:**
 - Produces: `onboardedPage` — a `test.extend({ page })` that, before each test, calls `onboard(page)` so the app is on the Dashboard. Specs use it as `import { test, expect } from './fixtures/onboarded'`.
 
-- [ ] **Step 1: Write the fixture**
+- [x] **Step 1: Write the fixture**
 
 Create `src/tests/e2e/fixtures/onboarded.ts`:
 
@@ -296,7 +296,7 @@ import type { Page } from '@playwright/test';
 import { onboard } from '../helpers/ui';
 ```
 
-- [ ] **Step 2: Refactor `onboarding.spec.ts` to use the helper**
+- [x] **Step 2: Refactor `onboarding.spec.ts` to use the helper**
 
 Rewrite `src/tests/e2e/onboarding.spec.ts` to use `onboard` and add the disabled-button + invalid-amount depth tests:
 
@@ -325,12 +325,12 @@ test('Finish setup is disabled until an account name is entered', async ({ page 
 });
 ```
 
-- [ ] **Step 3: Run the E2E suite**
+- [x] **Step 3: Run the E2E suite**
 
 Run: `pnpm test:e2e`
 Expected: PASS — both onboarding tests green.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/tests/e2e/fixtures/onboarded.ts src/tests/e2e/onboarding.spec.ts
@@ -348,7 +348,7 @@ git commit -m "refactor(e2e): onboardedPage fixture, onboarding spec uses helper
 - Consumes: `test, expect` from `./fixtures/onboarded`; `addTransaction` from `./helpers/ui`.
 - Produces: nothing (leaf spec).
 
-- [ ] **Step 1: Write the spec**
+- [x] **Step 1: Write the spec**
 
 Create `src/tests/e2e/transactions.spec.ts`:
 
@@ -413,12 +413,12 @@ test.describe('transactions', () => {
 
 **Note for the implementer:** the pagination test is deferred — page-size depends on `displayItems` slicing, which needs >N transactions seeded. If `transactions/+page.svelte` uses a fixed page size, add a test that adds (pageSize+1) expenses via a loop and asserts the Next button enables. Check the page-size constant in `transactions/+page.svelte` and add this test only if the constant is small enough to be practical; otherwise note it as a gap.
 
-- [ ] **Step 2: Run the spec**
+- [x] **Step 2: Run the spec**
 
 Run: `pnpm test:e2e src/tests/e2e/transactions.spec.ts`
 Expected: PASS. If selector names differ from the actual UI (e.g. the Add-account button label), adjust to match `src/routes/accounts/+page.svelte` — do not weaken assertions, fix the selector.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/tests/e2e/transactions.spec.ts
@@ -435,7 +435,7 @@ git commit -m "test(e2e): transactions add/edit/delete across kinds"
 **Interfaces:**
 - Consumes: `test, expect` from `./fixtures/onboarded`. Reconcile UI: `showReconcile` modal opened by a Reconcile button; `Input` labeled by `accounts_actual_balance_label()`; confirm button labeled `accounts_reconcile()`. Large discrepancy (>1,000,000) opens `ConfirmDialog` titled `accounts_large_discrepancy_title()`.
 
-- [ ] **Step 1: Write the spec**
+- [x] **Step 1: Write the spec**
 
 Create `src/tests/e2e/accounts.spec.ts`:
 
@@ -486,12 +486,12 @@ test.describe('accounts', () => {
 });
 ```
 
-- [ ] **Step 2: Run the spec**
+- [x] **Step 2: Run the spec**
 
 Run: `pnpm test:e2e src/tests/e2e/accounts.spec.ts`
 Expected: PASS. Reconcile button/label selectors must match `src/routes/accounts/[id]/+page.svelte` — verify the Reconcile button's accessible name and adjust. The Input label comes from the i18n key; if `getByLabel` doesn't match, target by placeholder (`accounts_amount_placeholder`) or `input[type=number]` within the dialog.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/tests/e2e/accounts.spec.ts
@@ -508,7 +508,7 @@ git commit -m "test(e2e): accounts create + reconcile happy/large-discrepancy"
 **Interfaces:**
 - Consumes: `test, expect` from `./fixtures/onboarded`. Budgets UI (`src/routes/budgets/+page.svelte`): prev/next month buttons `◀`/`▶`, month label in a `span.figures`; allocation inputs per budgetable bucket; toast `budgets_updated()`.
 
-- [ ] **Step 1: Write the spec**
+- [x] **Step 1: Write the spec**
 
 Create `src/tests/e2e/budgets.spec.ts`:
 
@@ -551,12 +551,12 @@ test.describe('budgets', () => {
 });
 ```
 
-- [ ] **Step 2: Run the spec**
+- [x] **Step 2: Run the spec**
 
 Run: `pnpm test:e2e src/tests/e2e/budgets.spec.ts`
 Expected: PASS. If budgets use a different input mechanism (e.g. an editable cell, not `input[type=number]`), adjust the selector to match `budgets/+page.svelte:39-48`. Confirm `▶`/`◀` are the actual button labels (`budgets/+page.svelte:61-63`).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/tests/e2e/budgets.spec.ts
@@ -572,7 +572,7 @@ Four independent smoke specs. Grouped as one task because each is small and foll
 **Files:**
 - Create: `src/tests/e2e/debts.spec.ts`, `src/tests/e2e/goals.spec.ts`, `src/tests/e2e/reports.spec.ts`, `src/tests/e2e/categories.spec.ts`
 
-- [ ] **Step 1: Write `debts.spec.ts`**
+- [x] **Step 1: Write `debts.spec.ts`**
 
 Create `src/tests/e2e/debts.spec.ts`:
 
@@ -591,7 +591,7 @@ test('debts page loads and a debt can be created', async ({ onboardedPage: page 
 });
 ```
 
-- [ ] **Step 2: Write `goals.spec.ts`**
+- [x] **Step 2: Write `goals.spec.ts`**
 
 Create `src/tests/e2e/goals.spec.ts`:
 
@@ -610,7 +610,7 @@ test('goals page loads and a goal can be created', async ({ onboardedPage: page 
 });
 ```
 
-- [ ] **Step 3: Write `reports.spec.ts`**
+- [x] **Step 3: Write `reports.spec.ts`**
 
 Create `src/tests/e2e/reports.spec.ts`:
 
@@ -636,7 +636,7 @@ test('reports sub-pages load with no console errors', async ({ onboardedPage: pa
 });
 ```
 
-- [ ] **Step 4: Write `categories.spec.ts`**
+- [x] **Step 4: Write `categories.spec.ts`**
 
 Create `src/tests/e2e/categories.spec.ts`:
 
@@ -671,12 +671,12 @@ test('a category can be created and merged on delete', async ({ onboardedPage: p
 });
 ```
 
-- [ ] **Step 5: Run all four specs**
+- [x] **Step 5: Run all four specs**
 
 Run: `pnpm test:e2e src/tests/e2e/debts.spec.ts src/tests/e2e/goals.spec.ts src/tests/e2e/reports.spec.ts src/tests/e2e/categories.spec.ts`
 Expected: PASS. **Implementer must verify every selector against the actual route files** (`debts/+page.svelte`, `goals/+page.svelte`, `reports/*/+page.svelte`, `settings/categories/+page.svelte`). Breadth specs intentionally use loose regex selectors; tighten any that match multiple elements.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/tests/e2e/debts.spec.ts src/tests/e2e/goals.spec.ts src/tests/e2e/reports.spec.ts src/tests/e2e/categories.spec.ts
@@ -701,7 +701,7 @@ The hard part. Injected via `page.addInitScript` before first navigation. Interc
   - `listVirtualFs(page, dir): Promise<string[]>` — list files under a virtual-FS directory.
   - `persistDb(page): Promise<void>` — flips IndexedDB persistence on for reload-survival.
 
-- [ ] **Step 1: Write the mock injector**
+- [x] **Step 1: Write the mock injector**
 
 Create `src/tests/e2e/fixtures/tauri-mock.ts`. The mock runs in the page context (serialized by `addInitScript`), so it must be self-contained — no imports of app code. It loads sql.js from the same `?url` the app uses.
 
@@ -934,7 +934,7 @@ export const test = base.extend<{ tauriMockPage: Page; tauriMockOptions: TauriMo
 });
 ```
 
-- [ ] **Step 2: Write `persist.ts`**
+- [x] **Step 2: Write `persist.ts`**
 
 Create `src/tests/e2e/fixtures/persist.ts`:
 
@@ -964,12 +964,12 @@ export async function persistDb(page: Page): Promise<void> {
 
 **Note:** the reload-survival test instead uses `test.use({ tauriMockOptions: { persist: true } })` since persistence must be active from the first `loadDb`. `persistDb` is kept for readability and documents the contract.
 
-- [ ] **Step 3: Type-check**
+- [x] **Step 3: Type-check**
 
 Run: `pnpm check`
 Expected: 0 errors. The mock's in-page script is a template string (untyped), so typecheck only covers the TS surface.
 
-- [ ] **Step 4: Sanity-check the mock with a throwaway test**
+- [x] **Step 4: Sanity-check the mock with a throwaway test**
 
 Create a temporary `src/tests/e2e/_mock-sanity.spec.ts` to verify the mock wires up: app boots as if Tauri, a transaction persists in the sql.js-backed `notchy.db`, and `readVirtualFs` works.
 
@@ -995,7 +995,7 @@ test('MOCK SANITY: tauri mock boots and serves sql.js', async ({ page }) => {
 Run: `pnpm test:e2e src/tests/e2e/_mock-sanity.spec.ts`
 Expected: PASS. If it fails, the most likely cause is sql.js not loading in `addInitScript` (the `__initSqlJsForMock__` prime step). Debug the prime/inject ordering. Iterate until green, then delete the sanity file.
 
-- [ ] **Step 5: Delete the sanity file and commit**
+- [x] **Step 5: Delete the sanity file and commit**
 
 ```bash
 rm src/tests/e2e/_mock-sanity.spec.ts
@@ -1013,7 +1013,7 @@ git commit -m "test(e2e): Tauri IPC mock (sql.js + virtual FS + IndexedDB persis
 **Interfaces:**
 - Consumes: `test` from `./fixtures/tauri-mock` (`tauriMockPage` + `tauriMockOptions`); `onboard` from `./helpers/ui`; `readVirtualFs`, `writeVirtualFs`, `listVirtualFs` from `./fixtures/tauri-mock`. The app functions under test are invoked via `page.evaluate` through the real plugin SQL/FS code: `createBackup(db, dir)`, `importDatabase(path, 3)`.
 
-- [ ] **Step 1: Write the spec**
+- [x] **Step 1: Write the spec**
 
 Create `src/tests/e2e/backup-restore.spec.ts`:
 
@@ -1151,7 +1151,7 @@ function BACKUP_DIR_PLACEHOLDER() {
 }
 ```
 
-- [ ] **Step 2: Run the spec**
+- [x] **Step 2: Run the spec**
 
 Run: `pnpm test:e2e src/tests/e2e/backup-restore.spec.ts`
 Expected: PASS. This is the highest-risk spec. Likely failure points and their fixes:
@@ -1168,7 +1168,7 @@ Expected: PASS. This is the highest-risk spec. Likely failure points and their f
   }
   ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/tests/e2e/backup-restore.spec.ts src/tests/e2e/fixtures/tauri-mock.ts
@@ -1182,7 +1182,7 @@ git commit -m "test(e2e): backup/restore round-trip, corrupt/mismatch rejection,
 **Files:**
 - Create: `src/tests/e2e/reload-survival.spec.ts`
 
-- [ ] **Step 1: Write the reload-survival spec**
+- [x] **Step 1: Write the reload-survival spec**
 
 Create `src/tests/e2e/reload-survival.spec.ts`:
 
@@ -1207,17 +1207,17 @@ test('a transaction survives a full page reload (IndexedDB persist)', async ({ t
 });
 ```
 
-- [ ] **Step 2: Run the full E2E suite**
+- [x] **Step 2: Run the full E2E suite**
 
 Run: `pnpm test:e2e`
 Expected: ALL specs pass — onboarding (2), transactions (4), accounts (3), budgets (2), debts (1), goals (1), reports (1), categories (1), backup-restore (4), reload-survival (1).
 
-- [ ] **Step 3: Run the full gate suite**
+- [x] **Step 3: Run the full gate suite**
 
 Run: `pnpm test && pnpm check`
 Expected: unit tests 255+ green (Task 1 added 1), typecheck 0 errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/tests/e2e/reload-survival.spec.ts
@@ -1228,9 +1228,9 @@ git commit -m "test(e2e): reload-survival (IndexedDB persistence) guarantee"
 
 ## Verification (run before declaring done)
 
-- [ ] `pnpm test` — unit suite green (254 + 1 new createBackup test = 255).
-- [ ] `pnpm check` — 0 errors, 0 warnings.
-- [ ] `pnpm test:e2e` — all specs green.
+- [x] `pnpm test` — unit suite green (254 + 1 new createBackup test = 255).
+- [x] `pnpm check` — 0 errors, 0 warnings.
+- [x] `pnpm test:e2e` — all specs green.
 
 ## Self-Review Notes (resolved during planning)
 

@@ -1,6 +1,6 @@
 # Test Confidence Improvement Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Make release confidence depend on tested financial-data invariants and a real desktop smoke run, rather than on passing AI-generated tests alone.
 
@@ -42,12 +42,12 @@ Only schemas 3 and 4 were ever released. Schema versions 1 and 2 were never ship
 - Consumes: `runMigrations(db, migrations)` from `src/lib/db/migrations/runner.ts`, plus a new `createTestDbFromPath(path)` from the test harness (Step 1).
 - Produces: one test per released fixture asserting it upgrades to schema version `5` and preserves an account, transaction, and category-tag row.
 
-- [ ] **Step 1: Extend the test harness to open a file path.** `TestDatabase` is currently hardcoded to `:memory:` and `createTestDb()` takes no arguments (`src/tests/unit/helpers/test-db.ts`). Add `constructor(path?: string)` defaulting to `:memory:` and export `createTestDbFromPath(path: string): DatabaseService` so a committed fixture can be opened against real `better-sqlite3` — the production-compatible SQLite service the Global Constraints require. This must precede Step 2; without it no fixture test can load.
-- [ ] **Step 2: Snapshot each fixture in an isolated historical worktree.** Create `/tmp/notchy-fixture-v003` with `git worktree add --detach /tmp/notchy-fixture-v003 v0.1.0`; do not alter the active worktree HEAD. In that disposable worktree, create and run a temporary Vitest builder that uses a file-backed `better-sqlite3` database at `/tmp/v003.sqlite`, applies migrations 001–003, and inserts the documented account, tag, and transaction rows. Close the DB, copy it to `src/tests/fixtures/migrations/v003.sqlite`, then remove the disposable worktree. Repeat from `v0.1.1` for `v004.sqlite`; migration 004 adds `category_types.rollover_enabled`, which must remain at its seeded default. Record the tags, row IDs, and SHA-256 checksums in `src/tests/fixtures/migrations/README.md`.
-- [ ] **Step 3: Write a failing test that copies one fixture to a temporary path, opens it with `createTestDbFromPath`, runs `runMigrations`, and expects `schema_version` of `5`.** Confirm it fails before the upgrade runs (e.g. assert against `4`/`3` first) so the test is genuinely red, then flip to `5`.
-- [ ] **Step 4: Extend that test to query the distinguishable rows and assert their IDs, integer amount, and `tag_id` relationship are unchanged across the upgrade.** Assert one rejection/rollback path is unaffected (e.g. a constraint-violating insert still throws after upgrade) to satisfy the spec's data-integrity rule.
-- [ ] **Step 5: Run `pnpm vitest run src/tests/unit/migrations.test.ts`; expect all fixture-upgrade cases to pass.**
-- [ ] **Step 6: Commit with `test: cover upgrades from released database fixtures`.**
+- [x] **Step 1: Extend the test harness to open a file path.** `TestDatabase` is currently hardcoded to `:memory:` and `createTestDb()` takes no arguments (`src/tests/unit/helpers/test-db.ts`). Add `constructor(path?: string)` defaulting to `:memory:` and export `createTestDbFromPath(path: string): DatabaseService` so a committed fixture can be opened against real `better-sqlite3` — the production-compatible SQLite service the Global Constraints require. This must precede Step 2; without it no fixture test can load.
+- [x] **Step 2: Snapshot each fixture in an isolated historical worktree.** Create `/tmp/notchy-fixture-v003` with `git worktree add --detach /tmp/notchy-fixture-v003 v0.1.0`; do not alter the active worktree HEAD. In that disposable worktree, create and run a temporary Vitest builder that uses a file-backed `better-sqlite3` database at `/tmp/v003.sqlite`, applies migrations 001–003, and inserts the documented account, tag, and transaction rows. Close the DB, copy it to `src/tests/fixtures/migrations/v003.sqlite`, then remove the disposable worktree. Repeat from `v0.1.1` for `v004.sqlite`; migration 004 adds `category_types.rollover_enabled`, which must remain at its seeded default. Record the tags, row IDs, and SHA-256 checksums in `src/tests/fixtures/migrations/README.md`.
+- [x] **Step 3: Write a failing test that copies one fixture to a temporary path, opens it with `createTestDbFromPath`, runs `runMigrations`, and expects `schema_version` of `5`.** Confirm it fails before the upgrade runs (e.g. assert against `4`/`3` first) so the test is genuinely red, then flip to `5`.
+- [x] **Step 4: Extend that test to query the distinguishable rows and assert their IDs, integer amount, and `tag_id` relationship are unchanged across the upgrade.** Assert one rejection/rollback path is unaffected (e.g. a constraint-violating insert still throws after upgrade) to satisfy the spec's data-integrity rule.
+- [x] **Step 5: Run `pnpm vitest run src/tests/unit/migrations.test.ts`; expect all fixture-upgrade cases to pass.**
+- [x] **Step 6: Commit with `test: cover upgrades from released database fixtures`.**
 
 ### Task 2: Establish mutation testing for high-risk domain modules
 
@@ -69,13 +69,13 @@ Only schemas 3 and 4 were ever released. Schema versions 1 and 2 were never ship
 - Consumes: the existing Vitest command and tests.
 - Produces: `pnpm test:mutation` that mutates only the four high-risk modules above, sequenced pure-then-DB.
 
-- [ ] **Step 1: Pin both `@stryker-mutator/core` (CLI) and `@stryker-mutator/vitest-runner` after checking their compatible release pair against official Stryker documentation; add `test:mutation` as `stryker run`. Write `stryker.conf.mjs` with an initial `mutate` list containing only `src/lib/utils/rules_matcher.ts` and `src/lib/utils/dedup.ts`, and use the existing Vitest configuration. Do not add the DB-backed modules until Step 4.**
-- [ ] **Step 2: Run `pnpm test:mutation` against the two pure modules (`rules_matcher.ts`, `dedup.ts`) and list every surviving mutant by module. This validates the Stryker config before the slow DB-backed runs.**
-- [ ] **Step 3: For each pure-module survivor that represents a plausible user-visible defect, write an assertion that fails when that mutation is applied. Do not add tests for equivalent mutants.**
-- [ ] **Step 4: Extend `mutate` (or create a second `stryker.db.conf.mjs`) to include `src/lib/db/repos/transactions.ts` and `src/lib/backup/index.ts`. Before accepting its score, add or retain direct real-SQL integration tests for each release-critical WHERE, ordering, limit, soft-delete, and rollback invariant; whole-string SQL mutants are diagnostic only and do not substitute for those tests.**
-- [ ] **Step 5: For each DB-backed survivor representing a plausible user-visible defect, write an assertion that fails when that mutation is applied. Do not add tests for equivalent mutants.**
-- [ ] **Step 6: Re-run `pnpm test:mutation`; record the mutation score and accepted equivalent mutants in the pull request.**
-- [ ] **Step 7: Commit with `test: add mutation checks for financial data logic`.**
+- [x] **Step 1: Pin both `@stryker-mutator/core` (CLI) and `@stryker-mutator/vitest-runner` after checking their compatible release pair against official Stryker documentation; add `test:mutation` as `stryker run`. Write `stryker.conf.mjs` with an initial `mutate` list containing only `src/lib/utils/rules_matcher.ts` and `src/lib/utils/dedup.ts`, and use the existing Vitest configuration. Do not add the DB-backed modules until Step 4.**
+- [x] **Step 2: Run `pnpm test:mutation` against the two pure modules (`rules_matcher.ts`, `dedup.ts`) and list every surviving mutant by module. This validates the Stryker config before the slow DB-backed runs.**
+- [x] **Step 3: For each pure-module survivor that represents a plausible user-visible defect, write an assertion that fails when that mutation is applied. Do not add tests for equivalent mutants.**
+- [x] **Step 4: Extend `mutate` (or create a second `stryker.db.conf.mjs`) to include `src/lib/db/repos/transactions.ts` and `src/lib/backup/index.ts`. Before accepting its score, add or retain direct real-SQL integration tests for each release-critical WHERE, ordering, limit, soft-delete, and rollback invariant; whole-string SQL mutants are diagnostic only and do not substitute for those tests.**
+- [x] **Step 5: For each DB-backed survivor representing a plausible user-visible defect, write an assertion that fails when that mutation is applied. Do not add tests for equivalent mutants.**
+- [x] **Step 6: Re-run `pnpm test:mutation`; record the mutation score and accepted equivalent mutants in the pull request.**
+- [x] **Step 7: Commit with `test: add mutation checks for financial data logic`.**
 
 ### Task 3: Make desktop release verification repeatable
 
@@ -87,11 +87,11 @@ Only schemas 3 and 4 were ever released. Schema versions 1 and 2 were never ship
 - Consumes: `pnpm tauri dev` and a manually installed packaged build.
 - Produces: a release checklist and a `test:release-smoke` script that prints the checklist path and current package version.
 
-- [ ] **Step 1: Write checklist cases for first launch, onboarding, quick-add shortcut, tray actions, transaction create/edit/delete/transfer, restart persistence, backup/restore, CSV round-trip, and locale switch. Use one Markdown table per case with these columns: `Case`, `Expected persisted data`, `OS`, `Package version`, `Result (pass/fail)`, `Evidence path`, and `Notes`.**
-- [ ] **Step 2: Require a screenshot and app-log path for every failed case, and a screenshot for every destructive-data case (delete, restore, import). A completed row must contain OS, package version, and pass/fail result, so the document is a release audit record rather than a one-off note.**
-- [ ] **Step 3: Add `test:release-smoke` as a non-destructive Node script that prints exactly `Desktop release checklist: specs/2026-07-27-desktop-release-smoke-checklist.md` and the package version from `package.json`. Do not present it as automated Tauri coverage.**
-- [ ] **Step 4: Run `pnpm test:release-smoke` and `pnpm check`; expect the script to print the checklist and type checks to remain green.**
-- [ ] **Step 5: Commit with `docs: add desktop release smoke checklist`.**
+- [x] **Step 1: Write checklist cases for first launch, onboarding, quick-add shortcut, tray actions, transaction create/edit/delete/transfer, restart persistence, backup/restore, CSV round-trip, and locale switch. Use one Markdown table per case with these columns: `Case`, `Expected persisted data`, `OS`, `Package version`, `Result (pass/fail)`, `Evidence path`, and `Notes`.**
+- [x] **Step 2: Require a screenshot and app-log path for every failed case, and a screenshot for every destructive-data case (delete, restore, import). A completed row must contain OS, package version, and pass/fail result, so the document is a release audit record rather than a one-off note.**
+- [x] **Step 3: Add `test:release-smoke` as a non-destructive Node script that prints exactly `Desktop release checklist: specs/2026-07-27-desktop-release-smoke-checklist.md` and the package version from `package.json`. Do not present it as automated Tauri coverage.**
+- [x] **Step 4: Run `pnpm test:release-smoke` and `pnpm check`; expect the script to print the checklist and type checks to remain green.**
+- [x] **Step 5: Commit with `docs: add desktop release smoke checklist`.**
 
 ## Self-Review
 

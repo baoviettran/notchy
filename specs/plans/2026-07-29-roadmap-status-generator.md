@@ -1,6 +1,6 @@
 # Roadmap Status Generator Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Build a generator that emits `specs/STATUS.md` from plan checkboxes + git log, with a `pnpm test:roadmap` script, so future sessions can answer roadmap questions without re-scanning.
 
@@ -31,13 +31,13 @@
 - Consumes: nothing
 - Produces: `pnpm test:roadmap` command exists (even if script is empty)
 
-- [ ] **Step 1: Create scripts directory**
+- [x] **Step 1: Create scripts directory**
 
 ```bash
 mkdir -p scripts
 ```
 
-- [ ] **Step 2: Create empty roadmap.mjs placeholder**
+- [x] **Step 2: Create empty roadmap.mjs placeholder**
 
 ```javascript
 // scripts/roadmap.mjs
@@ -45,7 +45,7 @@ mkdir -p scripts
 console.log('roadmap generator placeholder');
 ```
 
-- [ ] **Step 3: Add test:roadmap script to package.json**
+- [x] **Step 3: Add test:roadmap script to package.json**
 
 Open `package.json`, find the `"scripts"` section, and add this line after `"test:release-smoke"`:
 
@@ -53,7 +53,7 @@ Open `package.json`, find the `"scripts"` section, and add this line after `"tes
 "test:roadmap": "node scripts/roadmap.mjs",
 ```
 
-- [ ] **Step 4: Verify script runs**
+- [x] **Step 4: Verify script runs**
 
 ```bash
 pnpm test:roadmap
@@ -61,7 +61,7 @@ pnpm test:roadmap
 
 Expected: prints `roadmap generator placeholder`
 
-- [ ] **Step 5: Commit scaffolding**
+- [x] **Step 5: Commit scaffolding**
 
 ```bash
 git add scripts/ package.json
@@ -82,7 +82,7 @@ git commit -m "chore: add scaffolding for roadmap status generator"
 - Produces: `extractCommitSubject(taskFinalStepText)` → `subject | null`
 - Produces: `normalizeSubject(subject)` → `{type, scope, body}`
 
-- [ ] **Step 1: Write failing test for normalizeSubject**
+- [x] **Step 1: Write failing test for normalizeSubject**
 
 ```javascript
 // scripts/roadmap.test.mjs
@@ -119,7 +119,7 @@ describe('normalizeSubject', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 pnpm vitest run scripts/roadmap.test.mjs
@@ -127,7 +127,7 @@ pnpm vitest run scripts/roadmap.test.mjs
 
 Expected: FAIL with "normalizeSubject is not defined"
 
-- [ ] **Step 3: Implement normalizeSubject in roadmap.mjs**
+- [x] **Step 3: Implement normalizeSubject in roadmap.mjs**
 
 ```javascript
 // scripts/roadmap.mjs
@@ -145,7 +145,7 @@ export function normalizeSubject(subject) {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 pnpm vitest run scripts/roadmap.test.mjs
@@ -153,7 +153,7 @@ pnpm vitest run scripts/roadmap.test.mjs
 
 Expected: 3 tests PASS
 
-- [ ] **Step 5: Write failing test for extractCommitSubject**
+- [x] **Step 5: Write failing test for extractCommitSubject**
 
 Append to `scripts/roadmap.test.mjs`:
 
@@ -187,7 +187,7 @@ describe('extractCommitSubject', () => {
 });
 ```
 
-- [ ] **Step 6: Run test to verify it fails**
+- [x] **Step 6: Run test to verify it fails**
 
 ```bash
 pnpm vitest run scripts/roadmap.test.mjs
@@ -195,7 +195,7 @@ pnpm vitest run scripts/roadmap.test.mjs
 
 Expected: FAIL with "extractCommitSubject is not defined"
 
-- [ ] **Step 7: Implement extractCommitSubject in roadmap.mjs**
+- [x] **Step 7: Implement extractCommitSubject in roadmap.mjs**
 
 ```javascript
 // scripts/roadmap.mjs
@@ -217,7 +217,7 @@ export function extractCommitSubject(taskFinalStepText) {
 }
 ```
 
-- [ ] **Step 8: Run test to verify it passes**
+- [x] **Step 8: Run test to verify it passes**
 
 ```bash
 pnpm vitest run scripts/roadmap.test.mjs
@@ -225,7 +225,7 @@ pnpm vitest run scripts/roadmap.test.mjs
 
 Expected: 7 tests PASS (3 normalizeSubject + 4 extractCommitSubject)
 
-- [ ] **Step 9: Write failing test for parseTasks**
+- [x] **Step 9: Write failing test for parseTasks**
 
 Append to `scripts/roadmap.test.mjs`:
 
@@ -239,13 +239,13 @@ describe('parseTasks', () => {
 
 Some description.
 
-- [ ] **Step 1: Do something.**
-- [ ] **Step 2: Commit with \`test: first task\`.**
+- [x] **Step 1: Do something.**
+- [x] **Step 2: Commit with \`test: first task\`.**
 
 ### Task 2: Second task
 
-- [ ] **Step 1: Do another thing.**
-- [ ] **Step 2: Commit with \`docs: second task\`.**
+- [x] **Step 1: Do another thing.**
+- [x] **Step 2: Commit with \`docs: second task\`.**
 
 ## Self-Review
 
@@ -270,7 +270,7 @@ Some review notes.
     const planText = `
 ## Task 1: H2 task
 
-- [ ] **Step 1: Do it.**
+- [x] **Step 1: Do it.**
 `;
     const tasks = parseTasks(planText);
     expect(tasks).toHaveLength(1);
@@ -281,7 +281,7 @@ Some review notes.
     const planText = `
 ### Task 1: Real task
 
-- [ ] **Step 1: Do it.**
+- [x] **Step 1: Do it.**
 
 ## Summary
 
@@ -294,7 +294,7 @@ This is not a task.
 });
 ```
 
-- [ ] **Step 10: Run test to verify it fails**
+- [x] **Step 10: Run test to verify it fails**
 
 ```bash
 pnpm vitest run scripts/roadmap.test.mjs
@@ -302,7 +302,7 @@ pnpm vitest run scripts/roadmap.test.mjs
 
 Expected: FAIL with "parseTasks is not defined"
 
-- [ ] **Step 11: Implement parseTasks in roadmap.mjs**
+- [x] **Step 11: Implement parseTasks in roadmap.mjs**
 
 ```javascript
 // scripts/roadmap.mjs
@@ -359,7 +359,7 @@ export function parseTasks(planText) {
 }
 ```
 
-- [ ] **Step 12: Run test to verify it passes**
+- [x] **Step 12: Run test to verify it passes**
 
 ```bash
 pnpm vitest run scripts/roadmap.test.mjs
@@ -367,7 +367,7 @@ pnpm vitest run scripts/roadmap.test.mjs
 
 Expected: 10 tests PASS (3 normalizeSubject + 4 extractCommitSubject + 3 parseTasks)
 
-- [ ] **Step 13: Commit parsing logic**
+- [x] **Step 13: Commit parsing logic**
 
 ```bash
 git add scripts/roadmap.mjs scripts/roadmap.test.mjs
@@ -386,7 +386,7 @@ git commit -m "feat: add parsing logic for roadmap generator"
 - Consumes: directive subject (string), commits array `[{sha, subject}]`
 - Produces: `matchGit(directiveSubject, commits)` → `{sha, additionalMatches} | null`
 
-- [ ] **Step 1: Write failing test for matchGit**
+- [x] **Step 1: Write failing test for matchGit**
 
 Append to `scripts/roadmap.test.mjs`:
 
@@ -427,7 +427,7 @@ describe('matchGit', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 pnpm vitest run scripts/roadmap.test.mjs
@@ -435,7 +435,7 @@ pnpm vitest run scripts/roadmap.test.mjs
 
 Expected: FAIL with "matchGit is not defined"
 
-- [ ] **Step 3: Implement matchGit in roadmap.mjs**
+- [x] **Step 3: Implement matchGit in roadmap.mjs**
 
 ```javascript
 // scripts/roadmap.mjs
@@ -463,7 +463,7 @@ export function matchGit(directiveSubject, commits) {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 pnpm vitest run scripts/roadmap.test.mjs
@@ -471,7 +471,7 @@ pnpm vitest run scripts/roadmap.test.mjs
 
 Expected: 14 tests PASS
 
-- [ ] **Step 5: Commit git matching**
+- [x] **Step 5: Commit git matching**
 
 ```bash
 git add scripts/roadmap.mjs scripts/roadmap.test.mjs
@@ -490,7 +490,7 @@ git commit -m "feat: add git matching for roadmap generator"
 - Consumes: tasks array with `steps[]` (each has `checkbox`) and `directive` + `gitMatch`
 - Produces: `rollupStatus(tasks)` → one of 5 status strings
 
-- [ ] **Step 1: Write failing test for rollupStatus**
+- [x] **Step 1: Write failing test for rollupStatus**
 
 Append to `scripts/roadmap.test.mjs`:
 
@@ -539,7 +539,7 @@ describe('rollupStatus', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 pnpm vitest run scripts/roadmap.test.mjs
@@ -547,7 +547,7 @@ pnpm vitest run scripts/roadmap.test.mjs
 
 Expected: FAIL with "rollupStatus is not defined"
 
-- [ ] **Step 3: Implement rollupStatus in roadmap.mjs**
+- [x] **Step 3: Implement rollupStatus in roadmap.mjs**
 
 ```javascript
 // scripts/roadmap.mjs
@@ -593,7 +593,7 @@ export function rollupStatus(tasks) {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 pnpm vitest run scripts/roadmap.test.mjs
@@ -601,7 +601,7 @@ pnpm vitest run scripts/roadmap.test.mjs
 
 Expected: 19 tests PASS
 
-- [ ] **Step 5: Commit rollup status**
+- [x] **Step 5: Commit rollup status**
 
 ```bash
 git add scripts/roadmap.mjs scripts/roadmap.test.mjs
@@ -620,7 +620,7 @@ git commit -m "feat: add rollup status logic for roadmap generator"
 - Consumes: existing STATUS.md text (string), current git log commits array
 - Produces: `validateStaleness(existingStatusMd, commits)` → `{warnings: string[]}`
 
-- [ ] **Step 1: Write failing test for validateStaleness**
+- [x] **Step 1: Write failing test for validateStaleness**
 
 Append to `scripts/roadmap.test.mjs`:
 
@@ -658,7 +658,7 @@ describe('validateStaleness', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 pnpm vitest run scripts/roadmap.test.mjs
@@ -666,7 +666,7 @@ pnpm vitest run scripts/roadmap.test.mjs
 
 Expected: FAIL with "validateStaleness is not defined"
 
-- [ ] **Step 3: Implement validateStaleness in roadmap.mjs**
+- [x] **Step 3: Implement validateStaleness in roadmap.mjs**
 
 ```javascript
 // scripts/roadmap.mjs
@@ -689,7 +689,7 @@ export function validateStaleness(existingStatusMd, commits) {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 pnpm vitest run scripts/roadmap.test.mjs
@@ -697,7 +697,7 @@ pnpm vitest run scripts/roadmap.test.mjs
 
 Expected: 22 tests PASS
 
-- [ ] **Step 5: Commit staleness validation**
+- [x] **Step 5: Commit staleness validation**
 
 ```bash
 git add scripts/roadmap.mjs scripts/roadmap.test.mjs
@@ -717,7 +717,7 @@ git commit -m "feat: add staleness validation for roadmap generator"
 - Produces: `renderMarkdown(plans, commitCount)` → string
 - Produces: `renderStdoutTable(plans)` → string
 
-- [ ] **Step 1: Write failing test for renderMarkdown**
+- [x] **Step 1: Write failing test for renderMarkdown**
 
 Append to `scripts/roadmap.test.mjs`:
 
@@ -753,7 +753,7 @@ describe('renderMarkdown', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 pnpm vitest run scripts/roadmap.test.mjs
@@ -761,7 +761,7 @@ pnpm vitest run scripts/roadmap.test.mjs
 
 Expected: FAIL with "renderMarkdown is not defined"
 
-- [ ] **Step 3: Implement renderMarkdown in roadmap.mjs**
+- [x] **Step 3: Implement renderMarkdown in roadmap.mjs**
 
 ```javascript
 // scripts/roadmap.mjs
@@ -800,7 +800,7 @@ export function renderMarkdown(plans, commitCount) {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 pnpm vitest run scripts/roadmap.test.mjs
@@ -808,7 +808,7 @@ pnpm vitest run scripts/roadmap.test.mjs
 
 Expected: 23 tests PASS
 
-- [ ] **Step 5: Write failing test for renderStdoutTable**
+- [x] **Step 5: Write failing test for renderStdoutTable**
 
 Append to `scripts/roadmap.test.mjs`:
 
@@ -830,7 +830,7 @@ describe('renderStdoutTable', () => {
 });
 ```
 
-- [ ] **Step 6: Run test to verify it fails**
+- [x] **Step 6: Run test to verify it fails**
 
 ```bash
 pnpm vitest run scripts/roadmap.test.mjs
@@ -838,7 +838,7 @@ pnpm vitest run scripts/roadmap.test.mjs
 
 Expected: FAIL with "renderStdoutTable is not defined"
 
-- [ ] **Step 7: Implement renderStdoutTable in roadmap.mjs**
+- [x] **Step 7: Implement renderStdoutTable in roadmap.mjs**
 
 ```javascript
 // scripts/roadmap.mjs
@@ -855,7 +855,7 @@ export function renderStdoutTable(plans) {
 }
 ```
 
-- [ ] **Step 8: Run test to verify it passes**
+- [x] **Step 8: Run test to verify it passes**
 
 ```bash
 pnpm vitest run scripts/roadmap.test.mjs
@@ -863,7 +863,7 @@ pnpm vitest run scripts/roadmap.test.mjs
 
 Expected: 24 tests PASS
 
-- [ ] **Step 9: Commit rendering logic**
+- [x] **Step 9: Commit rendering logic**
 
 ```bash
 git add scripts/roadmap.mjs scripts/roadmap.test.mjs
@@ -881,7 +881,7 @@ git commit -m "feat: add STATUS.md and stdout table rendering"
 - Consumes: filesystem (specs/plans/*.md, git log)
 - Produces: writes specs/STATUS.md, prints stdout table, exits with appropriate code
 
-- [ ] **Step 1: Implement main() function in roadmap.mjs**
+- [x] **Step 1: Implement main() function in roadmap.mjs**
 
 ```javascript
 // scripts/roadmap.mjs
@@ -965,7 +965,7 @@ main().catch(err => {
 });
 ```
 
-- [ ] **Step 2: Run end-to-end test**
+- [x] **Step 2: Run end-to-end test**
 
 ```bash
 pnpm test:roadmap
@@ -976,7 +976,7 @@ Expected:
 - Creates `specs/STATUS.md`
 - Exits 0 (no staleness on first run)
 
-- [ ] **Step 3: Verify STATUS.md content**
+- [x] **Step 3: Verify STATUS.md content**
 
 ```bash
 cat specs/STATUS.md | head -30
@@ -984,7 +984,7 @@ cat specs/STATUS.md | head -30
 
 Expected: header with timestamp, then plan sections with task tables
 
-- [ ] **Step 4: Verify test-confidence plan shows implemented-pending-checkbox**
+- [x] **Step 4: Verify test-confidence plan shows implemented-pending-checkbox**
 
 ```bash
 grep -A 10 "test-confidence-improvement" specs/STATUS.md
@@ -992,7 +992,7 @@ grep -A 10 "test-confidence-improvement" specs/STATUS.md
 
 Expected: status line shows `implemented-pending-checkbox`, SHAs `a83ad74`/`40facbe`/`89dde52` present
 
-- [ ] **Step 5: Commit end-to-end wiring**
+- [x] **Step 5: Commit end-to-end wiring**
 
 ```bash
 git add scripts/roadmap.mjs
@@ -1006,7 +1006,7 @@ git commit -m "feat: wire up end-to-end roadmap generator"
 **Files:**
 - Modify: `CLAUDE.md`
 
-- [ ] **Step 1: Add Spec/Plan Tracking section to CLAUDE.md**
+- [x] **Step 1: Add Spec/Plan Tracking section to CLAUDE.md**
 
 Open `CLAUDE.md`, find the `## Repo Layout` section, and insert the following **after** it (before `## Gotchas`):
 
@@ -1015,11 +1015,11 @@ Open `CLAUDE.md`, find the `## Repo Layout` section, and insert the following **
 
 - To answer "what's the roadmap progress / which specs are implemented," run `pnpm test:roadmap` and read `specs/STATUS.md` — do NOT re-scan plans + git log by hand.
 - `specs/STATUS.md` is **generated** (from `specs/plans/*.md` checkboxes + `git log`). Never hand-edit it; re-run `pnpm test:roadmap` to refresh.
-- **Checkbox discipline:** when a plan task's commit lands, flip that task's step checkboxes `- [ ]`→`- [x]` in the plan file. A task counts as done only if its box is `[x]` AND git log has the matching commit.
+- **Checkbox discipline:** when a plan task's commit lands, flip that task's step checkboxes `- [x]`→`- [x]` in the plan file. A task counts as done only if its box is `[x]` AND git log has the matching commit.
 - If `pnpm test:roadmap` prints `⚠ stale`, the rollup can't be trusted — regenerate it before relying on it. Nonzero exit = staleness detected.
 ```
 
-- [ ] **Step 2: Verify CLAUDE.md structure**
+- [x] **Step 2: Verify CLAUDE.md structure**
 
 ```bash
 grep "^## " CLAUDE.md
@@ -1027,7 +1027,7 @@ grep "^## " CLAUDE.md
 
 Expected: list of `##` headers including `Spec/Plan Tracking` between `Repo Layout` and `Gotchas`
 
-- [ ] **Step 3: Commit CLAUDE.md addition**
+- [x] **Step 3: Commit CLAUDE.md addition**
 
 ```bash
 git add CLAUDE.md
@@ -1042,7 +1042,7 @@ git commit -m "docs: add Spec/Plan Tracking section to CLAUDE.md"
 - Create: `/home/hoangtu34/.claude/projects/-home-hoangtu34-Documents-projects-local-personal-finance-management/memory/spec-plan-tracking.md`
 - Modify: `/home/hoangtu34/.claude/projects/-home-hoangtu34-Documents-projects-local-personal-finance-management/memory/MEMORY.md`
 
-- [ ] **Step 1: Create spec-plan-tracking.md memory file**
+- [x] **Step 1: Create spec-plan-tracking.md memory file**
 
 ```markdown
 ---
@@ -1094,7 +1094,7 @@ The generator cross-checks both. If only one is true, it reports:
 Plan directive `feat(categorize-rules): ...` may ship as commit `feat(db): ...`. The generator strips `type(scope):` and matches the body as substring.
 ```
 
-- [ ] **Step 2: Add pointer to MEMORY.md**
+- [x] **Step 2: Add pointer to MEMORY.md**
 
 Open `/home/hoangtu34/.claude/projects/-home-hoangtu34-Documents-projects-local-personal-finance-management/memory/MEMORY.md` and append this line:
 
@@ -1102,7 +1102,7 @@ Open `/home/hoangtu34/.claude/projects/-home-hoangtu34-Documents-projects-local-
 - [Spec/Plan tracking workflow](spec-plan-tracking.md) — run pnpm test:roadmap for roadmap progress; read specs/STATUS.md; flip plan checkboxes on commit; STATUS.md generated, don't hand-edit
 ```
 
-- [ ] **Step 3: Verify memory files exist**
+- [x] **Step 3: Verify memory files exist**
 
 ```bash
 ls -la /home/hoangtu34/.claude/projects/-home-hoangtu34-Documents-projects-local-personal-finance-management/memory/
@@ -1110,7 +1110,7 @@ ls -la /home/hoangtu34/.claude/projects/-home-hoangtu34-Documents-projects-local
 
 Expected: `spec-plan-tracking.md` exists, `MEMORY.md` contains the new pointer
 
-- [ ] **Step 4: Commit memory addition (if tracked)**
+- [x] **Step 4: Commit memory addition (if tracked)**
 
 Memory files are outside the repo, so no git commit needed. Just verify they exist.
 
