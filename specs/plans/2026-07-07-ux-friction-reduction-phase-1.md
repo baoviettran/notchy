@@ -1,6 +1,6 @@
 # UX Friction Reduction — Phase 1 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Reduce the top 5 behavioral UX friction points identified in the audit — dashboard overload, transaction form ordering, dead mobile nav, hidden row actions, inconsistent empty states — with pure UI changes and no new features.
 
@@ -59,7 +59,7 @@
 **Interfaces:**
 - Produces: `Input` accepts `autofocus?: boolean`. When `true`, the rendered `<input>` has the `autofocus` attribute. Consumed by TransactionForm in Task 4.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `src/tests/unit/components/Input.test.ts`:
 
@@ -84,12 +84,12 @@ describe('Input', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test -- Input.test.ts`
 Expected: FAIL — the two new tests fail (Input does not accept `autofocus`, so the attribute is absent).
 
-- [ ] **Step 3: Implement the `autofocus` prop**
+- [x] **Step 3: Implement the `autofocus` prop**
 
 In `src/lib/components/primitives/Input.svelte`, add `autofocus` to the destructure and the `<input>`:
 
@@ -120,12 +120,12 @@ In `src/lib/components/primitives/Input.svelte`, add `autofocus` to the destruct
 </div>
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test -- Input.test.ts`
 Expected: PASS — both new tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/components/primitives/Input.svelte src/tests/unit/components/Input.test.ts
@@ -144,7 +144,7 @@ git commit -m "feat(forms): add autofocus prop to Input primitive"
 - Produces: `<EmptyState icon="▮▯▯▯" message="No data" />` — renders a centered phosphor-glow glyph + message; optional `action` snippet renders a CTA below.
 - Consumes: nothing (pure presentational). Consumed by Tasks 5 and the dashboard/transactions views.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/tests/unit/components/EmptyState.test.ts`:
 
@@ -189,12 +189,12 @@ describe('EmptyState', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test -- EmptyState.test.ts`
 Expected: FAIL — module not found (`$lib/components/primitives/EmptyState.svelte` does not exist).
 
-- [ ] **Step 3: Implement EmptyState**
+- [x] **Step 3: Implement EmptyState**
 
 Create `src/lib/components/primitives/EmptyState.svelte`:
 
@@ -219,12 +219,12 @@ Create `src/lib/components/primitives/EmptyState.svelte`:
 </div>
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test -- EmptyState.test.ts`
 Expected: PASS — all six tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/components/primitives/EmptyState.svelte src/tests/unit/components/EmptyState.test.ts
@@ -243,7 +243,7 @@ git commit -m "feat(primitives): add EmptyState component for unified empty stat
 - Produces: `<ContextMenu label="Actions">...menu items...</ContextMenu>` — renders a ⋮ trigger button; clicking it opens a dropdown containing the snippet children; clicking the backdrop or pressing Escape closes it.
 - Consumes: nothing. Consumed by Task 5 (transaction/accounts row actions).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/tests/unit/components/ContextMenu.test.ts`:
 
@@ -298,12 +298,12 @@ describe('ContextMenu', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test -- ContextMenu.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Implement ContextMenu**
+- [x] **Step 3: Implement ContextMenu**
 
 Create `src/lib/components/primitives/ContextMenu.svelte`:
 
@@ -352,12 +352,12 @@ Create `src/lib/components/primitives/ContextMenu.svelte`:
 </div>
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test -- ContextMenu.test.ts`
 Expected: PASS — all six tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/components/primitives/ContextMenu.svelte src/tests/unit/components/ContextMenu.test.ts
@@ -378,7 +378,7 @@ git commit -m "feat(primitives): add ContextMenu dropdown component"
 
 **Note:** This is a visual reordering; the existing save logic, validation, and draft-restore behavior are unchanged. If `src/tests/unit/components/TransactionForm.test.ts` does not exist yet, this task creates it with a render-order test.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create (or add to) `src/tests/unit/components/TransactionForm.test.ts`:
 
@@ -415,12 +415,12 @@ describe('TransactionForm', () => {
 
 > Note on the second test: `input#input-` partial-id selector is unreliable; the `?? screen.getByLabelText('Amount')` fallback makes `amountInput` resolve to the real element. The assertion uses `compareDocumentPosition` to verify DOM order without depending on IDs.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test -- TransactionForm.test.ts`
 Expected: FAIL — Amount does not have `autofocus` (current form has kind toggles first, then a non-autofocus amount input).
 
-- [ ] **Step 3: Reorder the form markup**
+- [x] **Step 3: Reorder the form markup**
 
 In `src/lib/components/forms/TransactionForm.svelte`, replace the `<div class="space-y-4">` block (the template, lines from `<div class="space-y-4">` through the closing `</div>` before `</script>`'s scope ends) with:
 
@@ -469,17 +469,17 @@ In `src/lib/components/forms/TransactionForm.svelte`, replace the `<div class="s
 
 The `<script>` block is unchanged — only the field order and the `autofocus` attribute on the amount `Input` change.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test -- TransactionForm.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Run the full suite + typecheck**
+- [x] **Step 5: Run the full suite + typecheck**
 
 Run: `pnpm test && pnpm check`
 Expected: all green. `pnpm check` also regenerates Paraglide (no new keys in this task, but confirms no breakage).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/lib/components/forms/TransactionForm.svelte src/tests/unit/components/TransactionForm.test.ts
@@ -505,7 +505,7 @@ git commit -m "refactor(forms): reorder TransactionForm — amount first with au
 
 **Why no new i18n keys:** `layout_more` exists; `nav_accounts/goals/debts/settings` exist. The "More" sheet reuses them.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `src/tests/unit/components/TopBar.test.ts`:
 
@@ -583,12 +583,12 @@ describe('BottomNav', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm test -- TopBar.test.ts BottomNav.test.ts`
 Expected: FAIL — TopBar still renders the logo/hamburger; BottomNav has no "More" button or sheet.
 
-- [ ] **Step 3: Refactor TopBar into a utility bar**
+- [x] **Step 3: Refactor TopBar into a utility bar**
 
 Replace the entire contents of `src/lib/components/layout/TopBar.svelte`:
 
@@ -617,7 +617,7 @@ Replace the entire contents of `src/lib/components/layout/TopBar.svelte`:
 </header>
 ```
 
-- [ ] **Step 4: Add the "More" sheet to BottomNav**
+- [x] **Step 4: Add the "More" sheet to BottomNav**
 
 Replace the entire contents of `src/lib/components/layout/BottomNav.svelte`:
 
@@ -701,24 +701,24 @@ Replace the entire contents of `src/lib/components/layout/BottomNav.svelte`:
 {/if}
 ```
 
-- [ ] **Step 5: Verify the dead-hamburger fix**
+- [x] **Step 5: Verify the dead-hamburger fix**
 
 The original bug: `TopBar` accepted `onMenuToggle` but `+layout.svelte` never passed it, so the hamburger was a no-op. After this task, TopBar takes no props, so the bug is fixed by elimination.
 
 Run: `grep -n "onMenuToggle" src/routes/+layout.svelte src/lib/components/layout/TopBar.svelte`
 Expected: no matches in either file. If matches appear, remove them — TopBar no longer accepts `onMenuToggle`.
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [x] **Step 6: Run tests to verify they pass**
 
 Run: `pnpm test -- TopBar.test.ts BottomNav.test.ts`
 Expected: PASS.
 
-- [ ] **Step 7: Run full suite + typecheck**
+- [x] **Step 7: Run full suite + typecheck**
 
 Run: `pnpm test && pnpm check`
 Expected: all green.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/lib/components/layout/TopBar.svelte src/lib/components/layout/BottomNav.svelte src/tests/unit/components/TopBar.test.ts src/tests/unit/components/BottomNav.test.ts
@@ -740,13 +740,13 @@ git commit -m "refactor(nav): TopBar utility bar + BottomNav More sheet for mobi
 
 **Spec deviation note:** The spec's success criterion states the dashboard should collapse to "3 clear cards." This task removes only the inline quick-entry (1 of 6 cards), leaving 5 cards (net position, budget, frequent transactions, recent, goals). This is a partial fix — the full 3-card collapse is deferred to Phase 2 or 3. The plan documents this as YAGNI for Phase 1, but it's a known gap from the spec's stated goal.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 This is a route component. There is no existing dashboard component test; rather than stub the DB-backed stores (which `CLAUDE.md` forbids mocking), we verify the change structurally: the dashboard no longer mounts an inline TransactionForm in "quick" mode. Add a lightweight test that asserts the markup contract — but since the dashboard pulls from stores that need a DB, we instead assert via the source: **no behavioral test; document the manual/E2E verification.**
 
 Skip the unit test (route components are DB-bound; mocking stores is forbidden). Document verification in Step 4 instead.
 
-- [ ] **Step 2: Remove the inline quick-entry section**
+- [x] **Step 2: Remove the inline quick-entry section**
 
 In `src/routes/+page.svelte`, delete the entire QUICK ENTRY block:
 
@@ -770,7 +770,7 @@ Add the `EmptyState` import:
 import EmptyState from '$lib/components/primitives/EmptyState.svelte';
 ```
 
-- [ ] **Step 3: Adopt EmptyState for the empty recent-txns block**
+- [x] **Step 3: Adopt EmptyState for the empty recent-txns block**
 
 Replace the empty-state branch of the RECENT section:
 
@@ -793,7 +793,7 @@ Replace with:
 			{:else}
 ```
 
-- [ ] **Step 4: Update the stale E2E helper comment**
+- [x] **Step 4: Update the stale E2E helper comment**
 
 In `src/tests/e2e/helpers/ui.ts`, the `addTransaction` function has a JSDoc comment referencing "the dashboard also has an inline quick form with its own Amount/Save controls" as the reason for scoping via `getByRole('dialog')`. After Step 2, that inline form no longer exists. Update the comment to reflect reality (the dialog scoping is still good practice, but the rationale changed).
 
@@ -809,7 +809,7 @@ Replace with:
  * controls in case other dialogs or inputs appear on the page.
 ```
 
-- [ ] **Step 5: Verify (typecheck + E2E smoke)**
+- [x] **Step 5: Verify (typecheck + E2E smoke)**
 
 Run: `pnpm check`
 Expected: green — confirms the removed `TransactionForm` import and unused `dashboard_quick_entry` don't break compilation (unused i18n keys are fine).
@@ -817,7 +817,7 @@ Expected: green — confirms the removed `TransactionForm` import and unused `da
 Run: `pnpm test:e2e -- onboarding-dashboard`
 Expected: PASS — the dashboard still renders; the FAB still opens the transaction modal. (If a dashboard E2E asserted the inline quick-entry form exists, update it to use the FAB modal instead.)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/routes/+page.svelte src/tests/e2e/helpers/ui.ts
@@ -836,7 +836,7 @@ git commit -m "refactor(dashboard): remove inline quick-entry, adopt EmptyState 
 - Consumes: `EmptyState` (Task 2), `ContextMenu` (Task 3).
 - Produces: the transactions and accounts lists show consistent EmptyState, and expose a `ContextMenu` on each row (mobile: always visible; desktop: also visible, replacing the hover-only inline buttons for consistency).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 No new component tests (these are DB-bound route components; mocking is forbidden per `CLAUDE.md`). Verification is via `pnpm check` (typecheck) and the existing E2E suites (`transactions.spec.ts`, `accounts.spec.ts`), which exercise edit/delete/archive. The ContextMenu wraps the existing handlers, so behavior is preserved.
 
@@ -844,7 +844,7 @@ Document the expected E2E contract instead:
 
 > Existing E2E in `src/tests/e2e/transactions.spec.ts` and `src/tests/e2e/accounts.spec.ts` clicks edit/delete buttons. After this task, those buttons live inside a `ContextMenu` dropdown. **If any E2E clicks the row actions directly, update it to open the menu first** (`fireEvent.click` on the ⋮ trigger, then click the menu item).
 
-- [ ] **Step 2: Replace transactions list empty state + row actions**
+- [x] **Step 2: Replace transactions list empty state + row actions**
 
 In `src/routes/transactions/+page.svelte`:
 
@@ -885,7 +885,7 @@ Replace with:
 					</ContextMenu>
 ```
 
-- [ ] **Step 3: Replace accounts list empty states + row actions**
+- [x] **Step 3: Replace accounts list empty states + row actions**
 
 In `src/routes/accounts/+page.svelte`:
 
@@ -946,7 +946,7 @@ And the liabilities block (no archive):
 						</ContextMenu>
 ```
 
-- [ ] **Step 4: Typecheck + run E2E**
+- [x] **Step 4: Typecheck + run E2E**
 
 Run: `pnpm check`
 Expected: green.
@@ -962,16 +962,16 @@ await page.getByRole('menuitem', { name: /Delete/ }).click();
 ```
 (Add `role="menuitem"` to the ContextMenu item buttons if needed — see Step 5.)
 
-- [ ] **Step 5: Add `role="menuitem"` to ContextMenu children (accessibility + E2E selector)**
+- [x] **Step 5: Add `role="menuitem"` to ContextMenu children (accessibility + E2E selector)**
 
 The ContextMenu children are arbitrary buttons. For E2E selectors and a11y, the menu items should expose `role="menuitem"`. Update the `transactions` and `accounts` ContextMenu children from `<button>` to `<button role="menuitem" ...>`. Re-run `pnpm check`.
 
-- [ ] **Step 6: Run full suite**
+- [x] **Step 6: Run full suite**
 
 Run: `pnpm test && pnpm test:e2e -- transactions accounts`
 Expected: all green.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/routes/transactions/+page.svelte src/routes/accounts/+page.svelte src/tests/e2e/
@@ -984,22 +984,22 @@ git commit -m "refactor(lists): adopt EmptyState + ContextMenu in transactions a
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Run the entire test suite**
+- [x] **Step 1: Run the entire test suite**
 
 Run: `pnpm test`
 Expected: all unit + component tests pass.
 
-- [ ] **Step 2: Run the full E2E suite**
+- [x] **Step 2: Run the full E2E suite**
 
 Run: `pnpm test:e2e`
 Expected: all E2E specs pass. Pay attention to: `transactions.spec.ts`, `transactions-extended.spec.ts`, `accounts.spec.ts`, `accounts-extended.spec.ts`, `goals*.spec.ts`, `debts*.spec.ts`, `settings*.spec.ts` (the last three navigate to secondary routes — now reachable via BottomNav "More" on mobile, but E2E runs at desktop viewport so they navigate via Sidebar, which is unchanged).
 
-- [ ] **Step 3: Run typecheck**
+- [x] **Step 3: Run typecheck**
 
 Run: `pnpm check`
 Expected: green.
 
-- [ ] **Step 4: Manual smoke test (desktop + mobile widths)**
+- [x] **Step 4: Manual smoke test (desktop + mobile widths)**
 
 Run: `pnpm tauri dev`
 Verify at desktop width:
@@ -1014,7 +1014,7 @@ Resize to mobile width (< 768px):
 - "More" opens a sheet with Accounts, Goals, Debts, Settings.
 - The dead hamburger is gone.
 
-- [ ] **Step 5: Update the spec status**
+- [x] **Step 5: Update the spec status**
 
 In `specs/2026-07-07-ux-friction-reduction-design.md`, change the Status line from `Design — pending implementation plan` to `Phase 1 implemented`.
 

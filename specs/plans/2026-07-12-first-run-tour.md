@@ -1,6 +1,6 @@
 # First-Run Tour Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Add a spotlight coachmark tour that auto-starts once after onboarding, highlighting 5 core UI elements with overlay + tooltip, plus a Replay button in Settings.
 
@@ -52,7 +52,7 @@
 - Consumes: existing `getMeta` / `setMeta` from `meta.ts`
 - Produces: `isTourComplete(db) → Promise<boolean>`, `setTourComplete(db) → Promise<void>`
 
-- [ ] **Step 1: Write failing test for `isTourComplete` returning false when key missing**
+- [x] **Step 1: Write failing test for `isTourComplete` returning false when key missing**
 
 ```typescript
 // src/tests/unit/repos/meta-tour.test.ts
@@ -81,12 +81,12 @@ describe('isTourComplete', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test -- src/tests/unit/repos/meta-tour.test.ts`
 Expected: FAIL — `meta.isTourComplete is not a function`
 
-- [ ] **Step 3: Implement `isTourComplete` and `setTourComplete`**
+- [x] **Step 3: Implement `isTourComplete` and `setTourComplete`**
 
 Add to `src/lib/db/repos/meta.ts`:
 
@@ -101,12 +101,12 @@ export async function setTourComplete(db: DatabaseService): Promise<void> {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test -- src/tests/unit/repos/meta-tour.test.ts`
 Expected: PASS (2 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/db/repos/meta.ts src/tests/unit/repos/meta-tour.test.ts
@@ -125,7 +125,7 @@ git commit -m "feat: add tour_complete meta helpers"
 - Consumes: nothing (pure config)
 - Produces: `TOUR_STEPS` array, `TourStep` type `{ id: string; targets: string[]; titleKey: string; bodyKey: string }`
 
-- [ ] **Step 1: Write failing test for step definitions**
+- [x] **Step 1: Write failing test for step definitions**
 
 ```typescript
 // src/tests/unit/tour/steps.test.ts
@@ -156,12 +156,12 @@ describe('TOUR_STEPS', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test -- src/tests/unit/tour/steps.test.ts`
 Expected: FAIL — cannot find module `$lib/tour/steps`
 
-- [ ] **Step 3: Implement step definitions**
+- [x] **Step 3: Implement step definitions**
 
 ```typescript
 // src/lib/tour/steps.ts
@@ -207,12 +207,12 @@ export const TOUR_STEPS: TourStep[] = [
 ];
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test -- src/tests/unit/tour/steps.test.ts`
 Expected: PASS (4 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/tour/steps.ts src/tests/unit/tour/steps.test.ts
@@ -231,7 +231,7 @@ git commit -m "feat: add tour step definitions"
 - Consumes: `meta.isTourComplete`, `meta.setTourComplete`, `meta.isFirstRunComplete` from `$lib/db/repos/meta`, `TOUR_STEPS` from `$lib/tour/steps`, `getDb` from `$lib/db`
 - Produces: `tour` singleton export with: `active: boolean`, `currentStep: number`, `complete: boolean`, `load()`, `start(opts?)`, `next()`, `back()`, `skip()`, `finish()`
 
-- [ ] **Step 1: Write failing tests for tour store**
+- [x] **Step 1: Write failing tests for tour store**
 
 ```typescript
 // src/tests/unit/stores/tour.test.ts
@@ -361,12 +361,12 @@ describe('tour.finish', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test -- src/tests/unit/stores/tour.test.ts`
 Expected: FAIL — cannot find module `$lib/stores/tour.svelte`
 
-- [ ] **Step 3: Implement tour store**
+- [x] **Step 3: Implement tour store**
 
 ```typescript
 // src/lib/stores/tour.svelte.ts
@@ -437,12 +437,12 @@ class TourStore {
 export const tour = new TourStore();
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test -- src/tests/unit/stores/tour.test.ts`
 Expected: PASS (12 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/stores/tour.svelte.ts src/tests/unit/stores/tour.test.ts
@@ -461,7 +461,7 @@ git commit -m "feat: add tour runes store with grandfather logic"
 - Consumes: nothing
 - Produces: `tour_net_title`, `tour_net_body`, `tour_add_title`, `tour_add_body`, `tour_transactions_title`, `tour_transactions_body`, `tour_budgets_title`, `tour_budgets_body`, `tour_more_title`, `tour_more_body`, `tour_next`, `tour_back`, `tour_skip`, `tour_finish`, `tour_progress`, `tour_replay`, `tour_replay_desc`
 
-- [ ] **Step 1: Add English tour strings to `messages/en.json`**
+- [x] **Step 1: Add English tour strings to `messages/en.json`**
 
 Add these keys (alphabetical position among existing keys):
 
@@ -485,7 +485,7 @@ Add these keys (alphabetical position among existing keys):
 "tour_replay_desc": "Re-show the guided tour of the app's main features."
 ```
 
-- [ ] **Step 2: Add Vietnamese tour strings to `messages/vi.json`**
+- [x] **Step 2: Add Vietnamese tour strings to `messages/vi.json`**
 
 ```json
 "tour_net_title": "Vị thế ròng",
@@ -507,12 +507,12 @@ Add these keys (alphabetical position among existing keys):
 "tour_replay_desc": "Hiển thị lại hướng dẫn các tính năng chính của ứng dụng."
 ```
 
-- [ ] **Step 3: Regenerate Paraglide messages**
+- [x] **Step 3: Regenerate Paraglide messages**
 
 Run: `pnpm check`
 Expected: Paraglide compiles, no errors. Verify `src/lib/paraglide/messages/` contains the new keys.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add messages/en.json messages/vi.json
@@ -534,7 +534,7 @@ git commit -m "feat: add tour i18n strings (en + vi)"
 - Consumes: nothing
 - Produces: `data-tour` attributes on real DOM elements for the overlay to target
 
-- [ ] **Step 1: Add `data-tour="net"` to dashboard net position section**
+- [x] **Step 1: Add `data-tour="net"` to dashboard net position section**
 
 In `src/routes/+page.svelte`, find the net position `<section>` (line ~50) and add the attribute:
 
@@ -542,7 +542,7 @@ In `src/routes/+page.svelte`, find the net position `<section>` (line ~50) and a
 <section class="surface rounded-lg p-5 md:p-6 relative overflow-hidden" data-tour="net">
 ```
 
-- [ ] **Step 2: Add `data-tour="add"` to FAB**
+- [x] **Step 2: Add `data-tour="add"` to FAB**
 
 In `src/lib/components/layout/FAB.svelte`, add to the `<button>`:
 
@@ -553,7 +553,7 @@ In `src/lib/components/layout/FAB.svelte`, add to the `<button>`:
   class="..."
 ```
 
-- [ ] **Step 3: Add `data-tour` to Sidebar nav items**
+- [x] **Step 3: Add `data-tour` to Sidebar nav items**
 
 In `src/lib/components/layout/Sidebar.svelte`, add `data-tour` to each `<a>` in the primary and secondary nav loops. The key maps:
 
@@ -588,7 +588,7 @@ Then in each `{#each}` template, add `data-tour={item.tourId}` conditionally:
   ...
 ```
 
-- [ ] **Step 4: Add `data-tour` to BottomNav tabs**
+- [x] **Step 4: Add `data-tour` to BottomNav tabs**
 
 In `src/lib/components/layout/BottomNav.svelte`, add `tourId` to the tabs array:
 
@@ -605,16 +605,16 @@ Add `data-tour={tab.tourId}` to the `<a>` element.
 
 Note: Both sidebar and bottom nav share `data-tour="transactions"` and `data-tour="budgets"`. The overlay picks the visible one.
 
-- [ ] **Step 5: Skip — no `data-tour` changes needed on TopBar**
+- [x] **Step 5: Skip — no `data-tour` changes needed on TopBar**
 
 The `more` step targets `accounts` and `settings` in the Sidebar. On mobile, the Sidebar is hidden, so `findTarget()` returns null and the overlay falls back to a centered tooltip. No TopBar changes needed.
 
-- [ ] **Step 6: Verify build**
+- [x] **Step 6: Verify build**
 
 Run: `pnpm check`
 Expected: No errors.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/routes/+page.svelte src/lib/components/layout/FAB.svelte src/lib/components/layout/Sidebar.svelte src/lib/components/layout/BottomNav.svelte
@@ -632,7 +632,7 @@ git commit -m "feat: add data-tour attributes to shell components"
 - Consumes: `tour` store, `TOUR_STEPS`, Paraglide messages
 - Produces: Modal overlay with backdrop cutout, positioned tooltip, navigation buttons
 
-- [ ] **Step 1: Implement TourOverlay.svelte**
+- [x] **Step 1: Implement TourOverlay.svelte**
 
 ```svelte
 <!-- src/lib/components/tour/TourOverlay.svelte -->
@@ -801,12 +801,12 @@ git commit -m "feat: add data-tour attributes to shell components"
 {/if}
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `pnpm check`
 Expected: No errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/lib/components/tour/TourOverlay.svelte
@@ -824,7 +824,7 @@ git commit -m "feat: add TourOverlay component with spotlight and tooltip"
 - Consumes: `tour` store, `TourOverlay` component
 - Produces: Tour auto-starts after onboarding, overlay rendered in shell, host shortcuts gated
 
-- [ ] **Step 1: Import tour store and TourOverlay**
+- [x] **Step 1: Import tour store and TourOverlay**
 
 Add to the `<script>` block in `src/routes/+layout.svelte`:
 
@@ -833,7 +833,7 @@ import { tour } from '$lib/stores/tour.svelte';
 import TourOverlay from '$lib/components/tour/TourOverlay.svelte';
 ```
 
-- [ ] **Step 2: Wire tour.load() and auto-start in onMount**
+- [x] **Step 2: Wire tour.load() and auto-start in onMount**
 
 After `await settings.load()` (line ~49), add:
 
@@ -870,7 +870,7 @@ onMount(async () => {
 });
 ```
 
-- [ ] **Step 3: Gate host keyboard shortcuts when tour is active**
+- [x] **Step 3: Gate host keyboard shortcuts when tour is active**
 
 In the `onKeydown` function, add a guard:
 
@@ -887,7 +887,7 @@ function onKeydown(e: KeyboardEvent) {
 }
 ```
 
-- [ ] **Step 4: Render TourOverlay in the shell**
+- [x] **Step 4: Render TourOverlay in the shell**
 
 Add `<TourOverlay />` inside the main shell `{#else}` block (after `<GlobalToast />`):
 
@@ -912,12 +912,12 @@ Add `<TourOverlay />` inside the main shell `{#else}` block (after `<GlobalToast
 {/if}
 ```
 
-- [ ] **Step 5: Verify build**
+- [x] **Step 5: Verify build**
 
 Run: `pnpm check`
 Expected: No errors.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/routes/+layout.svelte
@@ -935,7 +935,7 @@ git commit -m "feat: wire tour store and overlay into app shell"
 - Consumes: `tour` store, `goto` from `$app/navigation`
 - Produces: "Replay tour" button that forces tour restart
 
-- [ ] **Step 1: Add Replay tour button to Settings page**
+- [x] **Step 1: Add Replay tour button to Settings page**
 
 In `src/routes/settings/+page.svelte`, add import:
 
@@ -968,12 +968,12 @@ Add the button in the settings list (before the version info div):
 </div>
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `pnpm check`
 Expected: No errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/routes/settings/+page.svelte
@@ -984,17 +984,17 @@ git commit -m "feat: add replay tour button to settings"
 
 ### Task 9: Run full test suite and verify
 
-- [ ] **Step 1: Run all unit tests**
+- [x] **Step 1: Run all unit tests**
 
 Run: `pnpm test`
 Expected: All tests pass (existing + new tour tests).
 
-- [ ] **Step 2: Run type check**
+- [x] **Step 2: Run type check**
 
 Run: `pnpm check`
 Expected: No errors.
 
-- [ ] **Step 3: Manual testing checklist**
+- [x] **Step 3: Manual testing checklist**
 
 In `pnpm tauri dev`:
 
@@ -1006,7 +1006,7 @@ In `pnpm tauri dev`:
 6. **Mobile targets:** Resize to mobile width → `data-tour` on BottomNav is targeted instead of Sidebar.
 7. **Resize/scroll:** During tour, resize window or scroll → tooltip repositions.
 
-- [ ] **Step 4: Final commit if any fixes needed**
+- [x] **Step 4: Final commit if any fixes needed**
 
 ```bash
 git add -A
