@@ -29,6 +29,10 @@
 			<a href="/reports" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">{m.reports_overview()}</a>
 			<a href="/reports/trend" class="px-3 py-1.5 rounded-md bg-phosphor/15 text-phosphor font-medium">{m.reports_trend()}</a>
 			<a href="/reports/compare" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">{m.reports_compare()}</a>
+			<a href="/reports/net-worth" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">{m.reports_net_worth()}</a>
+			<a href="/reports/category" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">{m.reports_category_trend()}</a>
+			<a href="/reports/composition" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">{m.reports_composition()}</a>
+			<a href="/reports/yoy" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">{m.reports_year_over_year()}</a>
 		</div>
 	</div>
 
