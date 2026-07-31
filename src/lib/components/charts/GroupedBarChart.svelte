@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { LayerCake, Svg } from 'layercake';
 	import { scaleBand, scaleLinear } from 'd3-scale';
+	import * as m from '$lib/paraglide/messages';
 
 	let {
 		data,
@@ -26,10 +27,10 @@
 		yearBExpense: '#d97706'
 	};
 	const labels = {
-		yearAIncome: 'Year A Income',
-		yearAExpense: 'Year A Expense',
-		yearBIncome: 'Year B Income',
-		yearBExpense: 'Year B Expense'
+		yearAIncome: m.reports_legend_year_a_income(),
+		yearAExpense: m.reports_legend_year_a_expense(),
+		yearBIncome: m.reports_legend_year_b_income(),
+		yearBExpense: m.reports_legend_year_b_expense()
 	};
 
 	const xScale = $derived(
