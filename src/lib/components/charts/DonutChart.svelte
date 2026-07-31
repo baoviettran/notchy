@@ -3,8 +3,8 @@
 
 	let { data = [] }: { data: { label: string; value: number; color: string }[] } = $props();
 
-	let total = $derived(data.reduce((s, d) => s + d.value, 0));
-	let arcs = $derived(computeArcs(data, total));
+	const total = $derived(data.reduce((sum, d) => sum + d.value, 0));
+	const arcs = $derived(computeArcs(data, total));
 
 	function computeArcs(items: typeof data, total: number) {
 		let startAngle = 0;
@@ -30,21 +30,50 @@
 </script>
 
 {#if data.length > 0 && total > 0}
-	<div class="flex items-center gap-6">
-		<svg viewBox="0 0 100 100" class="w-32 h-32 shrink-0">
-			{#each arcs as arc}
-				<path d={describeArc(50, 50, 45, arc.startAngle, arc.endAngle)} fill={arc.color} />
-			{/each}
-			<!-- Inner circle for donut effect -->
-			<circle cx="50" cy="50" r="25" class="fill-tape" />
-		</svg>
-		<div class="space-y-1 text-sm">
-			{#each data as item}
-				<div class="flex items-center gap-2">
-					<span class="w-3 h-3 rounded-sm shrink-0" style="background: {item.color}"></span>
-					<span class="text-dim">{item.label}</span>
+	<div class="donut-container">
+		<LayerCake data={data} x={(d) => d.value} y={(d, i) => i}>
+			<Svg>
+				<svg viewBox="0 0 100 100" class="w-32 h-32 shrink-0">
+					{#each arcs as arc}
+						<path d={describeArc(50, 50, 45, arc.startAngle, arc.endAngle)} fill={arc.color} />
+					{/each}
+					<circle cx="50" cy="50" r="25" class="fill-tape" />
+				</svg>
+			</Svg>
+		</LayerCake>
+		<div class="legend">
+			{#each data as d}
+				<div class="legend-item">
+					<span class="color-swatch" style="background-color: {d.color}"></span>
+					<span class="label">{d.label}</span>
 				</div>
 			{/each}
 		</div>
 	</div>
 {/if}
+
+<style>
+	.donut-container {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+	}
+	.legend {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+	.legend-item {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+	.color-swatch {
+		width: 12px;
+		height: 12px;
+		border-radius: 2px;
+	}
+	.label {
+		flex: 1;
+	}
+</style>
