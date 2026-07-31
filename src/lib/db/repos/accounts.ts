@@ -117,6 +117,27 @@ export async function getBalance(db: DatabaseService, accountId: string): Promis
 	return rows[0]?.total ?? 0;
 }
 
+export async function getBalanceAsOf(db: DatabaseService, accountId: string, date: string): Promise<number> {
+	const rows = await db.query<{ total: number | null }>(
+		`SELECT
+			COALESCE(SUM(CASE
+				WHEN kind = 'income' THEN amount
+				WHEN kind = 'adjustment' THEN amount
+				WHEN kind = 'refund' THEN amount
+				WHEN kind = 'expense' THEN -amount
+				WHEN kind = 'transfer' AND account_id = ? THEN -amount
+				WHEN kind = 'transfer' AND transfer_account_id = ? THEN amount
+				ELSE 0
+			END), 0) AS total
+		 FROM transactions
+		 WHERE (account_id = ? OR (kind = 'transfer' AND transfer_account_id = ?))
+		   AND deleted_at IS NULL
+		   AND date <= ?`,
+		[accountId, accountId, accountId, accountId, date]
+	);
+	return rows[0]?.total ?? 0;
+}
+
 export async function createAccount(db: DatabaseService, input: NewAccount): Promise<string> {
 	// Validate counterparty required for loan types
 	if (LOAN_TYPES.includes(input.type) && !input.counterparty) {

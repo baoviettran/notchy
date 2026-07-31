@@ -215,3 +215,75 @@ describe('listAccounts', () => {
 		expect(list[0].balance).toBe(100000);
 	});
 });
+
+describe('getBalanceAsOf', () => {
+	it('returns balance as-of a historical date', async () => {
+		const accountId = await repo.createAccount(db, {
+			name: 'Checking',
+			type: 'checking',
+			currency: 'VND'
+		});
+		const now = new Date().toISOString();
+
+		await db.execute(
+			`INSERT INTO transactions (id, kind, date, amount, account_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			['t1', 'income', '2026-01-15', 1000, accountId, now, now]
+		);
+
+		await db.execute(
+			`INSERT INTO transactions (id, kind, date, amount, account_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			['t2', 'income', '2026-02-15', 500, accountId, now, now]
+		);
+
+		const balanceJan = await repo.getBalanceAsOf(db, accountId, '2026-01-31');
+		expect(balanceJan).toBe(1000);
+
+		const balanceFeb = await repo.getBalanceAsOf(db, accountId, '2026-02-28');
+		expect(balanceFeb).toBe(1500);
+	});
+
+	it('excludes transactions after the date', async () => {
+		const accountId = await repo.createAccount(db, {
+			name: 'Savings',
+			type: 'savings',
+			currency: 'VND'
+		});
+		const now = new Date().toISOString();
+
+		await db.execute(
+			`INSERT INTO transactions (id, kind, date, amount, account_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			['t1', 'income', '2026-03-15', 1000, accountId, now, now]
+		);
+
+		const balanceBefore = await repo.getBalanceAsOf(db, accountId, '2026-02-28');
+		expect(balanceBefore).toBe(0);
+	});
+
+	it('handles transfers correctly (source -amount, dest +amount)', async () => {
+		const sourceId = await repo.createAccount(db, {
+			name: 'Checking',
+			type: 'checking',
+			currency: 'VND',
+			initial_balance: 1000,
+			initial_balance_date: '2026-01-01'
+		});
+		const destId = await repo.createAccount(db, {
+			name: 'Savings',
+			type: 'savings',
+			currency: 'VND'
+		});
+		const now = new Date().toISOString();
+
+		await db.execute(
+			`INSERT INTO transactions (id, kind, date, amount, account_id, transfer_account_id, transfer_pair_id, created_at, updated_at)
+			 VALUES (?, 'transfer', ?, ?, ?, ?, ?, ?, ?)`,
+			['t1', '2026-01-15', 200, sourceId, destId, 'pair1', now, now]
+		);
+
+		const sourceBalance = await repo.getBalanceAsOf(db, sourceId, '2026-01-31');
+		expect(sourceBalance).toBe(800);
+
+		const destBalance = await repo.getBalanceAsOf(db, destId, '2026-01-31');
+		expect(destBalance).toBe(200);
+	});
+});
