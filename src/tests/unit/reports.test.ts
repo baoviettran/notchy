@@ -376,3 +376,62 @@ describe('getStackedCategorySeries', () => {
 		expect(series[0].tags[0].total).toBe(1500000); // 1M expense + 500k adjustment
 	});
 });
+
+describe('getYearOverYear', () => {
+	it('returns 12 months comparing two years', async () => {
+		await seedTx('income', 10000000, '2025-03-01');
+		await seedTx('expense', 3000000, '2025-03-10');
+		await seedTx('income', 12000000, '2026-03-01');
+		await seedTx('expense', 4000000, '2026-03-10');
+
+		const result = await reports.getYearOverYear(db, 2025, 2026);
+		expect(result).toHaveLength(12);
+
+		const march = result.find((p) => p.month === '03');
+		expect(march?.yearAIncome).toBe(10000000);
+		expect(march?.yearAExpense).toBe(3000000);
+		expect(march?.yearBIncome).toBe(12000000);
+		expect(march?.yearBExpense).toBe(4000000);
+	});
+
+	it('returns zeros for missing months', async () => {
+		const result = await reports.getYearOverYear(db, 2025, 2026);
+		expect(result).toHaveLength(12);
+		result.forEach((point) => {
+			expect(point.yearAIncome).toBe(0);
+			expect(point.yearAExpense).toBe(0);
+			expect(point.yearBIncome).toBe(0);
+			expect(point.yearBExpense).toBe(0);
+		});
+	});
+
+	it('refunds reduce the expense total', async () => {
+		await seedTx('expense', 3000000, '2025-05-10');
+		await seedTx('refund', 500000, '2025-05-15');
+		await seedTx('expense', 4000000, '2026-05-10');
+
+		const result = await reports.getYearOverYear(db, 2025, 2026);
+		const may = result.find((p) => p.month === '05');
+		expect(may?.yearAExpense).toBe(2500000); // 3M - 500k refund
+		expect(may?.yearBExpense).toBe(4000000);
+	});
+
+	it('excludes adjustments by default', async () => {
+		await seedTx('expense', 1000000, '2025-06-10');
+		await seedTx('adjustment', 500000, '2025-06-15');
+
+		const result = await reports.getYearOverYear(db, 2025, 2026);
+		const june = result.find((p) => p.month === '06');
+		expect(june?.yearAExpense).toBe(1000000); // adjustment excluded
+	});
+
+	it('includes adjustments when flag is true', async () => {
+		await seedTx('expense', 1000000, '2025-06-10');
+		await seedTx('adjustment', 500000, '2025-06-15');
+
+		const result = await reports.getYearOverYear(db, 2025, 2026, true);
+		const june = result.find((p) => p.month === '06');
+		expect(june?.yearAIncome).toBe(500000); // adjustment goes to income
+		expect(june?.yearAExpense).toBe(1000000); // expense unchanged
+	});
+});

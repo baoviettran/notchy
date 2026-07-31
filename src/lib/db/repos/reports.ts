@@ -256,6 +256,65 @@ export async function getStackedCategorySeries(
 	return points;
 }
 
+export interface YearOverYearPoint {
+	month: string;
+	yearAIncome: number;
+	yearAExpense: number;
+	yearBIncome: number;
+	yearBExpense: number;
+}
+
+export async function getYearOverYear(
+	db: DatabaseService,
+	yearA: number,
+	yearB: number,
+	includeAdjustments = false
+): Promise<YearOverYearPoint[]> {
+	const kindFilter = includeAdjustments
+		? `t.kind IN ('expense', 'income', 'refund', 'adjustment')`
+		: `t.kind IN ('expense', 'income', 'refund')`;
+
+	const points: YearOverYearPoint[] = [];
+
+	for (let month = 1; month <= 12; month++) {
+		const monthStr = String(month).padStart(2, '0');
+		const startA = `${yearA}-${monthStr}-01`;
+		const endA = nextMonthStart(`${yearA}-${monthStr}`);
+		const startB = `${yearB}-${monthStr}-01`;
+		const endB = nextMonthStart(`${yearB}-${monthStr}`);
+
+		const rowsA = await db.query<{ kind: string; total: number | null }>(`
+			SELECT t.kind, SUM(t.amount) AS total FROM transactions t
+			WHERE ${kindFilter} AND t.date >= ? AND t.date < ? AND t.deleted_at IS NULL
+			GROUP BY t.kind`, [startA, endA]);
+
+		const rowsB = await db.query<{ kind: string; total: number | null }>(`
+			SELECT t.kind, SUM(t.amount) AS total FROM transactions t
+			WHERE ${kindFilter} AND t.date >= ? AND t.date < ? AND t.deleted_at IS NULL
+			GROUP BY t.kind`, [startB, endB]);
+
+		let yearAIncome = 0, yearAExpense = 0;
+		for (const r of rowsA) {
+			if (r.kind === 'income') yearAIncome = r.total ?? 0;
+			if (r.kind === 'expense') yearAExpense = r.total ?? 0;
+			if (r.kind === 'refund') yearAExpense -= r.total ?? 0;
+			if (r.kind === 'adjustment' && includeAdjustments) yearAIncome += r.total ?? 0;
+		}
+
+		let yearBIncome = 0, yearBExpense = 0;
+		for (const r of rowsB) {
+			if (r.kind === 'income') yearBIncome = r.total ?? 0;
+			if (r.kind === 'expense') yearBExpense = r.total ?? 0;
+			if (r.kind === 'refund') yearBExpense -= r.total ?? 0;
+			if (r.kind === 'adjustment' && includeAdjustments) yearBIncome += r.total ?? 0;
+		}
+
+		points.push({ month: monthStr, yearAIncome, yearAExpense, yearBIncome, yearBExpense });
+	}
+
+	return points;
+}
+
 export interface NetWorthPoint {
 	month: string;
 	netWorth: number;
