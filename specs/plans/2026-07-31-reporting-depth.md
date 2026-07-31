@@ -1,6 +1,6 @@
 # Reporting Depth Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Add four new time-series reports (net worth over time, category trend, stacked composition, year-over-year) with LayerCake-based charts, refactoring the existing DonutChart for consistency.
 
@@ -68,7 +68,7 @@
 - Consumes: `data: { label: string; value: number; color: string }[]` (unchanged)
 - Produces: SVG donut chart with legend (unchanged behavior)
 
-- [ ] **Step 1: Write/update component test**
+- [x] **Step 1: Write/update component test**
 
 Create or update `src/lib/components/charts/DonutChart.test.ts`:
 
@@ -107,12 +107,12 @@ describe('DonutChart', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test:watch src/lib/components/charts/DonutChart.test.ts`
 Expected: FAIL — test may pass if component already works, but refactor will change internals
 
-- [ ] **Step 3: Refactor DonutChart to use LayerCake**
+- [x] **Step 3: Refactor DonutChart to use LayerCake**
 
 Replace the hand-rolled `polarToCartesian`/`describeArc` functions with LayerCake's arc layout. Import `LayerCake`, `Svg`, and use the `Arc` layout component. Keep the same props interface and visual output (colors, donut hole, legend).
 
@@ -183,12 +183,12 @@ Replace the hand-rolled `polarToCartesian`/`describeArc` functions with LayerCak
 </style>
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test:watch src/lib/components/charts/DonutChart.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/components/charts/DonutChart.svelte src/lib/components/charts/DonutChart.test.ts
@@ -207,7 +207,7 @@ git commit -m "refactor: migrate DonutChart to LayerCake"
 - Consumes: `db: DatabaseService`, `accountId: string`, `date: string` (ISO date)
 - Produces: `Promise<number>` — balance as-of the given date
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 Add to `src/lib/db/repos/accounts.test.ts`:
 
@@ -300,12 +300,12 @@ describe('getBalanceAsOf', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test:watch src/lib/db/repos/accounts.test.ts`
 Expected: FAIL with "getBalanceAsOf is not defined"
 
-- [ ] **Step 3: Implement `getBalanceAsOf`**
+- [x] **Step 3: Implement `getBalanceAsOf`**
 
 Add to `src/lib/db/repos/accounts.ts` after the existing `getBalance` function:
 
@@ -332,12 +332,12 @@ export async function getBalanceAsOf(db: DatabaseService, accountId: string, dat
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test:watch src/lib/db/repos/accounts.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/db/repos/accounts.ts src/lib/db/repos/accounts.test.ts
@@ -356,7 +356,7 @@ git commit -m "feat: add getBalanceAsOf helper for historical balance queries"
 - Consumes: `db: DatabaseService`, `months: number`, `includeAdjustments?: boolean`
 - Produces: `Promise<{ month: string; netWorth: number }[]>`
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 Add to `src/lib/db/repos/reports.test.ts`:
 
@@ -489,12 +489,12 @@ describe('getNetWorthSeries', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test:watch src/lib/db/repos/reports.test.ts`
 Expected: FAIL with "getNetWorthSeries is not defined"
 
-- [ ] **Step 3: Implement `getNetWorthSeries`**
+- [x] **Step 3: Implement `getNetWorthSeries`**
 
 Add to `src/lib/db/repos/reports.ts`:
 
@@ -536,12 +536,12 @@ export async function getNetWorthSeries(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test:watch src/lib/db/repos/reports.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/db/repos/reports.ts src/lib/db/repos/reports.test.ts src/lib/db/repos/accounts.ts
@@ -560,7 +560,7 @@ git commit -m "feat: add getNetWorthSeries to reports repo"
 - Consumes: `db: DatabaseService`, `tagId: string`, `months: number`, `includeAdjustments?: boolean`
 - Produces: `Promise<{ month: string; spent: number }[]>`
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 Add to `src/lib/db/repos/reports.test.ts`:
 
@@ -646,12 +646,12 @@ describe('getCategoryTrend', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test:watch src/lib/db/repos/reports.test.ts`
 Expected: FAIL with "getCategoryTrend is not defined"
 
-- [ ] **Step 3: Implement `getCategoryTrend`**
+- [x] **Step 3: Implement `getCategoryTrend`**
 
 Add to `src/lib/db/repos/reports.ts`:
 
@@ -698,12 +698,12 @@ export async function getCategoryTrend(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test:watch src/lib/db/repos/reports.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/db/repos/reports.ts src/lib/db/repos/reports.test.ts
@@ -722,7 +722,7 @@ git commit -m "feat: add getCategoryTrend to reports repo"
 - Consumes: `db: DatabaseService`, `months: number`, `includeAdjustments?: boolean`
 - Produces: `Promise<{ month: string; tags: { tagId: string | null; name: string; total: number }[] }[]>`
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 Add to `src/lib/db/repos/reports.test.ts`:
 
@@ -804,12 +804,12 @@ describe('getStackedCategorySeries', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test:watch src/lib/db/repos/reports.test.ts`
 Expected: FAIL with "getStackedCategorySeries is not defined"
 
-- [ ] **Step 3: Implement `getStackedCategorySeries`**
+- [x] **Step 3: Implement `getStackedCategorySeries`**
 
 Add to `src/lib/db/repos/reports.ts`:
 
@@ -857,12 +857,12 @@ export async function getStackedCategorySeries(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test:watch src/lib/db/repos/reports.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/db/repos/reports.ts src/lib/db/repos/reports.test.ts
@@ -881,7 +881,7 @@ git commit -m "feat: add getStackedCategorySeries to reports repo"
 - Consumes: `db: DatabaseService`, `yearA: number`, `yearB: number`, `includeAdjustments?: boolean`
 - Produces: `Promise<{ month: string; yearAIncome: number; yearAExpense: number; yearBIncome: number; yearBExpense: number }[]>`
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 Add to `src/lib/db/repos/reports.test.ts`:
 
@@ -949,12 +949,12 @@ describe('getYearOverYear', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test:watch src/lib/db/repos/reports.test.ts`
 Expected: FAIL with "getYearOverYear is not defined"
 
-- [ ] **Step 3: Implement `getYearOverYear`**
+- [x] **Step 3: Implement `getYearOverYear`**
 
 Add to `src/lib/db/repos/reports.ts`:
 
@@ -1018,12 +1018,12 @@ export async function getYearOverYear(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test:watch src/lib/db/repos/reports.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/db/repos/reports.ts src/lib/db/repos/reports.test.ts
@@ -1042,7 +1042,7 @@ git commit -m "feat: add getYearOverYear to reports repo"
 - Consumes: `data: { x: Date; y: number }[]`, `yFormat: (n: number) => string`, `xFormat: (d: Date) => string`, `showArea?: boolean`
 - Produces: SVG line chart with optional area fill
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 Create `src/lib/components/charts/LineChart.test.ts`:
 
@@ -1117,12 +1117,12 @@ describe('LineChart', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test:watch src/lib/components/charts/LineChart.test.ts`
 Expected: FAIL with "LineChart is not defined"
 
-- [ ] **Step 3: Implement LineChart**
+- [x] **Step 3: Implement LineChart**
 
 Create `src/lib/components/charts/LineChart.svelte`:
 
@@ -1178,12 +1178,12 @@ Create `src/lib/components/charts/LineChart.svelte`:
 </style>
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test:watch src/lib/components/charts/LineChart.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/components/charts/LineChart.svelte src/lib/components/charts/LineChart.test.ts
@@ -1202,7 +1202,7 @@ git commit -m "feat: add LineChart component using LayerCake"
 - Consumes: `data: { month: string; tags: { tagId: string | null; name: string; total: number }[] }[]`, `yFormat: (n: number) => string`, `xFormat: (month: string) => string`, `colors: Record<string, string>`
 - Produces: SVG stacked area chart with legend
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 Create `src/lib/components/charts/StackedAreaChart.test.ts`:
 
@@ -1273,12 +1273,12 @@ describe('StackedAreaChart', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test:watch src/lib/components/charts/StackedAreaChart.test.ts`
 Expected: FAIL with "StackedAreaChart is not defined"
 
-- [ ] **Step 3: Implement StackedAreaChart**
+- [x] **Step 3: Implement StackedAreaChart**
 
 Create `src/lib/components/charts/StackedAreaChart.svelte`:
 
@@ -1365,12 +1365,12 @@ Create `src/lib/components/charts/StackedAreaChart.svelte`:
 </style>
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test:watch src/lib/components/charts/StackedAreaChart.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/components/charts/StackedAreaChart.svelte src/lib/components/charts/StackedAreaChart.test.ts
@@ -1389,7 +1389,7 @@ git commit -m "feat: add StackedAreaChart component using LayerCake"
 - Consumes: `data: { month: string; yearAIncome: number; yearAExpense: number; yearBIncome: number; yearBExpense: number }[]`, `yFormat: (n: number) => string`, `xFormat: (month: string) => string`
 - Produces: SVG grouped bar chart with legend
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 Create `src/lib/components/charts/GroupedBarChart.test.ts`:
 
@@ -1455,12 +1455,12 @@ describe('GroupedBarChart', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test:watch src/lib/components/charts/GroupedBarChart.test.ts`
 Expected: FAIL with "GroupedBarChart is not defined"
 
-- [ ] **Step 3: Implement GroupedBarChart**
+- [x] **Step 3: Implement GroupedBarChart**
 
 Create `src/lib/components/charts/GroupedBarChart.svelte`:
 
@@ -1552,12 +1552,12 @@ Create `src/lib/components/charts/GroupedBarChart.svelte`:
 </style>
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test:watch src/lib/components/charts/GroupedBarChart.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/components/charts/GroupedBarChart.svelte src/lib/components/charts/GroupedBarChart.test.ts
@@ -1576,7 +1576,7 @@ git commit -m "feat: add GroupedBarChart component using LayerCake"
 - Consumes: `getDb()`, repo functions from `reports.ts`
 - Produces: `ReportsStore` singleton with `$state` for window, adjustments, per-report data
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 Create `src/lib/stores/reports.test.ts`:
 
@@ -1609,12 +1609,12 @@ describe('ReportsStore', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm test:watch src/lib/stores/reports.test.ts`
 Expected: FAIL with "ReportsStore is not defined"
 
-- [ ] **Step 3: Implement ReportsStore**
+- [x] **Step 3: Implement ReportsStore**
 
 Create `src/lib/stores/reports.svelte.ts`:
 
@@ -1664,12 +1664,12 @@ export class ReportsStore {
 export const reportsStore = new ReportsStore();
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm test:watch src/lib/stores/reports.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/stores/reports.svelte.ts src/lib/stores/reports.test.ts
@@ -1684,7 +1684,7 @@ git commit -m "feat: add ReportsStore for centralized report state"
 - Modify: `messages/en.json`
 - Modify: `messages/vi.json`
 
-- [ ] **Step 1: Add English keys**
+- [x] **Step 1: Add English keys**
 
 Add to `messages/en.json`:
 
@@ -1710,7 +1710,7 @@ Add to `messages/en.json`:
 "reports_select_year": "Select year"
 ```
 
-- [ ] **Step 2: Add Vietnamese keys**
+- [x] **Step 2: Add Vietnamese keys**
 
 Add to `messages/vi.json`:
 
@@ -1736,12 +1736,12 @@ Add to `messages/vi.json`:
 "reports_select_year": "Chọn năm"
 ```
 
-- [ ] **Step 3: Regenerate Paraglide messages**
+- [x] **Step 3: Regenerate Paraglide messages**
 
 Run: `pnpm check`
 Expected: No TypeScript errors
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add messages/en.json messages/vi.json
@@ -1755,7 +1755,7 @@ git commit -m "feat(i18n): add reports keys for new time-series reports"
 **Files:**
 - Create: `src/routes/reports/net-worth/+page.svelte`
 
-- [ ] **Step 1: Create net-worth page**
+- [x] **Step 1: Create net-worth page**
 
 Create `src/routes/reports/net-worth/+page.svelte`:
 
@@ -1827,13 +1827,13 @@ Create `src/routes/reports/net-worth/+page.svelte`:
 </style>
 ```
 
-- [ ] **Step 2: Run dev server and verify**
+- [x] **Step 2: Run dev server and verify**
 
 Run: `pnpm dev`
 Navigate to: `/reports/net-worth`
 Expected: Page renders with chart (or empty state)
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/routes/reports/net-worth/+page.svelte
@@ -1847,7 +1847,7 @@ git commit -m "feat: add net worth over time report page"
 **Files:**
 - Create: `src/routes/reports/category/+page.svelte`
 
-- [ ] **Step 1: Create category-trend page**
+- [x] **Step 1: Create category-trend page**
 
 Create `src/routes/reports/category/+page.svelte`:
 
@@ -1943,13 +1943,13 @@ Create `src/routes/reports/category/+page.svelte`:
 </style>
 ```
 
-- [ ] **Step 2: Run dev server and verify**
+- [x] **Step 2: Run dev server and verify**
 
 Run: `pnpm dev`
 Navigate to: `/reports/category`
 Expected: Page renders with tag picker and chart
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/routes/reports/category/+page.svelte
@@ -1963,7 +1963,7 @@ git commit -m "feat: add category trend report page"
 **Files:**
 - Create: `src/routes/reports/composition/+page.svelte`
 
-- [ ] **Step 1: Create composition page**
+- [x] **Step 1: Create composition page**
 
 Create `src/routes/reports/composition/+page.svelte`:
 
@@ -2044,13 +2044,13 @@ Create `src/routes/reports/composition/+page.svelte`:
 </style>
 ```
 
-- [ ] **Step 2: Run dev server and verify**
+- [x] **Step 2: Run dev server and verify**
 
 Run: `pnpm dev`
 Navigate to: `/reports/composition`
 Expected: Page renders with stacked area chart
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/routes/reports/composition/+page.svelte
@@ -2064,7 +2064,7 @@ git commit -m "feat: add composition report page"
 **Files:**
 - Create: `src/routes/reports/yoy/+page.svelte`
 
-- [ ] **Step 1: Create year-over-year page**
+- [x] **Step 1: Create year-over-year page**
 
 Create `src/routes/reports/yoy/+page.svelte`:
 
@@ -2135,13 +2135,13 @@ Create `src/routes/reports/yoy/+page.svelte`:
 </style>
 ```
 
-- [ ] **Step 2: Run dev server and verify**
+- [x] **Step 2: Run dev server and verify**
 
 Run: `pnpm dev`
 Navigate to: `/reports/yoy`
 Expected: Page renders with grouped bar chart
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/routes/reports/yoy/+page.svelte
@@ -2157,11 +2157,11 @@ git commit -m "feat: add year-over-year report page"
 - Modify: `src/routes/reports/trend/+page.svelte`
 - Modify: `src/routes/reports/compare/+page.svelte`
 
-- [ ] **Step 1: Add navigation cards to overview page**
+- [x] **Step 1: Add navigation cards to overview page**
 
 Add cards linking to the 4 new reports in the overview page. Match existing card style.
 
-- [ ] **Step 2: Update tab navigation in all reports pages**
+- [x] **Step 2: Update tab navigation in all reports pages**
 
 Update the tab navigation in `trend/+page.svelte`, `compare/+page.svelte`, and the 4 new pages to include all 7 reports:
 - Overview
@@ -2172,13 +2172,13 @@ Update the tab navigation in `trend/+page.svelte`, `compare/+page.svelte`, and t
 - Composition
 - Year Over Year
 
-- [ ] **Step 3: Run dev server and verify navigation**
+- [x] **Step 3: Run dev server and verify navigation**
 
 Run: `pnpm dev`
 Navigate to: `/reports`
 Expected: All navigation links work
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/routes/reports/+page.svelte src/routes/reports/trend/+page.svelte src/routes/reports/compare/+page.svelte
@@ -2192,7 +2192,7 @@ git commit -m "feat: update reports navigation with new time-series reports"
 **Files:**
 - Create: `tests/e2e/reports-new.spec.ts`
 
-- [ ] **Step 1: Write E2E tests**
+- [x] **Step 1: Write E2E tests**
 
 Create `tests/e2e/reports-new.spec.ts`:
 
@@ -2233,12 +2233,12 @@ test.describe('New Reports', () => {
 });
 ```
 
-- [ ] **Step 2: Run E2E tests**
+- [x] **Step 2: Run E2E tests**
 
 Run: `pnpm test:e2e`
 Expected: All tests pass
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tests/e2e/reports-new.spec.ts
@@ -2249,27 +2249,27 @@ git commit -m "test(e2e): add tests for new time-series reports"
 
 ## Task 18: Final verification
 
-- [ ] **Step 1: Run all unit tests**
+- [x] **Step 1: Run all unit tests**
 
 Run: `pnpm test`
 Expected: All tests pass
 
-- [ ] **Step 2: Run all E2E tests**
+- [x] **Step 2: Run all E2E tests**
 
 Run: `pnpm test:e2e`
 Expected: All tests pass
 
-- [ ] **Step 3: Run type check**
+- [x] **Step 3: Run type check**
 
 Run: `pnpm check`
 Expected: No TypeScript errors
 
-- [ ] **Step 4: Run build**
+- [x] **Step 4: Run build**
 
 Run: `pnpm build`
 Expected: Build succeeds
 
-- [ ] **Step 5: Manual testing**
+- [x] **Step 5: Manual testing**
 
 Manually test all 4 new reports with seed data:
 - Net worth over time
@@ -2284,12 +2284,12 @@ Verify:
 - Window selector works
 - Adjustments toggle works
 
-- [ ] **Step 6: Update roadmap status**
+- [x] **Step 6: Update roadmap status**
 
 Run: `pnpm test:roadmap`
 Expected: STATUS.md updated
 
-- [ ] **Step 7: Final commit**
+- [x] **Step 7: Final commit**
 
 ```bash
 git add specs/STATUS.md
