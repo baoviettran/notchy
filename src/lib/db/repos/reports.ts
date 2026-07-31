@@ -1,4 +1,5 @@
 import type { DatabaseService } from '../service';
+import { getBalanceAsOf } from './accounts';
 
 export interface OverviewReport {
 	total_income: number;
@@ -164,4 +165,38 @@ function nextMonthStart(month: string): string {
 	const [y, m] = month.split('-').map(Number);
 	if (m === 12) return `${y + 1}-01-01`;
 	return `${y}-${String(m + 1).padStart(2, '0')}-01`;
+}
+
+export interface NetWorthPoint {
+	month: string;
+	netWorth: number;
+}
+
+export async function getNetWorthSeries(
+	db: DatabaseService,
+	months: number,
+	includeAdjustments = false
+): Promise<NetWorthPoint[]> {
+	const points: NetWorthPoint[] = [];
+	const now = new Date();
+
+	// Get all accounts including archived (deleted_at IS NOT NULL)
+	const accounts = await db.query<{ id: string }>(`SELECT id FROM accounts`);
+
+	for (let i = 0; i < months; i++) {
+		const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+		const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+		// Last day of month: day 0 of next month
+		const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+		const endDate = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
+
+		let netWorth = 0;
+		for (const acc of accounts) {
+			netWorth += await getBalanceAsOf(db, acc.id, endDate);
+		}
+
+		points.push({ month, netWorth });
+	}
+
+	return points;
 }
