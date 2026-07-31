@@ -271,3 +271,108 @@ describe('getCategoryTrend', () => {
 		expect(trend[0].spent).toBe(1500000); // 1M expense + 500k adjustment
 	});
 });
+
+describe('getStackedCategorySeries', () => {
+	function fmtMonth(date: Date): string {
+		return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+	}
+
+	it('returns per-month per-tag breakdown', async () => {
+		const tagId1 = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+		const tagId2 = await catRepo.createTag(db, 'Transport', 'bucket_essentials');
+		const now = new Date();
+		const currentMonth = fmtMonth(now);
+		const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+		const month2 = fmtMonth(oneMonthAgo);
+
+		await seedTx('expense', 1000000, `${month2}-10`, tagId1);
+		await seedTx('expense', 2000000, `${month2}-15`, tagId2);
+		await seedTx('expense', 3000000, `${currentMonth}-10`, tagId1);
+		await seedTx('expense', 4000000, `${currentMonth}-15`, tagId2);
+
+		const series = await reports.getStackedCategorySeries(db, 2);
+		expect(series).toHaveLength(2);
+
+		// Most recent first
+		expect(series[0].month).toBe(currentMonth);
+		expect(series[0].tags).toHaveLength(2);
+		const foodTag = series[0].tags.find((t) => t.tagId === tagId1);
+		const transportTag = series[0].tags.find((t) => t.tagId === tagId2);
+		expect(foodTag?.total).toBe(3000000);
+		expect(transportTag?.total).toBe(4000000);
+
+		expect(series[1].month).toBe(month2);
+		expect(series[1].tags).toHaveLength(2);
+		const foodTag2 = series[1].tags.find((t) => t.tagId === tagId1);
+		const transportTag2 = series[1].tags.find((t) => t.tagId === tagId2);
+		expect(foodTag2?.total).toBe(1000000);
+		expect(transportTag2?.total).toBe(2000000);
+	});
+
+	it('includes Uncategorised slice for null tag_id', async () => {
+		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+		const now = new Date();
+		const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+		await seedTx('expense', 1000000, `${monthStr}-10`, tagId);
+		await seedTx('expense', 2000000, `${monthStr}-15`); // null tag_id
+
+		const series = await reports.getStackedCategorySeries(db, 1);
+		expect(series).toHaveLength(1);
+		expect(series[0].tags).toHaveLength(2);
+
+		const uncategorised = series[0].tags.find((t) => t.tagId === null);
+		expect(uncategorised?.name).toBe('Uncategorised');
+		expect(uncategorised?.total).toBe(2000000);
+	});
+
+	it('returns empty tag arrays for empty database', async () => {
+		const series = await reports.getStackedCategorySeries(db, 3);
+		expect(series).toHaveLength(3);
+		series.forEach((point) => {
+			expect(point.tags).toHaveLength(0);
+		});
+	});
+
+	it('refunds reduce the month total', async () => {
+		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+		const now = new Date();
+		const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+		await seedTx('expense', 3000000, `${monthStr}-10`, tagId);
+		await seedTx('refund', 500000, `${monthStr}-15`, tagId);
+
+		const series = await reports.getStackedCategorySeries(db, 1);
+		expect(series).toHaveLength(1);
+		expect(series[0].tags).toHaveLength(1);
+		expect(series[0].tags[0].total).toBe(2500000); // 3M - 500k refund
+	});
+
+	it('adjustments excluded by default', async () => {
+		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+		const now = new Date();
+		const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+		await seedTx('expense', 1000000, `${monthStr}-10`, tagId);
+		await seedTx('adjustment', 500000, `${monthStr}-15`, tagId);
+
+		const series = await reports.getStackedCategorySeries(db, 1);
+		expect(series).toHaveLength(1);
+		expect(series[0].tags).toHaveLength(1);
+		expect(series[0].tags[0].total).toBe(1000000); // adjustment excluded
+	});
+
+	it('adjustments included when flag is true', async () => {
+		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+		const now = new Date();
+		const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+		await seedTx('expense', 1000000, `${monthStr}-10`, tagId);
+		await seedTx('adjustment', 500000, `${monthStr}-15`, tagId);
+
+		const series = await reports.getStackedCategorySeries(db, 1, true);
+		expect(series).toHaveLength(1);
+		expect(series[0].tags).toHaveLength(1);
+		expect(series[0].tags[0].total).toBe(1500000); // 1M expense + 500k adjustment
+	});
+});

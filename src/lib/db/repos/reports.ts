@@ -209,6 +209,53 @@ export async function getCategoryTrend(
 	return points;
 }
 
+export interface StackedCategoryPoint {
+	month: string;
+	tags: { tagId: string | null; name: string; total: number }[];
+}
+
+export async function getStackedCategorySeries(
+	db: DatabaseService,
+	months: number,
+	includeAdjustments = false
+): Promise<StackedCategoryPoint[]> {
+	const points: StackedCategoryPoint[] = [];
+	const now = new Date();
+
+	const kindFilter = includeAdjustments
+		? `t.kind IN ('expense', 'refund', 'adjustment')`
+		: `t.kind IN ('expense', 'refund')`;
+
+	for (let i = 0; i < months; i++) {
+		const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+		const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+		const monthStart = `${month}-01`;
+		const monthEnd = nextMonthStart(month);
+
+		const rows = await db.query<{ tag_id: string | null; name: string; kind: string; total: number | null }>(`
+			SELECT t.tag_id, COALESCE(ct.name, 'Uncategorised') AS name, t.kind, SUM(t.amount) AS total
+			FROM transactions t LEFT JOIN category_tags ct ON t.tag_id = ct.id
+			WHERE ${kindFilter} AND t.date >= ? AND t.date < ? AND t.deleted_at IS NULL
+			GROUP BY t.tag_id, t.kind`, [monthStart, monthEnd]);
+
+		const tagMap = new Map<string, { tagId: string | null; name: string; total: number }>();
+		for (const r of rows) {
+			const key = r.tag_id ?? '__null__';
+			if (!tagMap.has(key)) {
+				tagMap.set(key, { tagId: r.tag_id, name: r.name, total: 0 });
+			}
+			const entry = tagMap.get(key)!;
+			if (r.kind === 'expense') entry.total += r.total ?? 0;
+			if (r.kind === 'refund') entry.total -= r.total ?? 0;
+			if (r.kind === 'adjustment' && includeAdjustments) entry.total += r.total ?? 0;
+		}
+
+		points.push({ month, tags: Array.from(tagMap.values()) });
+	}
+
+	return points;
+}
+
 export interface NetWorthPoint {
 	month: string;
 	netWorth: number;
