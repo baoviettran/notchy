@@ -191,3 +191,83 @@ describe('getComparison', () => {
 		expect(rows[0].change).toBe(500000);
 	});
 });
+
+describe('getCategoryTrend', () => {
+	function fmtMonth(date: Date): string {
+		return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+	}
+
+	it('returns per-month expense sum for one tag (most recent first)', async () => {
+		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+		const now = new Date();
+		const currentMonth = fmtMonth(now);
+		const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+		const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+		const month1 = fmtMonth(twoMonthsAgo);
+		const month2 = fmtMonth(oneMonthAgo);
+
+		await seedTx('expense', 1000000, `${month1}-10`, tagId);
+		await seedTx('expense', 2000000, `${month2}-10`, tagId);
+		await seedTx('expense', 3000000, `${currentMonth}-10`, tagId);
+
+		const trend = await reports.getCategoryTrend(db, tagId, 3);
+		expect(trend).toHaveLength(3);
+		// Most recent first
+		expect(trend[0].month).toBe(currentMonth);
+		expect(trend[0].spent).toBe(3000000);
+		expect(trend[1].month).toBe(month2);
+		expect(trend[1].spent).toBe(2000000);
+		expect(trend[2].month).toBe(month1);
+		expect(trend[2].spent).toBe(1000000);
+	});
+
+	it('refund reduces the refund-month expense', async () => {
+		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+		const now = new Date();
+		const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+		await seedTx('expense', 3000000, `${monthStr}-10`, tagId);
+		await seedTx('refund', 500000, `${monthStr}-15`, tagId);
+
+		const trend = await reports.getCategoryTrend(db, tagId, 1);
+		expect(trend).toHaveLength(1);
+		expect(trend[0].month).toBe(monthStr);
+		expect(trend[0].spent).toBe(2500000); // 3M - 500k refund
+	});
+
+	it('returns all zeros for empty tag', async () => {
+		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+
+		const trend = await reports.getCategoryTrend(db, tagId, 3);
+		expect(trend).toHaveLength(3);
+		trend.forEach((point) => {
+			expect(point.spent).toBe(0);
+		});
+	});
+
+	it('adjustments excluded by default', async () => {
+		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+		const now = new Date();
+		const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+		await seedTx('expense', 1000000, `${monthStr}-10`, tagId);
+		await seedTx('adjustment', 500000, `${monthStr}-15`, tagId);
+
+		const trend = await reports.getCategoryTrend(db, tagId, 1);
+		expect(trend).toHaveLength(1);
+		expect(trend[0].spent).toBe(1000000); // adjustment excluded
+	});
+
+	it('adjustments included when flag is true', async () => {
+		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+		const now = new Date();
+		const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+		await seedTx('expense', 1000000, `${monthStr}-10`, tagId);
+		await seedTx('adjustment', 500000, `${monthStr}-15`, tagId);
+
+		const trend = await reports.getCategoryTrend(db, tagId, 1, true);
+		expect(trend).toHaveLength(1);
+		expect(trend[0].spent).toBe(1500000); // 1M expense + 500k adjustment
+	});
+});

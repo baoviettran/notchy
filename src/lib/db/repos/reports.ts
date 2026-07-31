@@ -167,6 +167,48 @@ function nextMonthStart(month: string): string {
 	return `${y}-${String(m + 1).padStart(2, '0')}-01`;
 }
 
+export interface CategoryTrendPoint {
+	month: string;
+	spent: number;
+}
+
+export async function getCategoryTrend(
+	db: DatabaseService,
+	tagId: string,
+	months: number,
+	includeAdjustments = false
+): Promise<CategoryTrendPoint[]> {
+	const points: CategoryTrendPoint[] = [];
+	const now = new Date();
+
+	const kindFilter = includeAdjustments
+		? `t.kind IN ('expense', 'refund', 'adjustment')`
+		: `t.kind IN ('expense', 'refund')`;
+
+	for (let i = 0; i < months; i++) {
+		const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+		const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+		const monthStart = `${month}-01`;
+		const monthEnd = nextMonthStart(month);
+
+		const rows = await db.query<{ kind: string; total: number | null }>(`
+			SELECT t.kind, SUM(t.amount) AS total FROM transactions t
+			WHERE ${kindFilter} AND t.tag_id = ? AND t.date >= ? AND t.date < ? AND t.deleted_at IS NULL
+			GROUP BY t.kind`, [tagId, monthStart, monthEnd]);
+
+		let spent = 0;
+		for (const r of rows) {
+			if (r.kind === 'expense') spent += r.total ?? 0;
+			if (r.kind === 'refund') spent -= r.total ?? 0;
+			if (r.kind === 'adjustment' && includeAdjustments) spent += r.total ?? 0;
+		}
+
+		points.push({ month, spent });
+	}
+
+	return points;
+}
+
 export interface NetWorthPoint {
 	month: string;
 	netWorth: number;
