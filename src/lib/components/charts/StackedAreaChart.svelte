@@ -1,7 +1,12 @@
 <script lang="ts">
 	import { LayerCake, Svg } from 'layercake';
 	import { scaleBand, scaleLinear } from 'd3-scale';
-	import { stack, area } from 'd3-shape';
+	import { stack, area, type SeriesPoint } from 'd3-shape';
+
+	type StackDatum = {
+		month: string;
+		[key: string]: string | number;
+	};
 
 	let {
 		data,
@@ -37,7 +42,7 @@
 	// Transform data for d3 stack: each month becomes an object with tag totals
 	const stackData = $derived(() => {
 		return data.map((d) => {
-			const obj: Record<string, number> = { month: d.month };
+			const obj: StackDatum = { month: d.month };
 			d.tags.forEach((t) => {
 				if (t.tagId !== null) {
 					obj[t.tagId] = t.total;
@@ -77,8 +82,9 @@
 		const tags = allTags();
 		if (tags.length === 0) return [];
 
-		const stackGen = stack<Record<string, number>>()
+		const stackGen = stack<StackDatum>()
 			.keys(tags.map((t) => t.tagId))
+			.value((datum, key) => Number(datum[key] ?? 0))
 			.order(null)
 			.offset(null);
 
@@ -86,7 +92,7 @@
 		const yScl = yScale();
 		const xScl = xScale;
 
-		const areaGen = area()
+		const areaGen = area<SeriesPoint<StackDatum>>()
 			.x((d) => (xScl(d.data.month) ?? 0) + xScl.bandwidth() / 2)
 			.y0((d) => yScl(d[0]))
 			.y1((d) => yScl(d[1]));
