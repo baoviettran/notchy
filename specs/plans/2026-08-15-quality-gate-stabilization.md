@@ -141,13 +141,13 @@ git commit -m "fix(reports): await database before loading series"
 - Consumes: D3 `Scale*`, `SeriesPoint`, `line`, `area`, and `stack` typings.
 - Produces: unchanged chart component props and a shared local route constant typed as `readonly [6, 12, 24]` in each affected route.
 
-- [ ] **Step 1: Reconfirm the diagnostic baseline**
+- [x] **Step 1: Reconfirm the diagnostic baseline**
 
 Run: `pnpm check`
 
 Expected: FAIL with report-store promise errors, missing declarations for `d3-scale`/`d3-shape`, implicit callback `any` errors, the stacked `month` type error, and widened report window values. If Task 1 is complete, the four report-store errors will already be absent.
 
-- [ ] **Step 2: Install the official D3 declaration packages**
+- [x] **Step 2: Install the official D3 declaration packages**
 
 Run:
 
@@ -157,7 +157,7 @@ pnpm add --save-dev --save-exact @types/d3-scale @types/d3-shape
 
 Expected: `package.json` and `pnpm-lock.yaml` contain pinned declaration-package versions.
 
-- [ ] **Step 3: Give DonutChart callbacks an explicit datum contract**
+- [x] **Step 3: Give DonutChart callbacks an explicit datum contract**
 
 At the top of `DonutChart.svelte`, define and use a named datum type:
 
@@ -173,7 +173,7 @@ Then type both LayerCake callbacks:
 <LayerCake data={data} x={(d: DonutDatum) => d.value} y={(_d: DonutDatum, i: number) => i}>
 ```
 
-- [ ] **Step 4: Give stacked-area rows and D3 series explicit compatible types**
+- [x] **Step 4: Give stacked-area rows and D3 series explicit compatible types**
 
 Import `SeriesPoint` as a type and define the row:
 
@@ -211,7 +211,7 @@ const areaGen = area<SeriesPoint<StackDatum>>()
 	.y1((d) => yScl(d[1]));
 ```
 
-- [ ] **Step 5: Narrow window options at declaration in each affected report route**
+- [x] **Step 5: Narrow window options at declaration in each affected report route**
 
 Add this constant inside each route script:
 
@@ -233,7 +233,7 @@ with:
 
 Apply only to net worth, category trend, and composition routes.
 
-- [ ] **Step 6: Run diagnostics and address only remaining in-scope type errors**
+- [x] **Step 6: Run diagnostics and address only remaining in-scope type errors**
 
 Run: `pnpm check`
 
@@ -241,7 +241,7 @@ Expected: exit code `0` and `0 errors`. The existing `autofocus` warning and yea
 
 If D3's installed declarations reveal a more precise generic signature, adjust the explicit types while preserving the `StackDatum` string `month`, numeric `.value(...)` accessor, and unchanged output.
 
-- [ ] **Step 7: Run the chart and report-store tests**
+- [x] **Step 7: Run the chart and report-store tests**
 
 Run:
 
@@ -251,7 +251,7 @@ pnpm vitest run src/lib/stores/reports.test.ts src/tests/unit/components/DonutCh
 
 Expected: all selected tests PASS.
 
-- [ ] **Step 8: Commit Task 2**
+- [x] **Step 8: Commit Task 2**
 
 ```bash
 git add package.json pnpm-lock.yaml src/lib/components/charts/DonutChart.svelte src/lib/components/charts/LineChart.svelte src/lib/components/charts/StackedAreaChart.svelte src/routes/reports/net-worth/+page.svelte src/routes/reports/category/+page.svelte src/routes/reports/composition/+page.svelte
