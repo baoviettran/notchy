@@ -260,26 +260,29 @@ git commit -m "fix(reports): restore chart type safety"
 
 ---
 
-### Task 3: Stabilize the compare-report E2E assertion
+### Task 3: Preserve report empty states and stabilize the compare assertion
 
 **Files:**
 - Modify: `src/tests/e2e/reports-extended.spec.ts:84-94`
+- Modify: `src/routes/reports/net-worth/+page.svelte:17-31,64-71`
+- Modify: `src/routes/reports/yoy/+page.svelte:18-20,58-65`
 
 **Interfaces:**
-- Consumes: the compare report's semantic `<th>` with accessible name `Category`.
-- Produces: an exact Playwright locator that cannot match the `Category Trend` navigation link.
+- Consumes: `chartData: { x: Date; y: number }[]` on net worth and `YearOverYearPoint[]` on year over year.
+- Produces: `hasNetWorthData` and `hasYearOverYearData` derived booleans that are true only when a series contains a non-zero financial value, plus an exact table-header-scoped Playwright assertion.
 
-- [ ] **Step 1: Reproduce the focused red state**
+- [ ] **Step 1: Reproduce the selector and empty-series red states**
 
 Run:
 
 ```bash
 pnpm playwright test src/tests/e2e/reports-extended.spec.ts --grep "compare renders the two selected months"
+pnpm playwright test src/tests/e2e/reports-new.spec.ts --grep "page shows empty state when no data"
 ```
 
-Expected: FAIL with a strict-mode violation because `getByText('Category')` resolves to both the `Category Trend` link and `Category` column header.
+Expected: the compare test FAILS because unscoped `getByText('Category')` matches both the navigation link and table header; the net-worth and year-over-year empty-state tests FAIL because their repositories return all-zero fixed-length series after Task 1 resolves the real database.
 
-- [ ] **Step 2: Replace only the ambiguous assertion**
+- [ ] **Step 2: Implement the scoped selector and zero-series guards**
 
 Replace:
 
@@ -290,24 +293,66 @@ await expect(main.getByText('Category')).toBeVisible();
 with:
 
 ```typescript
-await expect(main.getByRole('columnheader', { name: 'Category', exact: true })).toBeVisible();
+await expect(main.locator('thead').getByText('Category', { exact: true })).toBeVisible();
 ```
 
-- [ ] **Step 3: Verify the focused E2E is green**
+In `net-worth/+page.svelte`, add a derived guard immediately after `chartData`:
+
+```typescript
+const hasNetWorthData = $derived(chartData.some((point) => point.y !== 0));
+```
+
+Then replace:
+
+```svelte
+{#if chartData.length > 0}
+```
+
+with:
+
+```svelte
+{#if hasNetWorthData}
+```
+
+In `yoy/+page.svelte`, add:
+
+```typescript
+const hasYearOverYearData = $derived(
+chartData.some((point) =>
+point.yearAIncome !== 0 || point.yearAExpense !== 0 ||
+point.yearBIncome !== 0 || point.yearBExpense !== 0
+)
+);
+```
+
+Then replace:
+
+```svelte
+{#if chartData.length > 0}
+```
+
+with:
+
+```svelte
+{#if hasYearOverYearData}
+```
+
+- [ ] **Step 3: Verify the focused E2E tests are green**
 
 Run:
 
 ```bash
 pnpm playwright test src/tests/e2e/reports-extended.spec.ts --grep "compare renders the two selected months"
+pnpm playwright test src/tests/e2e/reports-new.spec.ts --grep "page shows empty state when no data"
 ```
 
-Expected: `1 passed`.
+Expected: the compare command reports `1 passed`; the empty-series command reports `3 passed`.
 
 - [ ] **Step 4: Commit Task 3**
 
 ```bash
-git add src/tests/e2e/reports-extended.spec.ts
-git commit -m "test(e2e): target compare category header"
+git add src/tests/e2e/reports-extended.spec.ts src/routes/reports/net-worth/+page.svelte src/routes/reports/yoy/+page.svelte
+git commit -m "fix(reports): preserve empty report states"
 ```
 
 ---

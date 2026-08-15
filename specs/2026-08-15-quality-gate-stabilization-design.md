@@ -18,7 +18,11 @@ Use the official `@types/d3-scale` and `@types/d3-shape` packages. Add explicit 
 
 ### E2E selector stability
 
-The compare-report test must target the `Category` column header by role instead of matching both that header and the new `Category Trend` navigation link. This is a test-selector correction, not a UI behavior change.
+The compare-report test must scope its exact `Category` assertion to the table header, so it cannot match the `Category Trend` navigation link. Playwright exposes this table's `<th>` as `cell` in the current browser harness, so the scoped locator is more reliable than a mismatched ARIA role assertion.
+
+### Empty report series
+
+An all-zero net-worth or year-over-year series represents no report data and must show the existing empty state rather than an empty chart. A non-zero net-worth series, including an opening balance, remains chartable. This preserves the pre-existing E2E contract now that the report loaders actually resolve their database connection.
 
 ### Version metadata
 
