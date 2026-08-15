@@ -31,7 +31,7 @@
 - Consumes: `getDb(): Promise<DatabaseService>` from `$lib/db`.
 - Produces: `ReportsStore.loadNetWorth()`, `loadCategoryTrend(tagId)`, `loadStackedComposition()`, and `loadYearOverYear(yearA, yearB)` that pass a resolved `DatabaseService` to their repositories.
 
-- [ ] **Step 1: Replace the shallow report-store test setup with hoisted dependency mocks**
+- [x] **Step 1: Replace the shallow report-store test setup with hoisted dependency mocks**
 
 Add `vi` to the Vitest import and place these mocks before importing `ReportsStore`:
 
@@ -72,7 +72,7 @@ beforeEach(() => {
 });
 ```
 
-- [ ] **Step 2: Add a failing regression test covering every loader**
+- [x] **Step 2: Add a failing regression test covering every loader**
 
 ```typescript
 it('resolves the database before loading every report', async () => {
@@ -88,13 +88,13 @@ it('resolves the database before loading every report', async () => {
 });
 ```
 
-- [ ] **Step 3: Run the focused test and confirm the red state**
+- [x] **Step 3: Run the focused test and confirm the red state**
 
 Run: `pnpm vitest run src/lib/stores/reports.test.ts`
 
 Expected: FAIL because the repository mocks receive `Promise` instances instead of `mocks.db`.
 
-- [ ] **Step 4: Implement the minimal async-boundary fix**
+- [x] **Step 4: Implement the minimal async-boundary fix**
 
 Change each loader from:
 
@@ -110,13 +110,13 @@ const db = await getDb();
 
 Do not change repository signatures or report calculations.
 
-- [ ] **Step 5: Verify the focused and store tests are green**
+- [x] **Step 5: Verify the focused and store tests are green**
 
 Run: `pnpm vitest run src/lib/stores/reports.test.ts`
 
 Expected: all `ReportsStore` tests PASS.
 
-- [ ] **Step 6: Commit Task 1**
+- [x] **Step 6: Commit Task 1**
 
 ```bash
 git add src/lib/stores/reports.test.ts src/lib/stores/reports.svelte.ts
