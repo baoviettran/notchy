@@ -19,6 +19,15 @@
 	});
 
 	const chartData = $derived(reportsStore.yearOverYear);
+	const hasYearOverYearData = $derived(
+		chartData.some(
+			(point) =>
+				point.yearAIncome !== 0 ||
+				point.yearAExpense !== 0 ||
+				point.yearBIncome !== 0 ||
+				point.yearBExpense !== 0
+		)
+	);
 
 	const yFormat = (n: number) => formatCurrency(n, settings.currency, settings.locale);
 	const xFormat = (month: string) => month;
@@ -58,7 +67,7 @@
 		</div>
 	</div>
 
-	{#if chartData.length > 0}
+	{#if hasYearOverYearData}
 		<div class="bg-tape rounded-lg border border-line p-4">
 			<GroupedBarChart data={chartData} {yFormat} {xFormat} />
 		</div>

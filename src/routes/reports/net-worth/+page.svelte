@@ -22,6 +22,7 @@
 			y: point.netWorth
 		}))
 	);
+	const hasNetWorthData = $derived(chartData.some((point) => point.y !== 0));
 
 	const yFormat = (n: number) => formatCurrency(n, settings.currency, settings.locale);
 	const windowOptions = [6, 12, 24] as const;
@@ -63,7 +64,7 @@
 		</label>
 	</div>
 
-	{#if chartData.length > 0}
+	{#if hasNetWorthData}
 		<div class="bg-tape rounded-lg border border-line p-4">
 			<LineChart data={chartData} {yFormat} {xFormat} showArea={true} />
 		</div>
