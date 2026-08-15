@@ -271,7 +271,7 @@ git commit -m "fix(reports): restore chart type safety"
 - Consumes: `chartData: { x: Date; y: number }[]` on net worth and `YearOverYearPoint[]` on year over year.
 - Produces: `hasNetWorthData` and `hasYearOverYearData` derived booleans that are true only when a series contains a non-zero financial value, plus an exact table-header-scoped Playwright assertion.
 
-- [ ] **Step 1: Reproduce the selector and empty-series red states**
+- [x] **Step 1: Reproduce the selector and empty-series red states**
 
 Run:
 
@@ -282,7 +282,7 @@ pnpm playwright test src/tests/e2e/reports-new.spec.ts --grep "page shows empty 
 
 Expected: the compare test FAILS because unscoped `getByText('Category')` matches both the navigation link and table header; the net-worth and year-over-year empty-state tests FAIL because their repositories return all-zero fixed-length series after Task 1 resolves the real database.
 
-- [ ] **Step 2: Implement the scoped selector and zero-series guards**
+- [x] **Step 2: Implement the scoped selector and zero-series guards**
 
 Replace:
 
@@ -337,7 +337,7 @@ with:
 {#if hasYearOverYearData}
 ```
 
-- [ ] **Step 3: Verify the focused E2E tests are green**
+- [x] **Step 3: Verify the focused E2E tests are green**
 
 Run:
 
@@ -348,7 +348,7 @@ pnpm playwright test src/tests/e2e/reports-new.spec.ts --grep "page shows empty 
 
 Expected: the compare command reports `1 passed`; the empty-series command reports `3 passed`.
 
-- [ ] **Step 4: Commit Task 3**
+- [x] **Step 4: Commit Task 3**
 
 ```bash
 git add src/tests/e2e/reports-extended.spec.ts src/routes/reports/net-worth/+page.svelte src/routes/reports/yoy/+page.svelte
