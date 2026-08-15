@@ -20,22 +20,22 @@ export class ReportsStore {
 	yearOverYear = $state<YearOverYearPoint[]>([]);
 
 	async loadNetWorth(): Promise<void> {
-		const db = getDb();
+		const db = await getDb();
 		this.netWorth = await getNetWorthSeries(db, this.window, this.includeAdjustments);
 	}
 
 	async loadCategoryTrend(tagId: string): Promise<void> {
-		const db = getDb();
+		const db = await getDb();
 		this.categoryTrend = await getCategoryTrend(db, tagId, this.window, this.includeAdjustments);
 	}
 
 	async loadStackedComposition(): Promise<void> {
-		const db = getDb();
+		const db = await getDb();
 		this.stackedComposition = await getStackedCategorySeries(db, this.window, this.includeAdjustments);
 	}
 
 	async loadYearOverYear(yearA: number, yearB: number): Promise<void> {
-		const db = getDb();
+		const db = await getDb();
 		this.yearOverYear = await getYearOverYear(db, yearA, yearB, this.includeAdjustments);
 	}
 }
