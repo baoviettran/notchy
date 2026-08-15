@@ -366,7 +366,7 @@ git commit -m "fix(reports): preserve empty report states"
 - Consumes: version `0.1.3` from `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`.
 - Produces: Cargo lock metadata for local package `notchy` at version `0.1.3`.
 
-- [ ] **Step 1: Prove the version mismatch**
+- [x] **Step 1: Prove the version mismatch**
 
 Run:
 
@@ -376,13 +376,13 @@ node -e "const fs=require('node:fs'); const lock=fs.readFileSync('src-tauri/Carg
 
 Expected: exit code `1` and `Cargo.lock Notchy version: 0.1.2`.
 
-- [ ] **Step 2: Regenerate the local package entry through Cargo**
+- [x] **Step 2: Regenerate the local package entry through Cargo**
 
 Run: `cargo check --manifest-path src-tauri/Cargo.toml`
 
 Expected: Cargo updates the local `notchy` lock entry to `0.1.3` and compilation succeeds.
 
-- [ ] **Step 3: Verify all four version records**
+- [x] **Step 3: Verify all four version records**
 
 Run:
 
@@ -392,7 +392,7 @@ node -e "const fs=require('node:fs'); const pkg=require('./package.json'); const
 
 Expected: all four fields print `0.1.3` and the command exits `0`.
 
-- [ ] **Step 4: Run the complete automated verification suite**
+- [x] **Step 4: Run the complete automated verification suite**
 
 Run each command independently and require exit code `0`:
 
@@ -414,7 +414,7 @@ Expected:
 - `cargo test`: Rust host compiles and the command exits `0`.
 - `git diff --check`: no whitespace errors.
 
-- [ ] **Step 5: Confirm scope and repository hygiene**
+- [x] **Step 5: Confirm scope and repository hygiene**
 
 Run:
 
@@ -425,7 +425,7 @@ git diff --stat HEAD~3..HEAD
 
 Expected: only the planned files changed across the three implementation commits; `.codegraph/` remains untracked and untouched.
 
-- [ ] **Step 6: Commit Task 4**
+- [x] **Step 6: Commit Task 4**
 
 ```bash
 git add src-tauri/Cargo.lock
