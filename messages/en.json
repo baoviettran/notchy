@@ -276,6 +276,7 @@
 	"quick_add_placeholder": "Type an amount…",
 	"quick_add_save": "SAVE",
 	"quick_add_today": "TODAY",
+	"quick_add_database_update_required": "Please open the main window to update your data",
 	"reports_category": "Category",
 	"reports_change": "Change",
 	"reports_compare": "Compare",

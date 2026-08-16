@@ -1,20 +1,44 @@
-import { getDb } from '$lib/db';
+import { closeDb, getDb, initializeDb } from '$lib/db';
 import * as meta from '$lib/db/repos/meta';
 import { runAutoBackup } from '$lib/backup';
-import { mapError } from '$lib/utils/errors';
+import { DatabaseStartupError, type RecoveryContext, type StartupStage } from '$lib/db/startup';
+import { LATEST_SCHEMA_VERSION } from '$lib/db/migrations/index';
+
+/**
+ * Stopgap for unexpected startup failures (platform-layer errors like path
+ * resolution or connection open, which carry no RecoveryContext of their own).
+ * Maps to a stable `database_corrupt` recovery so the recovery UI still has
+ * something to render.
+ */
+function fallbackRecovery(error: unknown): RecoveryContext {
+	return {
+		code: 'database_corrupt',
+		appVersion: 'unknown',
+		latestSchemaVersion: LATEST_SCHEMA_VERSION,
+		detectedSchemaVersion: null,
+		liveDatabasePath: 'unknown',
+		backupPath: null,
+		detail: String(error)
+	};
+}
 
 class DbStore {
-	ready = $state(false);
+	stage = $state<StartupStage>('checking');
+	ready = $derived(this.stage === 'ready');
 	firstRunComplete = $state(false);
-	error = $state<string | null>(null);
+	recovery = $state<RecoveryContext | null>(null);
 
 	async init(): Promise<void> {
+		this.recovery = null;
 		try {
+			await initializeDb((stage) => {
+				this.stage = stage;
+			});
 			const db = await getDb();
 			this.firstRunComplete = await meta.isFirstRunComplete(db);
-			this.ready = true;
+			this.stage = 'ready';
 			// Run auto-backup in the background, don't block startup
-			runAutoBackup(db).catch((e) => console.warn('Auto-backup error:', e));
+			void runAutoBackup(db);
 
 			// E2E test hook: expose db + backup entry points on window so Playwright
 			// page.evaluate can drive the REAL createBackup/importDatabase against
@@ -35,9 +59,15 @@ class DbStore {
 					};
 				}
 			}
-		} catch (e) {
-			this.error = mapError(e);
+		} catch (error) {
+			this.stage = 'recovery_required';
+			this.recovery = error instanceof DatabaseStartupError ? error.recovery : fallbackRecovery(error);
 		}
+	}
+
+	async retry(): Promise<void> {
+		await closeDb();
+		await this.init();
 	}
 }
 

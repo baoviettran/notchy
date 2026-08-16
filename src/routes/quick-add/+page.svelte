@@ -20,6 +20,12 @@
 
 	const accountName = $derived(activeAccount?.name ?? '');
 
+	function updateRequiredError(e: unknown): string | null {
+		return e instanceof AppError && e.code === 'database_update_required'
+			? m.quick_add_database_update_required()
+			: null;
+	}
+
 	async function loadDefaultAccount(): Promise<void> {
 		const db = await getDb();
 		const id = await getDefaultQuickAccount(db);
@@ -36,11 +42,19 @@
 		// webview windows, so getDb() here reuses the connection the main
 		// window already initialized — no second boot, no lock contention.
 		// Concurrent VACUUM from two windows was bricking writes
-		// ("no such savepoint" after a 5s busy_timeout).
-		await getDb();
-		await settings.load();
-		await loadDefaultAccount();
-		ready = true;
+		// ("no such savepoint" after a 5s busy_timeout). While the main window
+		// is still migrating an older schema, getDb() rejects with
+		// `database_update_required` — show that explicitly instead of failing
+		// silently.
+		try {
+			await getDb();
+			await settings.load();
+			await loadDefaultAccount();
+			ready = true;
+		} catch (e) {
+			error = updateRequiredError(e) ?? m.errors_unknown();
+			return;
+		}
 		queueMicrotask(() => document.getElementById('qa-input')?.focus());
 
 		// The quick-add window is shown/hidden (not destroyed) for the app's
@@ -72,7 +86,13 @@
 				error = m.quick_add_no_account();
 				return;
 			}
-			const db = await getDb();
+			let db;
+			try {
+				db = await getDb();
+			} catch (e) {
+				error = updateRequiredError(e) ?? m.errors_unknown();
+				return;
+			}
 			let parsed;
 			try {
 				parsed = parseQuickInput(value, settings.locale, settings.currency);

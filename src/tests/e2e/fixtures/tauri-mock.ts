@@ -299,6 +299,11 @@ window.__TAURI_INTERNALS__ = {
 			else for (const k of [...dbs.keys()]) closeOne(k);
 			return {};
 		}
+		// --- App plugin ---
+		// Main-window startup reads the installed app version for startup
+		// metadata (prepareDatabase). Fixed value: E2E exercises behavior, not
+		// the exact version string.
+		if (cmd === 'plugin:app|version') return '0.1.3';
 		// --- Path plugin ---
 		if (cmd === 'plugin:path|resolve_directory') return APP_DATA_DIR;
 		if (cmd === 'plugin:path|join') return join(...(args.paths || []));
