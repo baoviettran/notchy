@@ -9,6 +9,12 @@ export interface TauriMockOptions {
 	seedMeta?: Record<string, string>;
 	/** If true, the live DB flushes to IndexedDB and rehydrates on load (reload-survival). */
 	persist?: boolean;
+	/** Seed the live DB before startup: 4 = the committed v004 fixture; any other value = a minimal app_meta claiming that schema_version. */
+	initialSchemaVersion?: number;
+	/** When set, the mock's VACUUM INTO interception throws → startup surfaces upgrade_backup_failed. */
+	failUpgradeBackup?: boolean;
+	/** When set, the migration runner's schema-version bump to this version throws → startup surfaces migration_failed. */
+	failMigrationVersion?: number;
 }
 
 /**
@@ -38,6 +44,25 @@ function readSqlJsAsset(name: string): string {
 const GLUE_SRC = readSqlJsAsset('sql-wasm-browser.js');
 const WASM_B64 = readSqlJsAsset('sql-wasm.wasm');
 
+// The committed released schema-4 fixture, base64 for in-page embedding. Only
+// read on demand (initialSchemaVersion === 4) so the common case never touches
+// disk for it.
+let FIXTURE_V004_B64: string | null = null;
+function readV004Fixture(): string {
+	if (FIXTURE_V004_B64) return FIXTURE_V004_B64;
+	const candidates = [
+		resolvePath(dirname(__filename), '../../../../src/tests/fixtures/migrations/v004.sqlite'),
+		resolvePath(process.cwd(), 'src/tests/fixtures/migrations/v004.sqlite')
+	];
+	for (const p of candidates) {
+		try {
+			FIXTURE_V004_B64 = readFileSync(p, 'base64');
+			return FIXTURE_V004_B64;
+		} catch {}
+	}
+	throw new Error('tauri-mock: could not read v004.sqlite fixture from src/tests/fixtures/migrations');
+}
+
 /**
  * Inject a __TAURI_INTERNALS__ mock into the page BEFORE the app loads.
  * Routes plugin:sql|* to real sql.js instances and plugin:fs|* / plugin:path|*
@@ -59,6 +84,11 @@ export async function injectTauriMock(page: Page, opts: TauriMockOptions = {}): 
 	}, opts);
 
 	const glueB64 = Buffer.from(GLUE_SRC, 'utf8').toString('base64');
+	// The v004 fixture bytes stay OUT of the options JSON: the init script is
+	// in-page and cannot read disk, so the bytes are base64-embedded into the
+	// template (read from disk here in Node, like the sql.js glue). Only embedded
+	// when a released schema-4 live DB is requested.
+	const fixtureV004B64 = opts.initialSchemaVersion === 4 ? readV004Fixture() : null;
 
 	await page.addInitScript(`
 const opts = window.__NOTCHY_TAURI_MOCK_OPTIONS__ || {};
@@ -66,6 +96,10 @@ const APP_DATA_DIR = '/notchy/appdata';
 const LIVE_PATH = 'sqlite:notchy.db';
 const GLUE_B64 = ${JSON.stringify(glueB64)};
 const WASM_B64 = ${JSON.stringify(WASM_B64)};
+const FIXTURE_V004_B64 = ${fixtureV004B64 === null ? 'null' : JSON.stringify(fixtureV004B64)};
+if (opts.initialSchemaVersion === 4 && !FIXTURE_V004_B64) {
+	throw new Error('tauri-mock: v004 fixture bytes not embedded');
+}
 
 // --- sql.js bootstrap -----------------------------------------------------
 // addInitScript runs before the page is parsed — document.documentElement is
@@ -133,6 +167,23 @@ async function idbSet(key, val) {
 	});
 }
 
+// Injected failure controls (recovery journeys). Armed from the mock options; a
+// persisted 'faults-cleared' marker (written by __notchyMock.clearFaults())
+// disarms them so a restore can migrate forward after a reload re-runs this
+// init script with the original options.
+const faults = {
+	failUpgradeBackup: !!opts.failUpgradeBackup,
+	failMigrationVersion: opts.failMigrationVersion != null ? opts.failMigrationVersion : null
+};
+let lastOpenedPath = null;
+const faultInit = (async () => {
+	const cleared = await idbGet('notchy-mock:faults-cleared');
+	if (cleared) {
+		faults.failUpgradeBackup = false;
+		faults.failMigrationVersion = null;
+	}
+})();
+
 // Flush the live DB to IndexedDB on demand (persist mode). Called by the test
 // via __notchyMock.flushLiveDb / flushDb() before a reload. Must NOT run inside
 // an open SAVEPOINT — db.export() while a transaction is active corrupts sql.js's
@@ -194,8 +245,24 @@ async function loadDb(path, SQL_JS) {
 			if (k && fs.has(k)) bytes = fs.get(k);
 		}
 	}
+	// Seed the live DB as a released schema snapshot (recovery journeys). Only
+	// applies on first load (no rehydrated bytes, not already open). Version 4
+	// embeds the committed v004 fixture so the pre-upgrade backup is a genuine
+	// released schema-4 database and migration 005 runs cleanly after restore.
+	if (path === LIVE_PATH && !bytes && opts.initialSchemaVersion === 4 && FIXTURE_V004_B64) {
+		bytes = Uint8Array.from(atob(FIXTURE_V004_B64), (c) => c.charCodeAt(0));
+	}
 	const db = bytes ? new SQL_JS.Database(bytes) : new SQL_JS.Database();
 	dbs.set(path, db);
+
+	// Newer-schema claim: a minimal app_meta claiming opts.initialSchemaVersion
+	// is enough for inspectSchema to return 'newer' (tables non-empty).
+	if (path === LIVE_PATH && !bytes && opts.initialSchemaVersion != null && opts.initialSchemaVersion !== 4) {
+		db.run('CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
+		db.run("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', ?)", [
+			String(opts.initialSchemaVersion)
+		]);
+	}
 
 	// Pre-init seed hook: write seedMeta into the live DB before runAutoBackup.
 	if (path === LIVE_PATH && opts.seedMeta) {
@@ -230,6 +297,7 @@ const join = (...parts) => parts.join('/').replace(/\\\\/g, '/').replace(/\\/+/g
 window.__TAURI_INTERNALS__ = {
 	invoke: async (cmd, args) => {
 		const SQL_JS = await sqlReady;
+		await faultInit;
 		args = args || {};
 		// --- SQL plugin ---
 		// Normalize the connection string (strip '?readonly' etc.) so the live
@@ -258,7 +326,24 @@ window.__TAURI_INTERNALS__ = {
 			// the real path before writing bytes into the virtual FS. Matches
 			// real SQLite, which parses '' as a literal quote inside the string.
 			const vac = args.query.match(/^\\s*VACUUM\\s+INTO\\s+'((?:[^']|'')*)'/i);
-			if (vac) { fs.set(vac[1].replace(/''/g, "'"), db.export()); return [0, 0]; }
+			if (vac) {
+				if (faults.failUpgradeBackup) throw new Error('tauri-mock: injected upgrade-backup failure');
+				fs.set(vac[1].replace(/''/g, "'"), db.export());
+				return [0, 0];
+			}
+			// Injected migration failure: throw on the migration runner's
+			// schema-version bump to the configured version. The runner wraps each
+			// migration + bump in one SAVEPOINT, so the throw rolls the migration
+			// back and surfaces as migration_failed.
+			if (
+				faults.failMigrationVersion != null &&
+				Array.isArray(args.values) &&
+				String(args.values[0]) === String(faults.failMigrationVersion)
+			) {
+				if (/^\\s*INSERT\\s+OR\\s+REPLACE\\s+INTO\\s+app_meta\\s*\\(\\s*key\\s*,\\s*value\\s*\\)\\s*VALUES\\s*\\(\\s*'schema_version'\\s*,\\s*\\?\\s*\\)/i.test(args.query)) {
+					throw new Error('tauri-mock: injected migration failure');
+				}
+			}
 			db.run(args.query, args.values || []);
 			const rowsAffected = db.getRowsModified();
 			// Persist mode does NOT auto-flush here: db.export() is O(DB size)
@@ -343,6 +428,13 @@ window.__TAURI_INTERNALS__ = {
 			fs.set(args.path, new TextEncoder().encode(args.contents));
 			return {};
 		}
+		// --- Opener plugin ---
+		// Mirrors the real opener permission (opener:allow-open-path) without a
+		// production hook: record the opened path so the test can assert it.
+		if (cmd === 'plugin:opener|open_path') {
+			lastOpenedPath = args.path;
+			return {};
+		}
 		throw new Error('tauri-mock: unhandled invoke ' + cmd);
 	},
 	transformCallback: () => 0,
@@ -360,6 +452,15 @@ window.__notchyMock = {
 	// Resolves once sql.js is loaded; returns the SQL namespace (initSqlJs result).
 	// Tests use this to build a throwaway Database, run DDL, and export() bytes.
 	sqlReady: () => sqlReady,
+	// Mock-only fault control: disarms injected failures in-page and persists a
+	// marker so the disarm survives page.reload() (the reload re-runs this init
+	// script with the original options).
+	clearFaults: () => {
+		faults.failUpgradeBackup = false;
+		faults.failMigrationVersion = null;
+		return idbSet('notchy-mock:faults-cleared', true);
+	},
+	lastOpenedPath: () => lastOpenedPath,
 };
 	`);
 }
@@ -371,6 +472,8 @@ interface NotchyMockWindow {
 	writeFs: (path: string, bytes: Uint8Array) => void;
 	flushLiveDb: () => Promise<void>;
 	sqlReady: () => Promise<SqlJsNamespace>;
+	clearFaults: () => Promise<void>;
+	lastOpenedPath: () => string | null;
 }
 
 /** The sql.js namespace shape tests use to mint candidate DBs. */
@@ -415,6 +518,24 @@ export async function writeVirtualFs(page: Page, path: string, bytes: Uint8Array
 export async function flushDb(page: Page): Promise<void> {
 	await page.evaluate(
 		() => (window as unknown as { __notchyMock?: NotchyMockWindow }).__notchyMock?.flushLiveDb()
+	);
+}
+
+/**
+ * Clear an injected mock fault (failUpgradeBackup / failMigrationVersion), both
+ * in-page and persisted to IndexedDB so the clear survives page.reload() — the
+ * reload re-runs the init script with the original options.
+ */
+export async function clearFaults(page: Page): Promise<void> {
+	await page.evaluate(
+		() => (window as unknown as { __notchyMock?: NotchyMockWindow }).__notchyMock?.clearFaults()
+	);
+}
+
+/** Return the path the mock opener handler recorded (null until opened). */
+export async function lastOpenedPath(page: Page): Promise<string | null> {
+	return page.evaluate(
+		() => (window as unknown as { __notchyMock?: NotchyMockWindow }).__notchyMock?.lastOpenedPath() ?? null
 	);
 }
 
