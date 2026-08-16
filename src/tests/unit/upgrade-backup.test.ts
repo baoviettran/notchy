@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { copyFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { copyFile, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -149,6 +149,9 @@ describe('createVerifiedUpgradeBackup', () => {
 		const { db: sourceDb, directory } = await copyMigrationFixture('v004.sqlite');
 		const backupDir = join(directory, "backup's", 'nested');
 		let closed = false;
+		const ensureDirectory = vi.fn(async (path: string) => {
+			await mkdir(path, { recursive: true });
+		});
 
 		const record = await createVerifiedUpgradeBackup(sourceDb, {
 			backupDir,
@@ -156,6 +159,7 @@ describe('createVerifiedUpgradeBackup', () => {
 			targetSchema: 5,
 			sourceAppVersion: '0.1.3/beta',
 			createdAt: new Date('2026-08-15T10:30:00.000Z'),
+			ensureDirectory,
 			openReadOnly: async (backupPath) => {
 				const backupDb = createTestDbFromPath(backupPath);
 				openedDbs.push(backupDb);
@@ -174,6 +178,7 @@ describe('createVerifiedUpgradeBackup', () => {
 			"notchy-pre-upgrade-v4-to-v5-0.1.3_beta-2026-08-15T10-30-00-000Z.sqlite"
 		);
 		expect(record.path).toContain("backup's/nested");
+		expect(ensureDirectory).toHaveBeenCalledExactlyOnceWith(backupDir);
 		expect(closed).toBe(true);
 	});
 
@@ -196,6 +201,9 @@ describe('createVerifiedUpgradeBackup', () => {
 				targetSchema: 6,
 				sourceAppVersion: '0.1.4-dev',
 				createdAt: new Date('2026-08-15T10:30:00.000Z'),
+				ensureDirectory: async (path) => {
+					await mkdir(path, { recursive: true });
+				},
 				openReadOnly: async () => {
 					const corruptDb = createTestDbFromPath(corruptPath);
 					openedDbs.push(corruptDb);
@@ -227,6 +235,9 @@ describe('createVerifiedUpgradeBackup', () => {
 				targetSchema: 6,
 				sourceAppVersion: '0.1.3',
 				createdAt: new Date('2026-08-15T10:30:00.000Z'),
+				ensureDirectory: async (path) => {
+					await mkdir(path, { recursive: true });
+				},
 				openReadOnly: async (backupPath) => {
 					const backupDb = createTestDbFromPath(backupPath);
 					openedDbs.push(backupDb);
@@ -255,6 +266,19 @@ describe('parseUpgradeBackupName', () => {
 		expect(parseUpgradeBackupName('/tmp/notchy-pre-upgrade-v4-to-v5-0.1.3-2026-08-15T10-30-00-000Z.sqlite.bak')).toBeNull();
 		expect(parseUpgradeBackupName('/tmp/xnotchy-pre-upgrade-v4-to-v5-0.1.3-2026-08-15T10-30-00-000Z.sqlite')).toBeNull();
 		expect(parseUpgradeBackupName('/tmp/notchy-backup-2026-08-15T10-30-00-000Z.sqlite')).toBeNull();
+	});
+
+	it('parses a valid filename from a Windows-style path without a Node path dependency', () => {
+		expect(
+			parseUpgradeBackupName(
+				'C:\\Notchy\\backups\\notchy-pre-upgrade-v4-to-v5-0.1.3-2026-08-15T10-30-00-000Z.sqlite'
+			)
+		).toEqual({
+			sourceSchema: 4,
+			targetSchema: 5,
+			sourceAppVersion: '0.1.3',
+			createdAt: '2026-08-15T10:30:00.000Z'
+		});
 	});
 });
 

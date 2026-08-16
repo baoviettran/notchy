@@ -1,5 +1,3 @@
-import { mkdir } from 'node:fs/promises';
-import { basename } from 'node:path';
 import type { DatabaseService } from '$lib/db/service';
 import { AppError } from '$lib/errors';
 import { validateDatabase } from './validation';
@@ -19,6 +17,7 @@ export interface CreateUpgradeBackupOptions {
 	targetSchema: number;
 	sourceAppVersion: string;
 	createdAt: Date;
+	ensureDirectory(path: string): Promise<void>;
 	openReadOnly(path: string): Promise<DatabaseService>;
 }
 
@@ -39,7 +38,7 @@ export async function createVerifiedUpgradeBackup(
 	const safeVersion = options.sourceAppVersion.replace(/[^0-9A-Za-z.-]/g, '_');
 	const filename = `notchy-pre-upgrade-v${options.sourceSchema}-to-v${options.targetSchema}-${safeVersion}-${stamp}.sqlite`;
 	const backupPath = `${options.backupDir}/${filename}`;
-	await mkdir(options.backupDir, { recursive: true });
+	await options.ensureDirectory(options.backupDir);
 	await db.execute(`VACUUM INTO '${backupPath.replace(/'/g, "''")}'`);
 
 	const backupDb = await options.openReadOnly(backupPath);
@@ -63,7 +62,8 @@ export async function createVerifiedUpgradeBackup(
 }
 
 export function parseUpgradeBackupName(filePath: string): ParsedUpgradeBackupName | null {
-	const match = basename(filePath).match(UPGRADE_BACKUP_NAME);
+	const separator = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
+	const match = filePath.slice(separator + 1).match(UPGRADE_BACKUP_NAME);
 	if (!match) return null;
 	const [, sourceSchema, targetSchema, sourceAppVersion, stamp] = match;
 	return {
