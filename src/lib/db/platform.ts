@@ -21,9 +21,26 @@ export interface DatabasePaths {
 }
 
 /**
- * Resolve the app-data directory and the paths derived from it. In a plain
- * browser (web build / E2E without Tauri) these are synthetic — never call the
- * Tauri path plugin — so startup can still report a stable live path.
+ * Derive the live DB and backup paths from the two base directories. The live
+ * database must agree with where the connection actually opens: the
+ * tauri-plugin-sql resolves `sqlite:notchy.db` relative to the app CONFIG dir,
+ * so the DB lives at `configDir/notchy.db`, while backups stay below the app
+ * DATA dir (design intent). Pure + sync so it is unit-testable without Tauri.
+ */
+export function computeDatabasePaths(dataDir: string, configDir: string): DatabasePaths {
+	return {
+		dataDir,
+		databasePath: `${configDir}/notchy.db`,
+		routineBackupDir: `${dataDir}/backups`,
+		upgradeBackupDir: `${dataDir}/backups/upgrades`
+	};
+}
+
+/**
+ * Resolve the app-config/app-data directories and the paths derived from them.
+ * In a plain browser (web build / E2E without Tauri) these are synthetic —
+ * never call the Tauri path plugin — so startup can still report a stable live
+ * path.
  */
 export async function getDatabasePaths(): Promise<DatabasePaths> {
 	if (!isTauri()) {
@@ -34,14 +51,9 @@ export async function getDatabasePaths(): Promise<DatabasePaths> {
 			upgradeBackupDir: '/web/backups/upgrades'
 		};
 	}
-	const { appDataDir, join } = await import('@tauri-apps/api/path');
-	const dataDir = await appDataDir();
-	return {
-		dataDir,
-		databasePath: await join(dataDir, 'notchy.db'),
-		routineBackupDir: await join(dataDir, 'backups'),
-		upgradeBackupDir: await join(dataDir, 'backups', 'upgrades')
-	};
+	const { appDataDir, appConfigDir } = await import('@tauri-apps/api/path');
+	const [dataDir, configDir] = await Promise.all([appDataDir(), appConfigDir()]);
+	return computeDatabasePaths(dataDir, configDir);
 }
 
 export async function getInstalledAppVersion(): Promise<string> {

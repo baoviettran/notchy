@@ -84,13 +84,12 @@ export const tauriRestoreDependencies: RestoreDependencies = {
 	},
 	async replaceLiveDatabase(sourcePath: string): Promise<void> {
 		const { closeDb } = await import('$lib/db');
-		const { appDataDir, join } = await import('@tauri-apps/api/path');
 		const { copyFile } = await import('@tauri-apps/plugin-fs');
+		const { getDatabasePaths } = await import('$lib/db/platform');
 		// Close the live connection first so the copied file is not held open;
 		// reopening and forward migration happen on page reload.
 		await closeDb();
-		const dataDir = await appDataDir();
-		const livePath = await join(dataDir, 'notchy.db');
-		await copyFile(sourcePath, livePath);
+		const { databasePath } = await getDatabasePaths();
+		await copyFile(sourcePath, databasePath);
 	}
 };
