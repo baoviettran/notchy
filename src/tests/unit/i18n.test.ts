@@ -226,6 +226,44 @@ describe('wave 6 messages', () => {
 	});
 });
 
+describe('wave 7 backup-health messages', () => {
+	it('renders backup health card strings in both locales', () => {
+		setLanguageTag('en');
+		expect(m.settings_backup_health()).toBe('Database health');
+		expect(m.settings_backup_health_create_now()).toBe('Create backup now');
+		expect(m.settings_backup_health_open_folder()).toBe('Open backup folder');
+		expect(m.settings_backup_health_no_backup()).toBe('No backup yet');
+		expect(m.settings_backup_toast_created()).toBe('Backup created.');
+		setLanguageTag('vi');
+		expect(m.settings_backup_health()).toBe('Sức khỏe cơ sở dữ liệu');
+		expect(m.settings_backup_health_create_now()).toBe('Tạo bản sao lưu ngay');
+		expect(m.settings_backup_health_open_folder()).toBe('Mở thư mục sao lưu');
+		expect(m.settings_backup_health_no_backup()).toBe('Chưa có bản sao lưu');
+		expect(m.settings_backup_toast_created()).toBe('Đã tạo bản sao lưu.');
+		setLanguageTag('en');
+	});
+
+	it('renders backup health labels in both locales', () => {
+		setLanguageTag('en');
+		expect(m.settings_backup_health_version()).toBe('App version');
+		expect(m.settings_backup_health_schema()).toBe('Schema version');
+		expect(m.settings_backup_health_database_path()).toBe('Database path');
+		expect(m.settings_backup_health_last_backup()).toBe('Last routine backup');
+		expect(m.settings_backup_health_last_upgrade_backup()).toBe('Last pre-upgrade backup');
+		expect(m.settings_backup_health_upgrade_source_schema()).toBe('Source schema');
+		expect(m.settings_backup_health_warning()).toBe('Backup warning');
+		setLanguageTag('vi');
+		expect(m.settings_backup_health_version()).toBe('Phiên bản ứng dụng');
+		expect(m.settings_backup_health_schema()).toBe('Phiên bản lược đồ');
+		expect(m.settings_backup_health_database_path()).toBe('Đường dẫn cơ sở dữ liệu');
+		expect(m.settings_backup_health_last_backup()).toBe('Lần sao lưu định kỳ gần nhất');
+		expect(m.settings_backup_health_last_upgrade_backup()).toBe('Bản sao lưu trước nâng cấp gần nhất');
+		expect(m.settings_backup_health_upgrade_source_schema()).toBe('Lược đồ nguồn');
+		expect(m.settings_backup_health_warning()).toBe('Cảnh báo sao lưu');
+		setLanguageTag('en');
+	});
+});
+
 	it('renders forms_tag_auto in both locales', () => {
 		setLanguageTag('en');
 		expect(m.forms_tag_auto()).toBe('Auto');
