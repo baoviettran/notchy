@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { assertVersionsMatch, artifactNames, sha256File, readDeclaredVersions } from './release-dogfood.mjs';
+import { assertVersionsMatch, artifactNames, checksumLine, sha256File, readDeclaredVersions } from './release-dogfood.mjs';
 
 test('requires package, Tauri, and Cargo versions to match', () => {
 	assert.throws(() => assertVersionsMatch({ package: '0.1.4', tauri: '0.1.4', cargo: '0.1.3' }), /version mismatch/);
@@ -28,6 +28,14 @@ test('sha256File returns the SHA-256 hex digest of a file', async () => {
 	} finally {
 		await rm(dir, { recursive: true, force: true });
 	}
+});
+
+test('checksumLine references the repo-root-relative artifact path', () => {
+	const hash = '7acd3aa391384370d8cbb77c75b28600979ad9760fd612eb50f5a9e96388508a';
+	assert.equal(
+		checksumLine('0.1.4', 'amd64', hash),
+		`${hash}  artifacts/0.1.4/notchy_0.1.4_amd64.deb\n`
+	);
 });
 
 test('readDeclaredVersions reports 0.1.4 in every declaration', () => {

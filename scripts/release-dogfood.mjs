@@ -53,6 +53,17 @@ export async function sha256File(filePath) {
 	return createHash('sha256').update(data).digest('hex');
 }
 
+/**
+ * Compose the `sha256sum -c`-compatible checksum line. The referenced path is
+ * repo-root-relative (`artifacts/<version>/<deb>`), so the documented
+ * `sha256sum -c artifacts/<version>/<deb>.sha256` verification works from the
+ * repository root regardless of the caller's cwd.
+ */
+export function checksumLine(version, arch, hash) {
+	const { deb } = artifactNames(version, arch);
+	return `${hash}  ${path.posix.join('artifacts', version, deb)}\n`;
+}
+
 function run(command, args) {
 	const result = spawnSync(command, args, { stdio: 'inherit' });
 	if (result.status !== 0) {
@@ -78,7 +89,7 @@ async function locateDeb(version) {
 	const archMatch = filename.match(/_([^_]+)\.deb$/);
 	const arch = archMatch ? archMatch[1] : 'amd64';
 	const names = artifactNames(version, arch);
-	return { sourcePath: path.join(DEB_BUNDLE_DIR, filename), names };
+	return { sourcePath: path.join(DEB_BUNDLE_DIR, filename), names, arch };
 }
 
 async function main() {
@@ -91,7 +102,7 @@ async function main() {
 	run('pnpm', ['check']);
 	run('pnpm', ['tauri', 'build', '--bundles', 'deb']);
 
-	const { sourcePath, names } = await locateDeb(version);
+	const { sourcePath, names, arch } = await locateDeb(version);
 	const artifactsDir = path.join(ROOT, 'artifacts', version);
 	await mkdir(artifactsDir, { recursive: true });
 
@@ -100,7 +111,7 @@ async function main() {
 
 	const checksumPath = path.join(artifactsDir, names.checksum);
 	const hash = await sha256File(debPath);
-	await writeFile(checksumPath, `${hash}  ${names.deb}\n`);
+	await writeFile(checksumPath, checksumLine(version, arch, hash));
 
 	console.log(debPath);
 	console.log(checksumPath);
