@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createTestDb, createTestDbFromPath } from './helpers/test-db';
 import { runMigrations } from '$lib/db/migrations/runner';
-import { migrations } from '$lib/db/migrations/index';
+import { LATEST_SCHEMA_VERSION, migrations } from '$lib/db/migrations/index';
 import { migration001 } from '$lib/db/migrations/001_initial';
 import { migration002 } from '$lib/db/migrations/002_triggers';
 import { migration003 } from '$lib/db/migrations/003_seed';
@@ -123,6 +123,12 @@ describe('released database fixtures', () => {
 			).toEqual([]);
 		}
 	);
+});
+
+describe('migration registry', () => {
+	it('derives the latest schema version from the registry', () => {
+		expect(LATEST_SCHEMA_VERSION).toBe(5);
+	});
 });
 
 describe('Migration 001 - schema', () => {
@@ -252,6 +258,24 @@ describe('runMigrations — recovery from a half-applied state', () => {
 			`SELECT value FROM app_meta WHERE key = 'schema_version'`
 		);
 		expect(rows[0].value).toBe('5');
+	});
+
+	it('reports each applied migration in order', async () => {
+		const fresh = createTestDb();
+		const seen: number[] = [];
+
+		await runMigrations(fresh, migrations, (migration) => seen.push(migration.version));
+
+		expect(seen).toEqual([1, 2, 3, 4, 5]);
+	});
+
+	it('does not modify a database from a newer schema', async () => {
+		await db.execute(`UPDATE app_meta SET value = '6' WHERE key = 'schema_version'`);
+
+		await expect(runMigrations(db, migrations)).rejects.toThrow('database_schema_newer:6:5');
+		expect(
+			await db.query<{ value: string }>(`SELECT value FROM app_meta WHERE key = 'schema_version'`)
+		).toEqual([{ value: '6' }]);
 	});
 });
 

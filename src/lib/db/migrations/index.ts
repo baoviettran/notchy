@@ -6,3 +6,6 @@ import { migration004 } from './004_rollover_toggle';
 import { migration005 } from './005_categorize_rules';
 
 export const migrations: Migration[] = [migration001, migration002, migration003, migration004, migration005];
+
+export const LATEST_SCHEMA_VERSION = Math.max(...migrations.map((migration) => migration.version));
+export const MIN_SUPPORTED_SCHEMA_VERSION = 3;
