@@ -78,7 +78,11 @@ export async function ensureDirectory(path: string): Promise<void> {
 }
 
 export async function openReadOnlyDatabase(path: string): Promise<DatabaseService> {
-	return createTauriDb(`sqlite:${path}?readonly`);
+	// The `?readonly` suffix is not reliably honored by the Tauri SQL plugin on
+	// this sqlx version — it can hang the load IPC. The backup/candidate files
+	// are throwaway and only ever read (validateDatabase), so open the pool
+	// without the suffix; SQLite's default open is harmless for validation.
+	return createTauriDb(`sqlite:${path}`);
 }
 
 export async function openBackupFolder(path: string): Promise<void> {

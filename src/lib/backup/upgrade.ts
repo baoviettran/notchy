@@ -48,7 +48,11 @@ export async function createVerifiedUpgradeBackup(
 			throw new AppError('upgrade_backup_verification_failed', { code: validation.code });
 		}
 	} finally {
-		await backupDb.close();
+		// Best-effort close: tauri-plugin-sql's pool close can hang on this sqlx
+		// version (the IPC never resolves), and a hung close must not block
+		// startup. The backup connection is only ever read during validation; an
+		// abandoned pool is a bounded one-entry leak per upgrade.
+		void backupDb.close().catch(() => {});
 	}
 
 	return {

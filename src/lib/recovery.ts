@@ -27,7 +27,10 @@ export async function restoreCompatibleDatabase(
 			max: LATEST_SCHEMA_VERSION
 		});
 	} finally {
-		await candidate.close();
+		// Best-effort close: tauri-plugin-sql's pool close can hang on this sqlx
+		// version; a hung close must not block the restore. The candidate is only
+		// ever read during validation, so the copy below is not racing writes.
+		void candidate.close().catch(() => {});
 	}
 	if (!validation.valid) {
 		// validateDatabase was called with a range policy; the exact-only
