@@ -1,6 +1,6 @@
 {
   "name": "notchy",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,8 +15,10 @@
     "test:mutation:pure": "stryker run",
     "test:mutation:db": "stryker run stryker.db.conf.mjs",
     "test:release-smoke": "node -e \"import('./package.json', { with: { type: 'json' } }).then(({ default: pkg }) => console.log('Desktop release checklist: specs/2026-07-27-desktop-release-smoke-checklist.md\\nPackage version: ' + pkg.version))\"",
+    "test:release-tooling": "node --test scripts/release-dogfood.test.mjs",
     "test:roadmap": "node scripts/roadmap.mjs",
     "test:e2e": "playwright test",
+    "release:dogfood": "node scripts/release-dogfood.mjs",
     "tauri": "tauri"
   },
   "engines": {

@@ -5,7 +5,7 @@ export default defineConfig({
 	plugins: [sveltekit()],
 	test: {
 		include: ['src/**/*.{test,spec}.{js,ts}', 'scripts/**/*.{test,spec}.{mjs,js}'],
-		exclude: ['src/tests/unit/components/**', 'src/tests/e2e/**'],
+		exclude: ['src/tests/unit/components/**', 'src/tests/e2e/**', 'scripts/release-dogfood.test.mjs'],
 		environment: 'node',
 		setupFiles: ['src/tests/unit/helpers/setup-dom.ts'],
 		coverage: {
