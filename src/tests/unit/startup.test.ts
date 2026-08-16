@@ -212,6 +212,7 @@ describe('prepareDatabase', () => {
 		}, () => {}));
 
 		expect(error).toBeInstanceOf(DatabaseStartupError);
+		expect((error as DatabaseStartupError).name).toBe('DatabaseStartupError');
 		expect(error as DatabaseStartupError).toMatchObject({
 			recovery: {
 				code: 'database_schema_newer',
@@ -350,6 +351,60 @@ describe('prepareDatabase', () => {
 				`SELECT id, amount FROM transactions WHERE id = 'txn_fixture_v004'`
 			)
 		).toEqual([{ id: 'txn_fixture_v004', amount: 987654321 }]);
+	});
+
+	it('maps a fresh-database migration failure to a null detected schema version', async () => {
+		const db = trackDb(createTestDb());
+
+		const error = await captureError(prepareDatabase(db, {
+			latestSchemaVersion: 5,
+			appVersion: '0.1.4',
+			liveDatabasePath: '/data/notchy.db',
+			now: () => new Date('2026-08-15T11:00:00.000Z'),
+			createUpgradeBackup: async () => verifiedRecord(),
+			runMigrations: async () => {
+				throw new Error('fresh migration boom');
+			},
+			verifyAfterMigration: async () => {}
+		}, () => {}));
+
+		expect(error).toBeInstanceOf(DatabaseStartupError);
+		expect(error as DatabaseStartupError).toMatchObject({
+			recovery: {
+				code: 'migration_failed',
+				detectedSchemaVersion: null,
+				backupPath: null,
+				detail: expect.stringContaining('fresh migration boom')
+			}
+		});
+	});
+
+	it('clears stale upgrade metadata on a fresh database', async () => {
+		const db = trackDb(createTestDb());
+
+		await prepareDatabase(db, {
+			latestSchemaVersion: 5,
+			appVersion: '0.1.4',
+			liveDatabasePath: '/data/notchy.db',
+			now: () => new Date('2026-08-15T11:00:00.000Z'),
+			createUpgradeBackup: async () => verifiedRecord(),
+			runMigrations: async () => {
+				// A fresh DB has no app_meta at inspection time; the migration that
+				// runs afterwards creates it. Simulate a migration that also writes
+				// stale upgrade keys so the fresh-launch cleanup has something to
+				// delete (the real migrations never write these keys).
+				await db.execute(`CREATE TABLE app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+				await db.execute(`INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', '5')`);
+				await db.execute(`INSERT OR REPLACE INTO app_meta (key, value) VALUES ('last_migrated_from_schema', '4')`);
+				await db.execute(`INSERT OR REPLACE INTO app_meta (key, value) VALUES ('last_upgrade_backup_path', '/stale/backup.sqlite')`);
+			},
+			verifyAfterMigration: async () => {}
+		}, () => {});
+
+		const meta = await readAppMeta(db);
+		expect(meta.last_successful_app_version).toBe('0.1.4');
+		expect(meta.last_migrated_from_schema).toBeUndefined();
+		expect(meta.last_upgrade_backup_path).toBeUndefined();
 	});
 
 	it('maps a post-migration verification failure to its own recovery code', async () => {

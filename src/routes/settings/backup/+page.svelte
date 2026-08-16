@@ -4,7 +4,8 @@
 	import { save, open } from '@tauri-apps/plugin-dialog';
 	import { writeTextFile } from '@tauri-apps/plugin-fs';
 	import { getDb } from '$lib/db';
-	import { exportCsv, importDatabase } from '$lib/backup';
+	import { exportCsv } from '$lib/backup';
+	import { restoreCompatibleDatabase } from '$lib/recovery';
 	import { toast } from '$lib/stores/toast.svelte';
 	import * as m from '$lib/paraglide/messages';
 
@@ -54,11 +55,9 @@
 			});
 			if (!path) return;
 			busy = true;
-			const result = await importDatabase(path, 5);
-			if (!result.valid) {
-				toast.show(m.settings_backup_toast_import_rejected({ error: result.error ?? '' }));
-				return;
-			}
+			// Throws on an invalid/newer backup; the catch below surfaces the
+			// rejection toast. On success the live DB is closed and replaced.
+			await restoreCompatibleDatabase(path);
 			toast.show(m.settings_backup_toast_imported());
 			// The live connection was closed and the file replaced; reload the app
 			// so getDb() reopens the new database and migrations re-run.

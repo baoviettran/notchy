@@ -153,9 +153,9 @@ function flushLiveDb() {
 // Normalize a connection string before keying the DB registry / FS. The Tauri
 // SQL plugin passes '?readonly' (and other query params) through verbatim, so
 // 'sqlite:foo?readonly' and 'sqlite:foo' would otherwise be distinct registry
-// entries pointing at the same file. importDatabase relies on this: it opens
-// the candidate as 'sqlite:<path>?readonly', validates, then the live DB uses
-// 'sqlite:notchy.db' (no suffix). Stripping the query string makes both refer
+// entries pointing at the same file. restoreCompatibleDatabase relies on this:
+// it opens the candidate as 'sqlite:<path>?readonly', validates, then the live
+// DB uses 'sqlite:notchy.db' (no suffix). Stripping the query string makes both refer
 // to the same sql.js instance / FS bytes.
 function normalizePath(p) {
 	return String(p).split('?')[0];
@@ -163,9 +163,9 @@ function normalizePath(p) {
 
 // A 'sqlite:' connection string maps to a virtual-FS path without the prefix.
 // The live DB ('sqlite:notchy.db') resolves to '<appDataDir>/notchy.db' on disk;
-// createBackup/importDatabase write backup files to bare FS paths. This returns
-// the FS key a given connection string would read from, or null if it's not a
-// file-backed path.
+// createBackup/restoreCompatibleDatabase write backup files to bare FS paths.
+// This returns the FS key a given connection string would read from, or null
+// if it's not a file-backed path.
 function fsKeyFor(connStr) {
 	const p = normalizePath(connStr);
 	if (p.startsWith('sqlite:')) {
@@ -280,7 +280,7 @@ window.__TAURI_INTERNALS__ = {
 			// virtual FS under the connection's file-backed key. The real
 			// plugin's pool reopens the on-disk file on the next load, so a
 			// close-then-reopen must see the same data — without this, closing
-			// the live pool mid-importDatabase (validation failure path) would
+			// the live pool mid-restore (validation failure path) would
 			// leave the next getDb() to rehydrate from an empty FS and silently
 			// wipe the live DB. Skipping the persist for read-only candidate
 			// connections (no file-backed key / not the live path) mirrors that
@@ -312,7 +312,7 @@ window.__TAURI_INTERNALS__ = {
 			const data = fs.get(args.fromPath);
 			fs.set(args.toPath, data);
 			// Restoring the live DB: copyFile(<backup>, <appData>/notchy.db) is
-			// the importDatabase success path. A real copy_file writes to disk
+			// the restoreCompatibleDatabase success path. A real copy_file writes to disk
 			// (persistent), so the reloaded page reopens the replaced file. The
 			// virtual FS is per-page-load and does NOT survive reload, so mirror
 			// the disk write into IndexedDB under the live connection key — the

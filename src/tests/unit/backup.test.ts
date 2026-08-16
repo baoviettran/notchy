@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createTestDb } from './helpers/test-db';
 import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
-import { exportCsv, validateImport, getBackupsToDelete, createBackup } from '$lib/backup';
+import { exportCsv, getBackupsToDelete, createBackup } from '$lib/backup';
 import * as accounts from '$lib/db/repos/accounts';
 import type { DatabaseService } from '$lib/db/service';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
@@ -72,49 +72,6 @@ describe('exportCsv', () => {
 		expect(accountsCsv).not.toMatch(/[^']=[A-Z]/); // no un-neutralized =formula
 		const txnsCsv = csvMap.get('transactions')!;
 		expect(txnsCsv).toContain("'+1+HYPERLINK");
-	});
-});
-
-describe('validateImport compatibility', () => {
-	it('accepts a valid database without an error field', async () => {
-		expect(await validateImport(db, 5)).toEqual({ valid: true });
-	});
-
-	it('preserves the schema mismatch message', async () => {
-		expect(await validateImport(db, 99)).toEqual({
-			valid: false,
-			error: 'Schema version mismatch: expected 99, got 5'
-		});
-	});
-
-	it('preserves the missing-table message', async () => {
-		await db.execute('DROP TABLE category_tags');
-
-		expect(await validateImport(db, 5)).toEqual({
-			valid: false,
-			error: 'Missing required table: category_tags'
-		});
-	});
-
-	it('preserves corrupt and missing-schema messages', async () => {
-		const corruptDb = {
-			query: async () => [{ integrity_check: 'not ok' }]
-		} as unknown as DatabaseService;
-		expect(await validateImport(corruptDb, 5)).toEqual({
-			valid: false,
-			error: 'Database file is corrupt'
-		});
-
-		const missingSchemaDb = createTestDb();
-		await missingSchemaDb.execute('CREATE TABLE app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
-		try {
-			expect(await validateImport(missingSchemaDb, 5)).toEqual({
-				valid: false,
-				error: 'Not a valid Notchy database (missing schema_version)'
-			});
-		} finally {
-			await missingSchemaDb.close();
-		}
 	});
 });
 

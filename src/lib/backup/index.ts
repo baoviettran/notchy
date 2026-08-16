@@ -1,5 +1,4 @@
 import type { DatabaseService } from '../db/service';
-import { validateDatabase, type DatabaseValidation } from './validation';
 
 export interface BackupInfo {
 	path: string;
@@ -121,77 +120,6 @@ export async function exportCsv(db: DatabaseService): Promise<Map<string, string
 		result.set(table, lines.join('\n'));
 	}
 	return result;
-}
-
-/**
- * Validate an imported database file before replacing.
- * Checks: integrity_check passes, required tables exist, schema_version matches.
- */
-export async function validateImport(importDb: DatabaseService, expectedVersion: number): Promise<{ valid: boolean; error?: string }> {
-	const result = await validateDatabase(importDb, { exact: expectedVersion });
-	return result.valid ? { valid: true } : { valid: false, error: validationMessage(result, expectedVersion) };
-}
-
-/**
- * Import a database file: validate it in a read-only connection, and only on
- * success copy it over the live `notchy.db`. The caller must close the live DB
- * connection and reload after this resolves. Never touches the live DB on
- * validation failure. Throws on any error (caller surfaces the message).
- */
-export async function importDatabase(
-	sourcePath: string,
-	expectedVersion: number
-): Promise<{ valid: boolean; error?: string }> {
-	const { createTauriDb } = await import('../db/service');
-	const { closeDb } = await import('../db');
-
-	// Open the candidate file READ-ONLY. The Tauri SQL plugin (sqlite variant)
-	// honors `?readonly` on the connection string, preventing any write to the
-	// source during validation.
-	let importDb;
-	try {
-		importDb = await createTauriDb(`sqlite:${sourcePath}?readonly`);
-	} catch {
-		// Fallback: some plugin builds don't parse ?readonly; open without it —
-		// validateImport only reads, so the source is still untouched.
-		importDb = await createTauriDb(`sqlite:${sourcePath}`);
-	}
-
-	try {
-		const validation = await validateImport(importDb, expectedVersion);
-		if (!validation.valid) return validation;
-
-		// Validated: replace the live DB. Resolve the live path and copy the
-		// source over it, then close the live connection so the next getDb()
-		// reopens the replaced file.
-		const { appDataDir, join } = await import('@tauri-apps/api/path');
-		const { copyFile } = await import('@tauri-apps/plugin-fs');
-		const dataDir = await appDataDir();
-		const livePath = await join(dataDir, 'notchy.db');
-		await closeDb();
-		await copyFile(sourcePath, livePath);
-		return { valid: true };
-	} finally {
-		await importDb.close();
-	}
-}
-
-function validationMessage(
-	result: Extract<DatabaseValidation, { valid: false }>,
-	expectedVersion: number
-): string {
-	switch (result.code) {
-		case 'corrupt':
-			return 'Database file is corrupt';
-		case 'missing_schema_version':
-			return 'Not a valid Notchy database (missing schema_version)';
-		case 'schema_mismatch':
-		case 'schema_too_old':
-		case 'schema_newer':
-			return `Schema version mismatch: expected ${expectedVersion}, got ${result.schemaVersion}`;
-		case 'missing_table':
-			return `Missing required table: ${result.table}`;
-	}
 }
 
 export { validateDatabase } from './validation';

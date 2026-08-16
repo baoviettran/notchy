@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures/tauri-mock';
 import { onboard } from './helpers/ui';
-import { writeVirtualFs, listVirtualFs } from './fixtures/tauri-mock';
+import { writeVirtualFs, listVirtualFs, flushDb } from './fixtures/tauri-mock';
 import type { Page } from '@playwright/test';
 
 const APP_DATA_DIR = '/notchy/appdata';
@@ -30,16 +30,17 @@ async function liveQuery<T>(page: Page, sql: string): Promise<T[]> {
  * backup / restore (Tauri IPC mock).
  *
  * Drives the REAL backup/restore plugin code (createBackup issues a real
- * VACUUM INTO; importDatabase opens a real sql.js connection, validates, and
- * copies bytes via the FS plugin) against the Task 8 Tauri IPC mock. The OS
- * file-picker dialog is scoped out — we invoke the library functions directly
- * via page.evaluate and assert on the virtual filesystem / live DB state.
+ * VACUUM INTO; restoreCompatibleDatabase opens a real sql.js connection,
+ * validates against the supported schema range, and copies bytes via the FS
+ * plugin) against the Task 8 Tauri IPC mock. The OS file-picker dialog is
+ * scoped out — we invoke the library functions directly via page.evaluate and
+ * assert on the virtual filesystem / live DB state.
  *
  * Mock path normalization: the mock strips '?readonly' (and the 'sqlite:'
  * prefix for FS lookups) so a readonly candidate-open of a backup file resolves
  * to the same bytes the VACUUM INTO override / writeVirtualFs placed in the
  * virtual FS. The virtual FS is per-page-load (a Map in the page context) and
- * does NOT survive page.reload(); the round-trip test enables persist mode so
+ * does NOT survive page.reload(); the round-trip tests enable persist mode so
  * the restore's copyFile (mirrored into IndexedDB by the mock) rehydrates on
  * reload — mirroring a real disk write that survives process restart.
  */
@@ -76,17 +77,17 @@ test.describe('backup -> diverge -> restore round-trip', () => {
 		);
 		expect(divergedCount[0].c).toBe(beforeCount + 1);
 
-		// Restore from the backup file. importDatabase opens the candidate
-		// read-only, validates schema/version/tables, closes the live DB, and
-		// copies the backup bytes over the live path.
+		// Restore from the backup file. restoreCompatibleDatabase opens the
+		// candidate read-only, validates it against the supported range, closes
+		// the live DB, and copies the backup bytes over the live path.
 		const result = await page.evaluate(
-			hookExpr(`return h.importDatabase(${JSON.stringify(backupPath)}, 5);`)
+			hookExpr(`return h.restoreCompatibleDatabase(${JSON.stringify(backupPath)});`)
 		);
-		expect(result).toEqual({ valid: true });
+		expect(result).toEqual({ schemaVersion: 5 });
 
 		// Reload so getDb() reopens the copied file (the live connection was
-		// closed by importDatabase; the copied bytes live in the virtual FS at
-		// the live path, which loadDb rehydrates from after the reload).
+		// closed by restoreCompatibleDatabase; the copied bytes live in the
+		// virtual FS at the live path, which loadDb rehydrates from after reload).
 		await page.reload();
 		await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 
@@ -102,6 +103,56 @@ test.describe('backup -> diverge -> restore round-trip', () => {
 			expect(afterIds).toContain(id);
 		}
 	});
+
+	test('restores a compatible schema-4 backup and migrates it forward on reload', async ({ tauriMockPage: page }) => {
+		await onboard(page, { accountName: 'V4Migrate' });
+
+		// Capture the original account ids before downgrading the schema claim.
+		const beforeRows = await liveQuery<{ id: string }>(
+			page,
+			'SELECT id FROM accounts WHERE deleted_at IS NULL'
+		);
+		const beforeIds = beforeRows.map((r) => r.id);
+		expect(beforeIds.length).toBeGreaterThan(0);
+
+		// Claim an older schema on the live DB, then back up those bytes so the
+		// backup presents as a supported v4 database (schema-5 structure with a
+		// v4 schema_version claim).
+		await page.evaluate(
+			hookExpr(`const db = await h.getDb(); await db.execute("UPDATE app_meta SET value='4' WHERE key='schema_version'");`)
+		);
+		const backupPath = await page.evaluate(
+			hookExpr(`const db = await h.getDb(); return h.createBackup(db, ${JSON.stringify(BACKUP_DIR)});`)
+		);
+		expect(backupPath).toMatch(/notchy-backup-.*\.sqlite$/);
+
+		// Restore the supported v4 backup.
+		const result = await page.evaluate(
+			hookExpr(`return h.restoreCompatibleDatabase(${JSON.stringify(backupPath)});`)
+		);
+		expect(result).toEqual({ schemaVersion: 4 });
+
+		// The restored live-DB bytes (mirrored into IndexedDB by copy_file) must
+		// survive reload; startup then detects schema 4, creates a verified
+		// pre-upgrade backup, re-runs migration 005 (idempotent no-op), and
+		// reaches schema 5 while preserving the original account rows.
+		await flushDb(page);
+		await page.reload();
+		await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+
+		const afterRows = await liveQuery<{ id: string }>(
+			page,
+			'SELECT id FROM accounts WHERE deleted_at IS NULL'
+		);
+		expect(afterRows.map((r) => r.id)).toEqual(expect.arrayContaining(beforeIds));
+
+		// Forward migration completed: the live DB is back on the current schema.
+		const schema = await liveQuery<{ value: string }>(
+			page,
+			"SELECT value FROM app_meta WHERE key = 'schema_version'"
+		);
+		expect(schema[0].value).toBe('5');
+	});
 });
 
 test.describe('import rejection (Tauri IPC mock)', () => {
@@ -113,24 +164,29 @@ test.describe('import rejection (Tauri IPC mock)', () => {
 			'SELECT COUNT(*) AS c FROM accounts WHERE deleted_at IS NULL'
 		);
 
-		// Mint a sql.js DB that is structurally valid SQLite but NOT a Notchy DB
-		// (no app_meta / required tables) -> fails validateImport's table check.
+		// Mint a sql.js DB that is structurally valid SQLite (so it opens) but
+		// whose trailing bytes are truncated — PRAGMA integrity_check reports
+		// corruption instead of 'ok', so validateDatabase maps it to backup_corrupt.
 		const corruptBytes = await page.evaluate(async () => {
 			const mock = (window as unknown as { __notchyMock?: { sqlReady: () => Promise<unknown> } })
 				.__notchyMock;
 			const SQL = (await mock!.sqlReady()) as {
-				Database: new () => { run: (s: string) => void; export: () => Uint8Array };
+				Database: new () => { run: (s: string, params?: unknown[]) => void; export: () => Uint8Array };
 			};
 			const db = new SQL.Database();
 			db.run('CREATE TABLE junk (x INTEGER)');
-			return Array.from(db.export());
+			for (let i = 0; i < 50; i++) db.run('INSERT INTO junk VALUES (?)', [i]);
+			const bytes = db.export();
+			return Array.from(bytes.slice(0, bytes.length - 512));
 		});
 		await writeVirtualFs(page, APP_DATA_DIR + '/corrupt.sqlite', new Uint8Array(corruptBytes));
 
+		// page.evaluate rejects when the hook throws, so wrap the hook body in
+		// .catch to surface the AppError code across the boundary.
 		const result = await page.evaluate(
-			hookExpr(`return h.importDatabase(${JSON.stringify(APP_DATA_DIR + '/corrupt.sqlite')}, 5);`)
-		) as { valid: boolean; error?: string };
-		expect(result.valid).toBe(false);
+			hookExpr(`return h.restoreCompatibleDatabase(${JSON.stringify(APP_DATA_DIR + '/corrupt.sqlite')}).catch((e) => ({ error: { code: e?.code, message: e?.message } }));`)
+		) as { error?: { code?: string; message?: string } };
+		expect(result.error?.code).toBe('backup_corrupt');
 
 		// Live DB unchanged: the restore path must never copyFile on validation
 		// failure, so the account count is identical to before.
@@ -141,7 +197,7 @@ test.describe('import rejection (Tauri IPC mock)', () => {
 		expect(after[0].c).toBe(before[0].c);
 	});
 
-	test('schema-version mismatch is rejected, live DB untouched', async ({ tauriMockPage: page }) => {
+	test('schema-version newer is rejected, live DB untouched', async ({ tauriMockPage: page }) => {
 		await onboard(page, { accountName: 'VersionGuard' });
 
 		const before = await liveQuery<{ c: number }>(
@@ -150,8 +206,8 @@ test.describe('import rejection (Tauri IPC mock)', () => {
 		);
 
 		// Build a full-shape DB (passes integrity + required-tables) but with a
-		// schema_version the app does not expect.
-		const mismatchBytes = await page.evaluate(async () => {
+		// schema_version newer than the app supports.
+		const newerBytes = await page.evaluate(async () => {
 			const mock = (window as unknown as { __notchyMock?: { sqlReady: () => Promise<unknown> } })
 				.__notchyMock;
 			const SQL = (await mock!.sqlReady()) as {
@@ -163,19 +219,18 @@ test.describe('import rejection (Tauri IPC mock)', () => {
 			db.run('CREATE TABLE transactions (id TEXT)');
 			db.run('CREATE TABLE category_types (id TEXT)');
 			db.run('CREATE TABLE category_tags (id TEXT)');
-			db.run("INSERT INTO app_meta (key, value) VALUES ('schema_version', '99')");
+			db.run("INSERT INTO app_meta (key, value) VALUES ('schema_version', '6')");
 			return Array.from(db.export());
 		});
-		await writeVirtualFs(page, APP_DATA_DIR + '/wrongver.sqlite', new Uint8Array(mismatchBytes));
+		await writeVirtualFs(page, APP_DATA_DIR + '/wrongver.sqlite', new Uint8Array(newerBytes));
 
 		const result = await page.evaluate(
-			hookExpr(`return h.importDatabase(${JSON.stringify(APP_DATA_DIR + '/wrongver.sqlite')}, 5);`)
-		) as { valid: boolean; error?: string };
-		expect(result.valid).toBe(false);
-		expect(result.error).toContain('Schema version');
+			hookExpr(`return h.restoreCompatibleDatabase(${JSON.stringify(APP_DATA_DIR + '/wrongver.sqlite')}).catch((e) => ({ error: { code: e?.code, message: e?.message } }));`)
+		) as { error?: { code?: string; message?: string } };
+		expect(result.error?.code).toBe('backup_schema_newer');
 
-		// Live DB unchanged: validation failed, so importDatabase must never
-		// reach copyFile. The account count is identical to before.
+		// Live DB unchanged: validation failed, so restoreCompatibleDatabase must
+		// never reach copyFile. The account count is identical to before.
 		const after = await liveQuery<{ c: number }>(
 			page,
 			'SELECT COUNT(*) AS c FROM accounts WHERE deleted_at IS NULL'
