@@ -27,10 +27,11 @@ export async function restoreCompatibleDatabase(
 			max: LATEST_SCHEMA_VERSION
 		});
 	} finally {
-		// Best-effort close: tauri-plugin-sql's pool close can hang on this sqlx
-		// version; a hung close must not block the restore. The candidate is only
-		// ever read during validation, so the copy below is not racing writes.
-		void candidate.close().catch(() => {});
+		// The candidate connection is intentionally NOT closed. tauri-plugin-sql's
+		// `close` hangs on this sqlx version while holding the plugin's pooled-
+		// connection lock, which can deadlock later loads (and thus the reload
+		// after restore). The candidate is only read during validation, so the
+		// copy below is not racing writes; the pool entry is a bounded leak.
 	}
 	if (!validation.valid) {
 		// validateDatabase was called with a range policy; the exact-only

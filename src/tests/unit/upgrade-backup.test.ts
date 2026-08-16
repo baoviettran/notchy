@@ -179,10 +179,13 @@ describe('createVerifiedUpgradeBackup', () => {
 		);
 		expect(record.path).toContain("backup's/nested");
 		expect(ensureDirectory).toHaveBeenCalledExactlyOnceWith(backupDir);
-		expect(closed).toBe(true);
+		// The backup connection is intentionally left open: tauri-plugin-sql's
+		// close hangs and deadlocks later loads on this sqlx version. Only read
+		// during validation, so an open pool is a bounded leak, not a hazard.
+		expect(closed).toBe(false);
 	});
 
-	it('rejects a corrupt verification copy with an exact AppError payload and still closes it', async () => {
+	it('rejects a corrupt verification copy with an exact AppError payload', async () => {
 		const sourceDb = createTestDb();
 		await runMigrations(sourceDb, migrations);
 		openedDbs.push(sourceDb);
@@ -221,7 +224,8 @@ describe('createVerifiedUpgradeBackup', () => {
 			params: { code: 'corrupt' }
 		});
 
-		expect(closed).toBe(true);
+		// Same intentional no-close as the success path.
+		expect(closed).toBe(false);
 	});
 
 	it('rejects a schema-mismatched verification copy with the mismatch code', async () => {
