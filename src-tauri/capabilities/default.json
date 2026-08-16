@@ -15,8 +15,6 @@
     "fs:allow-remove",
     "fs:allow-stat",
     "fs:allow-copy-file",
-    "fs:allow-exists",
-    "fs:allow-rename",
     {
       "identifier": "fs:scope",
       "allow": [

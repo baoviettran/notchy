@@ -67,6 +67,9 @@ export function checksumLine(version, arch, hash) {
 function run(command, args) {
 	const result = spawnSync(command, args, { stdio: 'inherit' });
 	if (result.status !== 0) {
+		if (result.error) {
+			console.error(`failed to launch ${command}: ${result.error.message}`);
+		}
 		process.exit(result.status ?? 1);
 	}
 }
@@ -93,8 +96,9 @@ async function locateDeb(version) {
 }
 
 async function main() {
-	assertVersionsMatch(readDeclaredVersions());
-	const version = readDeclaredVersions().package;
+	const versions = readDeclaredVersions();
+	assertVersionsMatch(versions);
+	const version = versions.package;
 
 	run('git', ['diff', '--quiet']);
 	run('git', ['diff', '--cached', '--quiet']);
