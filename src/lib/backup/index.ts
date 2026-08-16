@@ -1,4 +1,5 @@
 import type { DatabaseService } from '../db/service';
+import { validateDatabase, type DatabaseValidation } from './validation';
 
 export interface BackupInfo {
 	path: string;
@@ -96,7 +97,7 @@ export async function runAutoBackup(db: DatabaseService): Promise<void> {
 export function getBackupsToDelete(backups: BackupInfo[], keep = 10): string[] {
 	if (backups.length <= keep) return [];
 	const sorted = [...backups].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-	return sorted.slice(keep).map((b) => b.path);
+	return sorted.slice(keep).map((backup) => backup.path);
 }
 
 /**
@@ -115,7 +116,7 @@ export async function exportCsv(db: DatabaseService): Promise<Map<string, string
 		const headers = Object.keys(rows[0]);
 		const lines = [headers.join(',')];
 		for (const row of rows) {
-			lines.push(headers.map((h) => csvEscape(String(row[h] ?? ''))).join(','));
+			lines.push(headers.map((header) => csvEscape(String(row[header] ?? ''))).join(','));
 		}
 		result.set(table, lines.join('\n'));
 	}
@@ -127,39 +128,8 @@ export async function exportCsv(db: DatabaseService): Promise<Map<string, string
  * Checks: integrity_check passes, required tables exist, schema_version matches.
  */
 export async function validateImport(importDb: DatabaseService, expectedVersion: number): Promise<{ valid: boolean; error?: string }> {
-	// Integrity check
-	const integrity = await importDb.query<{ integrity_check: string }>('PRAGMA integrity_check');
-	if (integrity[0]?.integrity_check !== 'ok') {
-		return { valid: false, error: 'Database file is corrupt' };
-	}
-
-	// Schema version check
-	const version = await importDb.query<{ value: string }>(
-		`SELECT value FROM app_meta WHERE key = 'schema_version'`
-	).catch(() => []);
-
-	if (version.length === 0) {
-		return { valid: false, error: 'Not a valid Notchy database (missing schema_version)' };
-	}
-
-	const importVersion = parseInt(version[0].value, 10);
-	if (importVersion !== expectedVersion) {
-		return { valid: false, error: `Schema version mismatch: expected ${expectedVersion}, got ${importVersion}` };
-	}
-
-	// Required tables check
-	const tables = await importDb.query<{ name: string }>(
-		`SELECT name FROM sqlite_master WHERE type='table'`
-	);
-	const tableNames = new Set(tables.map((t) => t.name));
-	const required = ['accounts', 'transactions', 'category_types', 'category_tags', 'app_meta'];
-	for (const t of required) {
-		if (!tableNames.has(t)) {
-			return { valid: false, error: `Missing required table: ${t}` };
-		}
-	}
-
-	return { valid: true };
+	const result = await validateDatabase(importDb, { exact: expectedVersion });
+	return result.valid ? { valid: true } : { valid: false, error: validationMessage(result, expectedVersion) };
 }
 
 /**
@@ -205,6 +175,31 @@ export async function importDatabase(
 		await importDb.close();
 	}
 }
+
+function validationMessage(
+	result: Extract<DatabaseValidation, { valid: false }>,
+	expectedVersion: number
+): string {
+	switch (result.code) {
+		case 'corrupt':
+			return 'Database file is corrupt';
+		case 'missing_schema_version':
+			return 'Not a valid Notchy database (missing schema_version)';
+		case 'schema_mismatch':
+		case 'schema_too_old':
+		case 'schema_newer':
+			return `Schema version mismatch: expected ${expectedVersion}, got ${result.schemaVersion}`;
+		case 'missing_table':
+			return `Missing required table: ${result.table}`;
+	}
+}
+
+export { validateDatabase } from './validation';
+export {
+	createVerifiedUpgradeBackup,
+	getUpgradeBackupsToDelete,
+	parseUpgradeBackupName
+} from './upgrade';
 
 function csvEscape(value: string): string {
 	// CSV formula injection: a value beginning with = + - @ or TAB/CR is

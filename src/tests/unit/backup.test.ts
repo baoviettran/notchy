@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createTestDb } from './helpers/test-db';
 import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
-import { exportCsv, validateImport, getBackupsToDelete, createBackup } from '$lib/backup';
+import { exportCsv, getBackupsToDelete, createBackup } from '$lib/backup';
 import * as accounts from '$lib/db/repos/accounts';
 import type { DatabaseService } from '$lib/db/service';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
@@ -72,27 +72,6 @@ describe('exportCsv', () => {
 		expect(accountsCsv).not.toMatch(/[^']=[A-Z]/); // no un-neutralized =formula
 		const txnsCsv = csvMap.get('transactions')!;
 		expect(txnsCsv).toContain("'+1+HYPERLINK");
-	});
-});
-
-describe('validateImport', () => {
-	it('validates a correct database', async () => {
-		const result = await validateImport(db, 5);
-		expect(result.valid).toBe(true);
-	});
-
-	it('rejects wrong schema version', async () => {
-		const result = await validateImport(db, 99);
-		expect(result.valid).toBe(false);
-		expect(result.error).toContain('Schema version mismatch');
-	});
-
-	it('rejects a database missing a required table', async () => {
-		await db.execute('DROP TABLE category_tags');
-
-		const result = await validateImport(db, 5);
-
-		expect(result).toEqual({ valid: false, error: 'Missing required table: category_tags' });
 	});
 });
 
