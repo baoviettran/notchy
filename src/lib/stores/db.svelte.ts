@@ -1,6 +1,9 @@
-import { closeDb, getDb, initializeDb } from '$lib/db';
+import { closeDb, getDb, initializeDb, isTauri } from '$lib/db';
 import * as meta from '$lib/db/repos/meta';
 import { runAutoBackup } from '$lib/backup';
+import { restoreCompatibleDatabase } from '$lib/recovery';
+import { getDatabasePaths, openBackupFolder } from '$lib/db/platform';
+import { invoke } from '@tauri-apps/api/core';
 import { DatabaseStartupError, type RecoveryContext, type StartupStage } from '$lib/db/startup';
 import { LATEST_SCHEMA_VERSION } from '$lib/db/migrations/index';
 
@@ -69,6 +72,21 @@ class DbStore {
 	async retry(): Promise<void> {
 		await closeDb();
 		await this.init();
+	}
+
+	async restoreLatestBackup(): Promise<void> {
+		if (!this.recovery?.backupPath) return;
+		await restoreCompatibleDatabase(this.recovery.backupPath);
+		globalThis.location.reload();
+	}
+
+	async openBackupFolder(): Promise<void> {
+		const { upgradeBackupDir } = await getDatabasePaths();
+		await openBackupFolder(upgradeBackupDir);
+	}
+
+	async quit(): Promise<void> {
+		if (isTauri()) await invoke('quit_app');
 	}
 }
 

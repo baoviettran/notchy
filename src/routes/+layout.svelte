@@ -23,6 +23,8 @@
 	import TransactionForm from '$lib/components/forms/TransactionForm.svelte';
 	import GlobalToast from '$lib/components/primitives/GlobalToast.svelte';
 	import TourOverlay from '$lib/components/tour/TourOverlay.svelte';
+	import RecoveryScreen from '$lib/components/system/RecoveryScreen.svelte';
+	import StartupProgress from '$lib/components/system/StartupProgress.svelte';
 	import * as m from '$lib/paraglide/messages';
 
 	let { children } = $props();
@@ -95,11 +97,16 @@
 	     stays false in its JS context. Render its content directly; it manages
 	     its own ready state internally. -->
 	{@render children()}
+{:else if dbStore.stage === 'recovery_required' && dbStore.recovery}
+	<RecoveryScreen
+		context={dbStore.recovery}
+		onretry={() => dbStore.retry()}
+		onrestore={() => dbStore.restoreLatestBackup()}
+		onopenfolder={() => dbStore.openBackupFolder()}
+		onquit={() => dbStore.quit()}
+	/>
 {:else if !dbStore.ready}
-	<div class="h-screen flex flex-col items-center justify-center bg-ink gap-3">
-		<div class="figures-glow text-2xl animate-flash">▮▮▮</div>
-		<p class="plate">{m.layout_warming_up()}</p>
-	</div>
+	<StartupProgress stage={dbStore.stage} />
 {:else if isOnboarding}
 	{@render children()}
 {:else}

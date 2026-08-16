@@ -62,6 +62,7 @@
     "@tauri-apps/api": "2.5.0",
     "@tauri-apps/plugin-dialog": "2.2.0",
     "@tauri-apps/plugin-fs": "2.2.0",
+    "@tauri-apps/plugin-opener": "2.5.0",
     "@tauri-apps/plugin-sql": "2.2.0",
     "layercake": "8.2.0",
     "sql.js": "1.14.1"

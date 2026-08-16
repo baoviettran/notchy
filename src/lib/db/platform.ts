@@ -69,6 +69,11 @@ export async function openReadOnlyDatabase(path: string): Promise<DatabaseServic
 	return createTauriDb(`sqlite:${path}?readonly`);
 }
 
+export async function openBackupFolder(path: string): Promise<void> {
+	const { openPath } = await import('@tauri-apps/plugin-opener');
+	await openPath(path);
+}
+
 export async function listUpgradeBackupRecords(path: string): Promise<UpgradeBackupRecord[]> {
 	const { readDir } = await import('@tauri-apps/plugin-fs');
 	const entries = await readDir(path);
