@@ -1349,7 +1349,7 @@ This step changes the workstation package installation and requires explicit use
 2. Enter non-sensitive sample data: checking account, expense, income, transfer, budget allocation, locale, and quick-add account.
 3. Quit and relaunch; confirm all data persists.
 4. Install with `sudo apt install ./artifacts/0.1.4/notchy_0.1.4_amd64.deb`.
-5. Launch 0.1.4 and record detected source schema, target schema `5`, and verified pre-upgrade backup path.
+5. Launch 0.1.4 and record detected source schema and target schema `5`. Because this `0.1.3` to `0.1.4` checkpoint keeps schema `5`, record that no pre-upgrade backup is expected; the automated released-fixture `v4` to `v5` coverage is the evidence for mandatory backup-before-migration behavior.
 6. Confirm the original account, transactions, transfer direction, balances, budget, locale, tray, and `Ctrl+Shift+N` quick-add.
 7. Create a manual backup, add a transaction, restore the manual backup, and confirm the added transaction disappears while earlier data remains.
 
@@ -1390,4 +1390,4 @@ Do not call the feature complete merely because unit and browser tests pass. Com
 - Recovery reports contain no financial fields or raw failure detail.
 - Settings exposes the database and backup health needed for self-service recovery.
 - `notchy_0.1.4_amd64.deb` and its checksum are reproducible through one command.
-- The 0.1.3 → 0.1.4 upgrade is executed on Ubuntu with persistence, tray, quick-add, backup, and restore results recorded.
+- The 0.1.3 → 0.1.4 no-migration upgrade is executed on Ubuntu with persistence, tray, quick-add, backup, and restore results recorded; the released-fixture migration suite proves pre-upgrade backup behavior for schema-changing upgrades.
