@@ -49,6 +49,16 @@ export function mapError(e: unknown): string {
 				return m.errors_tag_not_found();
 			case 'system_tag_no_delete':
 				return m.errors_system_tag_no_delete();
+			case 'backup_corrupt':
+				return m.errors_backup_corrupt();
+			case 'backup_missing_schema_version':
+				return m.errors_backup_missing_schema_version();
+			case 'backup_schema_too_old':
+				return m.errors_backup_schema_too_old();
+			case 'backup_schema_newer':
+				return m.errors_backup_schema_newer();
+			case 'backup_missing_table':
+				return m.errors_backup_missing_table();
 			case 'invalid_amount':
 				return m.validation_invalid_amount();
 			default:

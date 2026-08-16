@@ -7,6 +7,8 @@
 	import { exportCsv } from '$lib/backup';
 	import { restoreCompatibleDatabase } from '$lib/recovery';
 	import { toast } from '$lib/stores/toast.svelte';
+	import { AppError } from '$lib/errors';
+	import { mapError } from '$lib/utils/errors';
 	import * as m from '$lib/paraglide/messages';
 
 	let confirmImport = $state(false);
@@ -63,7 +65,14 @@
 			// so getDb() reopens the new database and migrations re-run.
 			setTimeout(() => globalThis.location.reload(), 800);
 		} catch (e) {
-			toast.show(m.settings_backup_toast_import_failed({ error: String(e) }));
+			// A backup_* AppError is a validation rejection; anything else (copy
+			// failure, FS error) is a generic import failure. Both surface a
+			// localized message, never a raw error code.
+			const rejected = e instanceof AppError && e.code.startsWith('backup_');
+			const error = mapError(e);
+			toast.show(rejected
+				? m.settings_backup_toast_import_rejected({ error })
+				: m.settings_backup_toast_import_failed({ error }));
 		} finally {
 			busy = false;
 		}

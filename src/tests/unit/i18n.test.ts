@@ -244,6 +244,17 @@ describe('backend error mapping', () => {
 		setLanguageTag('en');
 		expect(mapError(new AppError('txn_not_found'))).toBe('Transaction not found');
 	});
+	it('maps restore rejection codes to localized strings', () => {
+		setLanguageTag('en');
+		expect(mapError(new AppError('backup_schema_newer'))).toBe('Backup uses a newer schema');
+		expect(mapError(new AppError('backup_corrupt'))).toBe('Database file is corrupt');
+		expect(mapError(new AppError('backup_missing_schema_version'))).toBe('Not a Notchy database (missing schema version)');
+		expect(mapError(new AppError('backup_schema_too_old'))).toBe('Schema is too old');
+		expect(mapError(new AppError('backup_missing_table'))).toBe('Missing required table');
+		setLanguageTag('vi');
+		expect(mapError(new AppError('backup_schema_newer'))).toBe('Bản sao lưu dùng phiên bản lược đồ mới hơn');
+		setLanguageTag('en');
+	});
 	it('falls back to errors_unknown for non-AppError', () => {
 		setLanguageTag('en');
 		expect(mapError(new Error('something weird'))).toBe('Something went wrong. Please try again.');
