@@ -82,7 +82,7 @@
 - Produces: `runMigrations(db, migrations, onMigration?): Promise<void>` with a progress callback.
 - Consumes: existing `DatabaseService` and `Migration` interfaces.
 
-- [ ] **Step 1: Write failing schema-inspection tests**
+- [x] **Step 1: Write failing schema-inspection tests**
 
 Create `src/tests/unit/schema.test.ts` with real SQLite cases:
 
@@ -118,13 +118,13 @@ describe('inspectSchema', () => {
 });
 ```
 
-- [ ] **Step 2: Run the schema tests and confirm the red state**
+- [x] **Step 2: Run the schema tests and confirm the red state**
 
 Run: `pnpm vitest run src/tests/unit/schema.test.ts`
 
 Expected: FAIL because `$lib/db/schema` does not exist.
 
-- [ ] **Step 3: Implement the read-only classifier and constants**
+- [x] **Step 3: Implement the read-only classifier and constants**
 
 Create `src/lib/db/schema.ts` with this public contract:
 
@@ -163,7 +163,7 @@ export const LATEST_SCHEMA_VERSION = Math.max(...migrations.map((migration) => m
 export const MIN_SUPPORTED_SCHEMA_VERSION = 3;
 ```
 
-- [ ] **Step 4: Make the migration runner reject newer schemas and report progress**
+- [x] **Step 4: Make the migration runner reject newer schemas and report progress**
 
 Change the runner signature and add the guard before filtering pending migrations:
 
@@ -193,7 +193,7 @@ export async function runMigrations(
 
 Keep the existing `CREATE TABLE app_meta` and pending-sort logic around this code.
 
-- [ ] **Step 5: Extend migration tests for constants, progress, and newer rejection**
+- [x] **Step 5: Extend migration tests for constants, progress, and newer rejection**
 
 Add assertions to `src/tests/unit/migrations.test.ts`:
 
@@ -217,13 +217,13 @@ it('does not modify a database from a newer schema', async () => {
 });
 ```
 
-- [ ] **Step 6: Run focused and full migration tests**
+- [x] **Step 6: Run focused and full migration tests**
 
 Run: `pnpm vitest run src/tests/unit/schema.test.ts src/tests/unit/migrations.test.ts`
 
 Expected: both files PASS; released `v003.sqlite` and `v004.sqlite` fixtures still preserve their seeded rows.
 
-- [ ] **Step 7: Commit Task 1**
+- [x] **Step 7: Commit Task 1**
 
 ```sh
 git add src/lib/db/schema.ts src/lib/db/migrations/index.ts src/lib/db/migrations/runner.ts src/tests/unit/schema.test.ts src/tests/unit/migrations.test.ts
@@ -247,7 +247,7 @@ git commit -m "feat(db): inspect schema before migrations"
 - Produces: `createVerifiedUpgradeBackup(db, options): Promise<UpgradeBackupRecord>`.
 - Produces: `getUpgradeBackupsToDelete(records, keepPerSource?): string[]`.
 
-- [ ] **Step 1: Write failing validation-policy tests**
+- [x] **Step 1: Write failing validation-policy tests**
 
 Move validation expectations out of `backup.test.ts` and cover exact/range policies:
 
@@ -268,7 +268,7 @@ describe('validateDatabase', () => {
 });
 ```
 
-- [ ] **Step 2: Write failing real-file upgrade-backup tests**
+- [x] **Step 2: Write failing real-file upgrade-backup tests**
 
 In `src/tests/unit/upgrade-backup.test.ts`, copy `v004.sqlite` to a temp directory, open it with `createTestDbFromPath`, call the new service, and assert:
 
@@ -287,13 +287,13 @@ expect(record.path).toContain('notchy-pre-upgrade-v4-to-v5-0.1.3-2026-08-15T10-3
 
 Also inject `openReadOnly` returning a corrupt database and assert rejection occurs before any migration callback can run.
 
-- [ ] **Step 3: Run the new backup tests and confirm the red state**
+- [x] **Step 3: Run the new backup tests and confirm the red state**
 
 Run: `pnpm vitest run src/tests/unit/backup.test.ts src/tests/unit/upgrade-backup.test.ts`
 
 Expected: FAIL because `validation.ts` and `upgrade.ts` do not exist.
 
-- [ ] **Step 4: Implement structured database validation**
+- [x] **Step 4: Implement structured database validation**
 
 Create `src/lib/backup/validation.ts`:
 
@@ -322,7 +322,7 @@ export async function validateDatabase(db: DatabaseService, policy: SchemaPolicy
 }
 ```
 
-- [ ] **Step 5: Implement verified upgrade backup creation and retention**
+- [x] **Step 5: Implement verified upgrade backup creation and retention**
 
 Create `src/lib/backup/upgrade.ts` with these public types and functions:
 
@@ -384,7 +384,7 @@ export function getUpgradeBackupsToDelete(records: UpgradeBackupRecord[], keepPe
 
 Add `parseUpgradeBackupName(path)` using the exact filename regex from Step 5’s test and return `null` for non-upgrade files. The retention function above groups by `sourceSchema`, sorts newest first, and returns only records beyond the newest two; add a unit test with three v4 backups and two v3 backups that expects only the oldest v4 path.
 
-- [ ] **Step 6: Re-export the focused APIs and remove duplicate validation logic**
+- [x] **Step 6: Re-export the focused APIs and remove duplicate validation logic**
 
 In `src/lib/backup/index.ts`, replace the body of `validateImport` with a compatibility wrapper during this task:
 
@@ -400,7 +400,7 @@ export { createVerifiedUpgradeBackup, getUpgradeBackupsToDelete } from './upgrad
 
 Keep existing callers green until Task 5 moves restore to the range policy.
 
-- [ ] **Step 7: Run backup and mutation tests**
+- [x] **Step 7: Run backup and mutation tests**
 
 Run: `pnpm vitest run src/tests/unit/backup.test.ts src/tests/unit/upgrade-backup.test.ts`
 
@@ -410,7 +410,7 @@ Add `src/lib/db/schema.ts`, `src/lib/backup/validation.ts`, and `src/lib/backup/
 
 Expected: the database mutation target completes without surviving mutants in the new policy branches.
 
-- [ ] **Step 8: Commit Task 2**
+- [x] **Step 8: Commit Task 2**
 
 ```sh
 git add src/lib/backup src/tests/unit/backup.test.ts src/tests/unit/upgrade-backup.test.ts stryker.db.conf.mjs
@@ -431,7 +431,7 @@ git commit -m "feat(backup): verify pre-upgrade recovery points"
 - Produces: `prepareDatabase(db, dependencies, onStage): Promise<StartupSuccess>`.
 - Produces: `DatabaseStartupError` carrying a non-sensitive `RecoveryContext`.
 
-- [ ] **Step 1: Write failing coordinator-order tests**
+- [x] **Step 1: Write failing coordinator-order tests**
 
 Use a real file-backed copy of `v004.sqlite` and dependency spies that append event names:
 
@@ -452,13 +452,13 @@ expect(result).toMatchObject({ schemaVersion: 5, migratedFrom: 4, backup: verifi
 
 Add separate tests proving fresh/current databases skip upgrade backup, newer/invalid databases never call migration, backup failure never calls migration, and migration failure leaves source schema `4` readable.
 
-- [ ] **Step 2: Run the coordinator tests and confirm the red state**
+- [x] **Step 2: Run the coordinator tests and confirm the red state**
 
 Run: `pnpm vitest run src/tests/unit/startup.test.ts`
 
 Expected: FAIL because `$lib/db/startup` does not exist.
 
-- [ ] **Step 3: Implement startup types and stable failure codes**
+- [x] **Step 3: Implement startup types and stable failure codes**
 
 Create `src/lib/db/startup.ts` with this contract:
 
@@ -498,7 +498,7 @@ export class DatabaseStartupError extends Error {
 
 Define `StartupDependencies` with exact fields used in the test: schema/app/path values, `now`, `createUpgradeBackup`, `runMigrations`, and `verifyAfterMigration`.
 
-- [ ] **Step 4: Implement the coordinator state machine**
+- [x] **Step 4: Implement the coordinator state machine**
 
 The core branch must remain visibly ordered:
 
@@ -532,7 +532,7 @@ return { schemaVersion: dependencies.latestSchemaVersion, migratedFrom, backup }
 
 Wrap each boundary separately so recovery codes distinguish integrity, backup, migration, and post-migration verification failures. Preserve only `String(error)` in `detail`; do not include SQL parameters or queried rows.
 
-- [ ] **Step 5: Add metadata assertions**
+- [x] **Step 5: Add metadata assertions**
 
 Test and implement these `app_meta` keys after success:
 
@@ -546,13 +546,13 @@ last_upgrade_backup_path
 
 Delete `last_migrated_from_schema` and `last_upgrade_backup_path` only for a fresh database. A current-schema launch must not erase the last upgrade record shown in Settings.
 
-- [ ] **Step 6: Run coordinator and integrity tests**
+- [x] **Step 6: Run coordinator and integrity tests**
 
 Run: `pnpm vitest run src/tests/unit/startup.test.ts src/tests/unit/migrations.test.ts src/tests/unit/integrity.test.ts`
 
 Expected: PASS. The failed-migration test must reopen the same file and observe source schema `4` plus the original fixture transaction.
 
-- [ ] **Step 7: Commit Task 3**
+- [x] **Step 7: Commit Task 3**
 
 ```sh
 git add src/lib/db/startup.ts src/lib/db/integrity.ts src/tests/unit/startup.test.ts
@@ -576,7 +576,7 @@ git commit -m "feat(db): protect database startup upgrades"
 - Preserves: `getDb(): Promise<DatabaseService>` for finance repositories after successful initialization.
 - Produces: `getDatabasePaths(): Promise<{ dataDir; databasePath; routineBackupDir; upgradeBackupDir }>`.
 
-- [ ] **Step 1: Write failing integration tests for initialization ownership**
+- [x] **Step 1: Write failing integration tests for initialization ownership**
 
 Add tests that inject an opener and prove:
 
@@ -593,13 +593,13 @@ it('quick access rejects an older schema without migrating it', async () => {
 });
 ```
 
-- [ ] **Step 2: Run the integration test and confirm the red state**
+- [x] **Step 2: Run the integration test and confirm the red state**
 
 Run: `pnpm vitest run src/tests/unit/db-startup-integration.test.ts`
 
 Expected: FAIL because `initializeDb`, `openCurrentDb`, and `platform.ts` do not exist.
 
-- [ ] **Step 3: Implement the Tauri platform adapter**
+- [x] **Step 3: Implement the Tauri platform adapter**
 
 Create `src/lib/db/platform.ts`:
 
@@ -624,7 +624,7 @@ export async function getInstalledAppVersion(): Promise<string> {
 
 Add `ensureDirectory(path)` using `mkdir(path, { recursive: true })`, `openReadOnlyDatabase(path)` using `createTauriDb(`sqlite:${path}?readonly`)`, and `listUpgradeBackupRecords(path)` using `readDir` plus `parseUpgradeBackupName`.
 
-- [ ] **Step 4: Refactor database initialization without weakening `getDb`**
+- [x] **Step 4: Refactor database initialization without weakening `getDb`**
 
 In `src/lib/db/index.ts`, keep one connection promise and one initialization promise:
 
@@ -654,7 +654,7 @@ export async function getDb(): Promise<DatabaseService> {
 
 `initializeMainDatabase` constructs real dependencies, ensures `backups/upgrades/`, prunes only after a verified new backup exists, and passes `runIntegrityCheck` plus `checkOrphanedTransfers` as post-verification. `openCurrentDb` applies pragmas, calls `inspectSchema`, returns only for `current`, and otherwise closes the connection and throws `new AppError('database_update_required')`.
 
-- [ ] **Step 5: Make `DbStore` expose startup state and retry**
+- [x] **Step 5: Make `DbStore` expose startup state and retry**
 
 Replace boolean-only state with:
 
@@ -686,11 +686,11 @@ async retry(): Promise<void> {
 
 Preserve the existing guarded E2E test hooks after readiness.
 
-- [ ] **Step 6: Give quick-add an explicit update-required state**
+- [x] **Step 6: Give quick-add an explicit update-required state**
 
 In `src/routes/quick-add/+page.svelte`, catch `AppError('database_update_required')` and render `m.quick_add_database_update_required()` instead of the generic save error. Do not call `runMigrations` or `initializeDb` from that route.
 
-- [ ] **Step 7: Run integration, quick-add, and type checks**
+- [x] **Step 7: Run integration, quick-add, and type checks**
 
 Run: `pnpm vitest run src/tests/unit/db-startup-integration.test.ts src/tests/unit/quick_account.test.ts src/tests/unit/quick_parse.test.ts`
 
@@ -700,7 +700,7 @@ Run: `pnpm check`
 
 Expected: 0 errors; the existing documented autofocus warning may remain until separately addressed.
 
-- [ ] **Step 8: Commit Task 4**
+- [x] **Step 8: Commit Task 4**
 
 ```sh
 git add src/lib/db/platform.ts src/lib/db/index.ts src/lib/stores/db.svelte.ts src/routes/quick-add/+page.svelte src/tests/unit/db-startup-integration.test.ts
@@ -723,7 +723,7 @@ git commit -m "feat(db): centralize main-window initialization"
 - Produces: `restoreCompatibleDatabase(sourcePath): Promise<{ schemaVersion: number }>`.
 - Produces: `buildTechnicalReport(context): string` with an allowlisted field set.
 
-- [ ] **Step 1: Write failing restore compatibility tests**
+- [x] **Step 1: Write failing restore compatibility tests**
 
 Use copied migration fixtures and a fake replacement callback:
 
@@ -740,7 +740,7 @@ it('rejects a newer backup before replacing the live file', async () => {
 });
 ```
 
-- [ ] **Step 2: Write the report-redaction test**
+- [x] **Step 2: Write the report-redaction test**
 
 ```ts
 const report = buildTechnicalReport({
@@ -756,13 +756,13 @@ expect(report).not.toContain('900000');
 
 The implementation must omit `detail` entirely from the copyable report. It may remain in process logs only after SQL parameters have been excluded at the throw site.
 
-- [ ] **Step 3: Run recovery tests and confirm the red state**
+- [x] **Step 3: Run recovery tests and confirm the red state**
 
 Run: `pnpm vitest run src/tests/unit/recovery.test.ts src/tests/unit/backup.test.ts`
 
 Expected: FAIL because `$lib/recovery` does not exist and restore still requires exact schema `5`.
 
-- [ ] **Step 4: Implement compatible restore as validate-close-replace**
+- [x] **Step 4: Implement compatible restore as validate-close-replace**
 
 Create `src/lib/recovery.ts` with dependency injection for unit tests and a Tauri wrapper:
 
@@ -791,7 +791,7 @@ export async function restoreCompatibleDatabase(
 
 The Tauri replacement dependency closes the live connection before `copyFile`, then leaves reopening and forward migration to the page reload. Never copy while the candidate connection is still open.
 
-- [ ] **Step 5: Implement allowlisted technical reports**
+- [x] **Step 5: Implement allowlisted technical reports**
 
 ```ts
 export function buildTechnicalReport(context: RecoveryContext): string {
@@ -808,11 +808,11 @@ export function buildTechnicalReport(context: RecoveryContext): string {
 
 Do not serialize `context.detail` and do not accept arbitrary extra keys.
 
-- [ ] **Step 6: Replace numeric `importDatabase(path, 5)` callers**
+- [x] **Step 6: Replace numeric `importDatabase(path, 5)` callers**
 
 Remove `importDatabase` after updating Settings, E2E hooks, and all tests in the same commit to call `restoreCompatibleDatabase(path)` without a hardcoded schema literal. Verify removal with `rg -n "importDatabase|validateImport" src` and expect no matches.
 
-- [ ] **Step 7: Run unit and backup E2E tests**
+- [x] **Step 7: Run unit and backup E2E tests**
 
 Run: `pnpm vitest run src/tests/unit/recovery.test.ts src/tests/unit/backup.test.ts`
 
@@ -826,7 +826,7 @@ Run: `pnpm test:mutation:db`
 
 Expected: the complete database mutation target, now including `startup.ts` and `recovery.ts`, completes without surviving mutants in the new policy branches.
 
-- [ ] **Step 8: Commit Task 5**
+- [x] **Step 8: Commit Task 5**
 
 ```sh
 git add src/lib/recovery.ts src/lib/backup/index.ts src/tests/unit/recovery.test.ts src/tests/unit/backup.test.ts src/tests/e2e/backup-restore.spec.ts
@@ -849,7 +849,7 @@ git commit -m "feat(backup): restore compatible older databases"
 - Consumes: `dbStore.stage`, `dbStore.recovery`, `dbStore.retry`, `restoreCompatibleDatabase`, and `buildTechnicalReport`.
 - Produces: recovery UI callbacks `onretry`, `onrestore`, `onopenfolder`, and `onquit`.
 
-- [ ] **Step 1: Write failing component tests**
+- [x] **Step 1: Write failing component tests**
 
 Render the component with a fixed `RecoveryContext` and callback spies:
 
@@ -866,13 +866,13 @@ it('shows non-sensitive recovery facts and exposes all actions', async () => {
 
 Assert restore is absent when `backupPath` is null and present when it is non-null. Assert technical-report copy uses `navigator.clipboard.writeText` with the allowlisted report.
 
-- [ ] **Step 2: Run the component test and confirm the red state**
+- [x] **Step 2: Run the component test and confirm the red state**
 
 Run: `pnpm vitest run src/tests/unit/components/RecoveryScreen.test.ts`
 
 Expected: FAIL because the component does not exist.
 
-- [ ] **Step 3: Add exact English and Vietnamese message keys**
+- [x] **Step 3: Add exact English and Vietnamese message keys**
 
 Add matching keys including:
 
@@ -891,7 +891,7 @@ Add matching keys including:
 
 Provide natural Vietnamese translations in `messages/vi.json`, including “Notchy cần bạn kiểm tra” for `recovery_title`. Add separate localized descriptions for every `StartupFailureCode`; do not interpolate raw `detail` into user-visible copy.
 
-- [ ] **Step 4: Implement the recovery component**
+- [x] **Step 4: Implement the recovery component**
 
 Use an accessible main status region and explicit button labels:
 
@@ -919,7 +919,7 @@ Use an accessible main status region and explicit button labels:
 
 Render app/schema versions and file paths, never `detail`. Gate restore on `context.backupPath`, and wrap restore in `ConfirmDialog`.
 
-- [ ] **Step 5: Wire startup and recovery branches into the root layout**
+- [x] **Step 5: Wire startup and recovery branches into the root layout**
 
 Replace the single `!dbStore.ready` warming screen branch with:
 
@@ -938,7 +938,7 @@ Replace the single `!dbStore.ready` warming screen branch with:
 
 The onboarding redirect stays after `ready`; a startup failure must never navigate to `/onboarding`.
 
-- [ ] **Step 6: Implement store recovery actions**
+- [x] **Step 6: Implement store recovery actions**
 
 Add methods that call focused services:
 
@@ -961,7 +961,7 @@ async quit(): Promise<void> {
 
 `openBackupFolder` and the Rust command are wired in Task 7; unit tests mock them now.
 
-- [ ] **Step 7: Run component, i18n, and type checks**
+- [x] **Step 7: Run component, i18n, and type checks**
 
 Run: `pnpm vitest run src/tests/unit/components/RecoveryScreen.test.ts src/tests/unit/i18n.test.ts`
 
@@ -971,7 +971,7 @@ Run: `pnpm check`
 
 Expected: 0 errors.
 
-- [ ] **Step 8: Commit Task 6**
+- [x] **Step 8: Commit Task 6**
 
 ```sh
 git add src/lib/components/system/RecoveryScreen.svelte src/routes/+layout.svelte src/lib/stores/db.svelte.ts src/tests/unit/components/RecoveryScreen.test.ts messages/en.json messages/vi.json
@@ -998,7 +998,7 @@ git commit -m "feat(ui): add database recovery startup screen"
 - Produces: `createManualBackup(db): Promise<string>`.
 - Produces: `openBackupFolder(path): Promise<void>` through official Tauri opener.
 
-- [ ] **Step 1: Write failing backup-health tests**
+- [x] **Step 1: Write failing backup-health tests**
 
 ```ts
 expect(await getBackupHealth(db, {
@@ -1011,13 +1011,13 @@ expect(await getBackupHealth(db, {
 
 Seed each metadata key and assert it appears without reading financial tables.
 
-- [ ] **Step 2: Run the health test and confirm the red state**
+- [x] **Step 2: Run the health test and confirm the red state**
 
 Run: `pnpm vitest run src/tests/unit/backup-health.test.ts`
 
 Expected: FAIL because `$lib/backup/health` does not exist.
 
-- [ ] **Step 3: Implement the backup-health query and manual backup**
+- [x] **Step 3: Implement the backup-health query and manual backup**
 
 Create `src/lib/backup/health.ts` with:
 
@@ -1035,7 +1035,7 @@ export interface BackupHealth {
 
 Read only `schema_version`, `last_backup_at`, `last_upgrade_backup_path`, `last_migrated_from_schema`, and `backup_warning` from `app_meta`. `createManualBackup` ensures the routine backup directory, calls `createBackup`, and updates `last_backup_at` only after success.
 
-- [ ] **Step 4: Install and initialize the official opener plugin**
+- [x] **Step 4: Install and initialize the official opener plugin**
 
 Run: `pnpm add @tauri-apps/plugin-opener@2.5.0`
 
@@ -1058,7 +1058,7 @@ tauri::Builder::default()
 
 Preserve every existing plugin and tray handler. Add the path-scoped permission `"opener:allow-open-path"` to `src-tauri/capabilities/default.json`. Do not add URL-opening or command-execution permissions.
 
-- [ ] **Step 5: Implement the Settings actions and health card**
+- [x] **Step 5: Implement the Settings actions and health card**
 
 Use `openPath` from `@tauri-apps/plugin-opener`:
 
@@ -1071,7 +1071,7 @@ export async function openBackupFolder(path: string): Promise<void> {
 
 On mount, load `BackupHealth`. Render labeled app version, schema version, database path, last routine backup, and last pre-upgrade backup. Add “Create backup now” and “Open backup folder” buttons; refresh health after manual backup. Keep current SQLite export, CSV export, and destructive restore controls.
 
-- [ ] **Step 6: Add EN/VI Settings copy and test parity**
+- [x] **Step 6: Add EN/VI Settings copy and test parity**
 
 Add exact keys for version, schema, database path, last backup, no backup, create now, created toast, open folder, and backup warning. Run:
 
@@ -1079,7 +1079,7 @@ Add exact keys for version, schema, database path, last backup, no backup, creat
 
 Expected: PASS.
 
-- [ ] **Step 7: Run Rust and Svelte checks**
+- [x] **Step 7: Run Rust and Svelte checks**
 
 Run: `cargo check --manifest-path src-tauri/Cargo.toml`
 
@@ -1089,7 +1089,7 @@ Run: `pnpm check`
 
 Expected: 0 errors.
 
-- [ ] **Step 8: Commit Task 7**
+- [x] **Step 8: Commit Task 7**
 
 ```sh
 git add package.json pnpm-lock.yaml src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/src/lib.rs src-tauri/capabilities/default.json src/lib/backup/health.ts src/routes/settings/backup/+page.svelte src/tests/unit/backup-health.test.ts messages/en.json messages/vi.json
@@ -1109,7 +1109,7 @@ git commit -m "feat(settings): expose database backup health"
 - Consumes: root recovery UI, startup coordinator, restore policy, and existing Tauri mock.
 - Produces: configurable mock options `initialSchemaVersion`, `failUpgradeBackup`, and `failMigrationVersion`.
 
-- [ ] **Step 1: Extend the Tauri mock contract in a failing test**
+- [x] **Step 1: Extend the Tauri mock contract in a failing test**
 
 Add options:
 
@@ -1125,7 +1125,7 @@ export interface TauriMockOptions {
 
 Write E2E cases that request these options before implementing mock behavior.
 
-- [ ] **Step 2: Add the recovery journeys**
+- [x] **Step 2: Add the recovery journeys**
 
 Create `src/tests/e2e/startup-recovery.spec.ts`:
 
@@ -1148,21 +1148,21 @@ test.describe('protected startup', () => {
 
 Use per-test `test.use` values so the first case starts at schema `6`, and the second at schema `4` with migration `5` forced to fail.
 
-- [ ] **Step 3: Run E2E and confirm the red state**
+- [x] **Step 3: Run E2E and confirm the red state**
 
 Run: `pnpm playwright test src/tests/e2e/startup-recovery.spec.ts`
 
 Expected: FAIL because mock options are not yet honored.
 
-- [ ] **Step 4: Implement mock failure controls without production hooks**
+- [x] **Step 4: Implement mock failure controls without production hooks**
 
 Seed the requested schema before application startup. Intercept only the Tauri mock’s `VACUUM INTO` and migration SQL paths; do not add production `window` flags. Record virtual upgrade backup files so restore/open-folder actions can be asserted.
 
-- [ ] **Step 5: Add retry and restore assertions**
+- [x] **Step 5: Add retry and restore assertions**
 
 Verify retry does not reach finance UI while the injected fault remains. For restore, clear the injected migration failure through a mock-only Playwright callback, click restore, wait for reload, and assert the original fixture transaction and schema `5` survive.
 
-- [ ] **Step 6: Run focused and full E2E**
+- [x] **Step 6: Run focused and full E2E**
 
 Run: `pnpm playwright test src/tests/e2e/startup-recovery.spec.ts src/tests/e2e/backup-restore.spec.ts src/tests/e2e/quick-add.spec.ts`
 
@@ -1172,7 +1172,7 @@ Run: `pnpm test:e2e`
 
 Expected: all Playwright tests PASS with no reduction from the existing 87-test floor.
 
-- [ ] **Step 7: Commit Task 8**
+- [x] **Step 7: Commit Task 8**
 
 ```sh
 git add src/tests/e2e/startup-recovery.spec.ts src/tests/e2e/fixtures/tauri-mock.ts src/tests/e2e/backup-restore.spec.ts
@@ -1196,7 +1196,7 @@ git commit -m "test(e2e): cover protected startup recovery"
 - Produces: `notchy_0.1.4_amd64.deb` and `notchy_0.1.4_amd64.deb.sha256` under `artifacts/0.1.4/`.
 - Produces: pure exported helpers `readDeclaredVersions`, `assertVersionsMatch`, `artifactNames`, and `sha256File`.
 
-- [ ] **Step 1: Write failing Node tests for release helpers**
+- [x] **Step 1: Write failing Node tests for release helpers**
 
 ```js
 import assert from 'node:assert/strict';
@@ -1214,13 +1214,13 @@ test('uses deterministic Debian artifact names', () => {
 });
 ```
 
-- [ ] **Step 2: Run the release-tooling test and confirm the red state**
+- [x] **Step 2: Run the release-tooling test and confirm the red state**
 
 Run: `node --test scripts/release-dogfood.test.mjs`
 
 Expected: FAIL because `release-dogfood.mjs` does not exist.
 
-- [ ] **Step 3: Implement pure version and artifact helpers**
+- [x] **Step 3: Implement pure version and artifact helpers**
 
 Parse JSON with `JSON.parse`, and extract Cargo’s first package-version assignment with:
 
@@ -1230,7 +1230,7 @@ const cargoVersion = cargoText.match(/^version\s*=\s*"([^"]+)"/m)?.[1];
 
 `assertVersionsMatch` compares all three values and throws an error listing each declaration. `artifactNames` returns the names asserted above. `sha256File` uses `createHash('sha256')` and `readFile`; it writes `<hash>  <deb filename>\n`.
 
-- [ ] **Step 4: Implement the guarded release command**
+- [x] **Step 4: Implement the guarded release command**
 
 The main function runs commands with `spawnSync(command, args, { stdio: 'inherit' })` and stops on the first nonzero status. Use this exact order:
 
@@ -1244,7 +1244,7 @@ run('pnpm', ['tauri', 'build', '--bundles', 'deb']);
 
 After the build, locate exactly one `.deb` under `src-tauri/target/release/bundle/deb/`, create `artifacts/0.1.4/`, copy it to the deterministic lowercase name, write the checksum, and print both absolute paths. Refuse ambiguous zero/multiple artifact matches.
 
-- [ ] **Step 5: Synchronize version `0.1.4` and package scripts**
+- [x] **Step 5: Synchronize version `0.1.4` and package scripts**
 
 Set `0.1.4` in:
 
@@ -1263,7 +1263,7 @@ Add:
 
 Update `pnpm-lock.yaml` through `pnpm install --lockfile-only` if package metadata requires it.
 
-- [ ] **Step 6: Write concrete 0.1.4 release notes**
+- [x] **Step 6: Write concrete 0.1.4 release notes**
 
 Create `specs/notes/2026-08-15-v0.1.4.md` with:
 
@@ -1274,7 +1274,7 @@ Create `specs/notes/2026-08-15-v0.1.4.md` with:
 - Explicit statement that automatic updates and downgrades are unsupported.
 - Verification commands and a blank manual packaged-build result table for Ubuntu version, source app/schema, target app/schema, result, and evidence path.
 
-- [ ] **Step 7: Run release-tooling tests and version check**
+- [x] **Step 7: Run release-tooling tests and version check**
 
 Run: `pnpm test:release-tooling`
 
@@ -1284,7 +1284,7 @@ Run: `node -e "const p=require('./package.json'); const t=require('./src-tauri/t
 
 Expected: exit 0.
 
-- [ ] **Step 8: Commit Task 9**
+- [x] **Step 8: Commit Task 9**
 
 ```sh
 git add scripts/release-dogfood.mjs scripts/release-dogfood.test.mjs package.json pnpm-lock.yaml src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock specs/notes/2026-08-15-v0.1.4.md
@@ -1303,7 +1303,7 @@ git commit -m "chore(release): add Ubuntu dogfood build lane"
 - Consumes: every prior task.
 - Produces: a tested `.deb`, checksum, and recorded upgrade evidence; no new runtime API.
 
-- [ ] **Step 1: Run the complete automated verification suite**
+- [x] **Step 1: Run the complete automated verification suite**
 
 Run in order:
 
@@ -1317,7 +1317,7 @@ cargo check --manifest-path src-tauri/Cargo.toml
 
 Expected: all commands exit 0. Record exact unit/E2E counts and any accepted non-error warning in the release notes.
 
-- [ ] **Step 2: Review financial-data failure invariants**
+- [x] **Step 2: Review financial-data failure invariants**
 
 Temporarily break each of these lines one at a time and prove the named test fails, then restore the implementation:
 
@@ -1328,7 +1328,7 @@ Temporarily break each of these lines one at a time and prove the named test fai
 
 Run the focused test after restoring each mutation. Do not commit deliberate breakage.
 
-- [ ] **Step 3: Build the clean release artifact**
+- [x] **Step 3: Build the clean release artifact**
 
 Ensure all implementation commits exist and the tracked worktree is clean, then run:
 
@@ -1345,7 +1345,7 @@ Verify: `sha256sum -c artifacts/0.1.4/notchy_0.1.4_amd64.deb.sha256`
 
 Expected: `notchy_0.1.4_amd64.deb: OK`.
 
-- [ ] **Step 4: Run the packaged Ubuntu upgrade checkpoint**
+- [x] **Step 4: Run the packaged Ubuntu upgrade checkpoint**
 
 This step changes the workstation package installation and requires explicit user approval at execution time.
 
@@ -1359,11 +1359,11 @@ This step changes the workstation package installation and requires explicit use
 
 Expected: every case passes; any failure blocks recommending the build for real data.
 
-- [ ] **Step 5: Record evidence in the checklist and release notes**
+- [x] **Step 5: Record evidence in the checklist and release notes**
 
 Add columns to the upgrade row in `specs/2026-07-27-desktop-release-smoke-checklist.md` for source app/schema, target app/schema, and pre-upgrade backup path. Fill the 0.1.3 → 0.1.4 Ubuntu result in both documents with the actual OS version, result, and non-sensitive evidence paths.
 
-- [ ] **Step 6: Run final documentation and worktree checks**
+- [x] **Step 6: Run final documentation and worktree checks**
 
 Run:
 
@@ -1375,7 +1375,7 @@ git status --short
 
 Expected: no whitespace errors, no placeholders in completed release records, and only the intended documentation changes remain.
 
-- [ ] **Step 7: Commit verification evidence**
+- [x] **Step 7: Commit verification evidence**
 
 ```sh
 git add specs/2026-07-27-desktop-release-smoke-checklist.md specs/notes/2026-08-15-v0.1.4.md
