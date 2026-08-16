@@ -31,7 +31,7 @@
 - Consumes: `getDb(): Promise<DatabaseService>` from `$lib/db`.
 - Produces: `ReportsStore.loadNetWorth()`, `loadCategoryTrend(tagId)`, `loadStackedComposition()`, and `loadYearOverYear(yearA, yearB)` that pass a resolved `DatabaseService` to their repositories.
 
-- [ ] **Step 1: Replace the shallow report-store test setup with hoisted dependency mocks**
+- [x] **Step 1: Replace the shallow report-store test setup with hoisted dependency mocks**
 
 Add `vi` to the Vitest import and place these mocks before importing `ReportsStore`:
 
@@ -72,7 +72,7 @@ beforeEach(() => {
 });
 ```
 
-- [ ] **Step 2: Add a failing regression test covering every loader**
+- [x] **Step 2: Add a failing regression test covering every loader**
 
 ```typescript
 it('resolves the database before loading every report', async () => {
@@ -88,13 +88,13 @@ it('resolves the database before loading every report', async () => {
 });
 ```
 
-- [ ] **Step 3: Run the focused test and confirm the red state**
+- [x] **Step 3: Run the focused test and confirm the red state**
 
 Run: `pnpm vitest run src/lib/stores/reports.test.ts`
 
 Expected: FAIL because the repository mocks receive `Promise` instances instead of `mocks.db`.
 
-- [ ] **Step 4: Implement the minimal async-boundary fix**
+- [x] **Step 4: Implement the minimal async-boundary fix**
 
 Change each loader from:
 
@@ -110,13 +110,13 @@ const db = await getDb();
 
 Do not change repository signatures or report calculations.
 
-- [ ] **Step 5: Verify the focused and store tests are green**
+- [x] **Step 5: Verify the focused and store tests are green**
 
 Run: `pnpm vitest run src/lib/stores/reports.test.ts`
 
 Expected: all `ReportsStore` tests PASS.
 
-- [ ] **Step 6: Commit Task 1**
+- [x] **Step 6: Commit Task 1**
 
 ```bash
 git add src/lib/stores/reports.test.ts src/lib/stores/reports.svelte.ts
@@ -141,13 +141,13 @@ git commit -m "fix(reports): await database before loading series"
 - Consumes: D3 `Scale*`, `SeriesPoint`, `line`, `area`, and `stack` typings.
 - Produces: unchanged chart component props and a shared local route constant typed as `readonly [6, 12, 24]` in each affected route.
 
-- [ ] **Step 1: Reconfirm the diagnostic baseline**
+- [x] **Step 1: Reconfirm the diagnostic baseline**
 
 Run: `pnpm check`
 
 Expected: FAIL with report-store promise errors, missing declarations for `d3-scale`/`d3-shape`, implicit callback `any` errors, the stacked `month` type error, and widened report window values. If Task 1 is complete, the four report-store errors will already be absent.
 
-- [ ] **Step 2: Install the official D3 declaration packages**
+- [x] **Step 2: Install the official D3 declaration packages**
 
 Run:
 
@@ -157,7 +157,7 @@ pnpm add --save-dev --save-exact @types/d3-scale @types/d3-shape
 
 Expected: `package.json` and `pnpm-lock.yaml` contain pinned declaration-package versions.
 
-- [ ] **Step 3: Give DonutChart callbacks an explicit datum contract**
+- [x] **Step 3: Give DonutChart callbacks an explicit datum contract**
 
 At the top of `DonutChart.svelte`, define and use a named datum type:
 
@@ -173,7 +173,7 @@ Then type both LayerCake callbacks:
 <LayerCake data={data} x={(d: DonutDatum) => d.value} y={(_d: DonutDatum, i: number) => i}>
 ```
 
-- [ ] **Step 4: Give stacked-area rows and D3 series explicit compatible types**
+- [x] **Step 4: Give stacked-area rows and D3 series explicit compatible types**
 
 Import `SeriesPoint` as a type and define the row:
 
@@ -211,7 +211,7 @@ const areaGen = area<SeriesPoint<StackDatum>>()
 	.y1((d) => yScl(d[1]));
 ```
 
-- [ ] **Step 5: Narrow window options at declaration in each affected report route**
+- [x] **Step 5: Narrow window options at declaration in each affected report route**
 
 Add this constant inside each route script:
 
@@ -233,7 +233,7 @@ with:
 
 Apply only to net worth, category trend, and composition routes.
 
-- [ ] **Step 6: Run diagnostics and address only remaining in-scope type errors**
+- [x] **Step 6: Run diagnostics and address only remaining in-scope type errors**
 
 Run: `pnpm check`
 
@@ -241,7 +241,7 @@ Expected: exit code `0` and `0 errors`. The existing `autofocus` warning and yea
 
 If D3's installed declarations reveal a more precise generic signature, adjust the explicit types while preserving the `StackDatum` string `month`, numeric `.value(...)` accessor, and unchanged output.
 
-- [ ] **Step 7: Run the chart and report-store tests**
+- [x] **Step 7: Run the chart and report-store tests**
 
 Run:
 
@@ -251,7 +251,7 @@ pnpm vitest run src/lib/stores/reports.test.ts src/tests/unit/components/DonutCh
 
 Expected: all selected tests PASS.
 
-- [ ] **Step 8: Commit Task 2**
+- [x] **Step 8: Commit Task 2**
 
 ```bash
 git add package.json pnpm-lock.yaml src/lib/components/charts/DonutChart.svelte src/lib/components/charts/LineChart.svelte src/lib/components/charts/StackedAreaChart.svelte src/routes/reports/net-worth/+page.svelte src/routes/reports/category/+page.svelte src/routes/reports/composition/+page.svelte
@@ -260,26 +260,29 @@ git commit -m "fix(reports): restore chart type safety"
 
 ---
 
-### Task 3: Stabilize the compare-report E2E assertion
+### Task 3: Preserve report empty states and stabilize the compare assertion
 
 **Files:**
 - Modify: `src/tests/e2e/reports-extended.spec.ts:84-94`
+- Modify: `src/routes/reports/net-worth/+page.svelte:17-31,64-71`
+- Modify: `src/routes/reports/yoy/+page.svelte:18-20,58-65`
 
 **Interfaces:**
-- Consumes: the compare report's semantic `<th>` with accessible name `Category`.
-- Produces: an exact Playwright locator that cannot match the `Category Trend` navigation link.
+- Consumes: `chartData: { x: Date; y: number }[]` on net worth and `YearOverYearPoint[]` on year over year.
+- Produces: `hasNetWorthData` and `hasYearOverYearData` derived booleans that are true only when a series contains a non-zero financial value, plus an exact table-header-scoped Playwright assertion.
 
-- [ ] **Step 1: Reproduce the focused red state**
+- [x] **Step 1: Reproduce the selector and empty-series red states**
 
 Run:
 
 ```bash
 pnpm playwright test src/tests/e2e/reports-extended.spec.ts --grep "compare renders the two selected months"
+pnpm playwright test src/tests/e2e/reports-new.spec.ts --grep "page shows empty state when no data"
 ```
 
-Expected: FAIL with a strict-mode violation because `getByText('Category')` resolves to both the `Category Trend` link and `Category` column header.
+Expected: the compare test FAILS because unscoped `getByText('Category')` matches both the navigation link and table header; the net-worth and year-over-year empty-state tests FAIL because their repositories return all-zero fixed-length series after Task 1 resolves the real database.
 
-- [ ] **Step 2: Replace only the ambiguous assertion**
+- [x] **Step 2: Implement the scoped selector and zero-series guards**
 
 Replace:
 
@@ -290,24 +293,66 @@ await expect(main.getByText('Category')).toBeVisible();
 with:
 
 ```typescript
-await expect(main.getByRole('columnheader', { name: 'Category', exact: true })).toBeVisible();
+await expect(main.locator('thead').getByText('Category', { exact: true })).toBeVisible();
 ```
 
-- [ ] **Step 3: Verify the focused E2E is green**
+In `net-worth/+page.svelte`, add a derived guard immediately after `chartData`:
+
+```typescript
+const hasNetWorthData = $derived(chartData.some((point) => point.y !== 0));
+```
+
+Then replace:
+
+```svelte
+{#if chartData.length > 0}
+```
+
+with:
+
+```svelte
+{#if hasNetWorthData}
+```
+
+In `yoy/+page.svelte`, add:
+
+```typescript
+const hasYearOverYearData = $derived(
+chartData.some((point) =>
+point.yearAIncome !== 0 || point.yearAExpense !== 0 ||
+point.yearBIncome !== 0 || point.yearBExpense !== 0
+)
+);
+```
+
+Then replace:
+
+```svelte
+{#if chartData.length > 0}
+```
+
+with:
+
+```svelte
+{#if hasYearOverYearData}
+```
+
+- [x] **Step 3: Verify the focused E2E tests are green**
 
 Run:
 
 ```bash
 pnpm playwright test src/tests/e2e/reports-extended.spec.ts --grep "compare renders the two selected months"
+pnpm playwright test src/tests/e2e/reports-new.spec.ts --grep "page shows empty state when no data"
 ```
 
-Expected: `1 passed`.
+Expected: the compare command reports `1 passed`; the empty-series command reports `3 passed`.
 
-- [ ] **Step 4: Commit Task 3**
+- [x] **Step 4: Commit Task 3**
 
 ```bash
-git add src/tests/e2e/reports-extended.spec.ts
-git commit -m "test(e2e): target compare category header"
+git add src/tests/e2e/reports-extended.spec.ts src/routes/reports/net-worth/+page.svelte src/routes/reports/yoy/+page.svelte
+git commit -m "fix(reports): preserve empty report states"
 ```
 
 ---
@@ -321,7 +366,7 @@ git commit -m "test(e2e): target compare category header"
 - Consumes: version `0.1.3` from `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`.
 - Produces: Cargo lock metadata for local package `notchy` at version `0.1.3`.
 
-- [ ] **Step 1: Prove the version mismatch**
+- [x] **Step 1: Prove the version mismatch**
 
 Run:
 
@@ -331,13 +376,13 @@ node -e "const fs=require('node:fs'); const lock=fs.readFileSync('src-tauri/Carg
 
 Expected: exit code `1` and `Cargo.lock Notchy version: 0.1.2`.
 
-- [ ] **Step 2: Regenerate the local package entry through Cargo**
+- [x] **Step 2: Regenerate the local package entry through Cargo**
 
 Run: `cargo check --manifest-path src-tauri/Cargo.toml`
 
 Expected: Cargo updates the local `notchy` lock entry to `0.1.3` and compilation succeeds.
 
-- [ ] **Step 3: Verify all four version records**
+- [x] **Step 3: Verify all four version records**
 
 Run:
 
@@ -347,7 +392,7 @@ node -e "const fs=require('node:fs'); const pkg=require('./package.json'); const
 
 Expected: all four fields print `0.1.3` and the command exits `0`.
 
-- [ ] **Step 4: Run the complete automated verification suite**
+- [x] **Step 4: Run the complete automated verification suite**
 
 Run each command independently and require exit code `0`:
 
@@ -369,7 +414,7 @@ Expected:
 - `cargo test`: Rust host compiles and the command exits `0`.
 - `git diff --check`: no whitespace errors.
 
-- [ ] **Step 5: Confirm scope and repository hygiene**
+- [x] **Step 5: Confirm scope and repository hygiene**
 
 Run:
 
@@ -380,7 +425,7 @@ git diff --stat HEAD~3..HEAD
 
 Expected: only the planned files changed across the three implementation commits; `.codegraph/` remains untracked and untouched.
 
-- [ ] **Step 6: Commit Task 4**
+- [x] **Step 6: Commit Task 4**
 
 ```bash
 git add src-tauri/Cargo.lock

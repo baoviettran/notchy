@@ -22,8 +22,10 @@
 			y: point.netWorth
 		}))
 	);
+	const hasNetWorthData = $derived(chartData.some((point) => point.y !== 0));
 
 	const yFormat = (n: number) => formatCurrency(n, settings.currency, settings.locale);
+	const windowOptions = [6, 12, 24] as const;
 	const xFormat = (d: Date) =>
 		d.toLocaleDateString(settings.locale === 'vi' ? 'vi-VN' : 'en-US', {
 			month: 'short',
@@ -47,7 +49,7 @@
 
 	<div class="flex items-center gap-4">
 		<div class="flex gap-1 text-sm">
-			{#each [6, 12, 24] as n}
+			{#each windowOptions as n}
 				<button
 					onclick={() => (reportsStore.window = n)}
 					class="px-2 py-1 rounded {reportsStore.window === n ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim'}"
@@ -62,7 +64,7 @@
 		</label>
 	</div>
 
-	{#if chartData.length > 0}
+	{#if hasNetWorthData}
 		<div class="bg-tape rounded-lg border border-line p-4">
 			<LineChart data={chartData} {yFormat} {xFormat} showArea={true} />
 		</div>

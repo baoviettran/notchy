@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { LayerCake, Svg } from 'layercake';
 
-	let { data = [] }: { data: { label: string; value: number; color: string }[] } = $props();
+	type DonutDatum = { label: string; value: number; color: string };
+
+	let { data = [] }: { data: DonutDatum[] } = $props();
 
 	const total = $derived(data.reduce((sum, d) => sum + d.value, 0));
 	const arcs = $derived(computeArcs(data, total));
@@ -31,7 +33,7 @@
 
 {#if data.length > 0 && total > 0}
 	<div class="donut-container">
-		<LayerCake data={data} x={(d) => d.value} y={(d, i) => i}>
+		<LayerCake data={data} x={(d: DonutDatum) => d.value} y={(_d: DonutDatum, i: number) => i}>
 			<Svg>
 				<svg viewBox="0 0 100 100" class="w-32 h-32 shrink-0">
 					{#each arcs as arc}
