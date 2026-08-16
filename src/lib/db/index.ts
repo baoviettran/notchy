@@ -67,7 +67,16 @@ export async function openCurrentDb(): Promise<DatabaseService> {
 	const close = async (): Promise<void> => {
 		if (closed) return;
 		closed = true;
-		await connection.close();
+		// Under Tauri the loaded handle IS the shared tauri-plugin-sql pool keyed
+		// by `sqlite:notchy.db`. Closing it would kill the main window's in-flight
+		// migration on the same pool (this path exists precisely because that
+		// migration is still running), so an unused open pool is left open — it is
+		// harmless and the next load reuses the same key. Only close in the
+		// non-Tauri path, where the connection is a private handle (e.g. the
+		// better-sqlite3 test connection) that would otherwise leak.
+		if (!isTauri()) {
+			await connection.close();
+		}
 	};
 	try {
 		await applyPragmas(connection);

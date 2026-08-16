@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createTestDb, createTestDbFromPath } from './helpers/test-db';
 import { closeDb, initializeDb, openCurrentDb } from '$lib/db';
-import { openConnection } from '$lib/db/platform';
+import { openConnection, isTauri } from '$lib/db/platform';
 
 // The platform adapter's openConnection is the connection-open seam: replace it
 // with a spy that returns a real SQLite connection (better-sqlite3), so the
@@ -14,6 +14,7 @@ import { openConnection } from '$lib/db/platform';
 // non-open functions keep their web-mode behavior (synthetic paths, 'web-test').
 vi.mock('$lib/db/platform', () => ({
 	openConnection: vi.fn(),
+	isTauri: vi.fn(() => false),
 	getDatabasePaths: async () => ({
 		dataDir: '/web',
 		databasePath: '/web/notchy.db',
@@ -39,6 +40,8 @@ afterEach(async () => {
 
 beforeEach(() => {
 	vi.mocked(openConnection).mockReset();
+	vi.mocked(isTauri).mockReset();
+	vi.mocked(isTauri).mockReturnValue(false);
 });
 
 async function readSchemaVersion(path: string): Promise<number> {
@@ -73,9 +76,30 @@ describe('main-window initialization ownership', () => {
 
 	it('quick access rejects an older schema without migrating it', async () => {
 		const fixture = await copyV004Fixture();
-		vi.mocked(openConnection).mockImplementation(async () => createTestDbFromPath(fixture));
+		const db = createTestDbFromPath(fixture);
+		const closeSpy = vi.spyOn(db, 'close');
+		vi.mocked(openConnection).mockImplementation(async () => db);
+		vi.mocked(isTauri).mockReturnValue(false);
 
 		await expect(openCurrentDb()).rejects.toMatchObject({ code: 'database_update_required' });
+		// Non-Tauri: the connection is a private handle, so rejection closes it
+		// (no file-handle leak).
+		expect(closeSpy).toHaveBeenCalledTimes(1);
 		await expect(readSchemaVersion(fixture)).resolves.toBe(4);
+	});
+
+	it('under Tauri, an older schema rejects without closing the shared pool', async () => {
+		const fixture = await copyV004Fixture();
+		const db = createTestDbFromPath(fixture);
+		const closeSpy = vi.spyOn(db, 'close');
+		vi.mocked(openConnection).mockImplementation(async () => db);
+		vi.mocked(isTauri).mockReturnValue(true);
+
+		await expect(openCurrentDb()).rejects.toMatchObject({ code: 'database_update_required' });
+		// Under Tauri the loaded handle IS the shared tauri-plugin-sql pool (the
+		// main window may be mid-migration on it); closing it would kill that
+		// migration. Assert close is skipped.
+		expect(closeSpy).not.toHaveBeenCalled();
+		await db.close();
 	});
 });
