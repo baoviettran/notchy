@@ -25,17 +25,22 @@ export async function validateDatabase(
 ): Promise<DatabaseValidation> {
 	try {
 		const integrity = await db.query<{ integrity_check: string }>('PRAGMA integrity_check');
-		if (integrity[0]?.integrity_check !== 'ok') {
+		if (integrity[0].integrity_check !== 'ok') {
 			return { valid: false, code: 'corrupt' };
 		}
 	} catch {
 		return { valid: false, code: 'corrupt' };
 	}
 
-	const rows = await db
-		.query<{ value: string }>("SELECT value FROM app_meta WHERE key = 'schema_version'")
-		.catch(() => []);
-	if (rows.length !== 1 || !Number.isInteger(Number(rows[0]?.value))) {
+	let rows: { value: string }[];
+	try {
+		rows = await db.query<{ value: string }>(
+			"SELECT value FROM app_meta WHERE key = 'schema_version'"
+		);
+	} catch {
+		return { valid: false, code: 'missing_schema_version' };
+	}
+	if (rows.length !== 1 || !Number.isInteger(Number(rows[0].value))) {
 		return { valid: false, code: 'missing_schema_version' };
 	}
 

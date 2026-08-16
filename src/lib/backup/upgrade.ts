@@ -70,10 +70,7 @@ export function parseUpgradeBackupName(filePath: string): ParsedUpgradeBackupNam
 		sourceSchema: Number(sourceSchema),
 		targetSchema: Number(targetSchema),
 		sourceAppVersion,
-		createdAt: stamp.replace(
-			/^(\d{4}-\d{2}-\d{2}T\d{2})-(\d{2})-(\d{2})-(\d{3}Z)$/,
-			'$1:$2:$3.$4'
-		)
+		createdAt: `${stamp.slice(0, 13)}:${stamp.slice(14, 16)}:${stamp.slice(17, 19)}.${stamp.slice(20)}`
 	};
 }
 
