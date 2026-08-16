@@ -406,7 +406,7 @@ Run: `pnpm vitest run src/tests/unit/backup.test.ts src/tests/unit/upgrade-backu
 
 Expected: PASS, including opening the generated backup as a real SQLite database.
 
-Add `src/lib/db/schema.ts`, `src/lib/backup/validation.ts`, `src/lib/backup/upgrade.ts`, `src/lib/db/startup.ts`, and `src/lib/recovery.ts` to the explicit mutation targets in `stryker.db.conf.mjs`, then run: `pnpm test:mutation:db`
+Add `src/lib/db/schema.ts`, `src/lib/backup/validation.ts`, and `src/lib/backup/upgrade.ts` to the explicit mutation targets in `stryker.db.conf.mjs`. Exclude `.codegraph/` from Stryker temporary-copy input without modifying `.codegraph/`. Defer `src/lib/db/startup.ts` and `src/lib/recovery.ts` as mutation targets, and run the complete database mutation gate after Task 5 when all target files exist.
 
 Expected: the database mutation target completes without surviving mutants in the new policy branches.
 
@@ -821,6 +821,10 @@ Expected: PASS.
 Run: `pnpm playwright test src/tests/e2e/backup-restore.spec.ts`
 
 Expected: PASS, including supported-v4 restore followed by migration and schema-v6 rejection with the live dataset unchanged.
+
+Run: `pnpm test:mutation:db`
+
+Expected: the complete database mutation target, now including `startup.ts` and `recovery.ts`, completes without surviving mutants in the new policy branches.
 
 - [ ] **Step 8: Commit Task 5**
 
