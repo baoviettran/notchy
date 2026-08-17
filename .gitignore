@@ -44,6 +44,8 @@ yarn-error.log*
 *.sqlite-journal
 *.sqlite-wal
 *.sqlite-shm
+# Native migration test fixtures are committed, byte-stable, and free of user data.
+!src-tauri/tests/fixtures/*.sqlite
 *.db
 *.db-journal
 

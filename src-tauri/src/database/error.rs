@@ -149,6 +149,21 @@ impl From<ErrorCode> for DbError {
 /// Result alias used across the native database boundary.
 pub type DbResult<T> = Result<T, DbError>;
 
+/// Map a rusqlite error to the stable allowlisted envelope without leaking the
+/// raw SQLite text or parameters. Busy and locked map to their stable codes;
+/// every other failure is corruption from the caller's perspective.
+pub(crate) fn map_sqlite_error(error: rusqlite::Error) -> DbError {
+    let code = match &error {
+        rusqlite::Error::SqliteFailure(sqlite_error, _) => match sqlite_error.code {
+            rusqlite::ErrorCode::DatabaseBusy => ErrorCode::DatabaseBusy,
+            rusqlite::ErrorCode::DatabaseLocked => ErrorCode::DatabaseLocked,
+            _ => ErrorCode::DatabaseCorrupt,
+        },
+        _ => ErrorCode::DatabaseCorrupt,
+    };
+    DbError::new(code)
+}
+
 /// Reject monetary values outside JavaScript's safe integer range.
 pub fn validate_money(value: i64) -> Result<i64, ErrorCode> {
     const JS_MAX_SAFE: u64 = 9_007_199_254_740_991;

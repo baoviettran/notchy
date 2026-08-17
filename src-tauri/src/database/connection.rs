@@ -50,19 +50,32 @@ impl DatabasePaths {
 
 /// Open the sole live connection and apply the exact connection policy.
 ///
-/// Pragma order (design constraint): `foreign_keys=ON`, `busy_timeout=5000`, a
-/// legacy WAL checkpoint when a WAL journal is detected, `journal_mode=DELETE`,
-/// then `synchronous=FULL`. The caller must already hold the process lock; this
-/// function never acquires it.
+/// The caller must already hold the process lock; this function never acquires
+/// it.
 pub fn open_live(paths: &DatabasePaths) -> DbResult<rusqlite::Connection> {
     create_dir_private(&paths.config_dir).map_err(|_| DbError::new(ErrorCode::DatabaseInvalid))?;
     create_dir_private(&paths.data_dir).map_err(|_| DbError::new(ErrorCode::DatabaseInvalid))?;
+    open_live_at(&paths.db_path)
+}
 
-    let connection = rusqlite::Connection::open(&paths.db_path).map_err(map_open_error)?;
+/// Open a live connection at an arbitrary path and apply the exact connection
+/// policy. Used by the migration/bootstrap services for fixtures and staged
+/// databases; `open_live` delegates here.
+pub(crate) fn open_live_at(path: &Path) -> DbResult<rusqlite::Connection> {
+    let connection = rusqlite::Connection::open(path).map_err(map_open_error)?;
     #[cfg(unix)]
-    set_private_file_permissions(&paths.db_path)
+    set_private_file_permissions(path)
         .map_err(|_| DbError::new(ErrorCode::DatabaseInvalid))?;
+    apply_live_policy(&connection)?;
+    Ok(connection)
+}
 
+/// Apply the exact live-connection pragma order.
+///
+/// Pragma order (design constraint): `foreign_keys=ON`, `busy_timeout=5000`, a
+/// legacy WAL checkpoint when a WAL journal is detected, `journal_mode=DELETE`,
+/// then `synchronous=FULL`.
+pub(crate) fn apply_live_policy(connection: &rusqlite::Connection) -> DbResult<()> {
     connection
         .pragma_update(None, "foreign_keys", "ON")
         .map_err(map_open_error)?;
@@ -88,7 +101,7 @@ pub fn open_live(paths: &DatabasePaths) -> DbResult<rusqlite::Connection> {
         .pragma_update(None, "synchronous", "FULL")
         .map_err(map_open_error)?;
 
-    Ok(connection)
+    Ok(())
 }
 
 /// Open a true read-only connection using the SQLite URI `mode=ro`.
@@ -96,11 +109,17 @@ pub fn open_live(paths: &DatabasePaths) -> DbResult<rusqlite::Connection> {
 /// Never runs writable pragmas and never creates the database file. Used for
 /// candidate inspection before any live connection opens.
 pub fn open_read_only(paths: &DatabasePaths) -> DbResult<rusqlite::Connection> {
+    open_read_only_at(&paths.db_path)
+}
+
+/// Open a true read-only connection at an arbitrary path. Never runs writable
+/// pragmas and never creates the database file.
+pub(crate) fn open_read_only_at(path: &Path) -> DbResult<rusqlite::Connection> {
     use rusqlite::OpenFlags;
 
     // Percent-encode the path so characters SQLite treats as URI delimiters
     // (`?`, `#`) or escapes (`%`) cannot corrupt the filename.
-    let uri = format!("file:{}?mode=ro", encode_uri_path(&paths.db_path));
+    let uri = format!("file:{}?mode=ro", encode_uri_path(path));
     rusqlite::Connection::open_with_flags(
         uri,
         OpenFlags::SQLITE_OPEN_URI | OpenFlags::SQLITE_OPEN_READ_ONLY,

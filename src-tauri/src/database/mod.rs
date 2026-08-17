@@ -8,12 +8,19 @@ pub mod connection;
 pub mod error;
 pub mod executor;
 pub mod lock;
+pub mod manifest;
+pub mod migrations;
 pub mod types;
 
 pub use connection::{open_live, open_read_only, DatabasePaths};
 pub use error::{validate_money, DbError, DbResult, ErrorCode, MetaKey};
 pub use executor::{DatabaseManager, ExecutorState};
 pub use lock::ProcessLock;
+pub use manifest::{inspect_schema, validate_manifest, InvalidSchemaReason, SchemaInspection};
+pub use migrations::{
+    bootstrap_current, migrate_supported, run_migrations, FailurePoint, Migration, MIGRATIONS,
+    LATEST_SCHEMA_VERSION, MIN_SUPPORTED_SCHEMA_VERSION,
+};
 pub use types::{
     validate_bounded_list, validate_bounded_text, IsoDate, LifecycleState, OperationId, Page,
     Patch, RecoveryContext, StartupStage,

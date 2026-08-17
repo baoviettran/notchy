@@ -272,7 +272,7 @@ git commit -m "feat(db-native): own sqlite on one locked executor"
 - Produces: `inspect_schema(path) -> SchemaInspection` and `validate_manifest(connection, version)`.
 - Produces: `bootstrap_current` and `migrate_supported`.
 
-- [ ] **Step 1: Write failing fixture and non-mutation tests**
+- [x] **Step 1: Write failing fixture and non-mutation tests**
 
 ```rust
 #[test]
@@ -297,13 +297,13 @@ fn newer_too_old_and_invalid_are_byte_for_byte_unchanged() {
 }
 ```
 
-- [ ] **Step 2: Confirm the red state**
+- [x] **Step 2: Confirm the red state**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test migrations`
 
 Expected: FAIL because the native registry and manifests do not exist.
 
-- [ ] **Step 3: Port the schema into one native registry**
+- [x] **Step 3: Port the schema into one native registry**
 
 Define:
 
@@ -328,13 +328,13 @@ Migration 006 creates `operation_receipts(operation_id TEXT PRIMARY KEY, command
 
 Fresh means the path is absent. Bootstrap a same-directory temp DB through migrations 1–6, validate, sync, rename, sync the directory. Existing zero-byte/partial files are invalid.
 
-- [ ] **Step 4: Verify fixtures, failure rollback, and manifests**
+- [x] **Step 4: Verify fixtures, failure rollback, and manifests**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test migrations`
 
 Expected: PASS for fresh, v3, v4, current, newer, too-old, malformed, and injected failure after every migration statement.
 
-- [ ] **Step 5: Commit Task 3**
+- [x] **Step 5: Commit Task 3**
 
 ```sh
 git add src-tauri/src/database/manifest.rs src-tauri/src/database/migrations.rs src-tauri/tests/migrations.rs src-tauri/tests/fixtures
