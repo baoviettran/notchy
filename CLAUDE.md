@@ -1,8 +1,5 @@
 # Notchy — Project Guide
 
-## Overview
-Local-first personal finance app built with **SvelteKit 5 + Tauri v2**. SQLite database, Svelte 5 runes, Paraglide JS i18n (`en` + `vi`). No cloud dependency. Desktop-first; a web build is planned for v0.2.
-
 ## Environment
 - Tauri prerequisites: system WebView + Rust toolchain installed (`pnpm tauri dev` will fail otherwise)
 
@@ -23,16 +20,7 @@ Local-first personal finance app built with **SvelteKit 5 + Tauri v2**. SQLite d
 ### Exceptions (ask first)
 - Throwaway prototypes, generated code, configuration files
 
-## Architecture
-```
-UI (Svelte 5 components, $props, $state, $derived, $effect)
-  → Stores (runes-based, call repos)
-    → Repositories (SQL queries against DatabaseService)
-      → DatabaseService (SAVEPOINT transactions)
-        → SQLite (Tauri plugin in desktop, sql.js in E2E, better-sqlite3 in unit tests)
-```
-
-### Key convention
+## Key convention
 - `src/lib/db/migrations/index.ts` — migration registry; append new migrations here.
 
 ## i18n Workflow (Paraglide JS)
