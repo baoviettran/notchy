@@ -354,7 +354,7 @@ git commit -m "feat(db-native): port schema and migrations to rust"
 - Produces: `publish_backup`, `discover_verified_backups`, and `retention_deletions`.
 - Produces: opaque `BackupToken` and safe `BackupSummary` DTOs.
 
-- [ ] **Step 1: Write failing durable-publication and retention tests**
+- [x] **Step 1: Write failing durable-publication and retention tests**
 
 ```rust
 #[test]
@@ -374,23 +374,23 @@ fn corrupt_matching_filename_never_displaces_verified_backup() {
 }
 ```
 
-- [ ] **Step 2: Confirm the red state**
+- [x] **Step 2: Confirm the red state**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test backup_restore backup_`
 
 Expected: FAIL because native durable backup services do not exist.
 
-- [ ] **Step 3: Implement online backup publication**
+- [x] **Step 3: Implement online backup publication**
 
 Use `rusqlite::backup::Backup` to copy the live connection into a unique `.tmp` file. Validate the source-version manifest plus integrity/foreign keys, sync the file, rename in the destination directory, and sync that directory. Name the final backup with the last successfully recorded source application version, never the currently running target binary version. Issue an opaque in-memory token mapped to canonical path, schema, and validation fingerprint. Revalidate every discovered candidate; filename parsing only supplies candidate metadata. Protect the newly published backup and newest two verified records per source schema.
 
-- [ ] **Step 4: Verify backup tests and process-kill publication recovery**
+- [x] **Step 4: Verify backup tests and process-kill publication recovery**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test backup_restore backup_`
 
 Expected: PASS; restart cleanup removes unpublished temp files without deleting verified backups.
 
-- [ ] **Step 5: Commit Task 4**
+- [x] **Step 5: Commit Task 4**
 
 ```sh
 git add src-tauri/src/database/backup.rs src-tauri/src/database/types.rs src-tauri/tests/backup_restore.rs

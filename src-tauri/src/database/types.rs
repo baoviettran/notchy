@@ -170,6 +170,75 @@ pub struct Page<T> {
     pub limit: u64,
 }
 
+/// An opaque, in-memory handle to one verified published backup.
+///
+/// Fields are private: callers interact through accessors, and the path shown
+/// is always a canonical approved path. Never exported to TypeScript (Task 7
+/// regenerates bindings from later tasks); `BackupToken` is deliberately not
+/// serializable so the raw path cannot cross the IPC boundary by accident.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BackupToken {
+    id: OperationId,
+    canonical_path: std::path::PathBuf,
+    schema: i64,
+    fingerprint: String,
+}
+
+impl BackupToken {
+    /// Construct a token bound to a canonical path, schema, and fingerprint.
+    /// `pub(crate)`: only the backup service issues tokens.
+    pub(crate) fn new(
+        id: OperationId,
+        canonical_path: std::path::PathBuf,
+        schema: i64,
+        fingerprint: String,
+    ) -> Self {
+        BackupToken {
+            id,
+            canonical_path,
+            schema,
+            fingerprint,
+        }
+    }
+
+    /// The canonical, approved filesystem path of the published backup.
+    pub fn path(&self) -> &std::path::Path {
+        &self.canonical_path
+    }
+
+    /// The source schema version recorded for the published backup.
+    pub fn schema(&self) -> i64 {
+        self.schema
+    }
+
+    /// The validation fingerprint (content hash) of the published backup.
+    pub fn fingerprint(&self) -> &str {
+        &self.fingerprint
+    }
+}
+
+/// A safe, verified backup record for display and retention.
+///
+/// Paths shown are canonical approved paths. Contains no raw SQLite strings,
+/// no SQL parameters, no monetary values, and no payees. Not exported to
+/// TypeScript in this task; the TS bindings are regenerated from Task 7 onward.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BackupSummary {
+    /// Stable identifier: the backup's ULID.
+    pub id: String,
+    /// Canonical approved filesystem path of the verified backup.
+    pub path: String,
+    /// Source schema version recorded in the backup.
+    pub schema_version: i64,
+    /// Source application version recorded in the backup filename.
+    pub source_app_version: String,
+    /// ISO-8601 creation time derived from the backup's ULID.
+    pub created_at: String,
+    /// Whether the record passed full revalidation. Always `true` for records
+    /// returned by verified discovery.
+    pub verified: bool,
+}
+
 /// Validate a strict `YYYY-MM-DD` calendar date.
 fn is_valid_iso_date(value: &str) -> bool {
     let mut parts = value.split('-');
