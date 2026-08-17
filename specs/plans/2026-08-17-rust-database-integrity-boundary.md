@@ -1050,7 +1050,7 @@ git commit -m "refactor(db): prepare native and browser adapters"
 - Activates: `DatabaseManager`, all native commands, generated DTOs, and native repositories.
 - Removes: every production `@tauri-apps/plugin-sql` path and generic SQL capability.
 
-- [ ] **Step 1: Write failing static-cutover and E2E lifecycle tests**
+- [x] **Step 1: Write failing static-cutover and E2E lifecycle tests**
 
 ```javascript
 test('production contains no SQL plugin or generic database escape hatch', async () => {
@@ -1063,13 +1063,13 @@ Add E2E assertions that quick-add gets update-required during initialization, re
 
 Add component tests that render localized checking, backup, migration, verification, recovery-required, newer-schema, lock-held, and retry states in both English and Vietnamese without exposing filesystem paths or raw SQLite errors.
 
-- [ ] **Step 2: Confirm the red state**
+- [x] **Step 2: Confirm the red state**
 
 Run: `node --test scripts/check-native-db-cutover.test.mjs`
 
 Expected: FAIL listing `@tauri-apps/plugin-sql`, `tauri_plugin_sql`, SQL capability, and direct service paths.
 
-- [ ] **Step 3: Perform one atomic production switch**
+- [x] **Step 3: Perform one atomic production switch**
 
 Register `DatabaseManager` as Tauri state, the single-instance plugin, and all guarded commands. Replace `getDb` with native lifecycle/client initialization under Tauri and browser client under non-Tauri. Make repository files domain delegates. Delete the legacy Tauri service, platform, and startup modules; remove SQL plugin JS/Rust dependencies, initialization, permissions, and capability entries. Replace the shared capability with `main.json` and `quick-add.json`: only main receives initialize, retry, restore, backup publication/retention, and recovery commands; quick-add receives status, its minimum reads, and transaction-create. Rust label checks remain authoritative even if capability files regress. Wire startup progress, recovery selection, backup settings, and quick-add retry to typed lifecycle data and safe localized error codes. Update the E2E Tauri mock to implement the typed command contract, without using it as native safety evidence.
 
@@ -1081,7 +1081,7 @@ Add:
 
 The scanner permits generic SQL only under `src/lib/db/browser/` and test helpers; it fails for production imports, dependency declarations, capabilities, or initialization.
 
-- [ ] **Step 4: Run the complete cutover gate**
+- [x] **Step 4: Run the complete cutover gate**
 
 Run in order:
 
@@ -1098,7 +1098,7 @@ cargo check --manifest-path src-tauri/Cargo.toml
 
 Expected: all commands exit 0; static scan has no findings; existing browser behavior remains green.
 
-- [ ] **Step 5: Commit Task 14**
+- [x] **Step 5: Commit Task 14**
 
 ```sh
 git add src-tauri/src/lib.rs src-tauri/src/database/mod.rs src-tauri/src/database/commands.rs src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/capabilities/default.json src-tauri/capabilities/main.json src-tauri/capabilities/quick-add.json package.json pnpm-lock.yaml src/lib/db/index.ts src/lib/db/platform.ts src/lib/db/startup.ts src/lib/db/service.ts src/lib/stores/db.svelte.ts src/lib/db/repos src/routes/+layout.svelte src/routes/quick-add/+page.svelte src/routes/settings/backup/+page.svelte src/lib/components/system/RecoveryScreen.svelte src/lib/components/system/StartupProgress.svelte messages/en.json messages/vi.json src/tests/unit/components/RecoveryScreen.test.ts src/tests/unit/components/StartupProgress.test.ts src/tests/e2e/fixtures/tauri-mock.ts src/tests/e2e/startup-recovery.spec.ts src/tests/e2e/tray-quick-capture.spec.ts scripts/check-native-db-cutover.mjs scripts/check-native-db-cutover.test.mjs
