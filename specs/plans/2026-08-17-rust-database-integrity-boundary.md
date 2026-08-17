@@ -672,7 +672,7 @@ git commit -m "feat(db-native): port categories and budgets"
 **Interfaces:**
 - Produces: reconciliation history, atomic reconcile-with-adjustment, debt lists, and debt write-off.
 
-- [ ] **Step 1: Write failing balance-snapshot and adjustment tests**
+- [x] **Step 1: Write failing balance-snapshot and adjustment tests**
 
 ```rust
 #[test]
@@ -685,19 +685,19 @@ fn reconciliation_balance_read_and_adjustment_share_one_immediate_transaction() 
 
 Also inject failure after adjustment and after audit row; neither may remain alone.
 
-- [ ] **Step 2: Confirm the red state**
+- [x] **Step 2: Confirm the red state**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_reconciliation_debts`
 
 Expected: FAIL because native reconciliation/debt services do not exist.
 
-- [ ] **Step 3: Port reconciliation and debt intents**
+- [x] **Step 3: Port reconciliation and debt intents**
 
 Calculate expected balance after `BEGIN IMMEDIATE`, write optional adjustment and reconciliation row in the same idempotent operation, preserve `1_000_000` large-discrepancy behavior in frontend presentation, and implement debt write-off with its transaction plus audit semantics.
 
 Regenerate the TypeScript bindings after adding reconciliation and debt DTOs.
 
-- [ ] **Step 4: Verify native and browser parity**
+- [x] **Step 4: Verify native and browser parity**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_reconciliation_debts`
 
@@ -707,7 +707,7 @@ Run: `pnpm vitest run src/tests/unit/reconciliation.test.ts src/tests/unit/recon
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit Task 9**
+- [x] **Step 5: Commit Task 9**
 
 ```sh
 git add src-tauri/src/database/domains/reconciliations.rs src-tauri/src/database/domains/debts.rs src-tauri/src/database/types.rs src-tauri/tests/domain_reconciliation_debts.rs src/lib/db/native/reconciliations.ts src/lib/db/native/debts.ts src/lib/native/contracts.generated.ts
