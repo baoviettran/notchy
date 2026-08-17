@@ -589,16 +589,18 @@ fn migration_003(transaction: &Transaction<'_>) -> DbResult<()> {
 
     let now = now_iso_utc();
 
+    // is_system must match the TS source exactly (003_seed.ts): only the
+    // Adjustments bucket is a system bucket; the rest are user buckets.
     let buckets = [
-        ("bucket_essentials", "Essentials", 1, 0),
-        ("bucket_learning", "Learning & Entertainment", 1, 1),
-        ("bucket_saving", "Saving & Investment", 1, 2),
-        ("bucket_adjustments", "Adjustments", 0, 3),
+        ("bucket_essentials", "Essentials", 0, 1, 0),
+        ("bucket_learning", "Learning & Entertainment", 0, 1, 1),
+        ("bucket_saving", "Saving & Investment", 0, 1, 2),
+        ("bucket_adjustments", "Adjustments", 1, 0, 3),
     ];
-    for (id, name, budgetable, sort_order) in buckets {
+    for (id, name, is_system, budgetable, sort_order) in buckets {
         sql(transaction.execute(
             "INSERT OR IGNORE INTO category_types (id, name, is_system, budgetable, sort_order, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![id, name, 0, budgetable, sort_order, now, now],
+            params![id, name, is_system, budgetable, sort_order, now, now],
         ))?;
         failpoint_step(3)?;
     }

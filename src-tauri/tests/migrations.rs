@@ -81,37 +81,67 @@ fn column_exists(db: &Connection, table: &str, column: &str) -> bool {
     columns.iter().any(|c| c == column)
 }
 
-/// The migration-003 seed buckets and tags must survive any migration to 6.
+/// The migration-003 seed buckets and tags must survive any migration to 6
+/// with exactly the business-relevant seed columns the TS source seeds:
+/// `(is_system, budgetable, sort_order)` for buckets and
+/// `(is_system, sort_order, type_id)` for tags. Only the Adjustments bucket is
+/// a system bucket; the rest are user buckets.
 fn assert_seed_rows_preserved(db: &Connection) {
-    for id in [
-        "bucket_essentials",
-        "bucket_learning",
-        "bucket_saving",
-        "bucket_adjustments",
-    ] {
-        let n: i64 = db
+    let buckets: [(&str, i64, i64, i64); 4] = [
+        ("bucket_essentials", 0, 1, 0),
+        ("bucket_learning", 0, 1, 1),
+        ("bucket_saving", 0, 1, 2),
+        ("bucket_adjustments", 1, 0, 3),
+    ];
+    for (id, is_system, budgetable, sort_order) in buckets {
+        let (count, actual_is_system, actual_budgetable, actual_sort_order): (i64, i64, i64, i64) = db
             .query_row(
-                "SELECT COUNT(*) FROM category_types WHERE id = ?1",
+                "SELECT COUNT(*), is_system, budgetable, sort_order FROM category_types WHERE id = ?1",
                 [id],
-                |row| row.get(0),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
             )
             .unwrap();
-        assert_eq!(n, 1, "seed bucket {id} must survive migration");
+        assert_eq!(count, 1, "seed bucket {id} must survive migration");
+        assert_eq!(
+            actual_is_system, is_system,
+            "seed bucket {id} must keep its is_system flag"
+        );
+        assert_eq!(
+            actual_budgetable, budgetable,
+            "seed bucket {id} must keep its budgetable flag"
+        );
+        assert_eq!(
+            actual_sort_order, sort_order,
+            "seed bucket {id} must keep its sort_order"
+        );
     }
-    for id in [
-        "tag_initial_balance",
-        "tag_loss",
-        "tag_gift",
-        "tag_reconciliation",
-    ] {
-        let n: i64 = db
+    let tags: [(&str, i64, i64); 4] = [
+        ("tag_initial_balance", 1, 0),
+        ("tag_loss", 1, 0),
+        ("tag_gift", 1, 0),
+        ("tag_reconciliation", 1, 0),
+    ];
+    for (id, is_system, sort_order) in tags {
+        let (count, actual_is_system, actual_sort_order, actual_type_id): (i64, i64, i64, String) = db
             .query_row(
-                "SELECT COUNT(*) FROM category_tags WHERE id = ?1",
+                "SELECT COUNT(*), is_system, sort_order, type_id FROM category_tags WHERE id = ?1",
                 [id],
-                |row| row.get(0),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
             )
             .unwrap();
-        assert_eq!(n, 1, "seed tag {id} must survive migration");
+        assert_eq!(count, 1, "seed tag {id} must survive migration");
+        assert_eq!(
+            actual_is_system, is_system,
+            "seed tag {id} must keep its is_system flag"
+        );
+        assert_eq!(
+            actual_sort_order, sort_order,
+            "seed tag {id} must keep its sort_order"
+        );
+        assert_eq!(
+            actual_type_id, "bucket_adjustments",
+            "seed tag {id} must keep its type_id"
+        );
     }
 }
 
