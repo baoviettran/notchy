@@ -609,7 +609,7 @@ git commit -m "feat(db-native): port accounts and transactions"
 **Interfaces:**
 - Produces: bucket/tag CRUD, move/delete/merge, allocation, copy-previous, rollover, and budget summaries.
 
-- [ ] **Step 1: Write failing merge and rollover transaction tests**
+- [x] **Step 1: Write failing merge and rollover transaction tests**
 
 ```rust
 #[test]
@@ -627,19 +627,19 @@ fn copy_previous_month_is_idempotent() {
 }
 ```
 
-- [ ] **Step 2: Confirm the red state**
+- [x] **Step 2: Confirm the red state**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_categories_budgets`
 
 Expected: FAIL because the native services do not exist.
 
-- [ ] **Step 3: Port complete category and budget intents**
+- [x] **Step 3: Port complete category and budget intents**
 
 Keep system-tag protections, affected totals, sort-order calculations, tag merge, rollover flag, budget allocation uniqueness, previous-month copy, spent/remaining calculations, and integer money behavior. Put validation reads and writes inside `BEGIN IMMEDIATE` for create/delete/merge/copy operations.
 
 Regenerate the TypeScript bindings after adding category and budget DTOs.
 
-- [ ] **Step 4: Verify native parity and current tests**
+- [x] **Step 4: Verify native parity and current tests**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_categories_budgets`
 
@@ -649,7 +649,7 @@ Run: `pnpm vitest run src/tests/unit/categories.test.ts src/tests/unit/budgets.t
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit Task 8**
+- [x] **Step 5: Commit Task 8**
 
 ```sh
 git add src-tauri/src/database/domains/categories.rs src-tauri/src/database/domains/budgets.rs src-tauri/src/database/types.rs src-tauri/tests/domain_categories_budgets.rs src/lib/db/native/categories.ts src/lib/db/native/budgets.ts src/lib/native/contracts.generated.ts
