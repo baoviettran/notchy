@@ -468,6 +468,153 @@ pub struct DebtSummary {
     pub owed_to_me: Vec<DebtAccount>,
 }
 
+// ---------------------------------------------------------------------------
+// Goal types
+// ---------------------------------------------------------------------------
+
+/// Goal type discriminator — matches the CHECK constraint in the schema.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum GoalType {
+    Savings,
+    DebtPayoff,
+    NetWorth,
+}
+
+impl GoalType {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            GoalType::Savings => "savings",
+            GoalType::DebtPayoff => "debt_payoff",
+            GoalType::NetWorth => "net_worth",
+        }
+    }
+}
+
+/// Goal status discriminator.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum GoalStatus {
+    Active,
+    Completed,
+    Abandoned,
+    Overdue,
+}
+
+impl GoalStatus {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            GoalStatus::Active => "active",
+            GoalStatus::Completed => "completed",
+            GoalStatus::Abandoned => "abandoned",
+            GoalStatus::Overdue => "overdue",
+        }
+    }
+}
+
+/// Velocity status for goal progress tracking.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum VelocityStatus {
+    InsufficientData,
+    Behind,
+    OnTrack,
+    Ahead,
+    Overdue,
+}
+
+/// A persisted goal row.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct Goal {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "type")]
+    pub goal_type: GoalType,
+    pub target_amount: i64,
+    pub target_date: String,
+    pub linked_account_id: Option<String>,
+    pub starting_amount: i64,
+    pub show_on_dashboard: i64,
+    pub status: GoalStatus,
+    pub closed_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Goal enriched with progress and velocity calculations.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct GoalWithProgress {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "type")]
+    pub goal_type: GoalType,
+    pub target_amount: i64,
+    pub target_date: String,
+    pub linked_account_id: Option<String>,
+    pub starting_amount: i64,
+    pub show_on_dashboard: i64,
+    pub status: GoalStatus,
+    pub closed_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub current_amount: i64,
+    pub progress_pct: i64,
+    pub velocity_status: VelocityStatus,
+}
+
+// ---------------------------------------------------------------------------
+// Categorize rule types
+// ---------------------------------------------------------------------------
+
+/// Match mode for categorize rules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum MatchMode {
+    Is,
+    StartsWith,
+    Contains,
+}
+
+impl MatchMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            MatchMode::Is => "is",
+            MatchMode::StartsWith => "starts_with",
+            MatchMode::Contains => "contains",
+        }
+    }
+}
+
+/// Rule source discriminator.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum RuleSource {
+    Manual,
+    Learned,
+}
+
+impl RuleSource {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            RuleSource::Manual => "manual",
+            RuleSource::Learned => "learned",
+        }
+    }
+}
+
+/// A persisted categorize rule row.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct CategorizeRule {
+    pub id: String,
+    pub payee_term: String,
+    pub match_mode: MatchMode,
+    pub tag_id: String,
+    pub source: RuleSource,
+    pub enabled: i64,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
 /// An opaque, in-memory handle to one verified published backup.
 ///
 /// Fields are private: callers interact through accessors, and the path shown

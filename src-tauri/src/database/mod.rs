@@ -35,10 +35,11 @@ pub use startup::{DatabaseStatus, StartupEvent};
 pub use types::{
     validate_bounded_list, validate_bounded_text, Account, AccountPatch, AccountType,
     AccountWithBalance, BackupSummary, BackupToken, Bucket, Budget, BudgetSummary,
-    DebtAccount, DebtSummary, IsoDate, LifecycleState, NewAccount, NewTransaction,
+    CategorizeRule, DebtAccount, DebtSummary, Goal, GoalStatus, GoalType, GoalWithProgress,
+    IsoDate, LifecycleState, MatchMode, NewAccount, NewTransaction,
     OperationId, Page, Patch, ReconcileResult, Reconciliation, RecoveryContext,
-    StartupStage, Tag, TagDeleteInfo, Transaction, TransactionFilter, TransactionKind,
-    TransactionPatch,
+    RuleSource, StartupStage, Tag, TagDeleteInfo, Transaction, TransactionFilter, TransactionKind,
+    TransactionPatch, VelocityStatus,
 };
 
 use ts_rs::{Config, TS};
@@ -103,6 +104,18 @@ pub fn generate_bindings() -> String {
     push_decl(&mut out, ReconcileResult::decl(&cfg));
     push_decl(&mut out, DebtAccount::decl(&cfg));
     push_decl(&mut out, DebtSummary::decl(&cfg));
+
+    // Goal domain types.
+    push_decl(&mut out, GoalType::decl(&cfg));
+    push_decl(&mut out, GoalStatus::decl(&cfg));
+    push_decl(&mut out, VelocityStatus::decl(&cfg));
+    push_decl(&mut out, Goal::decl(&cfg));
+    push_decl(&mut out, GoalWithProgress::decl(&cfg));
+
+    // Categorize rule domain types.
+    push_decl(&mut out, MatchMode::decl(&cfg));
+    push_decl(&mut out, RuleSource::decl(&cfg));
+    push_decl(&mut out, CategorizeRule::decl(&cfg));
 
     out
 }
