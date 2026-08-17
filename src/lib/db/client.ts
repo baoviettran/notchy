@@ -53,6 +53,7 @@ import type {
 // Re-export domain types so consumers can import from '$lib/db/client'.
 // ---------------------------------------------------------------------------
 export type { AccountType, AccountWithBalance, NewAccount };
+export { isAssetType, isLiabilityType, isLoanType } from './browser/repos/accounts';
 export type { TransactionKind, Transaction, NewTransaction, TransactionFilter };
 export type { Bucket, Tag, TagDeleteInfo };
 export type { BudgetSummary } from './browser/repos/budgets';
@@ -93,6 +94,16 @@ export interface TransactionOps {
 	delete(id: string): Promise<void>;
 	restore(id: string): Promise<void>;
 	duplicate(id: string): Promise<string>;
+	getFrequent(sinceDate: string): Promise<FrequentTx[]>;
+}
+
+export interface FrequentTx {
+	payee: string;
+	tag_id: string | null;
+	account_id: string;
+	amount: number;
+	kind: string;
+	count: number;
 }
 
 export interface CategoryOps {
@@ -140,6 +151,7 @@ export interface MetaOps {
 	set(key: string, value: string): Promise<void>;
 	delete(key: string): Promise<void>;
 	isFirstRunComplete(): Promise<boolean>;
+	setFirstRunComplete(): Promise<void>;
 	getLocale(): Promise<string>;
 	getCurrency(): Promise<string>;
 	isTourComplete(): Promise<boolean>;

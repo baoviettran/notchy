@@ -37,3 +37,7 @@ export async function isTourComplete(db: DatabaseService): Promise<boolean> {
 export async function setTourComplete(db: DatabaseService): Promise<void> {
 	await setMeta(db, 'tour_complete', '1');
 }
+
+export async function setFirstRunComplete(db: DatabaseService): Promise<void> {
+	await setMeta(db, 'first_run_complete', '1');
+}

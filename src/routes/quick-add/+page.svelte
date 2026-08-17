@@ -5,9 +5,6 @@
 	import * as m from '$lib/paraglide/messages';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { getDb, isTauri } from '$lib/db';
-	import { listAccounts } from '$lib/db/repos/accounts';
-	import { getDefaultQuickAccount } from '$lib/db/repos/quick_account';
-	import { createTransaction } from '$lib/db/repos/transactions';
 	import { parseQuickInput } from '$lib/utils/quick_parse';
 	import { AppError } from '$lib/errors';
 
@@ -27,9 +24,9 @@
 	}
 
 	async function loadDefaultAccount(): Promise<void> {
-		const db = await getDb();
-		const id = await getDefaultQuickAccount(db);
-		const accounts = await listAccounts(db);
+		const db = getDb();
+		const id = await db.meta.getDefaultQuickAccount();
+		const accounts = await db.accounts.list();
 		const chosen = (id && accounts.find((a) => a.id === id)) || accounts[0];
 		activeAccount = chosen ? { id: chosen.id, name: chosen.name } : null;
 	}
@@ -101,7 +98,7 @@
 				return;
 			}
 
-			await createTransaction(db, {
+			await db.transactions.create({
 				kind: parsed.kind,
 				date: new Date().toISOString().slice(0, 10),
 				amount: parsed.amount,

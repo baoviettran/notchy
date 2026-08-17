@@ -7,8 +7,7 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import { tour } from '$lib/stores/tour.svelte';
 	import { getDb } from '$lib/db';
-	import { getDefaultQuickAccount, setDefaultQuickAccount, clearDefaultQuickAccount } from '$lib/db/repos/quick_account';
-	import { listAccounts, type AccountWithBalance } from '$lib/db/repos/accounts';
+	import type { AccountWithBalance } from '$lib/db/client';
 	import * as m from '$lib/paraglide/messages';
 
 	const themeLabels = {
@@ -41,9 +40,9 @@
 
 	let lastPersisted = '';
 	async function loadQuickAccount() {
-		const db = await getDb();
-		accounts = await listAccounts(db);
-		const loaded = (await getDefaultQuickAccount(db)) ?? '';
+		const db = getDb();
+		accounts = await db.accounts.list();
+		const loaded = (await db.meta.getDefaultQuickAccount()) ?? '';
 		quickAccountId = loaded;
 		lastPersisted = loaded; // suppress redundant write for the seed value
 		quickAccountLoaded = true;
@@ -61,11 +60,11 @@
 
 	async function persistQuickAccount(id: string): Promise<void> {
 		try {
-			const db = await getDb();
+			const db = getDb();
 			if (id === '') {
-				await clearDefaultQuickAccount(db);
+				await db.meta.clearDefaultQuickAccount();
 			} else {
-				await setDefaultQuickAccount(db, id);
+				await db.meta.setDefaultQuickAccount(id);
 			}
 			// Mark as persisted only after the write succeeds, so a failed write
 			// is retried on the next change rather than silently dropped.

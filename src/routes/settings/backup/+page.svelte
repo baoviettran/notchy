@@ -5,8 +5,15 @@
 	import { save, open } from '@tauri-apps/plugin-dialog';
 	import { writeTextFile } from '@tauri-apps/plugin-fs';
 	import { getDb } from '$lib/db';
+	import type { AppDatabase } from '$lib/db/client';
+	import type { DatabaseService } from '$lib/db/browser/service';
 	import { exportCsv } from '$lib/backup';
 	import { createManualBackup, getBackupHealth, type BackupHealth } from '$lib/backup/health';
+
+	/** Access the raw DatabaseService for legacy backup operations. */
+	function getRawDb(db: AppDatabase): DatabaseService {
+		return (db as unknown as { raw: DatabaseService }).raw;
+	}
 	import { restoreCompatibleDatabase } from '$lib/recovery';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { AppError } from '$lib/errors';
@@ -25,8 +32,8 @@
 		try {
 			const [appVersion, paths] = await Promise.all([getInstalledAppVersion(), getDatabasePaths()]);
 			upgradeBackupDir = paths.upgradeBackupDir;
-			const db = await getDb();
-			health = await getBackupHealth(db, {
+			const db = getDb();
+			health = await getBackupHealth(getRawDb(db), {
 				appVersion,
 				databasePath: paths.databasePath,
 				upgradeBackupDir: paths.upgradeBackupDir
@@ -44,8 +51,8 @@
 	async function createBackupNow() {
 		try {
 			busy = true;
-			const db = await getDb();
-			await createManualBackup(db);
+			const db = getDb();
+			await createManualBackup(getRawDb(db));
 			await loadHealth();
 			toast.show(m.settings_backup_toast_created());
 		} catch (e) {
@@ -71,8 +78,8 @@
 				filters: [{ name: 'SQLite Database', extensions: ['sqlite', 'db'] }]
 			});
 			if (!path) return;
-			const db = await getDb();
-			await db.execute(`VACUUM INTO '${path.replace(/'/g, "''")}'`);
+			const db = getDb();
+			await getRawDb(db).execute(`VACUUM INTO '${path.replace(/'/g, "''")}'`);
 			toast.show(m.settings_backup_toast_exported());
 		} catch (e) {
 			toast.show(m.settings_backup_toast_export_failed({ error: String(e) }));
@@ -86,8 +93,8 @@
 			busy = true;
 			const dir = await open({ directory: true });
 			if (!dir) return;
-			const db = await getDb();
-			const csvMap = await exportCsv(db);
+			const db = getDb();
+			const csvMap = await exportCsv(getRawDb(db));
 			for (const [table, content] of csvMap) {
 				if (content) await writeTextFile(`${dir}/${table}.csv`, content);
 			}

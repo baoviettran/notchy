@@ -19,16 +19,9 @@
 		// Soft over-allocation ceiling: this month's income (kind='income') plus
 		// cumulative rolled-over surpluses. A non-blocking warning fires when
 		// total allocated exceeds it.
-		const db = await getDb();
-		const [y, mo] = budgets.month.split('-').map(Number);
-		const start = `${y}-${String(mo).padStart(2, '0')}`;
-		const next = mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, '0')}`;
-		const rows = await db.query<{ total: number | null }>(
-			`SELECT SUM(amount) AS total FROM transactions
-			 WHERE kind = 'income' AND date >= ? || '-01' AND date < ? || '-01' AND deleted_at IS NULL`,
-			[start, next]
-		);
-		monthIncome = rows[0]?.total ?? 0;
+		const db = getDb();
+		const overview = await db.reports.getOverview(budgets.month);
+		monthIncome = overview.total_income;
 		const rolled = budgets.items.reduce((s, b) => s + (b.rolled_over > 0 ? b.rolled_over : 0), 0);
 		monthIncome += rolled;
 	}

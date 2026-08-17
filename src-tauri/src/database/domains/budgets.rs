@@ -37,7 +37,7 @@ fn previous_month(month: &str) -> String {
 
 /// Compute the total spent for a bucket in a given month.
 /// Expenses add, refunds subtract.
-fn get_spent_for_bucket(conn: &Connection, type_id: &str, month: &str) -> DbResult<i64> {
+pub fn get_spent_for_bucket(conn: &Connection, type_id: &str, month: &str) -> DbResult<i64> {
     let next = next_month(month);
     let total: i64 = conn
         .query_row(
@@ -62,7 +62,7 @@ fn get_spent_for_bucket(conn: &Connection, type_id: &str, month: &str) -> DbResu
 
 /// Compute cumulative rollover for a bucket before `month`.
 /// YNAB-style: only prior months with a budget row contribute.
-fn get_rolled_over(conn: &Connection, type_id: &str, month: &str) -> DbResult<i64> {
+pub fn get_rolled_over(conn: &Connection, type_id: &str, month: &str) -> DbResult<i64> {
     let mut stmt = conn
         .prepare(
             "SELECT month, allocated FROM budgets

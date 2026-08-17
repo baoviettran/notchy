@@ -113,6 +113,18 @@ class BrowserTransactionOps implements TransactionOps {
 	duplicate(id: string): Promise<string> {
 		return transactionsRepo.duplicateTransaction(this.db, id);
 	}
+
+	async getFrequent(sinceDate: string): Promise<import('../client').FrequentTx[]> {
+		return this.db.query<import('../client').FrequentTx>(
+			`SELECT payee, tag_id, account_id, amount, kind, COUNT(*) as count
+			 FROM transactions
+			 WHERE deleted_at IS NULL AND date >= ? AND payee IS NOT NULL AND kind IN ('expense', 'income')
+			 GROUP BY payee, tag_id, account_id
+			 ORDER BY count DESC, date DESC
+			 LIMIT 5`,
+			[sinceDate]
+		);
+	}
 }
 
 class BrowserCategoryOps implements CategoryOps {
@@ -260,6 +272,10 @@ class BrowserMetaOps implements MetaOps {
 
 	isFirstRunComplete(): Promise<boolean> {
 		return metaRepo.isFirstRunComplete(this.db);
+	}
+
+	setFirstRunComplete(): Promise<void> {
+		return metaRepo.setFirstRunComplete(this.db);
 	}
 
 	getLocale(): Promise<string> {

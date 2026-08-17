@@ -435,6 +435,465 @@ window.__TAURI_INTERNALS__ = {
 			lastOpenedPath = args.path;
 			return {};
 		}
+		// --- Native database commands (Task 14 cutover) ---
+		// After the cutover, the app uses NativeDatabaseClient which calls
+		// domain commands instead of plugin:sql|*. Translate them to SQL queries.
+		const LIVE_DB_PATH = APP_DATA_DIR + '/notchy.db';
+		if (cmd === 'database_initialize' || cmd === 'database_retry' || cmd === 'database_status') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			// Run migrations if needed
+			const schemaRow = select(db, "SELECT value FROM app_meta WHERE key = 'schema_version'", []);
+			const currentVersion = schemaRow.length > 0 ? parseInt(schemaRow[0].value) : 0;
+			if (currentVersion < 5) {
+				// Run migration 005 (add goals table etc.)
+				db.run('CREATE TABLE IF NOT EXISTS goals (id TEXT PRIMARY KEY, name TEXT NOT NULL, goal_type TEXT NOT NULL, target_amount INTEGER NOT NULL, target_date TEXT NOT NULL, linked_account_id TEXT, starting_amount INTEGER DEFAULT 0, current_amount INTEGER DEFAULT 0, show_on_dashboard INTEGER DEFAULT 1, status TEXT DEFAULT active, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT)');
+				db.run("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', '5')");
+			}
+			return { state: 'ready', current: { ready: {} }, recovery: null };
+		}
+		if (cmd === 'account_list') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const today = new Date().toISOString().slice(0, 10);
+			const rows = select(db, "SELECT a.id, a.name, a.type, a.counterparty, a.currency, a.archived, a.created_at, a.updated_at, COALESCE((SELECT SUM(CASE WHEN kind='income' THEN amount WHEN kind='adjustment' THEN amount WHEN kind='refund' THEN amount WHEN kind='expense' THEN -amount WHEN kind='transfer' AND account_id=a.id THEN -amount WHEN kind='transfer' AND transfer_account_id=a.id THEN amount ELSE 0 END) FROM transactions WHERE (account_id=a.id OR (kind='transfer' AND transfer_account_id=a.id)) AND deleted_at IS NULL AND date<=?), 0) AS balance FROM accounts a WHERE a.deleted_at IS NULL ORDER BY a.archived, a.created_at", [today]);
+			return rows.map(r => ({ ...r, balance: r.balance || 0, counterparty: r.counterparty || null }));
+		}
+		if (cmd === 'account_get') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const rows = select(db, 'SELECT id, name, type, counterparty, currency, archived, created_at, updated_at FROM accounts WHERE id = ? AND deleted_at IS NULL', [args.id]);
+			if (rows.length === 0) return null;
+			const r = rows[0];
+			const today = new Date().toISOString().slice(0, 10);
+			const bal = select(db, 'SELECT COALESCE(SUM(CASE WHEN kind=\'income\' THEN amount WHEN kind=\'adjustment\' THEN amount WHEN kind=\'refund\' THEN amount WHEN kind=\'expense\' THEN -amount WHEN kind=\'transfer\' AND account_id=? THEN -amount WHEN kind=\'transfer\' AND transfer_account_id=? THEN amount ELSE 0 END), 0) AS balance FROM transactions WHERE (account_id=? OR (kind=\'transfer\' AND transfer_account_id=?)) AND deleted_at IS NULL AND date<=?', [args.id, args.id, args.id, args.id, today]);
+			return { ...r, balance: bal[0]?.balance || 0, counterparty: r.counterparty || null };
+		}
+		if (cmd === 'account_get_balance') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const today = new Date().toISOString().slice(0, 10);
+			const bal = select(db, 'SELECT COALESCE(SUM(CASE WHEN kind=\'income\' THEN amount WHEN kind=\'adjustment\' THEN amount WHEN kind=\'refund\' THEN amount WHEN kind=\'expense\' THEN -amount WHEN kind=\'transfer\' AND account_id=? THEN -amount WHEN kind=\'transfer\' AND transfer_account_id=? THEN amount ELSE 0 END), 0) AS balance FROM transactions WHERE (account_id=? OR (kind=\'transfer\' AND transfer_account_id=?)) AND deleted_at IS NULL AND date<=?', [args.accountId, args.accountId, args.accountId, args.accountId, today]);
+			return bal[0]?.balance || 0;
+		}
+		if (cmd === 'account_get_balance_as_of') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const bal = select(db, 'SELECT COALESCE(SUM(CASE WHEN kind=\'income\' THEN amount WHEN kind=\'adjustment\' THEN amount WHEN kind=\'refund\' THEN amount WHEN kind=\'expense\' THEN -amount WHEN kind=\'transfer\' AND account_id=? THEN -amount WHEN kind=\'transfer\' AND transfer_account_id=? THEN amount ELSE 0 END), 0) AS balance FROM transactions WHERE (account_id=? OR (kind=\'transfer\' AND transfer_account_id=?)) AND deleted_at IS NULL AND date<=?', [args.accountId, args.accountId, args.accountId, args.accountId, args.date]);
+			return bal[0]?.balance || 0;
+		}
+		if (cmd === 'account_create') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const input = args.input;
+			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
+			const now = new Date().toISOString();
+			db.run('INSERT INTO accounts (id, name, type, counterparty, currency, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+				[id, input.name, input.type, input.counterparty || null, input.currency, now, now]);
+			if (input.initial_balance && input.initial_balance !== 0) {
+				const txId = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
+				const date = input.initial_balance_date || now.slice(0, 10);
+				const kind = (input.type === 'credit_card' || input.type === 'loan_from_person') ? 'expense' : 'adjustment';
+				db.run('INSERT INTO transactions (id, kind, date, amount, account_id, tag_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, \'tag_initial_balance\', ?, ?)',
+					[txId, kind, date, Math.abs(input.initial_balance), id, now, now]);
+			}
+			return id;
+		}
+		if (cmd === 'account_update') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const patch = args.patch;
+			const sets = ['updated_at = ?'];
+			const vals = [new Date().toISOString()];
+			if (patch.name !== undefined) { sets.push('name = ?'); vals.push(patch.name); }
+			if (patch.type !== undefined) { sets.push('type = ?'); vals.push(patch.type); }
+			if (patch.counterparty !== undefined) { sets.push('counterparty = ?'); vals.push(patch.counterparty); }
+			if (patch.archived !== undefined) { sets.push('archived = ?'); vals.push(patch.archived); }
+			vals.push(args.id);
+			db.run('UPDATE accounts SET ' + sets.join(', ') + ' WHERE id = ?', vals);
+			return {};
+		}
+		if (cmd === 'account_delete') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const now = new Date().toISOString();
+			db.run('UPDATE accounts SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [now, now, args.id]);
+			return {};
+		}
+		if (cmd === 'transaction_list') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			let where = 'deleted_at IS NULL';
+			const vals = [];
+			const f = args.filter || {};
+			if (f.account_id) { where += ' AND account_id = ?'; vals.push(f.account_id); }
+			if (f.kind) { where += ' AND kind = ?'; vals.push(f.kind); }
+			if (f.from_date) { where += ' AND date >= ?'; vals.push(f.from_date); }
+			if (f.to_date) { where += ' AND date <= ?'; vals.push(f.to_date); }
+			if (f.tag_id) { where += ' AND tag_id = ?'; vals.push(f.tag_id); }
+			if (f.search) { where += ' AND (payee LIKE ? OR description LIKE ?)'; vals.push('%' + f.search + '%', '%' + f.search + '%'); }
+			const limit = f.limit || 100;
+			const offset = f.offset || 0;
+			return select(db, 'SELECT * FROM transactions WHERE ' + where + ' ORDER BY date DESC, created_at DESC LIMIT ? OFFSET ?', [...vals, limit, offset]);
+		}
+		if (cmd === 'transaction_get') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const rows = select(db, 'SELECT * FROM transactions WHERE id = ? AND deleted_at IS NULL', [args.id]);
+			return rows.length > 0 ? rows[0] : null;
+		}
+		if (cmd === 'transaction_create') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const input = args.input;
+			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
+			const now = new Date().toISOString();
+			db.run('INSERT INTO transactions (id, kind, date, amount, account_id, transfer_account_id, transfer_pair_id, refund_of_id, tag_id, payee, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+				[id, input.kind, input.date, input.amount, input.account_id, input.transfer_account_id || null, input.transfer_pair_id || null, input.refund_of_id || null, input.tag_id || null, input.payee || null, input.description || null, now, now]);
+			return id;
+		}
+		if (cmd === 'transaction_create_batch') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const ids = [];
+			for (const input of args.inputs) {
+				const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
+				const now = new Date().toISOString();
+				db.run('INSERT INTO transactions (id, kind, date, amount, account_id, transfer_account_id, transfer_pair_id, refund_of_id, tag_id, payee, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+					[id, input.kind, input.date, input.amount, input.account_id, input.transfer_account_id || null, input.transfer_pair_id || null, input.refund_of_id || null, input.tag_id || null, input.payee || null, input.description || null, now, now]);
+				ids.push(id);
+			}
+			return ids;
+		}
+		if (cmd === 'transaction_update') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const patch = args.patch;
+			const sets = ['updated_at = ?'];
+			const vals = [new Date().toISOString()];
+			for (const key of ['kind', 'date', 'amount', 'account_id', 'transfer_account_id', 'tag_id', 'payee', 'description']) {
+				if (patch[key] !== undefined) { sets.push(key + ' = ?'); vals.push(patch[key]); }
+			}
+			vals.push(args.id);
+			db.run('UPDATE transactions SET ' + sets.join(', ') + ' WHERE id = ?', vals);
+			return {};
+		}
+		if (cmd === 'transaction_delete') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const now = new Date().toISOString();
+			db.run('UPDATE transactions SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [now, now, args.id]);
+			return {};
+		}
+		if (cmd === 'transaction_restore') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			db.run('UPDATE transactions SET deleted_at = NULL, updated_at = ? WHERE id = ?', [new Date().toISOString(), args.id]);
+			return {};
+		}
+		if (cmd === 'transaction_duplicate') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const rows = select(db, 'SELECT * FROM transactions WHERE id = ? AND deleted_at IS NULL', [args.id]);
+			if (rows.length === 0) throw new Error('transaction not found');
+			const orig = rows[0];
+			const newId = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
+			const now = new Date().toISOString();
+			db.run('INSERT INTO transactions (id, kind, date, amount, account_id, transfer_account_id, transfer_pair_id, refund_of_id, tag_id, payee, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+				[newId, orig.kind, orig.date, orig.amount, orig.account_id, orig.transfer_account_id, orig.transfer_pair_id, orig.refund_of_id, orig.tag_id, orig.payee, orig.description, now, now]);
+			return newId;
+		}
+		if (cmd === 'category_list_buckets') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			return select(db, 'SELECT id, name, budgetable, rollover_enabled, created_at, updated_at FROM categories WHERE deleted_at IS NULL ORDER BY created_at', []);
+		}
+		if (cmd === 'category_create_bucket') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
+			const now = new Date().toISOString();
+			db.run('INSERT INTO categories (id, name, budgetable, rollover_enabled, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?)',
+				[id, args.name, args.budgetable ?? 1, now, now]);
+			return id;
+		}
+		if (cmd === 'category_rename_bucket') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			db.run('UPDATE categories SET name = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [args.name, new Date().toISOString(), args.id]);
+			return {};
+		}
+		if (cmd === 'category_set_rollover_enabled') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			db.run('UPDATE categories SET rollover_enabled = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [args.enabled ? 1 : 0, new Date().toISOString(), args.id]);
+			return {};
+		}
+		if (cmd === 'category_delete_bucket') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const now = new Date().toISOString();
+			db.run('UPDATE categories SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [now, now, args.id]);
+			return {};
+		}
+		if (cmd === 'category_list_tags') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			let q = 'SELECT id, name, category_id, created_at, updated_at FROM tags WHERE deleted_at IS NULL';
+			const vals = [];
+			if (args.bucketId) { q += ' AND category_id = ?'; vals.push(args.bucketId); }
+			q += ' ORDER BY created_at';
+			return select(db, q, vals);
+		}
+		if (cmd === 'category_create_tag') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
+			const now = new Date().toISOString();
+			db.run('INSERT INTO tags (id, name, category_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+				[id, args.name, args.bucketId, now, now]);
+			return id;
+		}
+		if (cmd === 'category_rename_tag') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			db.run('UPDATE tags SET name = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [args.name, new Date().toISOString(), args.id]);
+			return {};
+		}
+		if (cmd === 'category_move_tag') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			db.run('UPDATE tags SET category_id = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [args.newBucketId, new Date().toISOString(), args.tagId]);
+			return { tag_id: args.tagId, old_category_id: null, new_category_id: args.newBucketId };
+		}
+		if (cmd === 'category_get_tag_transaction_info') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const cnt = select(db, 'SELECT COUNT(*) as count FROM transactions WHERE tag_id = ? AND deleted_at IS NULL', [args.tagId]);
+			return { tag_id: args.tagId, transaction_count: cnt[0]?.count || 0 };
+		}
+		if (cmd === 'category_delete_tag') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const now = new Date().toISOString();
+			const opt = args.option;
+			if (opt === 'uncategorise') {
+				db.run('UPDATE transactions SET tag_id = NULL, updated_at = ? WHERE tag_id = ? AND deleted_at IS NULL', [now, args.id]);
+			} else {
+				const parsed = typeof opt === 'string' ? JSON.parse(opt) : opt;
+				if (parsed && parsed.merge_into) {
+					db.run('UPDATE transactions SET tag_id = ?, updated_at = ? WHERE tag_id = ? AND deleted_at IS NULL', [parsed.merge_into, now, args.id]);
+				}
+			}
+			db.run('UPDATE tags SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [now, now, args.id]);
+			return {};
+		}
+		if (cmd === 'budget_get_for_month') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			return select(db, 'SELECT b.id, b.category_id, b.month, b.allocated, b.created_at, b.updated_at FROM budgets b WHERE b.month = ? AND b.deleted_at IS NULL', [args.month]);
+		}
+		if (cmd === 'budget_get_spent_for_bucket') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const start = args.month + '-01';
+			const end = args.month + '-31';
+			const r = select(db, 'SELECT COALESCE(SUM(amount), 0) as spent FROM transactions WHERE tag_id IN (SELECT id FROM tags WHERE category_id = ? AND deleted_at IS NULL) AND kind = \'expense\' AND date >= ? AND date <= ? AND deleted_at IS NULL', [args.typeId, start, end]);
+			return r[0]?.spent || 0;
+		}
+		if (cmd === 'budget_get_rolled_over') {
+			return 0;
+		}
+		if (cmd === 'budget_set_allocation') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const now = new Date().toISOString();
+			db.run('INSERT OR REPLACE INTO budgets (id, category_id, month, allocated, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+				[crypto.randomUUID().replace(/-/g, '').slice(0, 26), args.typeId, args.month, args.allocated, now, now]);
+			return {};
+		}
+		if (cmd === 'budget_copy_from_previous_month') {
+			return {};
+		}
+		if (cmd === 'budget_has_allocations') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const r = select(db, 'SELECT COUNT(*) as count FROM budgets WHERE month = ? AND deleted_at IS NULL', [args.month]);
+			return (r[0]?.count || 0) > 0;
+		}
+		if (cmd === 'goal_list') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			return select(db, 'SELECT * FROM goals WHERE deleted_at IS NULL ORDER BY created_at', []);
+		}
+		if (cmd === 'goal_get') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const r = select(db, 'SELECT * FROM goals WHERE id = ? AND deleted_at IS NULL', [args.id]);
+			return r.length > 0 ? r[0] : null;
+		}
+		if (cmd === 'goal_create') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
+			const now = new Date().toISOString();
+			db.run('INSERT INTO goals (id, name, goal_type, target_amount, target_date, linked_account_id, starting_amount, show_on_dashboard, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, \'active\', ?, ?)',
+				[id, args.name, args.goalType, args.targetAmount, args.targetDate, args.linkedAccountId || null, args.startingAmount || 0, args.showOnDashboard || 1, now, now]);
+			return id;
+		}
+		if (cmd === 'goal_update') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const sets = ['updated_at = ?'];
+			const vals = [new Date().toISOString()];
+			if (args.name !== null && args.name !== undefined) { sets.push('name = ?'); vals.push(args.name); }
+			if (args.targetAmount !== null && args.targetAmount !== undefined) { sets.push('target_amount = ?'); vals.push(args.targetAmount); }
+			if (args.targetDate !== null && args.targetDate !== undefined) { sets.push('target_date = ?'); vals.push(args.targetDate); }
+			if (args.showOnDashboard !== null && args.showOnDashboard !== undefined) { sets.push('show_on_dashboard = ?'); vals.push(args.showOnDashboard); }
+			if (args.status !== null && args.status !== undefined) { sets.push('status = ?'); vals.push(args.status); }
+			vals.push(args.id);
+			db.run('UPDATE goals SET ' + sets.join(', ') + ' WHERE id = ? AND deleted_at IS NULL', vals);
+			return {};
+		}
+		if (cmd === 'goal_delete') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const now = new Date().toISOString();
+			db.run('UPDATE goals SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [now, now, args.id]);
+			return {};
+		}
+		if (cmd === 'rule_list' || cmd === 'rule_list_all') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			let q = 'SELECT id, payee_term, match_mode, tag_id, source, enabled, created_at, updated_at FROM rules WHERE deleted_at IS NULL';
+			if (cmd === 'rule_list') q += ' AND enabled = 1';
+			q += ' ORDER BY created_at';
+			return select(db, q, []);
+		}
+		if (cmd === 'rule_create') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
+			const now = new Date().toISOString();
+			db.run('INSERT INTO rules (id, payee_term, match_mode, tag_id, source, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?)',
+				[id, args.payeeTerm, args.matchMode, args.tagId, args.source || 'manual', now, now]);
+			return { id, payee_term: args.payeeTerm, match_mode: args.matchMode, tag_id: args.tagId, source: args.source || 'manual', enabled: 1, created_at: now, updated_at: now };
+		}
+		if (cmd === 'rule_update') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const sets = ['updated_at = ?'];
+			const vals = [new Date().toISOString()];
+			if (args.payeeTerm !== null && args.payeeTerm !== undefined) { sets.push('payee_term = ?'); vals.push(args.payeeTerm); }
+			if (args.matchMode !== null && args.matchMode !== undefined) { sets.push('match_mode = ?'); vals.push(args.matchMode); }
+			if (args.tagId !== null && args.tagId !== undefined) { sets.push('tag_id = ?'); vals.push(args.tagId); }
+			if (args.source !== null && args.source !== undefined) { sets.push('source = ?'); vals.push(args.source); }
+			if (args.enabled !== null && args.enabled !== undefined) { sets.push('enabled = ?'); vals.push(args.enabled); }
+			vals.push(args.id);
+			db.run('UPDATE rules SET ' + sets.join(', ') + ' WHERE id = ? AND deleted_at IS NULL', vals);
+			const r = select(db, 'SELECT id, payee_term, match_mode, tag_id, source, enabled, created_at, updated_at FROM rules WHERE id = ?', [args.id]);
+			return r[0] || {};
+		}
+		if (cmd === 'rule_delete') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const now = new Date().toISOString();
+			db.run('UPDATE rules SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [now, now, args.id]);
+			return {};
+		}
+		if (cmd === 'rule_upsert_learned') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const existing = select(db, 'SELECT id FROM rules WHERE payee_term = ? AND source = \'learned\' AND deleted_at IS NULL', [args.payeeTerm]);
+			const now = new Date().toISOString();
+			if (existing.length > 0) {
+				db.run('UPDATE rules SET tag_id = ?, updated_at = ? WHERE id = ?', [args.tagId, now, existing[0].id]);
+				return { id: existing[0].id, payee_term: args.payeeTerm, match_mode: 'contains', tag_id: args.tagId, source: 'learned', enabled: 1, created_at: now, updated_at: now };
+			}
+			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
+			db.run('INSERT INTO rules (id, payee_term, match_mode, tag_id, source, enabled, created_at, updated_at) VALUES (?, ?, \'contains\', ?, \'learned\', 1, ?, ?)',
+				[id, args.payeeTerm, args.tagId, now, now]);
+			return { id, payee_term: args.payeeTerm, match_mode: 'contains', tag_id: args.tagId, source: 'learned', enabled: 1, created_at: now, updated_at: now };
+		}
+		if (cmd === 'meta_get') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const r = select(db, 'SELECT value FROM app_meta WHERE key = ?', [args.key]);
+			return r.length > 0 ? r[0].value : null;
+		}
+		if (cmd === 'meta_set') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			db.run('INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)', [args.key, args.value]);
+			return {};
+		}
+		if (cmd === 'meta_delete') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			db.run('DELETE FROM app_meta WHERE key = ?', [args.key]);
+			return {};
+		}
+		if (cmd === 'meta_is_first_run_complete') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const r = select(db, 'SELECT value FROM app_meta WHERE key = \'first_run_complete\'', []);
+			return r.length > 0 && r[0].value === '1';
+		}
+		if (cmd === 'meta_get_locale') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const r = select(db, 'SELECT value FROM app_meta WHERE key = \'locale\'', []);
+			return r.length > 0 ? r[0].value : 'en';
+		}
+		if (cmd === 'meta_get_currency') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const r = select(db, 'SELECT value FROM app_meta WHERE key = \'currency\'', []);
+			return r.length > 0 ? r[0].value : 'VND';
+		}
+		if (cmd === 'meta_is_tour_complete') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const r = select(db, 'SELECT value FROM app_meta WHERE key = \'tour_complete\'', []);
+			return r.length > 0 && r[0].value === '1';
+		}
+		if (cmd === 'meta_set_tour_complete') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			db.run('INSERT OR REPLACE INTO app_meta (key, value) VALUES (\'tour_complete\', \'1\')', []);
+			return {};
+		}
+		if (cmd === 'meta_set_first_run_complete') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			db.run('INSERT OR REPLACE INTO app_meta (key, value) VALUES (\'first_run_complete\', \'1\')', []);
+			return {};
+		}
+		if (cmd === 'meta_get_default_quick_account') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const r = select(db, 'SELECT value FROM app_meta WHERE key = \'default_quick_account\'', []);
+			return r.length > 0 ? r[0].value : null;
+		}
+		if (cmd === 'meta_set_default_quick_account') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			db.run('INSERT OR REPLACE INTO app_meta (key, value) VALUES (\'default_quick_account\', ?)', [args.accountId]);
+			return {};
+		}
+		if (cmd === 'meta_clear_default_quick_account') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			db.run('DELETE FROM app_meta WHERE key = \'default_quick_account\'', []);
+			return {};
+		}
+		if (cmd === 'debt_list') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const iOwe = select(db, 'SELECT a.*, COALESCE(SUM(CASE WHEN t.kind=\'expense\' THEN t.amount WHEN t.kind=\'transfer\' AND t.transfer_account_id=a.id THEN t.amount ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN t.kind=\'transfer\' AND t.account_id=a.id THEN t.amount ELSE 0 END), 0) as balance FROM accounts a LEFT JOIN transactions t ON (t.account_id=a.id OR t.transfer_account_id=a.id) AND t.deleted_at IS NULL WHERE a.type=\'loan_to_person\' AND a.deleted_at IS NULL GROUP BY a.id', []);
+			const owedToMe = select(db, 'SELECT a.*, COALESCE(SUM(CASE WHEN t.kind=\'expense\' THEN t.amount WHEN t.kind=\'transfer\' AND t.transfer_account_id=a.id THEN t.amount ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN t.kind=\'transfer\' AND t.account_id=a.id THEN t.amount ELSE 0 END), 0) as balance FROM accounts a LEFT JOIN transactions t ON (t.account_id=a.id OR t.transfer_account_id=a.id) AND t.deleted_at IS NULL WHERE a.type=\'loan_from_person\' AND a.deleted_at IS NULL GROUP BY a.id', []);
+			return { i_owe: iOwe, owed_to_me: owedToMe };
+		}
+		if (cmd === 'debt_write_off') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
+			const now = new Date().toISOString();
+			db.run('INSERT INTO transactions (id, kind, date, amount, account_id, tag_id, description, created_at, updated_at) VALUES (?, \'adjustment\', ?, ?, ?, ?, \'Debt write-off\', ?, ?)',
+				[id, now.slice(0, 10), args.amount, args.accountId, args.tagId || null, now, now]);
+			return id;
+		}
+		if (cmd === 'reconciliation_get_history') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			return select(db, 'SELECT * FROM reconciliations WHERE account_id = ? ORDER BY reconciled_at DESC', [args.accountId]);
+		}
+		if (cmd === 'reconciliation_reconcile') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
+			const now = new Date().toISOString();
+			db.run('INSERT INTO reconciliations (id, account_id, actual_balance, book_balance, difference, notes, reconciled_at, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?)',
+				[id, args.accountId, args.actualBalance, args.actualBalance, args.notes || null, now, now, now]);
+			if (args.createAdjustment) {
+				const txId = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
+				db.run('INSERT INTO transactions (id, kind, date, amount, account_id, tag_id, description, created_at, updated_at) VALUES (?, \'adjustment\', ?, ?, ?, NULL, \'Reconciliation adjustment\', ?, ?)',
+					[txId, now.slice(0, 10), args.actualBalance, args.accountId, now, now]);
+			}
+			return { reconciliation_id: id, difference: args.actualBalance };
+		}
+		if (cmd === 'report_get_overview') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const start = args.month + '-01';
+			const end = args.month + '-31';
+			const income = select(db, 'SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE kind=\'income\' AND date >= ? AND date <= ? AND deleted_at IS NULL', [start, end]);
+			const expense = select(db, 'SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE kind=\'expense\' AND date >= ? AND date <= ? AND deleted_at IS NULL', [start, end]);
+			return { month: args.month, income: income[0]?.total || 0, expense: expense[0]?.total || 0, net: (income[0]?.total || 0) - (expense[0]?.total || 0), by_category: [] };
+		}
+		if (cmd === 'report_get_trend') {
+			return [];
+		}
+		if (cmd === 'report_get_comparison') {
+			return [];
+		}
+		if (cmd === 'report_get_category_trend') {
+			return [];
+		}
+		if (cmd === 'report_get_stacked_category_series') {
+			return [];
+		}
+		if (cmd === 'report_get_year_over_year') {
+			return [];
+		}
+		if (cmd === 'report_get_net_worth_series') {
+			return [];
+		}
+		if (cmd === 'quit_app') {
+			return {};
+		}
 		throw new Error('tauri-mock: unhandled invoke ' + cmd);
 	},
 	transformCallback: () => 0,

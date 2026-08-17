@@ -3,9 +3,8 @@ import { inferColumns, type InferredMapping } from '$lib/utils/infer_columns';
 import { classifyRow, type RowStatus } from '$lib/utils/dedup';
 import { parseCsvAmount } from '$lib/utils/parse_csv_amount';
 import { FRACTION_DIGITS } from '$lib/utils/number_parse';
-import * as txRepo from '$lib/db/repos/transactions';
-import type { DatabaseService } from '$lib/db/service';
-import type { Transaction } from '$lib/db/repos/transactions';
+import type { AppDatabase } from '$lib/db/client';
+import type { Transaction } from '$lib/db/client';
 
 type Phase = 'select' | 'mapping' | 'preview' | 'done';
 
@@ -33,11 +32,11 @@ export class ImportStore {
   });
   accountId = $state<string>('');
 
-  private db: DatabaseService;
+  private db: AppDatabase;
   private currency: string;
   private existingTx: Transaction[] = [];
 
-  constructor(db: DatabaseService, currency: string = 'VND') {
+  constructor(db: AppDatabase, currency: string = 'VND') {
     this.db = db;
     this.currency = currency;
   }
@@ -81,7 +80,7 @@ export class ImportStore {
     const minDate = dates.reduce((a, b) => (a < b ? a : b));
     const maxDate = dates.reduce((a, b) => (a > b ? a : b));
 
-    this.existingTx = await txRepo.listTransactions(this.db, {
+    this.existingTx = await this.db.transactions.list({
       account_id: this.accountId,
       date_from: minDate,
       date_to: maxDate,
@@ -219,7 +218,7 @@ export class ImportStore {
       tag_id: null
     }));
 
-    await txRepo.createTransactions(this.db, inputs);
+    await this.db.transactions.createBatch(inputs);
     this.phase = 'done';
     return toInsert.length;
   }

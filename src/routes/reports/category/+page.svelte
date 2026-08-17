@@ -5,16 +5,15 @@
 	import { formatCurrency } from '$lib/utils/currency';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { getDb } from '$lib/db';
-	import { listTags } from '$lib/db/repos/categories';
-	import type { Tag } from '$lib/db/repos/categories';
+	import type { Tag } from '$lib/db/client';
 	import * as m from '$lib/paraglide/messages';
 
 	let tags = $state<Tag[]>([]);
 	let selectedTagId = $state('');
 
 	onMount(async () => {
-		const db = await getDb();
-		tags = await listTags(db);
+		const db = getDb();
+		tags = await db.categories.listTags();
 		if (tags.length > 0) {
 			selectedTagId = tags[0].id;
 		}

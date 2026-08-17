@@ -1,6 +1,5 @@
 import { getDb } from '$lib/db';
-import * as repo from '$lib/db/repos/debts';
-import type { DebtAccount } from '$lib/db/repos/debts';
+import type { DebtAccount } from '$lib/db/client';
 
 class DebtsStore {
 	i_owe = $state<DebtAccount[]>([]);
@@ -10,8 +9,8 @@ class DebtsStore {
 	async load(): Promise<void> {
 		this.loading = true;
 		try {
-			const db = await getDb();
-			const result = await repo.listDebts(db);
+			const db = getDb();
+			const result = await db.debts.list();
 			this.i_owe = result.i_owe;
 			this.owed_to_me = result.owed_to_me;
 		} finally {
@@ -20,8 +19,8 @@ class DebtsStore {
 	}
 
 	async writeOff(accountId: string, amount: number, tagId?: string): Promise<void> {
-		const db = await getDb();
-		await repo.writeOff(db, accountId, amount, tagId);
+		const db = getDb();
+		await db.debts.writeOff(accountId, amount, tagId);
 		await this.load();
 	}
 }

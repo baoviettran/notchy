@@ -1,6 +1,5 @@
 import { getDb } from '$lib/db';
-import * as repo from '$lib/db/repos/budgets';
-import type { BudgetSummary } from '$lib/db/repos/budgets';
+import type { BudgetSummary } from '$lib/db/client';
 
 class BudgetsStore {
 	items = $state<BudgetSummary[]>([]);
@@ -12,23 +11,23 @@ class BudgetsStore {
 		if (month) this.month = month;
 		this.loading = true;
 		try {
-			const db = await getDb();
-			this.items = await repo.getBudgetsForMonth(db, this.month);
-			this.hasAllocations = await repo.hasAllocations(db, this.month);
+			const db = getDb();
+			this.items = await db.budgets.getForMonth(this.month);
+			this.hasAllocations = await db.budgets.hasAllocations(this.month);
 		} finally {
 			this.loading = false;
 		}
 	}
 
 	async setAllocation(typeId: string, allocated: number): Promise<void> {
-		const db = await getDb();
-		await repo.setAllocation(db, typeId, this.month, allocated);
+		const db = getDb();
+		await db.budgets.setAllocation(typeId, this.month, allocated);
 		await this.load();
 	}
 
 	async copyFromPrevious(): Promise<void> {
-		const db = await getDb();
-		await repo.copyFromPreviousMonth(db, this.month);
+		const db = getDb();
+		await db.budgets.copyFromPreviousMonth(this.month);
 		await this.load();
 	}
 }

@@ -8,8 +8,7 @@
 	import { categories } from '$lib/stores/categories.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { getDb } from '$lib/db';
-	import { getTagTransactionInfo } from '$lib/db/repos/categories';
-	import type { Tag } from '$lib/db/repos/categories';
+	import type { Tag } from '$lib/db/client';
 	import * as m from '$lib/paraglide/messages';
 	import { mapError } from '$lib/utils/errors';
 
@@ -48,8 +47,8 @@
 	}
 
 	async function startDelete(t: Tag) {
-		const db = await getDb();
-		const info = await getTagTransactionInfo(db, t.id);
+		const db = getDb();
+		const info = await db.categories.getTagTransactionInfo(t.id);
 		affectedCount = info.affected_count;
 		deleteOption = 'uncategorise';
 		confirmDelete = t;

@@ -2,8 +2,17 @@
 	import Button from '$lib/components/primitives/Button.svelte';
 	import ConfirmDialog from '$lib/components/primitives/ConfirmDialog.svelte';
 	import { buildTechnicalReport } from '$lib/recovery';
-	import type { RecoveryContext, StartupFailureCode } from '$lib/db/startup';
 	import * as m from '$lib/paraglide/messages';
+
+	interface RecoveryInfo {
+		code: string;
+		appVersion: string;
+		latestSchemaVersion: number;
+		detectedSchemaVersion: number | null;
+		liveDatabasePath: string;
+		backupPath: string | null;
+		detail: string;
+	}
 
 	let {
 		context,
@@ -12,7 +21,7 @@
 		onopenfolder,
 		onquit
 	}: {
-		context: RecoveryContext;
+		context: RecoveryInfo;
 		onretry: () => void | Promise<void>;
 		onrestore: () => void | Promise<void>;
 		onopenfolder: () => void | Promise<void>;
@@ -22,7 +31,7 @@
 
 	// Plain-language summary per failure code. `context.detail` (which may embed
 	// SQL parameters or queried rows) is never rendered into user-visible copy.
-	const codeMessages: Record<StartupFailureCode, () => string> = {
+	const codeMessages: Record<string, () => string> = {
 		database_corrupt: m.recovery_code_database_corrupt,
 		database_schema_invalid: m.recovery_code_database_schema_invalid,
 		database_schema_newer: m.recovery_code_database_schema_newer,
@@ -32,7 +41,7 @@
 	};
 
 	async function copyReport() {
-		await navigator.clipboard.writeText(buildTechnicalReport(context));
+		await navigator.clipboard.writeText(buildTechnicalReport(context as Parameters<typeof buildTechnicalReport>[0]));
 	}
 </script>
 

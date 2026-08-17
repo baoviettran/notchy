@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { getDb } from '$lib/db';
-	import { getComparison } from '$lib/db/repos/reports';
-	import type { CompareRow } from '$lib/db/repos/reports';
+	import type { CompareRow } from '$lib/db/client';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
 	import * as m from '$lib/paraglide/messages';
@@ -24,8 +23,8 @@
 	let monthB = $state(currentMonth());
 
 	async function load() {
-		const db = await getDb();
-		rows = await getComparison(db, monthA, monthB, includeAdjustments);
+		const db = getDb();
+		rows = await db.reports.getComparison(monthA, monthB, includeAdjustments);
 	}
 
 	onMount(load);

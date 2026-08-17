@@ -87,7 +87,7 @@ fn enforce_single_currency(conn: &Connection, currency: &str) -> DbResult<()> {
 }
 
 /// Compute the balance for one account as of `date` (inclusive).
-fn get_balance(conn: &Connection, account_id: &str, date: &str) -> DbResult<i64> {
+pub fn get_balance(conn: &Connection, account_id: &str, date: &str) -> DbResult<i64> {
     let total: i64 = conn
         .query_row(
             "SELECT COALESCE(SUM(CASE

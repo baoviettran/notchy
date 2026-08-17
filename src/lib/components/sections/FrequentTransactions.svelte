@@ -5,22 +5,14 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
-
-	interface FrequentTx { payee: string; tag_id: string | null; account_id: string; amount: number; kind: string; count: number }
+	import type { FrequentTx } from '$lib/db/client';
 
 	let items = $state<FrequentTx[]>([]);
 
 	onMount(async () => {
-		const db = await getDb();
+		const db = getDb();
 		const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString().split('T')[0];
-		items = await db.query<FrequentTx>(`
-			SELECT payee, tag_id, account_id, amount, kind, COUNT(*) as count
-			FROM transactions
-			WHERE deleted_at IS NULL AND date >= ? AND payee IS NOT NULL AND kind IN ('expense', 'income')
-			GROUP BY payee, tag_id, account_id
-			ORDER BY count DESC, date DESC
-			LIMIT 5
-		`, [thirtyDaysAgo]);
+		items = await db.transactions.getFrequent(thirtyDaysAgo);
 	});
 
 	async function repeat(item: FrequentTx) {

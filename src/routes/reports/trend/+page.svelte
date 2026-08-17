@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { getDb } from '$lib/db';
-	import { getTrend } from '$lib/db/repos/reports';
-	import type { TrendPoint } from '$lib/db/repos/reports';
+	import type { TrendPoint } from '$lib/db/client';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
 	import * as m from '$lib/paraglide/messages';
@@ -12,8 +11,8 @@
 	let includeAdjustments = $state(false);
 
 	async function load() {
-		const db = await getDb();
-		points = await getTrend(db, months, includeAdjustments);
+		const db = getDb();
+		points = await db.reports.getTrend(months, includeAdjustments);
 	}
 
 	onMount(load);

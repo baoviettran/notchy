@@ -1,5 +1,4 @@
 import { getDb } from '$lib/db';
-import * as meta from '$lib/db/repos/meta';
 import { TOUR_STEPS } from '$lib/tour/steps';
 
 class TourStore {
@@ -9,13 +8,13 @@ class TourStore {
 
 	/** Called once at main-layout boot. Grandfathers existing users. */
 	async load(): Promise<void> {
-		const db = await getDb();
-		const firstRunDone = await meta.isFirstRunComplete(db);
-		const tourDone = await meta.isTourComplete(db);
+		const db = getDb();
+		const firstRunDone = await db.meta.isFirstRunComplete();
+		const tourDone = await db.meta.isTourComplete();
 
 		if (firstRunDone && !tourDone) {
 			// Grandfather: existing user who finished onboarding before tour existed.
-			await meta.setTourComplete(db);
+			await db.meta.setTourComplete();
 			this.complete = true;
 			return;
 		}
@@ -49,15 +48,15 @@ class TourStore {
 
 	async skip(): Promise<void> {
 		this.active = false;
-		const db = await getDb();
-		await meta.setTourComplete(db);
+		const db = getDb();
+		await db.meta.setTourComplete();
 		this.complete = true;
 	}
 
 	async finish(): Promise<void> {
 		this.active = false;
-		const db = await getDb();
-		await meta.setTourComplete(db);
+		const db = getDb();
+		await db.meta.setTourComplete();
 		this.complete = true;
 	}
 }

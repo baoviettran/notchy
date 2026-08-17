@@ -1,5 +1,4 @@
 import { getDb } from '$lib/db';
-import * as meta from '$lib/db/repos/meta';
 import type { Locale } from '$lib/utils/number_parse';
 import { setLanguageTag } from '$lib/paraglide/runtime';
 
@@ -10,31 +9,31 @@ class SettingsStore {
 	theme = $state<'auto' | 'light' | 'dark'>('light');
 
 	async load(): Promise<void> {
-		const db = await getDb();
-		this.locale = (await meta.getLocale(db)) as Locale;
+		const db = getDb();
+		this.locale = (await db.meta.getLocale()) as Locale;
 		setLanguageTag(this.locale);
-		this.currency = await meta.getCurrency(db);
-		this.firstRunComplete = await meta.isFirstRunComplete(db);
+		this.currency = await db.meta.getCurrency();
+		this.firstRunComplete = await db.meta.isFirstRunComplete();
 		this.applyThemeClass();
 	}
 
 	async setLocale(locale: Locale): Promise<void> {
-		const db = await getDb();
-		await meta.setMeta(db, 'locale', locale);
+		const db = getDb();
+		await db.meta.set('locale', locale);
 		this.locale = locale;
 		setLanguageTag(locale);
 	}
 
 	async setCurrency(currency: string): Promise<void> {
-		const db = await getDb();
-		await meta.setMeta(db, 'currency', currency);
+		const db = getDb();
+		await db.meta.set('currency', currency);
 		this.currency = currency;
 	}
 
 	async completeOnboarding(): Promise<void> {
-		const db = await getDb();
-		await meta.setMeta(db, 'first_run_complete', '1');
-		await meta.setMeta(db, 'onboarding_step', 'complete');
+		const db = getDb();
+		await db.meta.set('first_run_complete', '1');
+		await db.meta.set('onboarding_step', 'complete');
 		this.firstRunComplete = true;
 	}
 

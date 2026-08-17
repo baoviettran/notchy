@@ -1,6 +1,5 @@
 import { getDb } from '$lib/db';
-import * as repo from '$lib/db/repos/accounts';
-import type { AccountWithBalance, NewAccount, AccountType } from '$lib/db/repos/accounts';
+import { isAssetType, type AccountWithBalance, type NewAccount, type AccountType } from '$lib/db/client';
 import { mapError } from '$lib/utils/errors';
 
 class AccountsStore {
@@ -9,11 +8,11 @@ class AccountsStore {
 	error = $state<string | null>(null);
 
 	get assets() {
-		return this.items.filter((a) => repo.isAssetType(a.type) && !a.archived);
+		return this.items.filter((a) => isAssetType(a.type) && !a.archived);
 	}
 
 	get liabilities() {
-		return this.items.filter((a) => !repo.isAssetType(a.type) && !a.archived);
+		return this.items.filter((a) => !isAssetType(a.type) && !a.archived);
 	}
 
 	get archived() {
@@ -24,8 +23,8 @@ class AccountsStore {
 		this.loading = true;
 		this.error = null;
 		try {
-			const db = await getDb();
-			this.items = await repo.listAccounts(db);
+			const db = getDb();
+			this.items = await db.accounts.list();
 		} catch (e) {
 			this.error = mapError(e);
 		} finally {
@@ -34,21 +33,21 @@ class AccountsStore {
 	}
 
 	async create(input: NewAccount): Promise<string> {
-		const db = await getDb();
-		const id = await repo.createAccount(db, input);
+		const db = getDb();
+		const id = await db.accounts.create(input);
 		await this.load();
 		return id;
 	}
 
 	async update(id: string, patch: { name?: string; type?: AccountType; counterparty?: string | null; archived?: number }): Promise<void> {
-		const db = await getDb();
-		await repo.updateAccount(db, id, patch);
+		const db = getDb();
+		await db.accounts.update(id, patch);
 		await this.load();
 	}
 
 	async delete(id: string): Promise<void> {
-		const db = await getDb();
-		await repo.deleteAccount(db, id);
+		const db = getDb();
+		await db.accounts.delete(id);
 		await this.load();
 	}
 }

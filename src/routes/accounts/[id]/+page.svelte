@@ -6,9 +6,7 @@
 	import Input from '$lib/components/primitives/Input.svelte';
 	import ConfirmDialog from '$lib/components/primitives/ConfirmDialog.svelte';
 	import { getDb } from '$lib/db';
-	import { getAccount } from '$lib/db/repos/accounts';
-	import { listTransactions } from '$lib/db/repos/transactions';
-	import { reconcile, getReconciliationHistory, isLargeDiscrepancy } from '$lib/db/repos/reconciliations';
+	import { isLargeDiscrepancy } from '$lib/db/repos/reconciliations';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
@@ -16,9 +14,7 @@
 	import { parseAmount } from '$lib/utils/number_parse';
 	import { labelFor } from '$lib/utils/tx-kind';
 	import { accountTypeLabel } from '$lib/utils/account-type';
-	import type { AccountWithBalance } from '$lib/db/repos/accounts';
-	import type { Transaction } from '$lib/db/repos/transactions';
-	import type { Reconciliation } from '$lib/db/repos/reconciliations';
+	import type { AccountWithBalance, Transaction, Reconciliation } from '$lib/db/client';
 	import * as m from '$lib/paraglide/messages';
 
 	let account = $state<AccountWithBalance | null>(null);
@@ -32,10 +28,10 @@
 	const accountId = $derived($page.params.id);
 
 	async function load() {
-		const db = await getDb();
-		account = await getAccount(db, accountId);
-		txns = await listTransactions(db, { account_id: accountId, limit: 100 });
-		history = await getReconciliationHistory(db, accountId);
+		const db = getDb();
+		account = await db.accounts.get(accountId);
+		txns = await db.transactions.list({ account_id: accountId, limit: 100 });
+		history = await db.reconciliations.getHistory(accountId);
 	}
 
 	onMount(load);
@@ -58,8 +54,8 @@
 	}
 
 	async function doReconcile(actual: number) {
-		const db = await getDb();
-		const result = await reconcile(db, accountId, actual, true);
+		const db = getDb();
+		const result = await db.reconciliations.reconcile(accountId, actual, true);
 		toast.show(result.discrepancy === 0 ? m.accounts_reconciled_toast() : m.accounts_adjustment_created({ amount: formatCurrency(result.discrepancy, settings.currency, settings.locale) }));
 		showReconcile = false;
 		actualBalance = '';

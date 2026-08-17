@@ -1,146 +1,96 @@
-import type { DatabaseService } from './browser/service';
-import { applyPragmas } from './browser/pragmas';
-import { runIntegrityCheck, checkOrphanedTransfers } from './browser/integrity';
-import { runMigrations } from './browser/migrations/runner';
-import { migrations, LATEST_SCHEMA_VERSION } from './browser/migrations/index';
-import { inspectSchema } from './browser/schema';
-import { prepareDatabase, type StartupDependencies, type StartupStage, type StartupSuccess } from './startup';
-import { AppError } from '$lib/errors';
-import { createVerifiedUpgradeBackup, getUpgradeBackupsToDelete } from '$lib/backup/upgrade';
-import {
-	ensureDirectory,
-	getDatabasePaths,
-	getInstalledAppVersion,
-	isTauri,
-	listUpgradeBackupRecords,
-	openConnection,
-	openReadOnlyDatabase,
-	removeFile
-} from './platform';
+/**
+ * Database entry point — returns an AppDatabase (domain port).
+ *
+ * Under Tauri: NativeDatabaseClient wraps invoke() calls to Rust.
+ * Under browser (Vitest / Playwright): BrowserDatabaseClient owns sql.js.
+ *
+ * The Rust side owns the full lifecycle (integrity, migration, backup).
+ * The JS side only calls `database_initialize` to trigger it.
+ */
+import type { AppDatabase } from './client';
+import { isTauri } from './platform';
+import { NativeDatabaseClient, databaseInitialize, databaseRetry, databaseStatus } from './native/client';
+import type { DatabaseStatus } from './native/client';
 
 export { isTauri };
+export type { AppDatabase } from './client';
+export { databaseInitialize, databaseRetry, databaseStatus } from './native/client';
+export type { DatabaseStatus } from './native/client';
 
-let _db: DatabaseService | null = null;
-let initialization: Promise<StartupSuccess> | null = null;
+// Re-export platform utilities still needed by backup/restore.
+export { getDatabasePaths, getInstalledAppVersion, openBackupFolder } from './platform';
+
+let _db: AppDatabase | null = null;
 
 /**
- * Run the protected startup pipeline exactly once per JS context. Concurrent
- * callers share the same promise (coalesced); on rejection the connection is
- * closed and the promise cleared so a later retry can start fresh.
+ * Return the AppDatabase singleton. Under Tauri this is the
+ * NativeDatabaseClient (Rust handles initialization). Under browser
+ * this is the BrowserDatabaseClient (sql.js in-memory).
  */
-export function initializeDb(onStage: (stage: StartupStage) => void = () => {}): Promise<StartupSuccess> {
-	if (initialization) return initialization;
-	initialization = initializeMainDatabase(onStage).catch(async (error) => {
-		await closeDb();
-		initialization = null;
-		throw error;
-	});
-	return initialization;
+export function getDb(): AppDatabase {
+	if (!_db) throw new Error('database not initialized — call initDb() first');
+	return _db;
 }
 
 /**
- * Finance repositories always call this. Main window: returns the cached
- * initialized connection. Plain browser: initializes first (in-memory sql.js).
- * Tauri non-main window (quick-add): opens the already-migrated shared pool via
- * `openCurrentDb`, which rejects with `database_update_required` while the main
- * window is still migrating an older schema — never migrates from here.
+ * Initialize the database for the current platform.
+ *
+ * - Tauri: creates NativeDatabaseClient (no JS startup needed — Rust
+ *   handles integrity, migration, backup via `database_initialize`).
+ * - Browser: runs the full JS startup pipeline (sql.js in-memory).
  */
-export async function getDb(): Promise<DatabaseService> {
-	if (_db) return _db;
-	if (!isTauri()) {
-		await initializeDb();
-		return _db!;
+export async function initDb(onStage?: (stage: string) => void): Promise<void> {
+	if (_db) return;
+
+	if (isTauri()) {
+		_db = new NativeDatabaseClient();
+		// Trigger Rust lifecycle — callers should await databaseInitialize()
+		// separately to get typed status events.
+		return;
 	}
-	return openCurrentDb();
-}
 
-/**
- * Open the live connection, apply pragmas, and return it only when the schema
- * is current. For older/newer/invalid schemas the connection is closed and an
- * `AppError('database_update_required')` is thrown — this path never migrates
- * and never modifies anything. Used by non-main Tauri windows to access the
- * pooled connection the main window already migrated.
- */
-export async function openCurrentDb(): Promise<DatabaseService> {
-	const connection = await openConnection();
-	let closed = false;
-	const close = async (): Promise<void> => {
-		if (closed) return;
-		closed = true;
-		// Under Tauri the loaded handle IS the shared tauri-plugin-sql pool keyed
-		// by `sqlite:notchy.db`. Closing it would kill the main window's in-flight
-		// migration on the same pool (this path exists precisely because that
-		// migration is still running), so an unused open pool is left open — it is
-		// harmless and the next load reuses the same key. Only close in the
-		// non-Tauri path, where the connection is a private handle (e.g. the
-		// better-sqlite3 test connection) that would otherwise leak.
-		if (!isTauri()) {
-			await connection.close();
-		}
-	};
-	try {
-		await applyPragmas(connection);
-		const inspection = await inspectSchema(connection, LATEST_SCHEMA_VERSION);
-		if (inspection.kind !== 'current') {
-			await close();
-			throw new AppError('database_update_required');
-		}
-		return connection;
-	} catch (error) {
-		await close().catch(() => {});
-		throw error;
-	}
-}
+	// Browser fallback: sql.js in-memory with full JS startup pipeline.
+	const { applyPragmas } = await import('./browser/pragmas');
+	const { runIntegrityCheck, checkOrphanedTransfers } = await import('./browser/integrity');
+	const { runMigrations } = await import('./browser/migrations/runner');
+	const { migrations, LATEST_SCHEMA_VERSION } = await import('./browser/migrations/index');
+	const { inspectSchema } = await import('./browser/schema');
+	const { createInMemoryDb } = await import('./browser/in-memory');
+	const { prepareDatabase } = await import('./startup');
+	const { BrowserDatabaseClient } = await import('./browser/client');
 
-/**
- * Main-window-only startup. Opens the live connection, caches it, and runs
- * `prepareDatabase` with real platform dependencies: mandatory pre-upgrade
- * backup (pruned only after a verified new backup exists), migration, and
- * post-migration integrity + orphan verification.
- */
-async function initializeMainDatabase(onStage: (stage: StartupStage) => void): Promise<StartupSuccess> {
-	const [paths, appVersion] = await Promise.all([getDatabasePaths(), getInstalledAppVersion()]);
-	const db = await openConnection();
-	_db = db;
+	const db = await createInMemoryDb();
 	await applyPragmas(db);
 
-	const dependencies: StartupDependencies = {
+	const dependencies = {
 		latestSchemaVersion: LATEST_SCHEMA_VERSION,
-		appVersion,
-		liveDatabasePath: paths.databasePath,
+		appVersion: 'web-test',
+		liveDatabasePath: '/web/notchy.db',
 		now: () => new Date(),
-		createUpgradeBackup: async (sourceSchema) => {
-			await ensureDirectory(paths.upgradeBackupDir);
-			const record = await createVerifiedUpgradeBackup(db, {
-				backupDir: paths.upgradeBackupDir,
-				sourceSchema,
-				targetSchema: LATEST_SCHEMA_VERSION,
-				sourceAppVersion: appVersion,
-				createdAt: new Date(),
-				ensureDirectory,
-				openReadOnly: openReadOnlyDatabase
-			});
-			// Only prune after the verified record exists: the just-created backup
-			// is the newest, so it survives the retention cut.
-			const records = await listUpgradeBackupRecords(paths.upgradeBackupDir);
-			for (const path of getUpgradeBackupsToDelete(records)) {
-				await removeFile(path);
-			}
-			return record;
-		},
+		createUpgradeBackup: async (sourceSchema: number) => ({
+			path: '/web/backups/upgrades/test.zip',
+			sourceSchema,
+			targetSchema: LATEST_SCHEMA_VERSION,
+			sourceAppVersion: 'web-test',
+			createdAt: new Date().toISOString(),
+			verified: true as const,
+		}),
 		runMigrations: () => runMigrations(db, migrations),
 		verifyAfterMigration: async () => {
 			await runIntegrityCheck(db);
 			await checkOrphanedTransfers(db);
-		}
+		},
 	};
 
-	return prepareDatabase(db, dependencies, onStage);
+	type StartupStage = 'checking' | 'backing_up' | 'migrating' | 'verifying' | 'ready' | 'recovery_required';
+	await prepareDatabase(db, dependencies, onStage as ((stage: StartupStage) => void) | undefined);
+	_db = new BrowserDatabaseClient(db);
 }
 
+/**
+ * Close the database connection. Under Tauri this is a no-op (Rust owns
+ * the connection). Under browser this closes the sql.js handle.
+ */
 export async function closeDb(): Promise<void> {
-	if (_db) {
-		await _db.close();
-		_db = null;
-	}
+	_db = null;
 }

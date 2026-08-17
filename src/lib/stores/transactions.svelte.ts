@@ -1,6 +1,5 @@
 import { getDb } from '$lib/db';
-import * as repo from '$lib/db/repos/transactions';
-import type { Transaction, NewTransaction, TransactionFilter } from '$lib/db/repos/transactions';
+import type { Transaction, NewTransaction, TransactionFilter } from '$lib/db/client';
 import { toast } from '$lib/stores/toast.svelte';
 import { mapError } from '$lib/utils/errors';
 
@@ -15,8 +14,8 @@ class TransactionsStore {
 		this.loading = true;
 		this.error = null;
 		try {
-			const db = await getDb();
-			this.items = await repo.listTransactions(db, this.lastFilter);
+			const db = getDb();
+			this.items = await db.transactions.list(this.lastFilter);
 		} catch (e) {
 			this.error = mapError(e);
 		} finally {
@@ -25,23 +24,23 @@ class TransactionsStore {
 	}
 
 	async create(input: NewTransaction): Promise<string> {
-		const db = await getDb();
-		const id = await repo.createTransaction(db, input);
+		const db = getDb();
+		const id = await db.transactions.create(input);
 		await this.load();
 		return id;
 	}
 
 	async update(id: string, patch: Partial<NewTransaction>): Promise<void> {
-		const db = await getDb();
-		await repo.updateTransaction(db, id, patch);
+		const db = getDb();
+		await db.transactions.update(id, patch);
 		await this.load();
 	}
 
 	async delete(id: string): Promise<void> {
-		const db = await getDb();
+		const db = getDb();
 		// Capture for undo
-		const tx = await repo.getTransaction(db, id);
-		await repo.deleteTransaction(db, id);
+		const tx = await db.transactions.get(id);
+		await db.transactions.delete(id);
 		await this.load();
 
 		if (tx) {
@@ -49,8 +48,8 @@ class TransactionsStore {
 				action: 'UNDO',
 				duration: 5000,
 				onaction: async () => {
-					const db2 = await getDb();
-					await repo.restoreTransaction(db2, id);
+					const db2 = getDb();
+					await db2.transactions.restore(id);
 					await this.load();
 					toast.show('Transaction restored.');
 				}
@@ -59,8 +58,8 @@ class TransactionsStore {
 	}
 
 	async duplicate(id: string): Promise<string> {
-		const db = await getDb();
-		const newId = await repo.duplicateTransaction(db, id);
+		const db = getDb();
+		const newId = await db.transactions.duplicate(id);
 		await this.load();
 		return newId;
 	}

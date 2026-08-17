@@ -2,13 +2,15 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createTestDb } from '../helpers/test-db';
 import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
+import { BrowserDatabaseClient } from '$lib/db/browser/client';
 import * as meta from '$lib/db/repos/meta';
 import type { DatabaseService } from '$lib/db/service';
 
-// Mock getDb to return our test db
+// Mock getDb to return our test db wrapped in AppDatabase
 let db: DatabaseService;
+let appDb: BrowserDatabaseClient;
 vi.mock('$lib/db', () => ({
-	getDb: async () => db
+	getDb: () => appDb
 }));
 
 // Fresh import per test group to reset singleton state
@@ -17,6 +19,7 @@ let tour: typeof import('$lib/stores/tour.svelte').tour;
 beforeEach(async () => {
 	db = createTestDb();
 	await runMigrations(db, migrations);
+	appDb = new BrowserDatabaseClient(db);
 	vi.resetModules();
 	tour = (await import('$lib/stores/tour.svelte')).tour;
 });

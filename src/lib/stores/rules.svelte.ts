@@ -1,12 +1,11 @@
 import { getDb } from '$lib/db';
-import * as rulesRepo from '$lib/db/repos/rules';
-import * as transactionsRepo from '$lib/db/repos/transactions';
+import type { CategorizeRule, NewCategorizeRule, CategorizeRuleUpdate } from '$lib/db/client';
 import { matchRules, type CategorizeRuleLite } from '$lib/utils/rules_matcher';
 import { normalizePayee } from '$lib/utils/normalize_payee';
 import { mapError } from '$lib/utils/errors';
 
 class RulesStore {
-	items = $state<rulesRepo.CategorizeRule[]>([]);
+	items = $state<CategorizeRule[]>([]);
 	loading = $state(false);
 	error = $state<string | null>(null);
 
@@ -24,8 +23,8 @@ class RulesStore {
 		this.loading = true;
 		this.error = null;
 		try {
-			const db = await getDb();
-			this.items = await rulesRepo.listAllRules(db);
+			const db = getDb();
+			this.items = await db.rules.listAll();
 		} catch (e) {
 			this.error = mapError(e);
 		} finally {
@@ -37,23 +36,23 @@ class RulesStore {
 		return matchRules(payee, this.active);
 	}
 
-	async create(input: rulesRepo.NewCategorizeRule): Promise<rulesRepo.CategorizeRule> {
-		const db = await getDb();
-		const rule = await rulesRepo.createRule(db, input);
+	async create(input: NewCategorizeRule): Promise<CategorizeRule> {
+		const db = getDb();
+		const rule = await db.rules.create(input);
 		await this.load();
 		return rule;
 	}
 
-	async update(id: string, patch: rulesRepo.CategorizeRuleUpdate): Promise<rulesRepo.CategorizeRule> {
-		const db = await getDb();
-		const rule = await rulesRepo.updateRule(db, id, patch);
+	async update(id: string, patch: CategorizeRuleUpdate): Promise<CategorizeRule> {
+		const db = getDb();
+		const rule = await db.rules.update(id, patch);
 		await this.load();
 		return rule;
 	}
 
 	async delete(id: string): Promise<void> {
-		const db = await getDb();
-		await rulesRepo.deleteRule(db, id);
+		const db = getDb();
+		await db.rules.delete(id);
 		await this.load();
 	}
 
@@ -63,10 +62,10 @@ class RulesStore {
 		}
 
 		try {
-			const db = await getDb();
+			const db = getDb();
 
 			// Fetch last 50 transactions
-			const recent = await transactionsRepo.listTransactions(db, {
+			const recent = await db.transactions.list({
 				limit: 50
 			});
 
@@ -88,7 +87,7 @@ class RulesStore {
 			}
 
 			// All consistent — upsert learned rule
-			const rule = await rulesRepo.upsertLearned(db, payee, tag_id);
+			const rule = await db.rules.upsertLearned(payee, tag_id);
 			await this.load();
 
 			return { learned: true, ruleId: rule.id };

@@ -4,6 +4,7 @@ export {
 	setMeta,
 	deleteMeta,
 	isFirstRunComplete,
+	setFirstRunComplete,
 	getLocale,
 	getCurrency,
 	isTourComplete,

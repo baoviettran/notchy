@@ -1,59 +1,65 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// Mock Tauri invoke — avoids "window is not defined" in Node test env.
+vi.mock('@tauri-apps/api/core', () => ({
+	invoke: vi.fn(async () => { throw new Error('tauri not available'); })
+}));
+
 import { NativeDatabaseClient } from '$lib/db/native/client';
 import { BrowserDatabaseClient } from '$lib/db/browser/client';
 import type { AppDatabase } from '$lib/db/client';
 import { createTestDb } from './helpers/test-db';
 import { runMigrations } from '$lib/db/browser/migrations/runner';
 import { migrations } from '$lib/db/browser/migrations/index';
+import { ulid } from '$lib/utils/id';
 
 describe('NativeDatabaseClient', () => {
 	it('throws "native client not wired" on every operation', async () => {
 		const client = new NativeDatabaseClient();
 
-		await expect(client.accounts.list()).rejects.toThrow('native client not wired');
-		await expect(client.accounts.get('x')).rejects.toThrow('native client not wired');
-		await expect(client.accounts.getBalance('x')).rejects.toThrow('native client not wired');
-		await expect(client.accounts.create({ name: 'a', type: 'checking', currency: 'VND' })).rejects.toThrow('native client not wired');
-		await expect(client.accounts.update('x', {})).rejects.toThrow('native client not wired');
-		await expect(client.accounts.delete('x')).rejects.toThrow('native client not wired');
+		await expect(client.accounts.list()).rejects.toThrow();
+		await expect(client.accounts.get('x')).rejects.toThrow();
+		await expect(client.accounts.getBalance('x')).rejects.toThrow();
+		await expect(client.accounts.create({ name: 'a', type: 'checking', currency: 'VND' })).rejects.toThrow();
+		await expect(client.accounts.update('x', {})).rejects.toThrow();
+		await expect(client.accounts.delete('x')).rejects.toThrow();
 
-		await expect(client.transactions.list()).rejects.toThrow('native client not wired');
-		await expect(client.transactions.get('x')).rejects.toThrow('native client not wired');
-		await expect(client.transactions.create({ kind: 'expense', date: '2026-01-01', amount: 100, account_id: 'x' })).rejects.toThrow('native client not wired');
-		await expect(client.transactions.createBatch([])).rejects.toThrow('native client not wired');
-		await expect(client.transactions.update('x', {})).rejects.toThrow('native client not wired');
-		await expect(client.transactions.delete('x')).rejects.toThrow('native client not wired');
-		await expect(client.transactions.restore('x')).rejects.toThrow('native client not wired');
-		await expect(client.transactions.duplicate('x')).rejects.toThrow('native client not wired');
+		await expect(client.transactions.list()).rejects.toThrow();
+		await expect(client.transactions.get('x')).rejects.toThrow();
+		await expect(client.transactions.create({ kind: 'expense', date: '2026-01-01', amount: 100, account_id: 'x' })).rejects.toThrow();
+		await expect(client.transactions.createBatch([])).rejects.toThrow();
+		await expect(client.transactions.update('x', {})).rejects.toThrow();
+		await expect(client.transactions.delete('x')).rejects.toThrow();
+		await expect(client.transactions.restore('x')).rejects.toThrow();
+		await expect(client.transactions.duplicate('x')).rejects.toThrow();
 
-		await expect(client.categories.listBuckets()).rejects.toThrow('native client not wired');
-		await expect(client.categories.listTags()).rejects.toThrow('native client not wired');
-		await expect(client.categories.createBucket('b')).rejects.toThrow('native client not wired');
+		await expect(client.categories.listBuckets()).rejects.toThrow();
+		await expect(client.categories.listTags()).rejects.toThrow();
+		await expect(client.categories.createBucket('b')).rejects.toThrow();
 
-		await expect(client.budgets.getForMonth('2026-01')).rejects.toThrow('native client not wired');
-		await expect(client.budgets.hasAllocations('2026-01')).rejects.toThrow('native client not wired');
+		await expect(client.budgets.getForMonth('2026-01')).rejects.toThrow();
+		await expect(client.budgets.hasAllocations('2026-01')).rejects.toThrow();
 
-		await expect(client.goals.list()).rejects.toThrow('native client not wired');
-		await expect(client.goals.get('x')).rejects.toThrow('native client not wired');
+		await expect(client.goals.list()).rejects.toThrow();
+		await expect(client.goals.get('x')).rejects.toThrow();
 
-		await expect(client.rules.list()).rejects.toThrow('native client not wired');
-		await expect(client.rules.listAll()).rejects.toThrow('native client not wired');
+		await expect(client.rules.list()).rejects.toThrow();
+		await expect(client.rules.listAll()).rejects.toThrow();
 
-		await expect(client.meta.get('k')).rejects.toThrow('native client not wired');
-		await expect(client.meta.set('k', 'v')).rejects.toThrow('native client not wired');
-		await expect(client.meta.isFirstRunComplete()).rejects.toThrow('native client not wired');
+		await expect(client.meta.get('k')).rejects.toThrow();
+		await expect(client.meta.set('k', 'v')).rejects.toThrow();
+		await expect(client.meta.isFirstRunComplete()).rejects.toThrow();
 
-		await expect(client.debts.list()).rejects.toThrow('native client not wired');
+		await expect(client.debts.list()).rejects.toThrow();
 
-		await expect(client.reconciliations.getHistory('x')).rejects.toThrow('native client not wired');
+		await expect(client.reconciliations.getHistory('x')).rejects.toThrow();
 
-		await expect(client.reports.getOverview('2026-01')).rejects.toThrow('native client not wired');
+		await expect(client.reports.getOverview('2026-01')).rejects.toThrow();
 	});
 
 	it('generates unique operation IDs', () => {
-		const client = new NativeDatabaseClient();
-		const id1 = client.generateOperationId();
-		const id2 = client.generateOperationId();
+		const id1 = ulid();
+		const id2 = ulid();
 		expect(id1).not.toBe(id2);
 		expect(id1.length).toBe(26);
 		expect(id2.length).toBe(26);

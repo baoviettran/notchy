@@ -16,9 +16,10 @@ pub mod reports;
 pub mod rules;
 pub mod transactions;
 
-pub use accounts::{create_account, delete_account, get_account, list_accounts, update_account};
+pub use accounts::{create_account, delete_account, get_account, get_balance, list_accounts, update_account};
 pub use budgets::{
-    copy_from_previous_month, get_budgets_for_month, has_allocations, set_allocation,
+    copy_from_previous_month, get_budgets_for_month, get_rolled_over, get_spent_for_bucket,
+    has_allocations, set_allocation,
 };
 pub use categories::{
     create_bucket, create_tag, delete_bucket, delete_tag, get_tag_transaction_info, list_buckets,

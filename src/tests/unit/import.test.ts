@@ -4,21 +4,24 @@ import { ImportStore } from '$lib/stores/import.svelte';
 import { createTestDb } from './helpers/test-db';
 import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
+import { BrowserDatabaseClient } from '$lib/db/browser/client';
 import * as txRepo from '$lib/db/repos/transactions';
 import type { DatabaseService } from '$lib/db/service';
 
 describe('ImportStore', () => {
   let db: DatabaseService;
+  let appDb: BrowserDatabaseClient;
   let store: InstanceType<typeof ImportStore>;
 
   beforeEach(async () => {
     db = createTestDb();
     await runMigrations(db, migrations);
+    appDb = new BrowserDatabaseClient(db);
     await db.execute(
       `INSERT INTO accounts (id, name, type, currency, created_at, updated_at)
        VALUES ('acc1', 'Checking', 'checking', 'VND', datetime('now'), datetime('now'))`
     );
-    store = new ImportStore(db, 'VND');
+    store = new ImportStore(appDb, 'VND');
   });
 
   it('starts in select phase', () => {

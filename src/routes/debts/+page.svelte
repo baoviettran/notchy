@@ -10,10 +10,9 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { getDb } from '$lib/db';
-	import { writeOff } from '$lib/db/repos/debts';
 	import { formatCurrency } from '$lib/utils/currency';
 	import { parseAmount } from '$lib/utils/number_parse';
-	import type { DebtAccount } from '$lib/db/repos/debts';
+	import type { DebtAccount } from '$lib/db/client';
 	import * as m from '$lib/paraglide/messages';
 	import { mapError } from '$lib/utils/errors';
 
@@ -51,8 +50,8 @@
 				await debts.load();
 				toast.show(m.debts_payment_recorded());
 			} else {
-				const db = await getDb();
-				await writeOff(db, activeDebt.id, parsed);
+				const db = getDb();
+				await db.debts.writeOff(activeDebt.id, parsed);
 				await debts.load();
 				toast.show(m.debts_written_off());
 			}

@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { getDb } from '$lib/db';
-	import { getOverview } from '$lib/db/repos/reports';
-	import type { OverviewReport } from '$lib/db/repos/reports';
+	import type { OverviewReport } from '$lib/db/client';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
 	import DonutChart from '$lib/components/charts/DonutChart.svelte';
@@ -28,8 +27,8 @@
 	}
 
 	async function load() {
-		const db = await getDb();
-		report = await getOverview(db, currentMonth(), includeAdjustments);
+		const db = getDb();
+		report = await db.reports.getOverview(currentMonth(), includeAdjustments);
 	}
 
 	onMount(load);

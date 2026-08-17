@@ -19,6 +19,7 @@
     "test:roadmap": "node scripts/roadmap.mjs",
     "generate:db-contracts": "cargo run --manifest-path src-tauri/Cargo.toml --bin export_bindings",
     "check:db-contracts": "cargo run --manifest-path src-tauri/Cargo.toml --bin export_bindings -- --check",
+    "check:native-db-cutover": "node scripts/check-native-db-cutover.mjs",
     "test:e2e": "playwright test",
     "release:dogfood": "node scripts/release-dogfood.mjs",
     "tauri": "tauri"

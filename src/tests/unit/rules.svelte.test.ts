@@ -3,15 +3,17 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createTestDb } from './helpers/test-db';
 import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
+import { BrowserDatabaseClient } from '$lib/db/browser/client';
 import type { DatabaseService } from '$lib/db/service';
 import * as categories from '$lib/db/repos/categories';
 import * as transactions from '$lib/db/repos/transactions';
 import * as accounts from '$lib/db/repos/accounts';
 
-// Mock getDb to return our test DB
+// Mock getDb to return our test DB wrapped in AppDatabase
 let db: DatabaseService;
+let appDb: BrowserDatabaseClient;
 vi.mock('$lib/db', () => ({
-	getDb: async () => db
+	getDb: () => appDb
 }));
 
 // Import after mocking
@@ -20,6 +22,7 @@ const { rules } = await import('$lib/stores/rules.svelte');
 beforeEach(async () => {
 	db = createTestDb();
 	await runMigrations(db, migrations);
+	appDb = new BrowserDatabaseClient(db);
 	await rules.load();
 });
 
