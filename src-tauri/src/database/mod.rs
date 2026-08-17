@@ -5,18 +5,21 @@
 //! lifecycle snapshot, exact connection policy, and authoritative OS lock.
 
 pub mod backup;
+pub mod commands;
 pub mod connection;
 pub mod error;
 pub mod executor;
 pub mod lock;
 pub mod manifest;
 pub mod migrations;
+pub mod startup;
 pub mod types;
 
 pub use backup::{
     cleanup_interrupted_publications, discover_verified_backups, publish_backup,
     retention_deletions, BackupFailurePoint,
 };
+pub use commands::{database_initialize, database_retry, database_status};
 pub use connection::{open_live, open_read_only, DatabasePaths};
 pub use error::{validate_money, DbError, DbResult, ErrorCode, MetaKey};
 pub use executor::{DatabaseManager, ExecutorState};
@@ -26,6 +29,7 @@ pub use migrations::{
     bootstrap_current, migrate_supported, run_migrations, FailurePoint, Migration, MIGRATIONS,
     LATEST_SCHEMA_VERSION, MIN_SUPPORTED_SCHEMA_VERSION,
 };
+pub use startup::{DatabaseStatus, StartupEvent};
 pub use types::{
     validate_bounded_list, validate_bounded_text, BackupSummary, BackupToken, IsoDate,
     LifecycleState, OperationId, Page, Patch, RecoveryContext, StartupStage,

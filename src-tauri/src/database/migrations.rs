@@ -623,7 +623,7 @@ fn migration_003(transaction: &Transaction<'_>) -> DbResult<()> {
 }
 
 /// Current UTC time as an ISO-8601 timestamp (`YYYY-MM-DDTHH:MM:SSZ`).
-fn now_iso_utc() -> String {
+pub(crate) fn now_iso_utc() -> String {
     let seconds = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()

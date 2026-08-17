@@ -13,7 +13,8 @@ use std::thread::JoinHandle;
 use crate::database::connection::DatabasePaths;
 use crate::database::error::{DbError, DbResult, ErrorCode};
 use crate::database::lock::ProcessLock;
-use crate::database::types::LifecycleState;
+use crate::database::startup::StartupEvent;
+use crate::database::types::{LifecycleState, RecoveryContext, StartupStage};
 
 /// One complete synchronous database operation, executed on the executor thread.
 pub type Job = Box<dyn FnOnce(&mut ExecutorState) + Send + 'static>;
@@ -26,18 +27,38 @@ enum Message {
 
 /// Mutable state owned exclusively by the executor thread.
 ///
-/// Later tasks add the live connection and migration/backup context here;
-/// nothing in this state is ever accessed from another thread.
-pub struct ExecutorState;
+/// The sole live `rusqlite::Connection` (opened by the startup task) lives
+/// here and never crosses threads; nothing in this state is ever accessed from
+/// another thread.
+pub struct ExecutorState {
+    connection: Option<rusqlite::Connection>,
+}
 
 impl ExecutorState {
     pub(crate) fn new() -> Self {
-        ExecutorState
+        ExecutorState { connection: None }
     }
 
     /// The ID of the executor thread. Every job reports the same value.
     pub fn thread_id(&self) -> std::thread::ThreadId {
         std::thread::current().id()
+    }
+
+    /// The sole live connection, available only once the boundary is `Ready`.
+    pub fn connection(&self) -> DbResult<&rusqlite::Connection> {
+        self.connection
+            .as_ref()
+            .ok_or_else(|| DbError::new(ErrorCode::DatabaseNotReady))
+    }
+
+    /// Install the live connection opened by the startup sequence. Refuses to
+    /// replace an existing connection; only `initialize` calls this.
+    pub(crate) fn store_connection(&mut self, connection: rusqlite::Connection) -> DbResult<()> {
+        if self.connection.is_some() {
+            return Err(DbError::new(ErrorCode::DatabaseInvalid));
+        }
+        self.connection = Some(connection);
+        Ok(())
     }
 }
 
@@ -48,23 +69,37 @@ pub struct DatabaseManager {
     lifecycle: Arc<RwLock<LifecycleState>>,
     lock: Arc<ProcessLock>,
     handle: Mutex<Option<JoinHandle<()>>>,
+    paths: DatabasePaths,
+    startup_stage: Arc<RwLock<Option<StartupStage>>>,
+    recovery: Arc<RwLock<Option<RecoveryContext>>>,
+    startup_events: tokio::sync::broadcast::Sender<StartupEvent>,
+    pub(crate) startup_lock: tokio::sync::Mutex<()>,
+    migration_pause: Arc<Mutex<Option<std::sync::mpsc::Receiver<()>>>>,
 }
 
 impl DatabaseManager {
     /// Acquire the process lock and start the dedicated executor thread.
     ///
     /// Returns `DatabaseLocked` when another process already holds the lock;
-    /// SQLite is never opened in that case.
+    /// SQLite is never opened in that case. The lock is held for the manager's
+    /// lifetime, so `initialize` always runs with the lock already held.
     pub fn spawn(paths: DatabasePaths, queue_capacity: usize) -> DbResult<Arc<DatabaseManager>> {
         let lock = Arc::new(ProcessLock::acquire(&paths.lock_file())?);
         let (sender, receiver) = sync_channel::<Message>(queue_capacity);
         let lifecycle = Arc::new(RwLock::new(LifecycleState::Uninitialized));
         let handle = spawn_executor(receiver, Arc::clone(&lock));
+        let (startup_events, _) = tokio::sync::broadcast::channel(64);
         Ok(Arc::new(DatabaseManager {
             sender,
             lifecycle,
             lock,
             handle: Mutex::new(Some(handle)),
+            paths,
+            startup_stage: Arc::new(RwLock::new(None)),
+            recovery: Arc::new(RwLock::new(None)),
+            startup_events,
+            startup_lock: tokio::sync::Mutex::new(()),
+            migration_pause: Arc::new(Mutex::new(None)),
         }))
     }
 
@@ -137,6 +172,105 @@ impl DatabaseManager {
             if let Some(handle) = guard.take() {
                 let _ = handle.join();
             }
+        }
+    }
+
+    /// Run a database operation guarded by the lifecycle: only `Ready` callers
+    /// reach the executor. This is the single data-job entry point.
+    pub async fn data_job<T, F>(&self, operation: F) -> DbResult<T>
+    where
+        T: Send + 'static,
+        F: FnOnce(&mut ExecutorState) -> DbResult<T> + Send + 'static,
+    {
+        self.ensure_ready()?;
+        self.call(operation).await
+    }
+
+    /// The lifecycle guard shared by every data-job entry point.
+    pub fn ensure_ready(&self) -> DbResult<()> {
+        match self.snapshot() {
+            LifecycleState::Ready => Ok(()),
+            LifecycleState::Uninitialized | LifecycleState::Initializing => {
+                Err(DbError::new(ErrorCode::DatabaseUpdateRequired))
+            }
+            LifecycleState::RecoveryRequired | LifecycleState::Restoring => {
+                Err(DbError::new(ErrorCode::RecoveryRequired))
+            }
+        }
+    }
+
+    /// Subscribe to startup progress events (`checking`, `backing_up`,
+    /// `migrating`, `verifying`, `ready`, `recovery_required`).
+    pub fn subscribe_startup(&self) -> tokio::sync::broadcast::Receiver<StartupEvent> {
+        self.startup_events.subscribe()
+    }
+
+    /// The active startup stage, or `None` outside initialization.
+    pub fn startup_stage(&self) -> Option<StartupStage> {
+        match self.startup_stage.read() {
+            Ok(guard) => *guard,
+            Err(_) => None,
+        }
+    }
+
+    /// The recovery context retained after a failed startup, if any.
+    pub fn recovery_context(&self) -> Option<RecoveryContext> {
+        match self.recovery.read() {
+            Ok(guard) => guard.clone(),
+            Err(_) => None,
+        }
+    }
+
+    /// The directory where verified backups are published and discovered.
+    pub fn backup_dir(&self) -> std::path::PathBuf {
+        self.paths.data_dir.join("backups")
+    }
+
+    /// Test-only: arm a one-shot pause at the migration stage. The returned
+    /// sender must be kept alive; firing it resumes the blocked migration. The
+    /// receiver is consumed by the first migration that reaches the pause
+    /// point, so a leftover pause can never stall a later startup.
+    #[doc(hidden)]
+    pub fn arm_migration_pause(&self) -> std::sync::mpsc::Sender<()> {
+        let (tx, rx) = std::sync::mpsc::channel();
+        *self.migration_pause.lock().unwrap() = Some(rx);
+        tx
+    }
+
+    /// The resolved native paths. `pub(crate)`: the startup task reads these;
+    /// callers use the public `backup_dir` accessor.
+    pub(crate) fn paths(&self) -> &DatabasePaths {
+        &self.paths
+    }
+
+    pub(crate) fn set_lifecycle(&self, state: LifecycleState) {
+        if let Ok(mut guard) = self.lifecycle.write() {
+            *guard = state;
+        }
+    }
+
+    pub(crate) fn set_startup_stage(&self, stage: Option<StartupStage>) {
+        if let Ok(mut guard) = self.startup_stage.write() {
+            *guard = stage;
+        }
+    }
+
+    pub(crate) fn set_recovery(&self, context: Option<RecoveryContext>) {
+        if let Ok(mut guard) = self.recovery.write() {
+            *guard = context;
+        }
+    }
+
+    pub(crate) fn emit_startup_event(&self, event: StartupEvent) {
+        let _ = self.startup_events.send(event);
+    }
+
+    /// Block the executor at the migration stage when the one-shot test pause
+    /// is armed; a no-op in production.
+    pub(crate) fn await_migration_pause(&self) {
+        let receiver = self.migration_pause.lock().unwrap().take();
+        if let Some(receiver) = receiver {
+            let _ = receiver.recv();
         }
     }
 }

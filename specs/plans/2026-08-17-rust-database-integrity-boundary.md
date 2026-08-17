@@ -412,7 +412,7 @@ git commit -m "feat(db-native): publish verified durable backups"
 - Produces: `DatabaseManager::initialize`, `retry`, and `status`.
 - Produces: main-only `database_initialize`, `database_retry`, and `database_status` command functions.
 
-- [ ] **Step 1: Write failing lifecycle and authorization tests**
+- [x] **Step 1: Write failing lifecycle and authorization tests**
 
 ```rust
 #[tokio::test]
@@ -429,23 +429,23 @@ async fn quick_add_cannot_initialize_or_write_during_migration() {
 }
 ```
 
-- [ ] **Step 2: Confirm the red state**
+- [x] **Step 2: Confirm the red state**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test startup --test command_guards`
 
 Expected: FAIL because lifecycle orchestration and guards do not exist.
 
-- [ ] **Step 3: Implement the native state machine**
+- [x] **Step 3: Implement the native state machine**
 
 `initialize` acquires the process lock before inspection, performs read-only classification, publishes an upgrade backup for supported older schemas, opens the live connection, migrates, validates exact schema 6, writes safe startup metadata, then enters `Ready`. Any failure enters `RecoveryRequired` with retained verified backup summaries. All data-job entry points check `Ready`. Check `WebviewWindow::label()` for main-only operations.
 
-- [ ] **Step 4: Verify fresh/current/older/newer/invalid and concurrent initialization**
+- [x] **Step 4: Verify fresh/current/older/newer/invalid and concurrent initialization**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test startup --test command_guards`
 
 Expected: PASS; concurrent initialize calls coalesce and no secondary caller opens SQLite.
 
-- [ ] **Step 5: Commit Task 5**
+- [x] **Step 5: Commit Task 5**
 
 ```sh
 git add src-tauri/src/database/startup.rs src-tauri/src/database/commands.rs src-tauri/src/database/mod.rs src-tauri/tests/startup.rs src-tauri/tests/command_guards.rs

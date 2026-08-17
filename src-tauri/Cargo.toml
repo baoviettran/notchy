@@ -33,3 +33,6 @@ ulid = { version = "3", features = ["serde"] }
 blake3 = "1"
 thiserror = "2"
 ts-rs = { version = "12", features = ["serde-compat", "no-serde-warnings"] }
+
+[dev-dependencies]
+tauri = { version = "2.5.0", features = ["test"] }
