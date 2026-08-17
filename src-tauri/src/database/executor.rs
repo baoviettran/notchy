@@ -51,6 +51,15 @@ impl ExecutorState {
             .ok_or_else(|| DbError::new(ErrorCode::DatabaseNotReady))
     }
 
+    /// Mutable access to the live connection, for callers that need to start
+    /// transactions (e.g. run_idempotent). Only available after the boundary
+    /// is Ready (connection is stored).
+    pub fn connection_mut(&mut self) -> DbResult<&mut rusqlite::Connection> {
+        self.connection
+            .as_mut()
+            .ok_or_else(|| DbError::new(ErrorCode::DatabaseUpdateRequired))
+    }
+
     /// Install the live connection opened by the startup sequence. Refuses to
     /// replace an existing connection; only `initialize` calls this.
     pub(crate) fn store_connection(&mut self, connection: rusqlite::Connection) -> DbResult<()> {

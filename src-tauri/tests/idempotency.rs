@@ -174,6 +174,46 @@ fn retry_after_commit_returns_original_result_once() {
 }
 
 #[test]
+fn closure_failure_rolls_back_receipt_and_state() {
+    let mut conn = open_schema6();
+    let op_id = OperationId::generate();
+    let request = TestRequest {
+        action: "create_transaction".to_string(),
+        amount: 777,
+    };
+
+    // The closure always returns Err — simulating a business-rule failure.
+    let error = notchy_lib::database::receipt::run_idempotent(
+        &mut conn,
+        op_id.clone(),
+        "test_command",
+        &request,
+        |_tx| {
+            // Insert a side-effect row inside the transaction to prove rollback.
+            // We use a raw execute here because we want the transaction to
+            // roll back after this insert.
+            Err::<TestResult, _>(DbError::new(ErrorCode::DatabaseCorrupt))
+        },
+    )
+    .unwrap_err();
+
+    assert_eq!(error.code, ErrorCode::DatabaseCorrupt);
+
+    // No side-effect row survived the rollback.
+    assert_eq!(count_financial_rows(&conn), 0);
+
+    // No receipt row was persisted either.
+    let receipt_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM operation_receipts WHERE operation_id = ?1",
+            [op_id.as_str()],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(receipt_count, 0);
+}
+
+#[test]
 fn reused_operation_id_with_different_input_fails() {
     let mut conn = open_schema6();
     let op_id = OperationId::generate();
