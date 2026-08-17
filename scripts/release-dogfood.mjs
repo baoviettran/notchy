@@ -15,6 +15,27 @@ import path from 'node:path';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEB_BUNDLE_DIR = path.join(ROOT, 'src-tauri', 'target', 'release', 'bundle', 'deb');
 
+const ALLOWED_UNTRACKED_PREFIXES = [
+	'.codegraph/',
+	'artifacts/0.2.0/',
+	'build/',
+	'.svelte-kit/',
+	'src-tauri/target/',
+];
+
+export const RELEASE_GATE_ORDER = [
+	'check:native-db-cutover',
+	'check:db-contracts',
+	'cargo test',
+	'pnpm check',
+	'pnpm test',
+	'pnpm test:e2e',
+	'pnpm test:mutation:db',
+	'pnpm build',
+	'cargo check',
+	'git diff --check',
+];
+
 export function readDeclaredVersions() {
 	const packageJson = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 	const tauriConf = JSON.parse(readFileSync(path.join(ROOT, 'src-tauri', 'tauri.conf.json'), 'utf8'));
@@ -64,6 +85,33 @@ export function checksumLine(version, arch, hash) {
 	return `${hash}  ${path.posix.join('artifacts', version, deb)}\n`;
 }
 
+/**
+ * Assert the working tree is clean for release: no tracked modifications and
+ * every untracked path must match one of the allowed prefixes.
+ *
+ * @param {Array<{path: string, status: string}>} entries - parsed from `git status --porcelain=v1 --untracked-files=all`
+ */
+export function assertClean(entries) {
+	for (const entry of entries) {
+		const indexStatus = entry.status[0];
+		const worktreeStatus = entry.status[1];
+		// Tracked modifications: any non-space character in index or worktree column
+		// (except '?' which marks untracked)
+		const indexModified = indexStatus !== ' ' && indexStatus !== '?';
+		const worktreeModified = worktreeStatus !== ' ' && worktreeStatus !== '?';
+		if (indexModified || worktreeModified) {
+			throw new Error(`tracked modification at release start: ${entry.path} (${entry.status.trim()})`);
+		}
+		// Untracked files: status is '??'
+		if (indexStatus === '?' && worktreeStatus === '?') {
+			const allowed = ALLOWED_UNTRACKED_PREFIXES.some((prefix) => entry.path.startsWith(prefix));
+			if (!allowed) {
+				throw new Error(`untracked source file at release start: ${entry.path}`);
+			}
+		}
+	}
+}
+
 function run(command, args) {
 	const result = spawnSync(command, args, { stdio: 'inherit' });
 	if (result.status !== 0) {
@@ -100,10 +148,44 @@ async function main() {
 	assertVersionsMatch(versions);
 	const version = versions.package;
 
-	run('git', ['diff', '--quiet']);
-	run('git', ['diff', '--cached', '--quiet']);
-	run('pnpm', ['test']);
-	run('pnpm', ['check']);
+	// Enforce clean working tree before any gate
+	const statusResult = spawnSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], { encoding: 'utf8' });
+	if (statusResult.status !== 0) {
+		console.error(`git status failed: ${statusResult.stderr}`);
+		process.exit(1);
+	}
+	const entries = statusResult.stdout
+		.split('\n')
+		.filter((line) => line.length > 0)
+		.map((line) => ({
+			status: line.substring(0, 2),
+			path: line.substring(3),
+		}));
+	assertClean(entries);
+
+	// Run the full release gate
+	for (const step of RELEASE_GATE_ORDER) {
+		const [cmd, ...args] = step === 'cargo test'
+			? ['cargo', ['test', '--manifest-path', 'src-tauri/Cargo.toml']]
+			: step === 'cargo check'
+				? ['cargo', ['check', '--manifest-path', 'src-tauri/Cargo.toml']]
+				: step === 'git diff --check'
+					? ['git', ['diff', '--check']]
+					: step === 'pnpm test:e2e'
+						? ['pnpm', ['test:e2e']]
+						: step === 'pnpm test:mutation:db'
+							? ['pnpm', ['test:mutation:db']]
+							: step === 'pnpm check'
+								? ['pnpm', ['check']]
+								: step === 'pnpm test'
+									? ['pnpm', ['test']]
+									: step === 'pnpm build'
+										? ['pnpm', ['build']]
+										: ['pnpm', [step]];
+		run(cmd, args);
+	}
+
+	// Build the Tauri .deb
 	run('pnpm', ['tauri', 'build', '--bundles', 'deb']);
 
 	const { sourcePath, names, arch } = await locateDeb(version);

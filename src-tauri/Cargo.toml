@@ -1,6 +1,6 @@
 [package]
 name = "notchy"
-version = "0.1.4"
+version = "0.2.0"
 description = "A local-first personal finance application"
 authors = ["hoangtu34"]
 license = "MIT"
@@ -27,7 +27,7 @@ tauri-plugin-opener = "2.5.0"
 tauri-plugin-single-instance = "2"
 rusqlite = { version = "0.32", features = ["bundled", "backup"] }
 fs2 = "0.4"
-tokio = { version = "1", features = ["sync", "rt", "macros"] }
+tokio = { version = "1", features = ["sync", "rt", "macros", "time"] }
 ulid = { version = "3", features = ["serde"] }
 blake3 = "1"
 thiserror = "2"

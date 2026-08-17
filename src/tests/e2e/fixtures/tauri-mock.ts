@@ -440,15 +440,75 @@ window.__TAURI_INTERNALS__ = {
 		// domain commands instead of plugin:sql|*. Translate them to SQL queries.
 		const LIVE_DB_PATH = APP_DATA_DIR + '/notchy.db';
 		if (cmd === 'database_initialize' || cmd === 'database_retry' || cmd === 'database_status') {
+			const LATEST = 6;
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
 			// Run migrations if needed
 			const schemaRow = select(db, "SELECT value FROM app_meta WHERE key = 'schema_version'", []);
 			const currentVersion = schemaRow.length > 0 ? parseInt(schemaRow[0].value) : 0;
+
+			// Schema newer than LATEST → recovery_required
+			if (currentVersion > LATEST) {
+				return {
+					state: 'recovery_required',
+					current: { recovery_required: {} },
+					recovery: {
+						code: 'database_schema_newer',
+						app_version: '0.2.0',
+						latest_schema_version: LATEST,
+						detected_schema_version: currentVersion,
+						live_database_path: LIVE_DB_PATH,
+						backup_path: null,
+						detail: 'schema ' + currentVersion
+					}
+				};
+			}
+
 			if (currentVersion < 5) {
+				// Injected upgrade-backup failure
+				if (faults.failUpgradeBackup) {
+					return {
+						state: 'recovery_required',
+						current: { recovery_required: {} },
+						recovery: {
+							code: 'upgrade_backup_failed',
+							app_version: '0.2.0',
+							latest_schema_version: LATEST,
+							detected_schema_version: currentVersion,
+							live_database_path: LIVE_DB_PATH,
+							backup_path: null,
+							detail: 'tauri-mock: injected upgrade-backup failure'
+						}
+					};
+				}
+
+				// Injected migration failure (check before running migration)
+				if (faults.failMigrationVersion != null && faults.failMigrationVersion === 5) {
+					return {
+						state: 'recovery_required',
+						current: { recovery_required: {} },
+						recovery: {
+							code: 'migration_failed',
+							app_version: '0.2.0',
+							latest_schema_version: LATEST,
+							detected_schema_version: currentVersion,
+							live_database_path: LIVE_DB_PATH,
+							backup_path: null,
+							detail: 'tauri-mock: injected migration failure'
+						}
+					};
+				}
+
 				// Run migration 005 (add goals table etc.)
 				db.run('CREATE TABLE IF NOT EXISTS goals (id TEXT PRIMARY KEY, name TEXT NOT NULL, goal_type TEXT NOT NULL, target_amount INTEGER NOT NULL, target_date TEXT NOT NULL, linked_account_id TEXT, starting_amount INTEGER DEFAULT 0, current_amount INTEGER DEFAULT 0, show_on_dashboard INTEGER DEFAULT 1, status TEXT DEFAULT active, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT)');
 				db.run("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', '5')");
 			}
+
+			if (currentVersion < LATEST) {
+				// Run migration 006 (operation_receipts table)
+				db.run('CREATE TABLE IF NOT EXISTS operation_receipts (operation_id TEXT PRIMARY KEY, command_kind TEXT NOT NULL, request_hash TEXT NOT NULL, result_json TEXT NOT NULL, completed_at TEXT NOT NULL)');
+				db.run("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', '" + LATEST + "')");
+			}
+
 			return { state: 'ready', current: { ready: {} }, recovery: null };
 		}
 		if (cmd === 'account_list') {

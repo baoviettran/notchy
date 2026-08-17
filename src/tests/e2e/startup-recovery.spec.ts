@@ -27,12 +27,12 @@ async function liveQuery<T>(page: Page, sql: string): Promise<T[]> {
 
 test.describe('protected startup', () => {
 	test.describe('schema newer', () => {
-		test.use({ tauriMockOptions: { initialSchemaVersion: 6 } });
+		test.use({ tauriMockOptions: { initialSchemaVersion: 7 } });
 
 		test('blocks finance routes when the database schema is newer', async ({ tauriMockPage: page }) => {
 			await page.goto('/');
 			await expect(page.getByRole('heading', { name: 'Notchy needs attention' })).toBeVisible();
-			await expect(page.getByText(/schema 6/i)).toBeVisible();
+			await expect(page.getByText(/schema 7/i)).toBeVisible();
 			await expect(page.getByRole('link', { name: 'Transactions' })).toHaveCount(0);
 		});
 	});
@@ -109,7 +109,7 @@ test.describe('protected startup', () => {
 				page,
 				"SELECT value FROM app_meta WHERE key = 'schema_version'"
 			);
-			expect(schema[0].value).toBe('5');
+			expect(schema[0].value).toBe('6');
 		});
 	});
 

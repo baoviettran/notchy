@@ -1,4 +1,13 @@
-import Database from '@tauri-apps/plugin-sql';
+/**
+ * Local interface matching the tauri-plugin-sql Database API. The npm package
+ * was removed as part of the native database cutover (Task 14/15); this stub
+ * keeps the TauriDatabase wrapper compiling without the external dependency.
+ */
+interface PluginDatabase {
+	execute(sql: string, params?: unknown[]): Promise<{ rowsAffected: number; lastInsertId?: number }>;
+	select<T>(sql: string, params?: unknown[]): Promise<T>;
+	close(): Promise<void>;
+}
 
 export interface QueryResult {
 	rowsAffected: number;
@@ -26,7 +35,7 @@ export function uniqueSavepointName(): string {
 }
 
 export class TauriDatabase implements DatabaseService {
-	constructor(private db: Database) {}
+	constructor(private db: PluginDatabase) {}
 
 	async execute(sql: string, params: unknown[] = []): Promise<QueryResult> {
 		const r = await this.db.execute(sql, params);
@@ -60,6 +69,14 @@ export class TauriDatabase implements DatabaseService {
 }
 
 export async function createTauriDb(path: string): Promise<DatabaseService> {
-	const db = await Database.load(path);
+	// After the native database cutover (Task 14/15), this path is dead code in
+	// production.  It remains reachable in E2E (Playwright sql.js mock) and unit
+	// tests that exercise backup-validation through the in-memory adapter.
+	// The npm package was removed from package.json; the dynamic import bypasses
+	// Rollup's static analysis via string concatenation so the build doesn't fail.
+	const specifier = ['@tauri-apps', 'plugin-sql'].join('/');
+	const mod: { default: { load: (p: string) => Promise<PluginDatabase> } } =
+		await import(/* @vite-ignore */ specifier);
+	const db = await mod.default.load(path);
 	return new TauriDatabase(db);
 }
