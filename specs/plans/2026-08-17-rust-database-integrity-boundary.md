@@ -189,7 +189,7 @@ git commit -m "feat(db-native): define safe database contracts"
 - Produces: `ProcessLock::acquire(path)` held for manager lifetime.
 - Produces: `open_read_only`, `open_live`, and `DatabasePaths`.
 
-- [ ] **Step 1: Write failing ownership, queue, and process-lock tests**
+- [x] **Step 1: Write failing ownership, queue, and process-lock tests**
 
 ```rust
 #[tokio::test]
@@ -216,13 +216,13 @@ fn second_process_never_opens_sqlite() {
 }
 ```
 
-- [ ] **Step 2: Confirm the red state**
+- [x] **Step 2: Confirm the red state**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test database_executor --test process_lock`
 
 Expected: FAIL because the manager, lock, and probe binary do not exist.
 
-- [ ] **Step 3: Implement the executor and exact connection policy**
+- [x] **Step 3: Implement the executor and exact connection policy**
 
 ```rust
 type Job = Box<dyn FnOnce(&mut ExecutorState) + Send + 'static>;
@@ -243,13 +243,13 @@ impl DatabaseManager {
 
 `open_live` applies, in order, `foreign_keys=ON`, `busy_timeout=5000`, legacy WAL checkpoint when detected, `journal_mode=DELETE`, and `synchronous=FULL`. Set app directories to `0700` and created files to `0600` on Unix. `open_read_only` uses SQLite URI `mode=ro` and never runs writable pragmas.
 
-- [ ] **Step 4: Verify executor, file permissions, exact path, and two-process exclusion**
+- [x] **Step 4: Verify executor, file permissions, exact path, and two-process exclusion**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test database_executor --test process_lock`
 
 Expected: PASS; the losing process reports `sqlite_opened=false`.
 
-- [ ] **Step 5: Commit Task 2**
+- [x] **Step 5: Commit Task 2**
 
 ```sh
 git add src-tauri/src/database src-tauri/src/bin/lock_probe.rs src-tauri/tests/database_executor.rs src-tauri/tests/process_lock.rs

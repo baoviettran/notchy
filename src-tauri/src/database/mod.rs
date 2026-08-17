@@ -1,13 +1,19 @@
 //! Native database integrity boundary contracts.
 //!
 //! Task 1 scope: the stable error envelope, common DTO types, and the
-//! TypeScript binding generator. The executor thread, connection policy, OS
-//! lock, and migration registry arrive in later tasks.
+//! TypeScript binding generator. Task 2 scope: the dedicated executor thread,
+//! lifecycle snapshot, exact connection policy, and authoritative OS lock.
 
+pub mod connection;
 pub mod error;
+pub mod executor;
+pub mod lock;
 pub mod types;
 
+pub use connection::{open_live, open_read_only, DatabasePaths};
 pub use error::{validate_money, DbError, DbResult, ErrorCode, MetaKey};
+pub use executor::{DatabaseManager, ExecutorState};
+pub use lock::ProcessLock;
 pub use types::{
     validate_bounded_list, validate_bounded_text, IsoDate, LifecycleState, OperationId, Page,
     Patch, RecoveryContext, StartupStage,
