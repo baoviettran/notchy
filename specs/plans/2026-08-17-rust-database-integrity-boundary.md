@@ -956,7 +956,7 @@ git commit -m "feat(db-native): restore databases crash safely"
 - Produces: `AppDatabase` domain port and inactive `NativeDatabaseClient`.
 - Preserves: browser sql.js behavior for Vitest and Playwright.
 
-- [ ] **Step 1: Write failing invoke-mapping and browser-parity tests**
+- [x] **Step 1: Write failing invoke-mapping and browser-parity tests**
 
 ```typescript
 it('maps one transfer intent to one native command with one operation ULID', async () => {
@@ -973,19 +973,19 @@ it('never exposes execute query or transaction on AppDatabase', () => {
 });
 ```
 
-- [ ] **Step 2: Confirm the red state**
+- [x] **Step 2: Confirm the red state**
 
 Run: `pnpm vitest run src/tests/unit/native-client.test.ts`
 
 Expected: FAIL because the domain port and clients do not exist.
 
-- [ ] **Step 3: Build both inactive adapters**
+- [x] **Step 3: Build both inactive adapters**
 
 `AppDatabase` exposes domain services only. `NativeDatabaseClient` invokes generated commands and generates a new operation ULID once per user intent; retry paths reuse it. `BrowserDatabaseClient` owns the generic `DatabaseService`, sql.js connection, migrations, integrity helpers, schema, pragmas, and moved repository implementations under `src/lib/db/browser/`.
 
 Move—not copy—the generic modules. Until Task 14, the old module paths are compatibility forwarders and the legacy Tauri `service.ts` remains the exclusive production owner; it imports the generic interface from `browser/service.ts`. Native commands remain unregistered and unreachable. This preserves exactly one production owner before and after cutover, never a mixed-owner interval.
 
-- [ ] **Step 4: Verify adapter contracts and full browser suite**
+- [x] **Step 4: Verify adapter contracts and full browser suite**
 
 Run: `pnpm check:db-contracts && pnpm vitest run src/tests/unit/native-client.test.ts`
 
@@ -993,7 +993,7 @@ Run: `pnpm test`
 
 Expected: PASS; production remains on the old backend and native code remains inactive.
 
-- [ ] **Step 5: Commit Task 13**
+- [x] **Step 5: Commit Task 13**
 
 ```sh
 git add src/lib/db/client.ts src/lib/db/native src/lib/db/browser src/lib/db/in-memory.ts src/lib/db/integrity.ts src/lib/db/pragmas.ts src/lib/db/schema.ts src/lib/db/service.ts src/lib/db/migrations src/lib/db/repos src/tests/unit/native-client.test.ts
