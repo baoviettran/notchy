@@ -465,7 +465,7 @@ git commit -m "feat(db-native): enforce protected startup lifecycle"
 - Produces: `run_idempotent(operation_id, command_kind, request, closure)`.
 - Consumes: migration-006 `operation_receipts`.
 
-- [ ] **Step 1: Write failing response-loss, conflict, and rollback tests**
+- [x] **Step 1: Write failing response-loss, conflict, and rollback tests**
 
 ```rust
 #[test]
@@ -484,13 +484,13 @@ fn reused_operation_id_with_different_input_fails() {
 }
 ```
 
-- [ ] **Step 2: Confirm the red state**
+- [x] **Step 2: Confirm the red state**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test idempotency`
 
 Expected: FAIL because receipt hashing and replay do not exist.
 
-- [ ] **Step 3: Implement canonical server-side receipt handling**
+- [x] **Step 3: Implement canonical server-side receipt handling**
 
 Canonicalize the deserialized Rust DTO, hash `command_kind || canonical_json` with BLAKE3, and start `TransactionBehavior::Immediate`. Look up the receipt inside the transaction. Same hash returns deserialized `result_json`; a different hash fails. Otherwise run the business closure and insert its safe result in the same transaction before commit.
 
@@ -508,13 +508,13 @@ where
     F: FnOnce(&Transaction<'_>) -> DbResult<Res>;
 ```
 
-- [ ] **Step 4: Verify every commit/rollback failpoint**
+- [x] **Step 4: Verify every commit/rollback failpoint**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test idempotency`
 
 Expected: PASS; no state exists without a matching receipt and no receipt exists without its state.
 
-- [ ] **Step 5: Commit Task 6**
+- [x] **Step 5: Commit Task 6**
 
 ```sh
 git add src-tauri/src/database/receipt.rs src-tauri/src/database/executor.rs src-tauri/tests/idempotency.rs
