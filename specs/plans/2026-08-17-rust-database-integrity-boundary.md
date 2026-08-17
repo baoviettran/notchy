@@ -854,7 +854,7 @@ git commit -m "feat(db-native): port reports export and health"
 - Proves: backup publication, migration, and restore replacement remain byte-safe across subprocess termination.
 - Consumes: Task 4 opaque tokens and Task 5 lifecycle.
 
-- [ ] **Step 1: Write failing staged-replacement and kill tests**
+- [x] **Step 1: Write failing staged-replacement and kill tests**
 
 ```rust
 #[test]
@@ -872,23 +872,23 @@ Test current-live rollback backup, candidate revalidation, path-token substituti
 
 Add subprocess kill matrices for an upgrade migration and backup publication as well as restore. After every kill, restart through the real startup state machine and assert that the live file is either the accepted pre-operation database or the fully validated post-operation database, with at least one verified recovery point.
 
-- [ ] **Step 2: Confirm the red state**
+- [x] **Step 2: Confirm the red state**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test crash_recovery --test backup_restore`
 
 Expected: FAIL because native restore does not exist.
 
-- [ ] **Step 3: Implement the exact restore protocol**
+- [x] **Step 3: Implement the exact restore protocol**
 
 Enter `Restoring`, reject/drain jobs, publish rollback backup, resolve and revalidate opaque token, copy beside live DB, validate and sync, close the live connection, retire journals/legacy WAL state, atomic rename, sync directory, reopen with exact pragmas, migrate if supported, validate schema 6, then enter `Ready`. Any failure enters `RecoveryRequired` and returns safe backup summaries.
 
-- [ ] **Step 4: Verify process-kill and recovery discovery**
+- [x] **Step 4: Verify process-kill and recovery discovery**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test crash_recovery --test backup_restore`
 
 Expected: PASS at every backup, migration, and restore kill point; no truncated live database is observable.
 
-- [ ] **Step 5: Commit Task 12**
+- [x] **Step 5: Commit Task 12**
 
 ```sh
 git add src-tauri/src/database/restore.rs src-tauri/src/database/startup.rs src-tauri/tests/crash_recovery.rs src-tauri/tests/backup_restore.rs src/lib/db/native/recovery.ts
