@@ -1,6 +1,6 @@
-import type { DatabaseService } from './service';
-import { createTauriDb } from './service';
-import { createInMemoryDb } from './in-memory';
+import type { DatabaseService } from './browser/service';
+import { createTauriDb } from './browser/service';
+import { createInMemoryDb } from './browser/in-memory';
 import type { UpgradeBackupRecord } from '$lib/backup/upgrade';
 import { parseUpgradeBackupName } from '$lib/backup/upgrade';
 

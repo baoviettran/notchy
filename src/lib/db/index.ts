@@ -1,9 +1,9 @@
-import type { DatabaseService } from './service';
-import { applyPragmas } from './pragmas';
-import { runIntegrityCheck, checkOrphanedTransfers } from './integrity';
-import { runMigrations } from './migrations/runner';
-import { migrations, LATEST_SCHEMA_VERSION } from './migrations/index';
-import { inspectSchema } from './schema';
+import type { DatabaseService } from './browser/service';
+import { applyPragmas } from './browser/pragmas';
+import { runIntegrityCheck, checkOrphanedTransfers } from './browser/integrity';
+import { runMigrations } from './browser/migrations/runner';
+import { migrations, LATEST_SCHEMA_VERSION } from './browser/migrations/index';
+import { inspectSchema } from './browser/schema';
 import { prepareDatabase, type StartupDependencies, type StartupStage, type StartupSuccess } from './startup';
 import { AppError } from '$lib/errors';
 import { createVerifiedUpgradeBackup, getUpgradeBackupsToDelete } from '$lib/backup/upgrade';

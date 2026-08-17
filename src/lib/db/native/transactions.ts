@@ -19,7 +19,17 @@ export type NewTransaction = NativeNewTransaction;
 export type TransactionFilter = NativeTransactionFilter;
 export type TransactionPatch = NativeTransactionPatch;
 
-export async function listTransactions(_filter: TransactionFilter = {}): Promise<Transaction[]> {
+export async function listTransactions(_filter: TransactionFilter = {
+	account_id: null,
+	kind: null,
+	tag_id: null,
+	payee: null,
+	date_from: null,
+	date_to: null,
+	query: null,
+	limit: null,
+	offset: null
+}): Promise<Transaction[]> {
 	throw new Error('native transactions adapter not wired');
 }
 

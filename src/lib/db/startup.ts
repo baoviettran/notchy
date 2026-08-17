@@ -1,7 +1,7 @@
 import type { UpgradeBackupRecord } from '$lib/backup/upgrade';
-import { runIntegrityCheck } from './integrity';
-import { inspectSchema, type SchemaInspection } from './schema';
-import type { DatabaseService } from './service';
+import { runIntegrityCheck } from './browser/integrity';
+import { inspectSchema, type SchemaInspection } from './browser/schema';
+import type { DatabaseService } from './browser/service';
 
 export type StartupStage = 'checking' | 'backing_up' | 'migrating' | 'verifying' | 'ready' | 'recovery_required';
 

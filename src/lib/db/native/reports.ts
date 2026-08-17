@@ -2,27 +2,56 @@
  * Native reports adapter — inactive stub.
  *
  * Typed to match `src/lib/db/repos/reports.ts` signatures.
- * Will be wired into production during the frontend port (Task 13).
+ * Will be wired into production during the frontend port (Task 14).
  */
 
-import type {
-	OverviewReport as NativeOverviewReport,
-	TrendPoint as NativeTrendPoint,
-	CompareRow as NativeCompareRow,
-	CategoryTrendPoint as NativeCategoryTrendPoint,
-	StackedCategoryPoint as NativeStackedCategoryPoint,
-	YearOverYearPoint as NativeYearOverYearPoint,
-	NetWorthPoint as NativeNetWorthPoint,
-} from '$lib/native/contracts.generated';
+export interface OverviewReport {
+	total_income: number;
+	total_expense: number;
+	net_cash_flow: number;
+	spending_by_bucket: { type_id: string; name: string; total: number }[];
+	top_categories: { tag_id: string; name: string; total: number }[];
+	top_transactions: { id: string; payee: string | null; amount: number; date: string }[];
+}
 
-// Re-export the generated types under the names the rest of the app uses.
-export type OverviewReport = NativeOverviewReport;
-export type TrendPoint = NativeTrendPoint;
-export type CompareRow = NativeCompareRow;
-export type CategoryTrendPoint = NativeCategoryTrendPoint;
-export type StackedCategoryPoint = NativeStackedCategoryPoint;
-export type YearOverYearPoint = NativeYearOverYearPoint;
-export type NetWorthPoint = NativeNetWorthPoint;
+export interface TrendPoint {
+	month: string;
+	income: number;
+	expense: number;
+	net: number;
+}
+
+export interface CompareRow {
+	tag_id: string | null;
+	name: string;
+	month_a: number;
+	month_b: number;
+	change: number;
+	change_pct: number | null;
+}
+
+export interface CategoryTrendPoint {
+	month: string;
+	spent: number;
+}
+
+export interface StackedCategoryPoint {
+	month: string;
+	tags: { tagId: string | null; name: string; total: number }[];
+}
+
+export interface YearOverYearPoint {
+	month: string;
+	yearAIncome: number;
+	yearAExpense: number;
+	yearBIncome: number;
+	yearBExpense: number;
+}
+
+export interface NetWorthPoint {
+	month: string;
+	netWorth: number;
+}
 
 export async function getOverview(_month: string, _includeAdjustments?: boolean): Promise<OverviewReport> {
 	throw new Error('native reports adapter not wired');
