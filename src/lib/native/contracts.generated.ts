@@ -34,3 +34,7 @@ export type Tag = { id: string, type_id: string, name: string, is_system: number
 export type TagDeleteInfo = { affected_count: number, affected_total: number, };
 export type Budget = { id: string, type_id: string, month: string, allocated: number, created_at: string, updated_at: string, };
 export type BudgetSummary = { type_id: string, month: string, allocated: number, spent: number, remaining: number, rolled_over: number, available: number, };
+export type Reconciliation = { id: string, account_id: string, date: string, expected_balance: number, actual_balance: number, adjustment_transaction_id: string | null, notes: string | null, created_at: string, updated_at: string, };
+export type ReconcileResult = { discrepancy: number, reconciliation_id: string, adjustment_transaction_id: string | null, };
+export type DebtAccount = { id: string, name: string, type: string, counterparty: string, balance: number, last_activity: string | null, };
+export type DebtSummary = { i_owe: Array<DebtAccount>, owed_to_me: Array<DebtAccount>, };

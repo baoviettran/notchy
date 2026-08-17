@@ -420,6 +420,54 @@ pub struct BudgetSummary {
     pub available: i64,
 }
 
+// ---------------------------------------------------------------------------
+// Reconciliation types
+// ---------------------------------------------------------------------------
+
+/// A reconciliation audit record (maps to `reconciliations` table).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct Reconciliation {
+    pub id: String,
+    pub account_id: String,
+    pub date: String,
+    pub expected_balance: i64,
+    pub actual_balance: i64,
+    pub adjustment_transaction_id: Option<String>,
+    pub notes: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Result of a reconcile operation.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ReconcileResult {
+    pub discrepancy: i64,
+    pub reconciliation_id: String,
+    pub adjustment_transaction_id: Option<String>,
+}
+
+// ---------------------------------------------------------------------------
+// Debt types
+// ---------------------------------------------------------------------------
+
+/// A debt account with computed balance.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct DebtAccount {
+    pub id: String,
+    pub name: String,
+    pub r#type: String,
+    pub counterparty: String,
+    pub balance: i64,
+    pub last_activity: Option<String>,
+}
+
+/// Summary of debts split by direction.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct DebtSummary {
+    pub i_owe: Vec<DebtAccount>,
+    pub owed_to_me: Vec<DebtAccount>,
+}
+
 /// An opaque, in-memory handle to one verified published backup.
 ///
 /// Fields are private: callers interact through accessors, and the path shown

@@ -34,8 +34,9 @@ pub use migrations::{
 pub use startup::{DatabaseStatus, StartupEvent};
 pub use types::{
     validate_bounded_list, validate_bounded_text, Account, AccountPatch, AccountType,
-    AccountWithBalance, BackupSummary, BackupToken, Bucket, Budget, BudgetSummary, IsoDate,
-    LifecycleState, NewAccount, NewTransaction, OperationId, Page, Patch, RecoveryContext,
+    AccountWithBalance, BackupSummary, BackupToken, Bucket, Budget, BudgetSummary,
+    DebtAccount, DebtSummary, IsoDate, LifecycleState, NewAccount, NewTransaction,
+    OperationId, Page, Patch, ReconcileResult, Reconciliation, RecoveryContext,
     StartupStage, Tag, TagDeleteInfo, Transaction, TransactionFilter, TransactionKind,
     TransactionPatch,
 };
@@ -96,6 +97,12 @@ pub fn generate_bindings() -> String {
     push_decl(&mut out, TagDeleteInfo::decl(&cfg));
     push_decl(&mut out, Budget::decl(&cfg));
     push_decl(&mut out, BudgetSummary::decl(&cfg));
+
+    // Reconciliation and debt domain types.
+    push_decl(&mut out, Reconciliation::decl(&cfg));
+    push_decl(&mut out, ReconcileResult::decl(&cfg));
+    push_decl(&mut out, DebtAccount::decl(&cfg));
+    push_decl(&mut out, DebtSummary::decl(&cfg));
 
     out
 }

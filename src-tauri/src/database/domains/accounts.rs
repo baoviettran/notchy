@@ -41,7 +41,7 @@ fn row_to_account(row: &rusqlite::Row<'_>) -> rusqlite::Result<AccountWithBalanc
 }
 
 /// Today's date as `YYYY-MM-DD` from the system clock (UTC).
-fn today_iso() -> String {
+pub(crate) fn today_iso() -> String {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default();

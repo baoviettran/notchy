@@ -6,6 +6,8 @@
 pub mod accounts;
 pub mod budgets;
 pub mod categories;
+pub mod debts;
+pub mod reconciliations;
 pub mod transactions;
 
 pub use accounts::{create_account, delete_account, get_account, list_accounts, update_account};
