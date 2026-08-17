@@ -63,6 +63,7 @@ test('allows only exact allowed prefixes for untracked paths', () => {
 	assert.doesNotThrow(() => assertClean([{ path: 'build/index.html', status: '??' }]));
 	assert.doesNotThrow(() => assertClean([{ path: '.svelte-kit/output', status: '??' }]));
 	assert.doesNotThrow(() => assertClean([{ path: 'src-tauri/target/release', status: '??' }]));
+	assert.doesNotThrow(() => assertClean([{ path: 'reports/mutation/mutation.html', status: '??' }]));
 
 	// Reject paths that don't match allowed prefixes
 	assert.throws(() => assertClean([{ path: '.env.local', status: '??' }]), /untracked source/);

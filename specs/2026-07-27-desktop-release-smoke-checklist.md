@@ -87,3 +87,11 @@ The released `v0.1.3` caps at schema 4, so this upgrade runs the protected migra
 | Install 0.1.4 over 0.1.3; verify protected migration, data preservation, and a backup/restore round-trip | Ubuntu 24.04.4 LTS (x86_64) | 0.1.3 / 4 | 0.1.4 / 5 | pass | `~/.local/share/com.notchy.app/backups/upgrades/notchy-pre-upgrade-v4-to-v5-0.1.4-2026-08-16T15-53-39-156Z.sqlite` | Live DB `~/.config/com.notchy.app/notchy.db`; app log `~/.local/share/com.notchy.app/logs/Notchy.log` |
 
 Notes: `app_meta` records `last_successful_app_version = 0.1.4`, `last_successful_schema_version = 5`, `last_migrated_from_schema = 4`, and the pre-upgrade backup path. All 4 accounts, 5 transactions (expense, income, transfer with `transfer_pair_id`), the budget, and balances survived (salary 12,955,000; savings 2,000,000; July accounts 1,000,000 each). A manual backup → added transaction → restore round-trip confirmed the added row disappears while originals remain. GUI-only exercises (tray actions, `Ctrl+Shift+N` quick-add, reconcile, budget review) were not automatable in this session (no X automation tool); tray/global-shortcut registration is part of the Rust build and the app reached the dashboard after each launch.
+
+## Upgrade (0.1.4 → 0.2.0)
+
+The released `v0.1.4` caps at schema 5, so this upgrade runs the protected migration path (verified pre-upgrade backup → migration 5 → 6 → post-migration verification). Schema 6 adds operation-id deduplication for retry-safe writes. The npm package `@tauri-apps/plugin-sql` was removed; all database operations now route through Rust (`rusqlite`).
+
+| Case | OS | Source app / schema | Target app / schema | Result (pass/fail) | Pre-upgrade backup path | Evidence path |
+| --- | --- | --- | --- | --- | --- | --- |
+| Install 0.2.0 over 0.1.4; verify protected migration, data preservation, and a backup/restore round-trip |  | 0.1.4 / 5 | 0.2.0 / 6 | pending | pending | pending |
