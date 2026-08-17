@@ -21,6 +21,11 @@ pub use backup::{
     cleanup_interrupted_publications, discover_verified_backups, publish_backup,
     retention_deletions, BackupFailurePoint,
 };
+pub use domains::export::{export_transactions_csv, sanitize_csv_cell};
+pub use domains::reports::{
+    get_category_trend, get_comparison, get_net_worth_series, get_overview,
+    get_stacked_category_series, get_trend, get_year_over_year,
+};
 pub use commands::{database_initialize, database_retry, database_status};
 pub use connection::{open_live, open_read_only, DatabasePaths};
 pub use error::{validate_money, DbError, DbResult, ErrorCode, MetaKey};
@@ -34,12 +39,15 @@ pub use migrations::{
 pub use startup::{DatabaseStatus, StartupEvent};
 pub use types::{
     validate_bounded_list, validate_bounded_text, Account, AccountPatch, AccountType,
-    AccountWithBalance, BackupSummary, BackupToken, Bucket, Budget, BudgetSummary,
-    CategorizeRule, DebtAccount, DebtSummary, Goal, GoalStatus, GoalType, GoalWithProgress,
-    IsoDate, LifecycleState, MatchMode, NewAccount, NewTransaction,
-    OperationId, Page, Patch, ReconcileResult, Reconciliation, RecoveryContext,
-    RuleSource, StartupStage, Tag, TagDeleteInfo, Transaction, TransactionFilter, TransactionKind,
-    TransactionPatch, VelocityStatus,
+    AccountWithBalance, BackupHealth, BackupHealthOptions, BackupSummary, BackupToken,
+    Bucket, BucketSpending, Budget, BudgetSummary,
+    CategoryTrendPoint, CategorizeRule, CompareRow, DebtAccount, DebtSummary,
+    Goal, GoalStatus, GoalType, GoalWithProgress,
+    IsoDate, LifecycleState, MatchMode, NetWorthPoint, NewAccount, NewTransaction,
+    OperationId, OverviewReport, Page, Patch, ReconcileResult, Reconciliation,
+    RecoveryContext, RuleSource, StackedCategoryPoint, StartupStage, Tag, TagDeleteInfo,
+    Transaction, TransactionFilter, TransactionKind,
+    TransactionPatch, TrendPoint, TypeTotal, VelocityStatus, YearOverYearPoint,
 };
 
 use ts_rs::{Config, TS};
@@ -116,6 +124,21 @@ pub fn generate_bindings() -> String {
     push_decl(&mut out, MatchMode::decl(&cfg));
     push_decl(&mut out, RuleSource::decl(&cfg));
     push_decl(&mut out, CategorizeRule::decl(&cfg));
+
+    // Report domain types.
+    push_decl(&mut out, BucketSpending::decl(&cfg));
+    push_decl(&mut out, OverviewReport::decl(&cfg));
+    push_decl(&mut out, TrendPoint::decl(&cfg));
+    push_decl(&mut out, CompareRow::decl(&cfg));
+    push_decl(&mut out, CategoryTrendPoint::decl(&cfg));
+    push_decl(&mut out, TypeTotal::decl(&cfg));
+    push_decl(&mut out, StackedCategoryPoint::decl(&cfg));
+    push_decl(&mut out, YearOverYearPoint::decl(&cfg));
+    push_decl(&mut out, NetWorthPoint::decl(&cfg));
+
+    // Backup health types.
+    push_decl(&mut out, BackupHealth::decl(&cfg));
+    push_decl(&mut out, BackupHealthOptions::decl(&cfg));
 
     out
 }

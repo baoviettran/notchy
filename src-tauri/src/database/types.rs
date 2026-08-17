@@ -684,6 +684,102 @@ pub struct BackupSummary {
     pub verified: bool,
 }
 
+// ---------------------------------------------------------------------------
+// Report types
+// ---------------------------------------------------------------------------
+
+/// Overview report for a single month.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct OverviewReport {
+    pub income: i64,
+    pub expense: i64,
+    pub net: i64,
+    pub spending_by_bucket: Vec<BucketSpending>,
+}
+
+/// A bucket's total spending in the overview report.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct BucketSpending {
+    pub type_id: String,
+    pub name: String,
+    pub total: i64,
+}
+
+/// A single point in a trend series.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct TrendPoint {
+    pub month: String,
+    pub income: i64,
+    pub expense: i64,
+    pub net: i64,
+}
+
+/// A row in the comparison between two months.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct CompareRow {
+    pub category: String,
+    pub month_a: i64,
+    pub month_b: i64,
+    pub delta: i64,
+}
+
+/// A single point in a category trend series.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct CategoryTrendPoint {
+    pub month: String,
+    pub total: i64,
+}
+
+/// A single point in a stacked category series.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct StackedCategoryPoint {
+    pub month: String,
+    pub categories: Vec<TypeTotal>,
+}
+
+/// A type_id and total pair for stacked categories.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct TypeTotal {
+    pub type_id: String,
+    pub total: i64,
+}
+
+/// A single point in a year-over-year comparison.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct YearOverYearPoint {
+    pub month: String,
+    pub income: i64,
+    pub expense: i64,
+}
+
+/// A single point in a net-worth series.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct NetWorthPoint {
+    pub month: String,
+    pub net_worth: i64,
+}
+
+// ---------------------------------------------------------------------------
+// Backup health types
+// ---------------------------------------------------------------------------
+
+/// Backup health summary for the settings card.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct BackupHealth {
+    pub last_backup: Option<String>,
+    pub backup_count: usize,
+    pub backup_dir: String,
+    pub db_size: u64,
+    pub latest_backup_size: Option<u64>,
+}
+
+/// Options for computing backup health.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct BackupHealthOptions {
+    pub backup_dir: String,
+    pub database_path: String,
+}
+
 /// Validate a strict `YYYY-MM-DD` calendar date.
 fn is_valid_iso_date(value: &str) -> bool {
     let mut parts = value.split('-');
