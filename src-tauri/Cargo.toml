@@ -25,3 +25,11 @@ tauri-plugin-fs = "2.2.0"
 tauri-plugin-dialog = "2.2.0"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-opener = "2.5.0"
+tauri-plugin-single-instance = "2"
+rusqlite = { version = "0.32", features = ["bundled", "backup"] }
+fs2 = "0.4"
+tokio = { version = "1", features = ["sync"] }
+ulid = { version = "3", features = ["serde"] }
+blake3 = "1"
+thiserror = "2"
+ts-rs = { version = "12", features = ["serde-compat", "no-serde-warnings"] }

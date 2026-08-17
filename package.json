@@ -17,6 +17,8 @@
     "test:release-smoke": "node -e \"import('./package.json', { with: { type: 'json' } }).then(({ default: pkg }) => console.log('Desktop release checklist: specs/2026-07-27-desktop-release-smoke-checklist.md\\nPackage version: ' + pkg.version))\"",
     "test:release-tooling": "node --test scripts/release-dogfood.test.mjs",
     "test:roadmap": "node scripts/roadmap.mjs",
+    "generate:db-contracts": "cargo run --manifest-path src-tauri/Cargo.toml --bin export_bindings",
+    "check:db-contracts": "cargo run --manifest-path src-tauri/Cargo.toml --bin export_bindings -- --check",
     "test:e2e": "playwright test",
     "release:dogfood": "node scripts/release-dogfood.mjs",
     "tauri": "tauri"

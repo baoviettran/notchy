@@ -1,3 +1,5 @@
+pub mod database;
+
 use tauri::{
     Manager,
     menu::{Menu, MenuItem},
