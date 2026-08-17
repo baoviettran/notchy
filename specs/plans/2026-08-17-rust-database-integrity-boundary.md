@@ -539,7 +539,7 @@ git commit -m "feat(db-native): make mutations idempotent"
 - Produces: account list/get/create/update/delete and transaction list/get/create/update/delete/restore/duplicate/import operations.
 - Keeps existing frontend `Account`, `AccountWithBalance`, `Transaction`, filter, and result shapes.
 
-- [ ] **Step 1: Write failing native parity and atomicity tests**
+- [x] **Step 1: Write failing native parity and atomicity tests**
 
 ```rust
 #[test]
@@ -562,13 +562,13 @@ fn imported_batch_is_all_or_nothing_and_idempotent() {
 
 Cover transfer direction/self-transfer, refund target, single currency, account delete linked-goal guard, update validation, safe text bounds, pagination bounds, and JavaScript-safe amounts.
 
-- [ ] **Step 2: Confirm the red state**
+- [x] **Step 2: Confirm the red state**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_accounts_transactions`
 
 Expected: FAIL because native domain services do not exist.
 
-- [ ] **Step 3: Port complete business operations**
+- [x] **Step 3: Port complete business operations**
 
 Use `run_idempotent` for every mutation. Generate IDs and timestamps in Rust. Keep the single-row transfer model and balance semantics exactly. Ensure account creation validates currency and inserts its opening-balance transaction inside the same transaction. Batch import validates every row before commit and stores one receipt containing all resulting IDs.
 
@@ -576,7 +576,7 @@ Create inactive typed invoke adapters matching current repository results; do no
 
 Regenerate the TypeScript bindings after adding the account and transaction DTOs; do not hand-edit the generated file.
 
-- [ ] **Step 4: Verify native parity plus existing browser tests**
+- [x] **Step 4: Verify native parity plus existing browser tests**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_accounts_transactions`
 
@@ -586,7 +586,7 @@ Run: `pnpm vitest run src/tests/unit/accounts.test.ts src/tests/unit/transaction
 
 Expected: PASS with unchanged financial results.
 
-- [ ] **Step 5: Commit Task 7**
+- [x] **Step 5: Commit Task 7**
 
 ```sh
 git add src-tauri/src/database/domains/mod.rs src-tauri/src/database/domains/accounts.rs src-tauri/src/database/domains/transactions.rs src-tauri/src/database/types.rs src-tauri/tests/domain_accounts_transactions.rs src/lib/db/native/accounts.ts src/lib/db/native/transactions.ts src/lib/native/contracts.generated.ts
