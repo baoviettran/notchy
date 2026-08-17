@@ -7,6 +7,7 @@
 //! initialize calls coalescing so exactly one caller opens SQLite.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use notchy_lib::database::backup::{discover_verified_backups, publish_backup, BackupFailurePoint};
 use notchy_lib::database::error::{DbError, DbResult, ErrorCode};
@@ -80,6 +81,48 @@ async fn paused_migration_manager() -> Arc<DatabaseManager> {
     });
     wait_until_stage(&manager, StartupStage::Migrating).await;
     manager
+}
+
+/// Fix Round 1 reproduction (review finding: cancelled `initialize` caller
+/// strands the boundary in `Initializing`).
+///
+/// True cancellation case: the caller future is aborted while the executor job
+/// is still running inside the migration pause; the executor thread then runs
+/// the job to completion after the release is fired. The boundary must land in
+/// a terminal state (`Ready` for a healthy v004 migration), never `Initializing`.
+#[tokio::test]
+async fn cancelled_initialize_still_reaches_ready() {
+    let manager = manager_for_fixture("v004.sqlite").await;
+    let release = manager.arm_migration_pause();
+    let spawned = Arc::clone(&manager);
+    let handle = tokio::spawn(async move {
+        let _ = spawned.initialize().await;
+    });
+    // The caller future is now blocked awaiting the executor job, which is
+    // parked at the migration pause inside `perform_startup`.
+    wait_until_stage(&manager, StartupStage::Migrating).await;
+    // Cancel the caller future at its await point.
+    handle.abort();
+    // Firing the release lets the executor job run to completion (backup
+    // already published, migration finishes, connection stored).
+    let _ = release.send(());
+    // Bounded wait: the boundary must reach `Ready` even though its caller is
+    // gone. A cancelled-caller strand would leave it in `Initializing` forever.
+    for _ in 0..2000 {
+        if manager.snapshot() == LifecycleState::Ready {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    assert_eq!(
+        manager.snapshot(),
+        LifecycleState::Ready,
+        "cancelled initialize caller must not strand the boundary in Initializing"
+    );
+    assert_eq!(manager.startup_stage(), None);
+    assert_eq!(manager.recovery_context(), None);
+    // The completed job stored the live connection; a data job now works.
+    manager.data_job(|_state| Ok(())).await.unwrap();
 }
 
 // ---------------------------------------------------------------------------

@@ -111,32 +111,43 @@ impl DatabaseManager {
         self.set_recovery(None);
         self.emit_startup_event(StartupEvent::Checking);
 
+        // The terminal-state transition runs INSIDE the executor job so a
+        // cancelled (`drop`ped/`abort`ed) caller cannot strand the boundary in
+        // `Initializing`: the executor thread always finishes the job and moves
+        // the boundary to `Ready` or `RecoveryRequired` regardless of whether
+        // the response oneshot still has a receiver. All state-mutation helpers
+        // are `&self` RwLock writes, safe on the executor thread.
         let manager = Arc::clone(self);
-        let result = self.call(move |state| manager.perform_startup(state)).await;
+        let result = self
+            .call(move |state| {
+                match manager.perform_startup(state) {
+                    Ok(()) => {
+                        manager.set_lifecycle(LifecycleState::Ready);
+                        manager.set_startup_stage(None);
+                        manager.emit_startup_event(StartupEvent::Ready);
+                        manager.status()
+                    }
+                    Err(error) => {
+                        let context = RecoveryContext {
+                            code: error.code.clone(),
+                            retryable: is_retryable(error.code.clone()),
+                        };
+                        manager.set_lifecycle(LifecycleState::RecoveryRequired);
+                        manager.set_startup_stage(None);
+                        manager.set_recovery(Some(context.clone()));
+                        let backups =
+                            discover_verified_backups(manager.backup_dir()).unwrap_or_default();
+                        manager.emit_startup_event(StartupEvent::RecoveryRequired {
+                            context,
+                            backups: backups.clone(),
+                        });
+                        Err(error)
+                    }
+                }
+            })
+            .await;
 
-        match result {
-            Ok(()) => {
-                self.set_lifecycle(LifecycleState::Ready);
-                self.set_startup_stage(None);
-                self.emit_startup_event(StartupEvent::Ready);
-                self.status()
-            }
-            Err(error) => {
-                let context = RecoveryContext {
-                    code: error.code.clone(),
-                    retryable: is_retryable(error.code.clone()),
-                };
-                self.set_lifecycle(LifecycleState::RecoveryRequired);
-                self.set_startup_stage(None);
-                self.set_recovery(Some(context.clone()));
-                let backups = discover_verified_backups(self.backup_dir()).unwrap_or_default();
-                self.emit_startup_event(StartupEvent::RecoveryRequired {
-                    context,
-                    backups: backups.clone(),
-                });
-                Err(error)
-            }
-        }
+        result
     }
 
     /// The full startup sequence, executed on the executor thread.
