@@ -170,6 +170,193 @@ pub struct Page<T> {
     pub limit: u64,
 }
 
+// ---------------------------------------------------------------------------
+// Account DTOs
+// ---------------------------------------------------------------------------
+
+/// Account type discriminator — matches the CHECK constraint in the schema.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum AccountType {
+    Checking,
+    Savings,
+    Cash,
+    CreditCard,
+    LoanToPerson,
+    LoanFromPerson,
+}
+
+impl AccountType {
+    /// Asset account types (positive balance = money you have).
+    pub fn is_asset(self) -> bool {
+        matches!(
+            self,
+            AccountType::Checking
+                | AccountType::Savings
+                | AccountType::Cash
+                | AccountType::LoanToPerson
+        )
+    }
+
+    /// Liability account types (positive balance = money you owe).
+    pub fn is_liability(self) -> bool {
+        matches!(self, AccountType::CreditCard | AccountType::LoanFromPerson)
+    }
+
+    /// Loan account types (require a counterparty).
+    pub fn is_loan(self) -> bool {
+        matches!(self, AccountType::LoanToPerson | AccountType::LoanFromPerson)
+    }
+
+    /// Serialise to the SQL string value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AccountType::Checking => "checking",
+            AccountType::Savings => "savings",
+            AccountType::Cash => "cash",
+            AccountType::CreditCard => "credit_card",
+            AccountType::LoanToPerson => "loan_to_person",
+            AccountType::LoanFromPerson => "loan_from_person",
+        }
+    }
+}
+
+/// A persisted account row (without balance).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct Account {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "type")]
+    pub account_type: AccountType,
+    pub counterparty: Option<String>,
+    pub currency: String,
+    pub archived: i64,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Account with computed balance.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct AccountWithBalance {
+    pub id: String,
+    pub name: String,
+    #[serde(rename = "type")]
+    pub account_type: AccountType,
+    pub counterparty: Option<String>,
+    pub currency: String,
+    pub archived: i64,
+    pub created_at: String,
+    pub updated_at: String,
+    pub balance: i64,
+}
+
+/// Input for creating a new account.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct NewAccount {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub account_type: AccountType,
+    pub counterparty: Option<String>,
+    pub currency: String,
+    pub initial_balance: Option<i64>,
+    pub initial_balance_date: Option<String>,
+}
+
+/// Partial update for an existing account.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct AccountPatch {
+    pub name: Option<String>,
+    #[serde(rename = "type")]
+    pub account_type: Option<AccountType>,
+    pub counterparty: Patch<String>,
+    pub archived: Option<i64>,
+}
+
+// ---------------------------------------------------------------------------
+// Transaction DTOs
+// ---------------------------------------------------------------------------
+
+/// Transaction kind discriminator — matches the CHECK constraint in the schema.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum TransactionKind {
+    Expense,
+    Income,
+    Transfer,
+    Refund,
+    Adjustment,
+}
+
+impl TransactionKind {
+    /// Serialise to the SQL string value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            TransactionKind::Expense => "expense",
+            TransactionKind::Income => "income",
+            TransactionKind::Transfer => "transfer",
+            TransactionKind::Refund => "refund",
+            TransactionKind::Adjustment => "adjustment",
+        }
+    }
+}
+
+/// A persisted transaction row.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct Transaction {
+    pub id: String,
+    pub kind: TransactionKind,
+    pub date: String,
+    pub amount: i64,
+    pub account_id: String,
+    pub transfer_account_id: Option<String>,
+    pub transfer_pair_id: Option<String>,
+    pub refund_of_id: Option<String>,
+    pub tag_id: Option<String>,
+    pub payee: Option<String>,
+    pub description: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Input for creating a new transaction.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct NewTransaction {
+    pub kind: TransactionKind,
+    pub date: String,
+    pub amount: i64,
+    pub account_id: String,
+    pub transfer_account_id: Option<String>,
+    pub refund_of_id: Option<String>,
+    pub tag_id: Option<String>,
+    pub payee: Option<String>,
+    pub description: Option<String>,
+}
+
+/// Filter criteria for listing transactions.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+pub struct TransactionFilter {
+    pub account_id: Option<String>,
+    pub kind: Option<TransactionKind>,
+    pub tag_id: Option<String>,
+    pub payee: Option<String>,
+    pub date_from: Option<String>,
+    pub date_to: Option<String>,
+    pub query: Option<String>,
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
+}
+
+/// Partial update for an existing transaction.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct TransactionPatch {
+    pub date: Option<String>,
+    pub amount: Option<i64>,
+    pub transfer_account_id: Option<String>,
+    pub tag_id: Patch<String>,
+    pub payee: Patch<String>,
+    pub description: Patch<String>,
+}
+
 /// An opaque, in-memory handle to one verified published backup.
 ///
 /// Fields are private: callers interact through accessors, and the path shown

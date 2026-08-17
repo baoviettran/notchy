@@ -7,6 +7,7 @@
 pub mod backup;
 pub mod commands;
 pub mod connection;
+pub mod domains;
 pub mod error;
 pub mod executor;
 pub mod lock;
@@ -32,8 +33,10 @@ pub use migrations::{
 };
 pub use startup::{DatabaseStatus, StartupEvent};
 pub use types::{
-    validate_bounded_list, validate_bounded_text, BackupSummary, BackupToken, IsoDate,
-    LifecycleState, OperationId, Page, Patch, RecoveryContext, StartupStage,
+    validate_bounded_list, validate_bounded_text, Account, AccountPatch, AccountType,
+    AccountWithBalance, BackupSummary, BackupToken, IsoDate, LifecycleState, NewAccount,
+    NewTransaction, OperationId, Page, Patch, RecoveryContext, StartupStage, Transaction,
+    TransactionFilter, TransactionKind, TransactionPatch,
 };
 
 use ts_rs::{Config, TS};
@@ -73,6 +76,18 @@ pub fn generate_bindings() -> String {
     // `Page::<i64>::decl()` yields the generic `type Page<T> = ...`.
     push_decl(&mut out, Page::<i64>::decl(&cfg));
     push_decl(&mut out, Patch::<i64>::decl(&cfg));
+
+    // Account and transaction domain types.
+    push_decl(&mut out, AccountType::decl(&cfg));
+    push_decl(&mut out, Account::decl(&cfg));
+    push_decl(&mut out, AccountWithBalance::decl(&cfg));
+    push_decl(&mut out, NewAccount::decl(&cfg));
+    push_decl(&mut out, AccountPatch::decl(&cfg));
+    push_decl(&mut out, TransactionKind::decl(&cfg));
+    push_decl(&mut out, Transaction::decl(&cfg));
+    push_decl(&mut out, NewTransaction::decl(&cfg));
+    push_decl(&mut out, TransactionFilter::decl(&cfg));
+    push_decl(&mut out, TransactionPatch::decl(&cfg));
 
     out
 }
