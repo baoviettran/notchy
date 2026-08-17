@@ -732,7 +732,7 @@ git commit -m "feat(db-native): port reconciliation and debts"
 **Interfaces:**
 - Produces: goal lifecycle, categorize-rule CRUD/learning, locale/currency/tour/quick-account settings, and onboarding metadata.
 
-- [ ] **Step 1: Write failing invariant and receipt tests**
+- [x] **Step 1: Write failing invariant and receipt tests**
 
 ```rust
 #[test]
@@ -747,19 +747,19 @@ fn learned_rule_upsert_is_idempotent_and_preserves_priority() {
 
 Cover linked-account deletion constraints, goal close/reopen semantics, settings allowlists, quick account must reference an active account, and input bounds.
 
-- [ ] **Step 2: Confirm the red state**
+- [x] **Step 2: Confirm the red state**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_goals_rules_meta`
 
 Expected: FAIL because native services do not exist.
 
-- [ ] **Step 3: Port goals, rules, and metadata**
+- [x] **Step 3: Port goals, rules, and metadata**
 
 Keep existing domain output shapes and stable error codes. Treat every setting update as an idempotent mutation. Keep reads side-effect free and gated by `Ready`.
 
 Regenerate the TypeScript bindings after adding goal, rule, settings, and quick-account DTOs.
 
-- [ ] **Step 4: Verify native parity and current suites**
+- [x] **Step 4: Verify native parity and current suites**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_goals_rules_meta`
 
@@ -769,7 +769,7 @@ Run: `pnpm vitest run src/tests/unit/goals.test.ts src/tests/unit/rules.test.ts 
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit Task 10**
+- [x] **Step 5: Commit Task 10**
 
 ```sh
 git add src-tauri/src/database/domains/goals.rs src-tauri/src/database/domains/rules.rs src-tauri/src/database/domains/meta.rs src-tauri/src/database/types.rs src-tauri/tests/domain_goals_rules_meta.rs src/lib/db/native/goals.ts src/lib/db/native/rules.ts src/lib/db/native/meta.ts src/lib/native/contracts.generated.ts
