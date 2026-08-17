@@ -208,7 +208,6 @@ fn generated_typescript_matches_committed_bindings() {
 fn generated_typescript_exposes_contract_types() {
     let generated = generate_bindings();
     assert!(generated.contains("ErrorCode"));
-    assert!(generated.contains("database_busy"));
     assert!(generated.contains("DbError"));
     assert!(generated.contains("OperationId"));
     assert!(generated.contains("LifecycleState"));
@@ -218,4 +217,66 @@ fn generated_typescript_exposes_contract_types() {
     assert!(generated.contains("omitted"));
     assert!(generated.contains("explicit_null"));
     assert!(generated.contains("replace"));
+}
+
+/// Every `ErrorCode` variant must surface in the generated union as its
+/// snake_case serialized literal. Because the union is derived from the Rust
+/// enum via ts-rs, this also holds for any variant added in the future.
+#[test]
+fn generated_error_code_union_covers_all_variants() {
+    let generated = generate_bindings();
+    let union_start = generated
+        .find("export type ErrorCode = ")
+        .unwrap_or_else(|| panic!("ErrorCode union missing from generated bindings"));
+    let union_end = generated[union_start..]
+        .find('\n')
+        .map(|i| union_start + i)
+        .unwrap_or(generated.len());
+    let union = &generated[union_start..union_end];
+
+    for literal in [
+        "database_busy",
+        "database_locked",
+        "database_not_ready",
+        "database_update_required",
+        "unauthorized_caller",
+        "schema_too_old",
+        "schema_too_new",
+        "database_invalid",
+        "database_corrupt",
+        "backup_unavailable",
+        "restore_failed",
+        "operation_id_conflict",
+        "amount_out_of_range",
+        "invalid_ulid",
+        "invalid_date",
+        "invalid_input",
+        "recovery_required",
+    ] {
+        assert!(
+            union.contains(&format!("\"{literal}\"")),
+            "ErrorCode union is missing {literal}: {union}"
+        );
+    }
+}
+
+/// Every `MetaKey` variant must surface in the generated union.
+#[test]
+fn generated_meta_key_union_covers_all_variants() {
+    let generated = generate_bindings();
+    let union_start = generated
+        .find("export type MetaKey = ")
+        .unwrap_or_else(|| panic!("MetaKey union missing from generated bindings"));
+    let union_end = generated[union_start..]
+        .find('\n')
+        .map(|i| union_start + i)
+        .unwrap_or(generated.len());
+    let union = &generated[union_start..union_end];
+
+    for literal in ["stage", "schema_version", "retryable"] {
+        assert!(
+            union.contains(&format!("\"{literal}\"")),
+            "MetaKey union is missing {literal}: {union}"
+        );
+    }
 }

@@ -6,8 +6,16 @@ export type MetaKey = "stage" | "schema_version" | "retryable";
 export type DbError = { code: ErrorCode, meta: { [key in string]: string }, };
 export type LifecycleState = "uninitialized" | "initializing" | "ready" | "recovery_required" | "restoring";
 export type StartupStage = "checking" | "backing_up" | "migrating" | "verifying";
-export type RecoveryContext = { code: ErrorCode, retryable: boolean, };
+export type RecoveryContext = { 
+/**
+ * Stable error code that triggered recovery.
+ */
+code: ErrorCode, 
+/**
+ * Whether the failure is retryable without a restore.
+ */
+retryable: boolean, };
 export type OperationId = string;
 export type IsoDate = string;
 export type Page<T> = { items: Array<T>, total: number, offset: number, limit: number, };
-export type Patch<T> = { kind: "omitted" } | { kind: "explicit_null" } | { kind: "replace", value: T };
+export type Patch<T> = { "kind": "omitted" } | { "kind": "explicit_null" } | { "kind": "replace", value: T, };
