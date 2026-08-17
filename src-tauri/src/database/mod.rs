@@ -12,6 +12,7 @@ pub mod executor;
 pub mod lock;
 pub mod manifest;
 pub mod migrations;
+pub mod receipt;
 pub mod startup;
 pub mod types;
 
