@@ -276,3 +276,64 @@ fn backup_restart_cleanup_removes_unpublished_temp_files() {
         "verified backups must survive restart cleanup"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Restore-related tests (Task 12)
+// ---------------------------------------------------------------------------
+
+use notchy_lib::database::restore::{discover_restore_points, RestoreFailurePoint};
+
+/// Restore failpoint names must be stable snake_case.
+#[test]
+fn restore_failpoint_names_are_stable() {
+    assert_eq!(RestoreFailurePoint::None.name(), "none");
+    assert_eq!(RestoreFailurePoint::AfterRollback.name(), "after_rollback");
+    assert_eq!(
+        RestoreFailurePoint::AfterRestoreCopy.name(),
+        "after_restore_copy"
+    );
+    assert_eq!(
+        RestoreFailurePoint::AfterRestoreFileSync.name(),
+        "after_restore_file_sync"
+    );
+    assert_eq!(
+        RestoreFailurePoint::AfterCloseConnection.name(),
+        "after_close_connection"
+    );
+    assert_eq!(
+        RestoreFailurePoint::AfterRetireJournals.name(),
+        "after_retire_journals"
+    );
+    assert_eq!(RestoreFailurePoint::AfterRename.name(), "after_rename");
+    assert_eq!(
+        RestoreFailurePoint::AfterDirSync.name(),
+        "after_dir_sync"
+    );
+}
+
+/// `discover_restore_points` is a thin wrapper; it must return verified backups
+/// (same as `discover_verified_backups`) from a directory with known backups.
+#[test]
+fn discover_restore_points_returns_verified_backups() {
+    let dir = dir_with_verified_and_corrupt_match();
+    let points = discover_restore_points(&dir).unwrap();
+    assert_eq!(points.len(), 1, "corrupt files must be excluded");
+    assert!(points[0].verified);
+}
+
+/// `discover_restore_points` returns empty for an empty directory.
+#[test]
+fn discover_restore_points_empty_dir() {
+    let dir = scratch_root("empty");
+    std::fs::create_dir_all(&dir).unwrap();
+    let points = discover_restore_points(&dir).unwrap();
+    assert!(points.is_empty());
+}
+
+/// `discover_restore_points` returns empty for a missing directory.
+#[test]
+fn discover_restore_points_missing_dir() {
+    let dir = scratch_root("missing");
+    let points = discover_restore_points(&dir).unwrap();
+    assert!(points.is_empty());
+}

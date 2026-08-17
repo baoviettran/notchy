@@ -28,7 +28,9 @@ use crate::database::manifest::{inspect_schema, validate_manifest, SchemaInspect
 use crate::database::migrations::{
     bootstrap_current, run_migrations, FailurePoint, LATEST_SCHEMA_VERSION, now_iso_utc,
 };
-use crate::database::types::{BackupSummary, LifecycleState, RecoveryContext, StartupStage};
+use crate::database::types::{BackupSummary, BackupToken, LifecycleState, RecoveryContext, StartupStage};
+
+use crate::database::restore::{perform_restore, RestoreFailurePoint};
 
 /// Startup progress events emitted while initializing.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -92,6 +94,70 @@ impl DatabaseManager {
     /// same sequence as `initialize`.
     pub async fn retry(self: &Arc<Self>) -> DbResult<DatabaseStatus> {
         self.initialize().await
+    }
+
+    /// Replace the live database with a verified backup.
+    ///
+    /// Allowed from `Ready` or `RecoveryRequired`. Rejects pending jobs by
+    /// entering `Restoring`, publishes a rollback backup, revalidates the
+    /// token, performs the atomic restore, and reopens the connection.
+    ///
+    /// On failure the boundary enters `RecoveryRequired` with safe backup
+    /// summaries; no partial live database is ever observable.
+    pub async fn restore_database(
+        self: &Arc<Self>,
+        token: BackupToken,
+        failpoint: RestoreFailurePoint,
+    ) -> DbResult<DatabaseStatus> {
+        let _guard = self.startup_lock.lock().await;
+        match self.snapshot() {
+            LifecycleState::Ready | LifecycleState::RecoveryRequired => {}
+            LifecycleState::Uninitialized | LifecycleState::Initializing => {
+                return Err(DbError::new(ErrorCode::DatabaseUpdateRequired));
+            }
+            LifecycleState::Restoring => return Err(DbError::new(ErrorCode::DatabaseBusy)),
+        }
+        self.run_restore(token, failpoint).await
+    }
+
+    async fn run_restore(
+        self: &Arc<Self>,
+        token: BackupToken,
+        failpoint: RestoreFailurePoint,
+    ) -> DbResult<DatabaseStatus> {
+        self.set_lifecycle(LifecycleState::Restoring);
+        self.set_startup_stage(None);
+        self.set_recovery(None);
+
+        let manager = Arc::clone(self);
+        let result = self
+            .call(move |state| {
+                match perform_restore(&manager, state, token, failpoint) {
+                    Ok(()) => {
+                        manager.set_lifecycle(LifecycleState::Ready);
+                        manager.set_recovery(None);
+                        manager.status()
+                    }
+                    Err(error) => {
+                        let context = RecoveryContext {
+                            code: error.code.clone(),
+                            retryable: false,
+                        };
+                        manager.set_lifecycle(LifecycleState::RecoveryRequired);
+                        manager.set_recovery(Some(context.clone()));
+                        let backups =
+                            discover_verified_backups(manager.backup_dir()).unwrap_or_default();
+                        manager.emit_startup_event(StartupEvent::RecoveryRequired {
+                            context,
+                            backups: backups.clone(),
+                        });
+                        Err(error)
+                    }
+                }
+            })
+            .await;
+
+        result
     }
 
     /// The current safe status, including lifecycle, active stage, recovery

@@ -69,6 +69,15 @@ impl ExecutorState {
         self.connection = Some(connection);
         Ok(())
     }
+
+    /// Take the live connection out of the executor state, closing it.
+    ///
+    /// Used by the restore protocol: the connection must be dropped before the
+    /// live database file can be replaced. Returns `None` when no connection is
+    /// stored (e.g. during startup before the first `store_connection`).
+    pub(crate) fn take_connection(&mut self) -> Option<rusqlite::Connection> {
+        self.connection.take()
+    }
 }
 
 /// A running database boundary: one executor thread, one process lock, and a

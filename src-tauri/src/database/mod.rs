@@ -14,6 +14,7 @@ pub mod lock;
 pub mod manifest;
 pub mod migrations;
 pub mod receipt;
+pub mod restore;
 pub mod startup;
 pub mod types;
 
@@ -21,6 +22,7 @@ pub use backup::{
     cleanup_interrupted_publications, discover_verified_backups, publish_backup,
     retention_deletions, BackupFailurePoint,
 };
+pub use restore::{arm_restore_failpoint, clear_restore_failpoint, discover_restore_points, RestoreFailurePoint};
 pub use domains::export::{export_transactions_csv, sanitize_csv_cell};
 pub use domains::reports::{
     get_category_trend, get_comparison, get_net_worth_series, get_overview,
