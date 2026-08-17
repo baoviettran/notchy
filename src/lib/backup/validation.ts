@@ -1,4 +1,4 @@
-import type { DatabaseService } from '$lib/db/service';
+import type { DatabaseService } from '$lib/db';
 
 export type SchemaPolicy = { exact: number } | { min: number; max: number };
 

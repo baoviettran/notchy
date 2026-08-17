@@ -171,6 +171,12 @@ impl DatabaseManager {
         })
     }
 
+    /// Discover all verified backups available for restore, newest first.
+    /// A missing or unreadable directory returns an empty list.
+    pub fn discover_restore_points(&self) -> DbResult<Vec<BackupSummary>> {
+        Ok(discover_verified_backups(self.backup_dir()).unwrap_or_default())
+    }
+
     async fn run_initialize(self: &Arc<Self>) -> DbResult<DatabaseStatus> {
         self.set_lifecycle(LifecycleState::Initializing);
         self.set_startup_stage(Some(StartupStage::Checking));

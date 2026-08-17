@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import RecoveryScreen from '$lib/components/system/RecoveryScreen.svelte';
 import { buildTechnicalReport } from '$lib/recovery';
-import type { RecoveryContext } from '$lib/db/startup';
+import type { RecoveryContext } from '$lib/db';
 
 const context: RecoveryContext = {
 	code: 'migration_failed',

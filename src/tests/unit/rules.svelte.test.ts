@@ -4,7 +4,7 @@ import { createTestDb } from './helpers/test-db';
 import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
 import { BrowserDatabaseClient } from '$lib/db/browser/client';
-import type { DatabaseService } from '$lib/db/service';
+import type { DatabaseService } from '$lib/db';
 import * as categories from '$lib/db/repos/categories';
 import * as transactions from '$lib/db/repos/transactions';
 import * as accounts from '$lib/db/repos/accounts';

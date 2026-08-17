@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
 /**
- * Cutover scanner: fails if `@tauri-apps/plugin-sql` appears in any production source file.
+ * Cutover scanner: fails if `@tauri-apps/plugin-sql` appears in any production source file,
+ * or if legacy platform/startup/service files still exist.
  * Ensures the Tauri SQL plugin is fully removed after the native database cutover.
  */
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const ROOT = join(import.meta.dirname, "..");
@@ -72,6 +73,29 @@ function collectFiles(dir) {
     }
   }
   return results;
+}
+
+// --- Check for deleted legacy files ---
+
+const LEGACY_FILES = [
+  "lib/db/platform.ts",
+  "lib/db/startup.ts",
+  "lib/db/service.ts",
+];
+
+let legacyErrors = 0;
+for (const relPath of LEGACY_FILES) {
+  const fullPath = join(SRC_DIR, relPath);
+  if (existsSync(fullPath)) {
+    console.error(`FAILED: legacy file still exists: src/${relPath}`);
+    legacyErrors++;
+  }
+}
+if (legacyErrors > 0) {
+  console.error(
+    `\nFAILED: ${legacyErrors} legacy file(s) must be deleted after cutover.`
+  );
+  process.exit(1);
 }
 
 // --- Main ---

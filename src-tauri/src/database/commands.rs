@@ -58,6 +58,32 @@ pub async fn database_status<R: tauri::Runtime>(
     manager.status()
 }
 
+/// Discover all verified backups available for restore, newest first.
+/// Uses the manager's backup directory. Returns an empty list if the
+/// directory does not exist.
+#[tauri::command]
+pub async fn discover_restore_points<R: tauri::Runtime>(
+    _window: tauri::WebviewWindow<R>,
+    manager: State<'_, Arc<DatabaseManager>>,
+) -> Result<Vec<BackupSummary>, DbError> {
+    manager.discover_restore_points()
+}
+
+/// Replace the live database with a verified backup. Main-window only.
+///
+/// Accepts a `BackupSummary` (serializable) and reconstructs the
+/// `BackupToken` internally by re-hashing the backup file.
+#[tauri::command]
+pub async fn database_restore<R: tauri::Runtime>(
+    window: tauri::WebviewWindow<R>,
+    manager: State<'_, Arc<DatabaseManager>>,
+    summary: BackupSummary,
+) -> Result<DatabaseStatus, DbError> {
+    assert_main_window(&window)?;
+    let token = BackupToken::from_summary(&summary)?;
+    manager.restore_database(token, crate::database::restore::RestoreFailurePoint::None).await
+}
+
 // ===========================================================================
 // Account commands
 // ===========================================================================

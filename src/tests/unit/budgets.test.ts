@@ -4,7 +4,7 @@ import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
 import * as repo from '$lib/db/repos/budgets';
 import * as catRepo from '$lib/db/repos/categories';
-import type { DatabaseService } from '$lib/db/service';
+import type { DatabaseService } from '$lib/db';
 
 let db: DatabaseService;
 const NOW = new Date().toISOString();

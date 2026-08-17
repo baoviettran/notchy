@@ -1,7 +1,7 @@
-import type { DatabaseService } from '../db/service';
+import type { DatabaseService } from '../db';
 import { getMeta, setMeta } from '../db/repos/meta';
 import { createBackup } from './index';
-import { getDatabasePaths, ensureDirectory } from '../db/platform';
+import { getDatabasePaths, ensureDirectory } from '../db';
 
 export interface BackupHealth {
 	appVersion: string;

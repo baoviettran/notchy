@@ -8,7 +8,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::database::error::ErrorCode;
+use crate::database::error::{DbError, DbResult, ErrorCode};
 
 /// Strict ISO-8601 calendar date, `YYYY-MM-DD`, validated against the real
 /// calendar (month length and leap years). Serialized as a plain string.
@@ -644,6 +644,26 @@ impl BackupToken {
             schema,
             fingerprint,
         }
+    }
+
+    /// Reconstruct a token from a `BackupSummary` by re-hashing the file.
+    /// Used by the restore command to bridge the serializable summary back
+    /// into the non-serializable token the restore protocol requires.
+    pub fn from_summary(summary: &BackupSummary) -> DbResult<Self> {
+        let path = std::path::PathBuf::from(&summary.path);
+        if !path.exists() {
+            return Err(DbError::new(ErrorCode::RestoreFailed));
+        }
+        let bytes = std::fs::read(&path).map_err(|_| DbError::new(ErrorCode::RestoreFailed))?;
+        let fingerprint = blake3::hash(&bytes).to_hex().to_string();
+        let id = OperationId::parse(&summary.id)
+            .map_err(|_| DbError::new(ErrorCode::RestoreFailed))?;
+        Ok(BackupToken {
+            id,
+            canonical_path: path,
+            schema: summary.schema_version,
+            fingerprint,
+        })
     }
 
     /// The canonical, approved filesystem path of the published backup.

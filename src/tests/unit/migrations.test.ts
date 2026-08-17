@@ -10,7 +10,7 @@ import { migration001 } from '$lib/db/migrations/001_initial';
 import { migration002 } from '$lib/db/migrations/002_triggers';
 import { migration003 } from '$lib/db/migrations/003_seed';
 import { migration004 } from '$lib/db/migrations/004_rollover_toggle';
-import type { DatabaseService } from '$lib/db/service';
+import type { DatabaseService } from '$lib/db';
 
 let db: DatabaseService;
 const temporaryPaths: string[] = [];

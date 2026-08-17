@@ -41,18 +41,23 @@ import type {
 // Lifecycle commands (main-window only)
 // ---------------------------------------------------------------------------
 
+export interface BackupSummary {
+	id: string;
+	path: string;
+	schema_version: number;
+	source_app_version: string;
+	created_at: string;
+	verified: boolean;
+}
+
 export interface DatabaseStatus {
-	state: string;
-	current?: { checking: Record<string, never> } | { backing_up: Record<string, never> } | { migrating: Record<string, never> } | { verifying: Record<string, never> } | { ready: Record<string, never> };
+	lifecycle: string;
+	stage?: string | null;
 	recovery?: {
 		code: string;
-		app_version: string;
-		latest_schema_version: number;
-		detected_schema_version: number | null;
-		live_database_path: string;
-		backup_path: string | null;
-		detail: string;
+		retryable: boolean;
 	} | null;
+	backups: BackupSummary[];
 }
 
 export function databaseInitialize(): Promise<DatabaseStatus> {

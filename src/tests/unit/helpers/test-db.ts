@@ -1,5 +1,5 @@
 import BetterSqlite3 from 'better-sqlite3';
-import type { DatabaseService, QueryResult, Row } from '$lib/db/service';
+import type { DatabaseService, QueryResult, Row } from '$lib/db';
 
 // Mirror TauriDatabase's savepoint naming: unique per call so two contexts
 // sharing a pooled connection can't collide on SQLite's LIFO savepoint stack.

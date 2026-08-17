@@ -18,7 +18,7 @@
 	import { toast } from '$lib/stores/toast.svelte';
 	import { AppError } from '$lib/errors';
 	import { mapError } from '$lib/utils/errors';
-	import { getDatabasePaths, getInstalledAppVersion, openBackupFolder } from '$lib/db/platform';
+	import { getDatabasePaths, getInstalledAppVersion, openBackupFolder } from '$lib/db';
 	import * as m from '$lib/paraglide/messages';
 
 	let confirmImport = $state(false);

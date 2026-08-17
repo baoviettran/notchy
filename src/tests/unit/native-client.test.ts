@@ -180,8 +180,8 @@ describe('BrowserDatabaseClient', () => {
 });
 
 describe('Forwarder paths', () => {
-	it('re-exports DatabaseService from old path', async () => {
-		const mod = await import('$lib/db/service');
+	it('re-exports DatabaseService from db entry point', async () => {
+		const mod = await import('$lib/db');
 		// DatabaseService is a TypeScript interface (type-only), not a runtime value
 		expect(mod).toHaveProperty('createTauriDb');
 		expect(mod).toHaveProperty('uniqueSavepointName');

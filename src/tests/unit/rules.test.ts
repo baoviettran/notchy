@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createTestDb } from './helpers/test-db';
 import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
-import type { DatabaseService } from '$lib/db/service';
+import type { DatabaseService } from '$lib/db';
 import * as rules from '$lib/db/repos/rules';
 import * as categories from '$lib/db/repos/categories';
 

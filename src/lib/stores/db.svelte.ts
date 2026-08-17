@@ -1,13 +1,14 @@
 import { isTauri, getDb, initDb, closeDb } from '$lib/db';
-import { databaseInitialize, databaseRetry, type DatabaseStatus } from '$lib/db/native/client';
+import { databaseInitialize, databaseRetry, type DatabaseStatus, type BackupSummary } from '$lib/db/native/client';
 import { invoke } from '@tauri-apps/api/core';
 import { LATEST_SCHEMA_VERSION } from '$lib/db/migrations/index';
 
 /**
- * Map a Rust DatabaseStatus to a RecoveryContext compatible with the
- * recovery UI. The Rust side provides typed error codes and metadata.
+ * Full recovery info shape expected by the RecoveryScreen UI.
+ * The Rust RecoveryContext only provides `code` and `retryable`; the
+ * remaining fields are populated from defaults or the backup list.
  */
-function statusToRecovery(status: DatabaseStatus): {
+interface RecoveryInfo {
 	code: string;
 	appVersion: string;
 	latestSchemaVersion: number;
@@ -15,16 +16,24 @@ function statusToRecovery(status: DatabaseStatus): {
 	liveDatabasePath: string;
 	backupPath: string | null;
 	detail: string;
-} | null {
+}
+
+/**
+ * Map a Rust DatabaseStatus to a RecoveryInfo compatible with the
+ * recovery UI. The Rust side provides typed error codes; the remaining
+ * fields are filled with safe defaults.
+ */
+function statusToRecovery(status: DatabaseStatus, backups: BackupSummary[]): RecoveryInfo | null {
 	if (!status.recovery) return null;
+	const latestBackup = backups[0];
 	return {
 		code: status.recovery.code,
-		appVersion: status.recovery.app_version,
-		latestSchemaVersion: status.recovery.latest_schema_version,
-		detectedSchemaVersion: status.recovery.detected_schema_version,
-		liveDatabasePath: status.recovery.live_database_path,
-		backupPath: status.recovery.backup_path,
-		detail: status.recovery.detail,
+		appVersion: 'unknown',
+		latestSchemaVersion: LATEST_SCHEMA_VERSION,
+		detectedSchemaVersion: null,
+		liveDatabasePath: 'unknown',
+		backupPath: latestBackup?.path ?? null,
+		detail: '',
 	};
 }
 
@@ -34,15 +43,7 @@ function statusToRecovery(status: DatabaseStatus): {
  * Maps to a stable `database_corrupt` recovery so the recovery UI still has
  * something to render.
  */
-function fallbackRecovery(error: unknown): {
-	code: string;
-	appVersion: string;
-	latestSchemaVersion: number;
-	detectedSchemaVersion: number | null;
-	liveDatabasePath: string;
-	backupPath: string | null;
-	detail: string;
-} {
+function fallbackRecovery(error: unknown): RecoveryInfo {
 	return {
 		code: 'database_corrupt',
 		appVersion: 'unknown',
@@ -60,15 +61,8 @@ class DbStore {
 	stage = $state<StartupStage>('checking');
 	ready = $derived(this.stage === 'ready');
 	firstRunComplete = $state(false);
-	recovery = $state<{
-		code: string;
-		appVersion: string;
-		latestSchemaVersion: number;
-		detectedSchemaVersion: number | null;
-		liveDatabasePath: string;
-		backupPath: string | null;
-		detail: string;
-	} | null>(null);
+	recovery = $state<RecoveryInfo | null>(null);
+	backups = $state<BackupSummary[]>([]);
 
 	async init(): Promise<void> {
 		this.recovery = null;
@@ -121,27 +115,29 @@ class DbStore {
 
 	/**
 	 * Map a Rust DatabaseStatus to store state. Extracts the lifecycle
-	 * stage from the tagged-union `current` field.
+	 * stage from the `lifecycle` and `stage` fields.
 	 */
 	private mapStatus(status: DatabaseStatus): void {
+		this.backups = status.backups ?? [];
+
 		if (status.recovery) {
 			this.stage = 'recovery_required';
-			this.recovery = statusToRecovery(status);
+			this.recovery = statusToRecovery(status, this.backups);
 			return;
 		}
 
-		if (status.current) {
-			const current = status.current;
-			if ('checking' in current) this.stage = 'checking';
-			else if ('backing_up' in current) this.stage = 'backing_up';
-			else if ('migrating' in current) this.stage = 'migrating';
-			else if ('verifying' in current) this.stage = 'verifying';
-			else if ('ready' in current) {
-				this.stage = 'ready';
-				void this.onReady();
-				return;
-			}
+		if (status.lifecycle === 'ready') {
+			this.stage = 'ready';
+			void this.onReady();
+			return;
 		}
+
+		// Map the stage sub-field to the frontend StartupStage.
+		const stage = status.stage;
+		if (stage === 'checking') this.stage = 'checking';
+		else if (stage === 'backing_up') this.stage = 'backing_up';
+		else if (stage === 'migrating') this.stage = 'migrating';
+		else if (stage === 'verifying') this.stage = 'verifying';
 	}
 
 	/**
@@ -190,10 +186,24 @@ class DbStore {
 	}
 
 	async restoreLatestBackup(): Promise<void> {
-		if (!this.recovery?.backupPath) return;
-		const { restoreCompatibleDatabase } = await import('$lib/recovery');
-		await restoreCompatibleDatabase(this.recovery.backupPath);
-		globalThis.location.reload();
+		if (isTauri()) {
+			// Native path: use the crash-safe restore protocol via Rust.
+			// The backup list is populated from database_status during recovery.
+			const latestBackup = this.backups[0];
+			if (!latestBackup) return;
+			const { restoreDatabase } = await import('$lib/db/native/recovery');
+			await restoreDatabase(latestBackup);
+			globalThis.location.reload();
+		} else {
+			// Browser/test fallback: validate-close-replace via JS.
+			if (!this.recovery) return;
+			// Find the backup matching the recovery context.
+			const backup = this.backups.find(b => b.verified);
+			if (!backup) return;
+			const { restoreCompatibleDatabase } = await import('$lib/recovery');
+			await restoreCompatibleDatabase(backup.path);
+			globalThis.location.reload();
+		}
 	}
 
 	async openBackupFolder(): Promise<void> {

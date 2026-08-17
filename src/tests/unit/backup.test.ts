@@ -4,7 +4,7 @@ import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
 import { exportCsv, getBackupsToDelete, createBackup } from '$lib/backup';
 import * as accounts from '$lib/db/repos/accounts';
-import type { DatabaseService } from '$lib/db/service';
+import type { DatabaseService } from '$lib/db';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';

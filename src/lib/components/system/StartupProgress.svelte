@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { StartupStage } from '$lib/db/startup';
+	import type { StartupStage } from '$lib/db';
 	import * as m from '$lib/paraglide/messages';
 
 	let { stage }: { stage: StartupStage } = $props();

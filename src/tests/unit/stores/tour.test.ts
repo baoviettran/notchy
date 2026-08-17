@@ -4,7 +4,7 @@ import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
 import { BrowserDatabaseClient } from '$lib/db/browser/client';
 import * as meta from '$lib/db/repos/meta';
-import type { DatabaseService } from '$lib/db/service';
+import type { DatabaseService } from '$lib/db';
 
 // Mock getDb to return our test db wrapped in AppDatabase
 let db: DatabaseService;

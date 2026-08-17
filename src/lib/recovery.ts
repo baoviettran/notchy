@@ -1,7 +1,6 @@
-import type { DatabaseService } from '$lib/db/service';
+import type { DatabaseService, RecoveryContext } from '$lib/db';
 import { validateDatabase, type DatabaseValidation } from '$lib/backup/validation';
 import { MIN_SUPPORTED_SCHEMA_VERSION, LATEST_SCHEMA_VERSION } from '$lib/db/migrations/index';
-import type { RecoveryContext } from '$lib/db/startup';
 import { AppError } from '$lib/errors';
 
 export interface RestoreDependencies {
@@ -83,13 +82,13 @@ export function buildTechnicalReport(context: RecoveryContext): string {
 // wrapper through the IPC mock; the Vitest suite injects fake dependencies.
 export const tauriRestoreDependencies: RestoreDependencies = {
 	async openReadOnly(path: string): Promise<DatabaseService> {
-		const { openReadOnlyDatabase } = await import('$lib/db/platform');
+		const { openReadOnlyDatabase } = await import('$lib/db');
 		return openReadOnlyDatabase(path);
 	},
 	async replaceLiveDatabase(sourcePath: string): Promise<void> {
 		const { closeDb } = await import('$lib/db');
 		const { copyFile } = await import('@tauri-apps/plugin-fs');
-		const { getDatabasePaths } = await import('$lib/db/platform');
+		const { getDatabasePaths } = await import('$lib/db');
 		// Close the live connection first so the copied file is not held open;
 		// reopening and forward migration happen on page reload.
 		await closeDb();

@@ -6,7 +6,7 @@ import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
 import { BrowserDatabaseClient } from '$lib/db/browser/client';
 import * as txRepo from '$lib/db/repos/transactions';
-import type { DatabaseService } from '$lib/db/service';
+import type { DatabaseService } from '$lib/db';
 
 describe('ImportStore', () => {
   let db: DatabaseService;

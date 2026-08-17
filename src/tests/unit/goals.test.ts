@@ -4,7 +4,7 @@ import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
 import * as goals from '$lib/db/repos/goals';
 import * as accounts from '$lib/db/repos/accounts';
-import type { DatabaseService } from '$lib/db/service';
+import type { DatabaseService } from '$lib/db';
 
 let db: DatabaseService;
 

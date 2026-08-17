@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeDatabasePaths } from '$lib/db/platform';
+import { computeDatabasePaths } from '$lib/db';
 
 describe('computeDatabasePaths', () => {
 	it('keeps the live database under the config dir and backups under the data dir', () => {

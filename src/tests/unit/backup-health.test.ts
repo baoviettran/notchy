@@ -6,7 +6,7 @@ import BetterSqlite3 from 'better-sqlite3';
 import { createTestDb } from './helpers/test-db';
 import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
-import type { DatabaseService } from '$lib/db/service';
+import type { DatabaseService } from '$lib/db';
 import { getBackupHealth, createManualBackup } from '$lib/backup/health';
 
 const OPTS = { appVersion: '0.1.4', databasePath: '/data/notchy.db', upgradeBackupDir: '/data/backups/upgrades' };

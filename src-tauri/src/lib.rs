@@ -42,6 +42,8 @@ pub fn run() {
             database_initialize,
             database_retry,
             database_status,
+            database_restore,
+            discover_restore_points,
             // Account commands
             account_list,
             account_get,

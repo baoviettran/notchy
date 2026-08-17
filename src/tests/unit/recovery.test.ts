@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createTestDbFromPath } from './helpers/test-db';
-import type { DatabaseService } from '$lib/db/service';
+import type { DatabaseService } from '$lib/db';
 import { validateDatabase } from '$lib/backup/validation';
 import {
 	restoreCompatibleDatabase,

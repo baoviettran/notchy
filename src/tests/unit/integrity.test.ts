@@ -3,7 +3,7 @@ import { createTestDb } from './helpers/test-db';
 import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
 import { runIntegrityCheck, checkOrphanedTransfers, IntegrityError } from '$lib/db/integrity';
-import type { DatabaseService } from '$lib/db/service';
+import type { DatabaseService } from '$lib/db';
 
 let db: DatabaseService;
 

@@ -1,24 +1,18 @@
 /**
- * Crash-safe recovery discovery (Task 12 stub).
+ * Crash-safe recovery bridge (Task 15).
  *
- * This module will expose TypeScript bindings for the native restore protocol:
- * - `discoverRestorePoints`: list verified backups available for restore
- * - `restoreDatabase`: replace the live database with a verified backup
- * - `RestoreFailurePoint`: fault-injection enum for integration tests
+ * Under Tauri: delegates to the native `discover_restore_points` and
+ * `database_restore` commands which implement the crash-safe restore protocol.
  *
- * The actual Tauri command bindings will be generated from the Rust types
- * in `src-tauri/src/database/restore.rs` once Task 7 regenerates the
- * TypeScript contract bindings.
+ * Under browser (Vitest / Playwright): returns stub data. The JS fallback
+ * recovery path in `$lib/recovery.ts` handles browser/test restores.
  */
 
-export interface BackupSummary {
-	id: string;
-	path: string;
-	schema_version: number;
-	source_app_version: string;
-	created_at: string;
-	verified: boolean;
-}
+import { invoke } from '@tauri-apps/api/core';
+import { isTauri } from '$lib/db';
+import type { BackupSummary } from './client';
+
+export type { BackupSummary } from './client';
 
 export type RestoreFailurePoint =
 	| 'none'
@@ -33,24 +27,31 @@ export type RestoreFailurePoint =
 /**
  * Discover all verified backups available for restore, newest first.
  *
- * Stub: will call the native `discover_restore_points` command once
- * the Tauri IPC bridge is wired up.
+ * Under Tauri: calls the native `discover_restore_points` command which
+ * scans the backup directory and returns verified backup records.
+ *
+ * Under browser: returns an empty list (browser/test fallback).
  */
 export async function discoverRestorePoints(_backupDir: string): Promise<BackupSummary[]> {
-	// TODO: invoke native command when Tauri IPC bridge is ready.
-	return [];
+	if (!isTauri()) return [];
+	return invoke<BackupSummary[]>('discover_restore_points');
 }
 
 /**
  * Replace the live database with a verified backup.
  *
- * Stub: will call the native `restore_database` command once
- * the Tauri IPC bridge is wired up.
+ * Under Tauri: calls the native `database_restore` command which performs
+ * the full crash-safe restore protocol (rollback, validate, copy, fsync,
+ * rename, reopen, migrate, validate).
+ *
+ * Under browser: throws (browser/test fallback uses `$lib/recovery.ts`).
  */
 export async function restoreDatabase(
-	_token: string,
+	summary: BackupSummary,
 	_failpoint: RestoreFailurePoint = 'none'
 ): Promise<void> {
-	// TODO: invoke native command when Tauri IPC bridge is ready.
-	throw new Error('restoreDatabase: native bridge not yet wired');
+	if (!isTauri()) {
+		throw new Error('restoreDatabase: native bridge not available in browser');
+	}
+	await invoke('database_restore', { summary });
 }

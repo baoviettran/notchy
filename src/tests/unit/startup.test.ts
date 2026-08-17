@@ -11,8 +11,8 @@ import {
 	prepareDatabase,
 	DatabaseStartupError,
 	type StartupDependencies
-} from '$lib/db/startup';
-import type { DatabaseService } from '$lib/db/service';
+} from '$lib/db';
+import type { DatabaseService } from '$lib/db';
 import type { UpgradeBackupRecord } from '$lib/backup/upgrade';
 
 const temporaryPaths: string[] = [];

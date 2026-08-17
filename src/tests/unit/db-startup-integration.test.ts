@@ -1,20 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { closeDb, initDb } from '$lib/db';
-import { isTauri } from '$lib/db/platform';
+import { closeDb, initDb, isTauri } from '$lib/db';
 import { createTestDb } from './helpers/test-db';
 
 // The platform adapter isTauri is the seam: mock it to control browser vs Tauri path.
-vi.mock('$lib/db/platform', () => ({
-	isTauri: vi.fn(() => false),
-	getDatabasePaths: async () => ({
-		dataDir: '/web',
-		databasePath: '/web/notchy.db',
-		routineBackupDir: '/web/backups',
-		upgradeBackupDir: '/web/backups/upgrades'
-	}),
-	getInstalledAppVersion: async () => 'web-test',
-	openBackupFolder: async () => {}
-}));
+vi.mock('$lib/db', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('$lib/db')>();
+	return {
+		...actual,
+		isTauri: vi.fn(() => false),
+		getDatabasePaths: async () => ({
+			dataDir: '/web',
+			databasePath: '/web/notchy.db',
+			routineBackupDir: '/web/backups',
+			upgradeBackupDir: '/web/backups/upgrades'
+		}),
+		getInstalledAppVersion: async () => 'web-test',
+		openBackupFolder: async () => {}
+	};
+});
 
 // Mock sql.js in-memory to use better-sqlite3 instead (WASM unavailable in Vitest node env).
 vi.mock('$lib/db/browser/in-memory', () => ({

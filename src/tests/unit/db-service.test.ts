@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { uniqueSavepointName } from '$lib/db/service';
+import { uniqueSavepointName } from '$lib/db';
 
 // Two Tauri webview windows are separate JS contexts, but tauri-plugin-sql
 // routes them to ONE pooled connection per DB path. The old code used a

@@ -1,4 +1,4 @@
-import type { DatabaseService } from '../db/service';
+import type { DatabaseService } from '../db';
 
 export interface BackupInfo {
 	path: string;

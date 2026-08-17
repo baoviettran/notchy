@@ -4,7 +4,7 @@ import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
 import { getDefaultQuickAccount, setDefaultQuickAccount, clearDefaultQuickAccount } from '$lib/db/repos/quick_account';
 import { createAccount } from '$lib/db/repos/accounts';
-import type { DatabaseService } from '$lib/db/service';
+import type { DatabaseService } from '$lib/db';
 
 let db: DatabaseService;
 beforeEach(async () => {

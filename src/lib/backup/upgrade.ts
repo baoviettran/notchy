@@ -1,4 +1,4 @@
-import type { DatabaseService } from '$lib/db/service';
+import type { DatabaseService } from '$lib/db';
 import { AppError } from '$lib/errors';
 import { validateDatabase } from './validation';
 
