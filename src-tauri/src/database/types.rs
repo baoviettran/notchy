@@ -357,6 +357,69 @@ pub struct TransactionPatch {
     pub description: Patch<String>,
 }
 
+// ---------------------------------------------------------------------------
+// Category types
+// ---------------------------------------------------------------------------
+
+/// A top-level category group (maps to `category_types` table).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct Bucket {
+    pub id: String,
+    pub name: String,
+    pub is_system: i32,
+    pub budgetable: i32,
+    pub rollover_enabled: i32,
+    pub sort_order: i32,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// A category tag within a bucket (maps to `category_tags` table).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct Tag {
+    pub id: String,
+    pub type_id: String,
+    pub name: String,
+    pub is_system: i32,
+    pub sort_order: i32,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Info about transactions affected by a tag move or delete.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct TagDeleteInfo {
+    pub affected_count: i64,
+    pub affected_total: i64,
+}
+
+// ---------------------------------------------------------------------------
+// Budget types
+// ---------------------------------------------------------------------------
+
+/// A raw budget row (maps to `budgets` table).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct Budget {
+    pub id: String,
+    pub type_id: String,
+    pub month: String,
+    pub allocated: i64,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// Enriched budget with spending and rollover calculations.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct BudgetSummary {
+    pub type_id: String,
+    pub month: String,
+    pub allocated: i64,
+    pub spent: i64,
+    pub remaining: i64,
+    pub rolled_over: i64,
+    pub available: i64,
+}
+
 /// An opaque, in-memory handle to one verified published backup.
 ///
 /// Fields are private: callers interact through accessors, and the path shown

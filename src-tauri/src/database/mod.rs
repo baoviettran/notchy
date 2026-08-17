@@ -34,9 +34,10 @@ pub use migrations::{
 pub use startup::{DatabaseStatus, StartupEvent};
 pub use types::{
     validate_bounded_list, validate_bounded_text, Account, AccountPatch, AccountType,
-    AccountWithBalance, BackupSummary, BackupToken, IsoDate, LifecycleState, NewAccount,
-    NewTransaction, OperationId, Page, Patch, RecoveryContext, StartupStage, Transaction,
-    TransactionFilter, TransactionKind, TransactionPatch,
+    AccountWithBalance, BackupSummary, BackupToken, Bucket, Budget, BudgetSummary, IsoDate,
+    LifecycleState, NewAccount, NewTransaction, OperationId, Page, Patch, RecoveryContext,
+    StartupStage, Tag, TagDeleteInfo, Transaction, TransactionFilter, TransactionKind,
+    TransactionPatch,
 };
 
 use ts_rs::{Config, TS};
@@ -88,6 +89,13 @@ pub fn generate_bindings() -> String {
     push_decl(&mut out, NewTransaction::decl(&cfg));
     push_decl(&mut out, TransactionFilter::decl(&cfg));
     push_decl(&mut out, TransactionPatch::decl(&cfg));
+
+    // Category and budget domain types.
+    push_decl(&mut out, Bucket::decl(&cfg));
+    push_decl(&mut out, Tag::decl(&cfg));
+    push_decl(&mut out, TagDeleteInfo::decl(&cfg));
+    push_decl(&mut out, Budget::decl(&cfg));
+    push_decl(&mut out, BudgetSummary::decl(&cfg));
 
     out
 }
