@@ -793,7 +793,7 @@ git commit -m "feat(db-native): port goals rules and settings"
 **Interfaces:**
 - Produces: overview, trend, comparison, category trend, composition, year-over-year, net-worth, CSV export, and backup-health DTOs.
 
-- [ ] **Step 1: Write failing golden read-model tests**
+- [x] **Step 1: Write failing golden read-model tests**
 
 ```rust
 #[test]
@@ -809,19 +809,19 @@ fn csv_export_neutralizes_formula_injection() {
 }
 ```
 
-- [ ] **Step 2: Confirm the red state**
+- [x] **Step 2: Confirm the red state**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_reports_export`
 
 Expected: FAIL because native read models do not exist.
 
-- [ ] **Step 3: Port every read query and export rule**
+- [x] **Step 3: Port every read query and export rule**
 
 Port the SQL semantics from all existing report, account-balance, budget summary, debt, and backup-health reads. Preserve ordering, pagination, adjustment inclusion, transfer direction, all-zero empty-state semantics, and CSV escaping/formula neutralization. Reads execute as one executor job and never open another connection.
 
 Regenerate the TypeScript bindings after adding report, export, and backup-health DTOs.
 
-- [ ] **Step 4: Verify native goldens and browser report tests**
+- [x] **Step 4: Verify native goldens and browser report tests**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_reports_export`
 
@@ -831,7 +831,7 @@ Run: `pnpm vitest run src/tests/unit/reports.test.ts src/lib/stores/reports.test
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit Task 11**
+- [x] **Step 5: Commit Task 11**
 
 ```sh
 git add src-tauri/src/database/domains/reports.rs src-tauri/src/database/domains/export.rs src-tauri/src/database/backup.rs src-tauri/src/database/types.rs src-tauri/tests/domain_reports_export.rs src/lib/db/native/reports.ts src/lib/db/native/export.ts src/lib/native/contracts.generated.ts
