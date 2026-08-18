@@ -69,9 +69,13 @@ class DbStore {
 
 		if (isTauri()) {
 			// Tauri: delegate lifecycle to Rust via database_initialize.
+			// Ensure _db is initialised so getDb() works for any JS-side callers
+			// (settings, onboarding wizard, E2E helpers) before Rust owns the
+			// connection.
+			await initDb();
 			try {
 				const status = await databaseInitialize();
-				this.mapStatus(status);
+				await this.mapStatus(status);
 			} catch (error) {
 				this.stage = 'recovery_required';
 				this.recovery = fallbackRecovery(error);
@@ -115,7 +119,7 @@ class DbStore {
 	 * Map a Rust DatabaseStatus to store state. Extracts the lifecycle
 	 * stage from the `lifecycle` and `stage` fields.
 	 */
-	private mapStatus(status: DatabaseStatus): void {
+	private async mapStatus(status: DatabaseStatus): Promise<void> {
 		this.backups = status.backups ?? [];
 
 		if (status.recovery) {
@@ -126,7 +130,7 @@ class DbStore {
 
 		if (status.lifecycle === 'ready') {
 			this.stage = 'ready';
-			void this.onReady();
+			await this.onReady();
 			return;
 		}
 
@@ -170,7 +174,7 @@ class DbStore {
 		if (isTauri()) {
 			try {
 				const status = await databaseRetry();
-				this.mapStatus(status);
+				await this.mapStatus(status);
 			} catch (error) {
 				this.stage = 'recovery_required';
 				this.recovery = fallbackRecovery(error);

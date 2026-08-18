@@ -273,7 +273,9 @@ async function loadDb(path, SQL_JS) {
 	}
 
 	// Pre-init seed hook: write seedMeta into the live DB before runAutoBackup.
+	// Ensure app_meta exists first (fresh DB has no tables yet).
 	if (isLivePath(path) && opts.seedMeta) {
+		db.run("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
 		for (const [k, v] of Object.entries(opts.seedMeta)) {
 			try {
 				db.run("INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)", [k, v]);
@@ -505,6 +507,38 @@ window.__TAURI_INTERNALS__ = {
 						recovery: { code: 'migration_failed', retryable: true },
 						backups: [toSummary(upgradePath)]
 					};
+				}
+				// Base schema bootstrap (mirrors migrations 001-004). When the mock
+				// skips onboarding (seedMeta: first_run_complete), the app's migration
+				// runner never fires, so the mock must create these tables itself.
+				// All statements use CREATE TABLE IF NOT EXISTS for idempotency.
+				db.run("CREATE TABLE IF NOT EXISTS accounts (id TEXT PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL, counterparty TEXT, currency TEXT NOT NULL DEFAULT 'VND', archived INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT)");
+				db.run("CREATE TABLE IF NOT EXISTS category_types (id TEXT PRIMARY KEY, name TEXT NOT NULL, is_system INTEGER NOT NULL DEFAULT 0, budgetable INTEGER NOT NULL DEFAULT 1, sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT, rollover_enabled INTEGER NOT NULL DEFAULT 1)");
+				db.run("CREATE TABLE IF NOT EXISTS category_tags (id TEXT PRIMARY KEY, type_id TEXT NOT NULL, name TEXT NOT NULL, is_system INTEGER NOT NULL DEFAULT 0, sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT)");
+				db.run("CREATE TABLE IF NOT EXISTS transactions (id TEXT PRIMARY KEY, kind TEXT NOT NULL, date TEXT NOT NULL, amount INTEGER NOT NULL, account_id TEXT NOT NULL, transfer_account_id TEXT, transfer_pair_id TEXT, refund_of_id TEXT, tag_id TEXT, payee TEXT, description TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT)");
+				db.run("CREATE TABLE IF NOT EXISTS budgets (id TEXT PRIMARY KEY, type_id TEXT NOT NULL, month TEXT NOT NULL, allocated INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT)");
+				db.run("CREATE TABLE IF NOT EXISTS reconciliations (id TEXT PRIMARY KEY, account_id TEXT NOT NULL, date TEXT NOT NULL, expected_balance INTEGER NOT NULL, actual_balance INTEGER NOT NULL, adjustment_transaction_id TEXT, notes TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT)");
+				db.run("CREATE TABLE IF NOT EXISTS change_log (id INTEGER PRIMARY KEY AUTOINCREMENT, table_name TEXT NOT NULL, row_id TEXT NOT NULL, operation TEXT NOT NULL, timestamp TEXT NOT NULL, device_id TEXT NOT NULL, payload TEXT)");
+				// Seed migration 003 data (device_id + default buckets + tags).
+				db.run("INSERT OR IGNORE INTO app_meta (key, value) VALUES ('device_id', 'e2e-test-device')");
+				const seedNow = new Date().toISOString();
+				for (const b of [
+					['bucket_essentials', 'Essentials', 1, 0, 0],
+					['bucket_learning', 'Learning & Entertainment', 1, 1, 0],
+					['bucket_saving', 'Saving & Investment', 1, 2, 0],
+					['bucket_adjustments', 'Adjustments', 0, 3, 1]
+				]) {
+					db.run('INSERT OR IGNORE INTO category_types (id, name, budgetable, sort_order, is_system, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+						[b[0], b[1], b[2], b[3], b[4], seedNow, seedNow]);
+				}
+				for (const t of [
+					['tag_initial_balance', 'bucket_adjustments', 'Initial Balance'],
+					['tag_loss', 'bucket_adjustments', 'Loss'],
+					['tag_gift', 'bucket_adjustments', 'Gift'],
+					['tag_reconciliation', 'bucket_adjustments', 'Reconciliation']
+				]) {
+					db.run('INSERT OR IGNORE INTO category_tags (id, type_id, name, is_system, sort_order, created_at, updated_at) VALUES (?, ?, ?, 1, 0, ?, ?)',
+						[t[0], t[1], t[2], seedNow, seedNow]);
 				}
 				// Migration 005 (mirrors src/lib/db/migrations/005-*.ts: goals table).
 				db.run('CREATE TABLE IF NOT EXISTS goals (id TEXT PRIMARY KEY, name TEXT NOT NULL, goal_type TEXT NOT NULL, target_amount INTEGER NOT NULL, target_date TEXT NOT NULL, linked_account_id TEXT, starting_amount INTEGER DEFAULT 0, current_amount INTEGER DEFAULT 0, show_on_dashboard INTEGER DEFAULT 1, status TEXT DEFAULT active, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT)');

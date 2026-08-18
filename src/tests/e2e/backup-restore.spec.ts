@@ -148,6 +148,8 @@ test.describe('backup -> diverge -> restore round-trip', () => {
 });
 
 test.describe('import rejection (Tauri IPC mock)', () => {
+	test.use({ tauriMockOptions: {} });
+
 	test('corrupt import is rejected, live DB untouched', async ({ tauriMockPage: page }) => {
 		await onboard(page, { accountName: 'CorruptGuard' });
 

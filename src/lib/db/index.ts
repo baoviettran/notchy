@@ -110,6 +110,43 @@ export async function openReadOnlyDatabase(path: string): Promise<DatabaseServic
 	// this sqlx version — it can hang the load IPC. The backup/candidate files
 	// are throwaway and only ever read (validateDatabase), so open the pool
 	// without the suffix; SQLite's default open is harmless for validation.
+
+	// E2E mock: @tauri-apps/plugin-sql was removed from package.json, so the
+	// dynamic import in createTauriDb fails in browser. Use the mock's sql.js
+	// + virtual FS directly to open the candidate for validation.
+	if (typeof window !== 'undefined' && (window as unknown as { __notchyMock?: unknown }).__notchyMock) {
+		const mock = (window as unknown as {
+			__notchyMock: { sqlReady: () => Promise<{ Database: new (b?: Array<number>) => { run: (s: string, p?: unknown[]) => void; prepare: (s: string) => { bind: (p?: unknown[]) => void; step: () => boolean; getAsObject: () => Row; free: () => void }; getRowsModified: () => number; export: () => Uint8Array; close: () => void } }> };
+		}).__notchyMock;
+		const SQL = await mock.sqlReady();
+		// Strip sqlite: prefix; the virtual FS stores bare paths.
+		const fsPath = path.replace(/^sqlite:/, '');
+		const { readFs } = (window as unknown as { __notchyMock: { readFs: (p: string) => Uint8Array | undefined } }).__notchyMock;
+		const bytes = readFs(fsPath);
+		if (!bytes) throw new Error('openReadOnlyDatabase: file not found in virtual FS: ' + fsPath);
+		const db = new SQL.Database(Array.from(bytes));
+		return {
+			execute: async (sql: string, params?: unknown[]) => {
+				db.run(sql, params as unknown[]);
+				return { rowsAffected: db.getRowsModified() } satisfies QueryResult;
+			},
+			query: async <T = Row>(sql: string, params?: unknown[]): Promise<T[]> => {
+				const stmt = db.prepare(sql);
+				try {
+					stmt.bind(params as unknown[]);
+					const rows: T[] = [];
+					while (stmt.step()) rows.push(stmt.getAsObject() as T);
+					return rows;
+				} finally {
+					stmt.free();
+				}
+			},
+			transaction: async <T>(_fn: (tx: DatabaseService) => Promise<T>): Promise<T> => {
+				throw new Error('openReadOnlyDatabase mock: transaction not supported');
+			},
+			close: async () => { db.close(); },
+		};
+	}
 	return createTauriDb(`sqlite:${path}`);
 }
 
