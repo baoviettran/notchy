@@ -455,6 +455,9 @@ window.__TAURI_INTERNALS__ = {
 			const UPGRADE_DIR = APP_DATA_DIR + '/backups/upgrades';
 			const BACKUP_DIR = APP_DATA_DIR + '/backups';
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			// Ensure app_meta exists so the schema-version query works on fresh DBs
+			// (mirrors the migration runner bootstrap in browser/migrations/runner.ts).
+			db.run("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
 			const schemaRow = select(db, "SELECT value FROM app_meta WHERE key = 'schema_version'", []);
 			const currentVersion = schemaRow.length > 0 ? parseInt(schemaRow[0].value) : 0;
 			const stamp = new Date().toISOString().replace(/[:.]/g, '-');
