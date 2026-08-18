@@ -85,7 +85,7 @@
 						</div>
 						<div class="flex items-center gap-2">
 							<span class="figures text-sm text-debit">{formatCurrency(Math.abs(d.balance), settings.currency, settings.locale)}</span>
-							<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+							<div class="flex gap-1 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 transition-opacity">
 								<button onclick={() => openPayment(d)} class="text-xs text-phosphor hover:underline px-2">{m.debts_pay()}</button>
 								<button onclick={() => openWriteoff(d)} class="text-xs text-dim hover:underline px-2">{m.debts_write_off()}</button>
 							</div>
@@ -112,7 +112,7 @@
 						</div>
 						<div class="flex items-center gap-2">
 							<span class="figures text-sm text-phosphor">{formatCurrency(d.balance, settings.currency, settings.locale)}</span>
-							<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+							<div class="flex gap-1 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 transition-opacity">
 								<button onclick={() => openPayment(d)} class="text-xs text-phosphor hover:underline px-2">{m.debts_receive()}</button>
 								<button onclick={() => openWriteoff(d)} class="text-xs text-dim hover:underline px-2">{m.debts_write_off()}</button>
 							</div>

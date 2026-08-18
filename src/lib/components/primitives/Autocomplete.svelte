@@ -84,7 +84,7 @@
 		autocomplete="off"
 	/>
 	{#if open && filtered.length > 0}
-		<ul id={listboxId} class="absolute z-20 w-full mt-1 bg-tape border border-line rounded-lg shadow-lg max-h-48 overflow-y-auto animate-scale-in" role="listbox">
+		<ul id={listboxId} class="absolute z-20 w-full mt-1 bg-tape border border-line rounded-lg shadow-lg max-h-48 overflow-y-auto origin-top animate-scale-in" role="listbox">
 			{#each filtered as opt}
 				<li>
 					<button

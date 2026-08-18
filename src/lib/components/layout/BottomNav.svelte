@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { slideUp } from '$lib/transitions/motion';
 	import * as m from '$lib/paraglide/messages';
 
 	const tabs = [
@@ -72,7 +73,7 @@
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div class="md:hidden fixed inset-0 bg-black/50 z-40" onclick={closeMore}></div>
 
-	<div class="md:hidden fixed bottom-16 left-0 right-0 bg-tape border-t border-line rounded-t-lg p-4 z-50 animate-slide-up">
+	<div class="md:hidden fixed bottom-16 left-0 right-0 bg-tape border-t border-line rounded-t-lg p-4 z-50" transition:slideUp>
 		<div class="grid grid-cols-4 gap-4">
 			{#each moreItems as item}
 				{@const active = isActive(item.href, $page.url.pathname)}
