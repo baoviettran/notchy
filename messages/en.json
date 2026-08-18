@@ -411,7 +411,7 @@
 	"transactions_previous": "← Previous",
 	"transactions_search_placeholder": "Search payee, description...",
 	"transactions_title": "Transactions",
-	"validation_counterparty_required": "Counterparty is required for loans",
+	"validation_counterparty_required": "Counterparty is required for loan accounts",
 	"validation_invalid_amount": "Invalid amount",
 	"validation_name_required": "Name is required",
 	"validation_source_dest_differ": "Source and destination must differ",
