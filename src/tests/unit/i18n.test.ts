@@ -295,11 +295,11 @@ describe('backend error mapping', () => {
 	});
 	it('falls back to errors_unknown for non-AppError', () => {
 		setLanguageTag('en');
-		expect(mapError(new Error('something weird'))).toBe('Something went wrong. Please try again.');
-		expect(mapError('raw string')).toBe('Something went wrong. Please try again.');
+		expect(mapError(new Error('something weird'))).toBe('Something went wrong. Please try again');
+		expect(mapError('raw string')).toBe('Something went wrong. Please try again');
 	});
 	it('falls back to errors_unknown for unknown AppError codes', () => {
 		setLanguageTag('en');
-		expect(mapError(new AppError('not_a_real_code'))).toBe('Something went wrong. Please try again.');
+		expect(mapError(new AppError('not_a_real_code'))).toBe('Something went wrong. Please try again');
 	});
 });
