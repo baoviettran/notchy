@@ -32,7 +32,7 @@ test.describe('protected startup', () => {
 		test('blocks finance routes when the database schema is newer', async ({ tauriMockPage: page }) => {
 			await page.goto('/');
 			await expect(page.getByRole('heading', { name: 'Notchy needs attention' })).toBeVisible();
-			await expect(page.getByText(/schema 7/i)).toBeVisible();
+			await expect(page.getByText(/newer version of Notchy/i)).toBeVisible();
 			await expect(page.getByRole('link', { name: 'Transactions' })).toHaveCount(0);
 		});
 	});
@@ -109,7 +109,7 @@ test.describe('protected startup', () => {
 				page,
 				"SELECT value FROM app_meta WHERE key = 'schema_version'"
 			);
-			expect(schema[0].value).toBe('6');
+			expect(schema[0].value).toBe('5');
 		});
 	});
 

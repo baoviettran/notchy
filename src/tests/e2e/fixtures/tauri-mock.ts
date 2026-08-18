@@ -94,6 +94,12 @@ export async function injectTauriMock(page: Page, opts: TauriMockOptions = {}): 
 const opts = window.__NOTCHY_TAURI_MOCK_OPTIONS__ || {};
 const APP_DATA_DIR = '/notchy/appdata';
 const LIVE_PATH = 'sqlite:notchy.db';
+const LIVE_DB_PATH = '/notchy/appdata/notchy.db';
+// Native boot loads LIVE_DB_PATH; the legacy plugin:sql connection string
+// resolves to the same file via fsKeyFor. "Live" means either key.
+function isLivePath(p) {
+	return p === LIVE_PATH || p === LIVE_DB_PATH;
+}
 const GLUE_B64 = ${JSON.stringify(glueB64)};
 const WASM_B64 = ${JSON.stringify(WASM_B64)};
 const FIXTURE_V004_B64 = ${fixtureV004B64 === null ? 'null' : JSON.stringify(fixtureV004B64)};
@@ -192,9 +198,11 @@ let flushInFlight = null;
 function flushLiveDb() {
 	if (flushInFlight) return flushInFlight;
 	flushInFlight = (async () => {
-		const db = dbs.get(LIVE_PATH);
+		const db = dbs.get(LIVE_DB_PATH) || dbs.get(LIVE_PATH);
 		if (db) {
-			try { await idbSet(idbKey(LIVE_PATH), db.export()); } catch {}
+			const bytes = db.export();
+			try { await idbSet(idbKey(LIVE_DB_PATH), bytes); } catch {}
+			try { await idbSet(idbKey(LIVE_PATH), bytes); } catch {}
 		}
 		flushInFlight = null;
 	})();
@@ -249,7 +257,7 @@ async function loadDb(path, SQL_JS) {
 	// applies on first load (no rehydrated bytes, not already open). Version 4
 	// embeds the committed v004 fixture so the pre-upgrade backup is a genuine
 	// released schema-4 database and migration 005 runs cleanly after restore.
-	if (path === LIVE_PATH && !bytes && opts.initialSchemaVersion === 4 && FIXTURE_V004_B64) {
+	if (isLivePath(path) && !bytes && opts.initialSchemaVersion === 4 && FIXTURE_V004_B64) {
 		bytes = Uint8Array.from(atob(FIXTURE_V004_B64), (c) => c.charCodeAt(0));
 	}
 	const db = bytes ? new SQL_JS.Database(bytes) : new SQL_JS.Database();
@@ -257,7 +265,7 @@ async function loadDb(path, SQL_JS) {
 
 	// Newer-schema claim: a minimal app_meta claiming opts.initialSchemaVersion
 	// is enough for inspectSchema to return 'newer' (tables non-empty).
-	if (path === LIVE_PATH && !bytes && opts.initialSchemaVersion != null && opts.initialSchemaVersion !== 4) {
+	if (isLivePath(path) && !bytes && opts.initialSchemaVersion != null && opts.initialSchemaVersion !== 4) {
 		db.run('CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
 		db.run("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', ?)", [
 			String(opts.initialSchemaVersion)
@@ -265,7 +273,7 @@ async function loadDb(path, SQL_JS) {
 	}
 
 	// Pre-init seed hook: write seedMeta into the live DB before runAutoBackup.
-	if (path === LIVE_PATH && opts.seedMeta) {
+	if (isLivePath(path) && opts.seedMeta) {
 		for (const [k, v] of Object.entries(opts.seedMeta)) {
 			try {
 				db.run("INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)", [k, v]);
@@ -404,8 +412,8 @@ window.__TAURI_INTERNALS__ = {
 			// only store that crosses page.reload(). This mirrors real FS
 			// persistence (copy_file to disk is durable regardless of the
 			// in-memory DB's persist flag, which only governs auto-flushing).
-			if (data && args.toPath === APP_DATA_DIR + '/notchy.db') {
-				await idbSet(idbKey(LIVE_PATH), data);
+			if (data && args.toPath === LIVE_DB_PATH) {
+				await idbSet(idbKey(LIVE_DB_PATH), data);
 			}
 			return {};
 		}
@@ -438,78 +446,79 @@ window.__TAURI_INTERNALS__ = {
 		// --- Native database commands (Task 14 cutover) ---
 		// After the cutover, the app uses NativeDatabaseClient which calls
 		// domain commands instead of plugin:sql|*. Translate them to SQL queries.
-		const LIVE_DB_PATH = APP_DATA_DIR + '/notchy.db';
 		if (cmd === 'database_initialize' || cmd === 'database_retry' || cmd === 'database_status') {
-			const LATEST = 6;
+			// LATEST aligns to the JS registry (LATEST_SCHEMA_VERSION = 5 in
+			// src/lib/db/migrations/index.ts): restoreCompatibleDatabase validates
+			// max 5, and the E2E fixtures/assertions are schema-5-based. Rust runs
+			// its own migration 006; the mock simulates the JS-visible contract.
+			const LATEST = 5;
+			const UPGRADE_DIR = APP_DATA_DIR + '/backups/upgrades';
+			const BACKUP_DIR = APP_DATA_DIR + '/backups';
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
-			// Run migrations if needed
 			const schemaRow = select(db, "SELECT value FROM app_meta WHERE key = 'schema_version'", []);
 			const currentVersion = schemaRow.length > 0 ? parseInt(schemaRow[0].value) : 0;
+			const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+			const upgradePath =
+				UPGRADE_DIR +
+				'/notchy-pre-upgrade-v' + currentVersion + '-to-v' + LATEST + '-0.2.0-' + stamp + '.sqlite';
+			const toSummary = (p) => ({
+				id: p,
+				path: p,
+				schema_version: currentVersion,
+				source_app_version: '0.2.0',
+				created_at: new Date().toISOString(),
+				verified: true
+			});
+			// Verified backups available for restore, newest first.
+			const upgrades = [...fs.keys()].filter((p) => p.startsWith(UPGRADE_DIR)).reverse().map(toSummary);
 
-			// Schema newer than LATEST → recovery_required
 			if (currentVersion > LATEST) {
 				return {
-					state: 'recovery_required',
-					current: { recovery_required: {} },
-					recovery: {
-						code: 'database_schema_newer',
-						app_version: '0.2.0',
-						latest_schema_version: LATEST,
-						detected_schema_version: currentVersion,
-						live_database_path: LIVE_DB_PATH,
-						backup_path: null,
-						detail: 'schema ' + currentVersion
-					}
+					lifecycle: 'recovery_required',
+					stage: null,
+					recovery: { code: 'database_schema_newer', retryable: false },
+					backups: upgrades
 				};
 			}
 
 			if (currentVersion < 5) {
-				// Injected upgrade-backup failure
+				// Mirrors Rust: a verified pre-upgrade backup is written BEFORE any
+				// migration, so a failed migration still leaves a restorable snapshot.
+				if (!faults.failUpgradeBackup) {
+					fs.set(upgradePath, db.export());
+				}
 				if (faults.failUpgradeBackup) {
 					return {
-						state: 'recovery_required',
-						current: { recovery_required: {} },
-						recovery: {
-							code: 'upgrade_backup_failed',
-							app_version: '0.2.0',
-							latest_schema_version: LATEST,
-							detected_schema_version: currentVersion,
-							live_database_path: LIVE_DB_PATH,
-							backup_path: null,
-							detail: 'tauri-mock: injected upgrade-backup failure'
-						}
+						lifecycle: 'recovery_required',
+						stage: null,
+						recovery: { code: 'upgrade_backup_failed', retryable: false },
+						backups: []
 					};
 				}
-
-				// Injected migration failure (check before running migration)
-				if (faults.failMigrationVersion != null && faults.failMigrationVersion === 5) {
+				if (faults.failMigrationVersion === 5) {
 					return {
-						state: 'recovery_required',
-						current: { recovery_required: {} },
-						recovery: {
-							code: 'migration_failed',
-							app_version: '0.2.0',
-							latest_schema_version: LATEST,
-							detected_schema_version: currentVersion,
-							live_database_path: LIVE_DB_PATH,
-							backup_path: null,
-							detail: 'tauri-mock: injected migration failure'
-						}
+						lifecycle: 'recovery_required',
+						stage: null,
+						recovery: { code: 'migration_failed', retryable: true },
+						backups: [toSummary(upgradePath)]
 					};
 				}
-
-				// Run migration 005 (add goals table etc.)
+				// Migration 005 (mirrors src/lib/db/migrations/005-*.ts: goals table).
 				db.run('CREATE TABLE IF NOT EXISTS goals (id TEXT PRIMARY KEY, name TEXT NOT NULL, goal_type TEXT NOT NULL, target_amount INTEGER NOT NULL, target_date TEXT NOT NULL, linked_account_id TEXT, starting_amount INTEGER DEFAULT 0, current_amount INTEGER DEFAULT 0, show_on_dashboard INTEGER DEFAULT 1, status TEXT DEFAULT active, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT)');
 				db.run("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', '5')");
 			}
 
-			if (currentVersion < LATEST) {
-				// Run migration 006 (operation_receipts table)
-				db.run('CREATE TABLE IF NOT EXISTS operation_receipts (operation_id TEXT PRIMARY KEY, command_kind TEXT NOT NULL, request_hash TEXT NOT NULL, result_json TEXT NOT NULL, completed_at TEXT NOT NULL)');
-				db.run("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', '" + LATEST + "')");
+			// Auto-backup simulation. runAutoBackup (src/lib/backup/index.ts) is no
+			// longer called from dbStore.init() in native mode — Rust owns backups.
+			// Mirror its contract: if last_backup_at is older than 1 hour, write a
+			// notchy-backup-*.sqlite snapshot and refresh the marker.
+			const lastBak = select(db, "SELECT value FROM app_meta WHERE key = 'last_backup_at'", []);
+			if (lastBak.length > 0 && Date.now() - new Date(lastBak[0].value).getTime() > 3600_000) {
+				fs.set(BACKUP_DIR + '/notchy-backup-' + stamp + '.sqlite', db.export());
+				db.run("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('last_backup_at', ?)", [new Date().toISOString()]);
 			}
 
-			return { state: 'ready', current: { ready: {} }, recovery: null };
+			return { lifecycle: 'ready', stage: null, recovery: null, backups: upgrades };
 		}
 		if (cmd === 'account_list') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
@@ -953,6 +962,21 @@ window.__TAURI_INTERNALS__ = {
 		}
 		if (cmd === 'quit_app') {
 			return {};
+		}
+		if (cmd === 'database_restore') {
+			const src = args.summary && args.summary.path;
+			const bytes = src && fs.get(src);
+			if (!bytes) throw new Error('tauri-mock: database_restore source missing: ' + src);
+			// Replace the live file bytes and persist to IndexedDB so the
+			// post-restore reload rehydrates the restored database (mirrors a real
+			// disk write that survives process restart).
+			fs.set(LIVE_DB_PATH, bytes);
+			await idbSet(idbKey(LIVE_DB_PATH), bytes);
+			return {};
+		}
+		if (cmd === 'transaction_frequent') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			return select(db, "SELECT payee, tag_id, account_id, amount, kind, COUNT(*) as count FROM transactions WHERE deleted_at IS NULL AND date >= ? AND payee IS NOT NULL AND kind IN ('expense', 'income') GROUP BY payee, tag_id, account_id ORDER BY count DESC, date DESC LIMIT 5", [args.sinceDate]);
 		}
 		throw new Error('tauri-mock: unhandled invoke ' + cmd);
 	},
