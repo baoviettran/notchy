@@ -72,8 +72,8 @@ test.describe('CSV import', () => {
     const countBefore = await page.evaluate(async () => {
       const hooks = (window as any).__notchyTestHooks;
       if (!hooks) throw new Error('Test hooks not available');
-      const db = await hooks.getDb();
-      const result = await db.query('SELECT COUNT(*) as cnt FROM transactions');
+      const db = (await hooks.getDb()) as { raw: { query: (q: string) => Promise<{ cnt: number }[]> } };
+      const result = await db.raw.query('SELECT COUNT(*) as cnt FROM transactions');
       return result[0].cnt;
     });
 
@@ -95,8 +95,8 @@ test.describe('CSV import', () => {
     const countAfter = await page.evaluate(async () => {
       const hooks = (window as any).__notchyTestHooks;
       if (!hooks) throw new Error('Test hooks not available');
-      const db = await hooks.getDb();
-      const result = await db.query('SELECT COUNT(*) as cnt FROM transactions');
+      const db = (await hooks.getDb()) as { raw: { query: (q: string) => Promise<{ cnt: number }[]> } };
+      const result = await db.raw.query('SELECT COUNT(*) as cnt FROM transactions');
       return result[0].cnt;
     });
 

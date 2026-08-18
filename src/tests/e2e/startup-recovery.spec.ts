@@ -1,4 +1,4 @@
-import { test, expect, clearFaults, lastOpenedPath, listVirtualFs } from './fixtures/tauri-mock';
+import { test, expect, clearFaults, lastOpenedPath, listVirtualFs, rawQuery } from './fixtures/tauri-mock';
 import type { Page } from '@playwright/test';
 
 /**
@@ -16,13 +16,7 @@ import type { Page } from '@playwright/test';
  * clicks Restore, and asserts the fixture transaction survives at schema 5.
  */
 async function liveQuery<T>(page: Page, sql: string): Promise<T[]> {
-	return page.evaluate((sql) => {
-		const hooks = (window as unknown as {
-			__notchyTestHooks?: { getDb: () => Promise<{ query: (sql: string) => Promise<unknown[]> }> };
-		}).__notchyTestHooks;
-		if (!hooks) throw new Error('__notchyTestHooks not exposed');
-		return hooks.getDb().then((db) => db.query(sql));
-	}, sql) as Promise<T[]>;
+	return rawQuery<T>(page, sql);
 }
 
 test.describe('protected startup', () => {

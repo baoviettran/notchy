@@ -1004,6 +1004,25 @@ window.__notchyMock = {
 		return idbSet('notchy-mock:faults-cleared', true);
 	},
 	lastOpenedPath: () => lastOpenedPath,
+	rawQuery: (query, values) => {
+		const db = dbs.get(LIVE_DB_PATH);
+		if (!db) throw new Error('tauri-mock: live DB not open');
+		return select(db, query, values || []);
+	},
+	rawExecute: (query, values) => {
+		const db = dbs.get(LIVE_DB_PATH);
+		if (!db) throw new Error('tauri-mock: live DB not open');
+		db.run(query, values || []);
+		return db.getRowsModified();
+	},
+	createBackup: (backupDir) => {
+		const db = dbs.get(LIVE_DB_PATH);
+		if (!db) throw new Error('tauri-mock: live DB not open');
+		const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+		const path = backupDir + '/notchy-backup-' + stamp + '.sqlite';
+		fs.set(path, db.export());
+		return path;
+	},
 };
 	`);
 }
@@ -1017,6 +1036,9 @@ interface NotchyMockWindow {
 	sqlReady: () => Promise<SqlJsNamespace>;
 	clearFaults: () => Promise<void>;
 	lastOpenedPath: () => string | null;
+	rawQuery: (query: string, values?: unknown[]) => unknown[];
+	rawExecute: (query: string, values?: unknown[]) => number;
+	createBackup: (backupDir: string) => string;
 }
 
 /** The sql.js namespace shape tests use to mint candidate DBs. */
@@ -1062,6 +1084,29 @@ export async function flushDb(page: Page): Promise<void> {
 	await page.evaluate(
 		() => (window as unknown as { __notchyMock?: NotchyMockWindow }).__notchyMock?.flushLiveDb()
 	);
+}
+
+export async function rawQuery<T>(page: Page, sql: string, values?: unknown[]): Promise<T[]> {
+	return page.evaluate(
+		({ sql, values }) =>
+			(window as unknown as { __notchyMock?: { rawQuery: (q: string, v: unknown[]) => unknown[] } }).__notchyMock?.rawQuery(sql, values ?? []),
+		{ sql, values }
+	) as Promise<T[]>;
+}
+
+export async function rawExecute(page: Page, sql: string, values?: unknown[]): Promise<number> {
+	return page.evaluate(
+		({ sql, values }) =>
+			(window as unknown as { __notchyMock?: { rawExecute: (q: string, v: unknown[]) => number } }).__notchyMock?.rawExecute(sql, values ?? []),
+		{ sql, values }
+	) as Promise<number>;
+}
+
+export async function createMockBackup(page: Page, dir: string): Promise<string> {
+	return page.evaluate(
+		(dir) => (window as unknown as { __notchyMock?: { createBackup: (d: string) => string } }).__notchyMock?.createBackup(dir),
+		dir
+	) as Promise<string>;
 }
 
 /**

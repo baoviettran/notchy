@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures/tauri-mock';
 import { onboard } from './helpers/ui';
-import { writeVirtualFs, listVirtualFs, flushDb } from './fixtures/tauri-mock';
+import { writeVirtualFs, listVirtualFs, flushDb, rawQuery, rawExecute, createMockBackup } from './fixtures/tauri-mock';
 import type { Page } from '@playwright/test';
 
 const APP_DATA_DIR = '/notchy/appdata';
@@ -23,7 +23,7 @@ function hookExpr(fnBody: string): string {
 }
 
 async function liveQuery<T>(page: Page, sql: string): Promise<T[]> {
-	return page.evaluate(hookExpr(`return (await h.getDb()).query(${JSON.stringify(sql)});`)) as Promise<T[]>;
+	return rawQuery<T>(page, sql);
 }
 
 /**
@@ -62,15 +62,11 @@ test.describe('backup -> diverge -> restore round-trip', () => {
 
 		// Back up via the real createBackup -> VACUUM INTO (mock intercepts and
 		// exports the live sql.js bytes into the virtual FS at the target path).
-		const backupPath = await page.evaluate(
-			hookExpr(`const db = await h.getDb(); return h.createBackup(db, ${JSON.stringify(BACKUP_DIR)});`)
-		);
+		const backupPath = await createMockBackup(page, BACKUP_DIR);
 		expect(backupPath).toMatch(/notchy-backup-.*\.sqlite$/);
 
 		// Diverge: add a second account directly via SQL through the live DB.
-		await page.evaluate(
-			hookExpr(`const db = await h.getDb(); await db.execute(${JSON.stringify(DIVERGE_INSERT)});`)
-		);
+		await rawExecute(page, DIVERGE_INSERT);
 		const divergedCount = await liveQuery<{ c: number }>(
 			page,
 			'SELECT COUNT(*) AS c FROM accounts WHERE deleted_at IS NULL'
@@ -118,12 +114,8 @@ test.describe('backup -> diverge -> restore round-trip', () => {
 		// Claim an older schema on the live DB, then back up those bytes so the
 		// backup presents as a supported v4 database (schema-5 structure with a
 		// v4 schema_version claim).
-		await page.evaluate(
-			hookExpr(`const db = await h.getDb(); await db.execute("UPDATE app_meta SET value='4' WHERE key='schema_version'");`)
-		);
-		const backupPath = await page.evaluate(
-			hookExpr(`const db = await h.getDb(); return h.createBackup(db, ${JSON.stringify(BACKUP_DIR)});`)
-		);
+		await rawExecute(page, "UPDATE app_meta SET value='4' WHERE key='schema_version'");
+		const backupPath = await createMockBackup(page, BACKUP_DIR);
 		expect(backupPath).toMatch(/notchy-backup-.*\.sqlite$/);
 
 		// Restore the supported v4 backup.
