@@ -97,12 +97,10 @@ class DbStore {
 				const hasTauri = (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ !== undefined;
 
 				if (hasMockMarker || !hasTauri) {
-					const backup = await import('$lib/backup');
 					const { restoreCompatibleDatabase } = await import('$lib/recovery');
 					const { getDb: getDbFn } = await import('$lib/db');
 					(window as unknown as { __notchyTestHooks?: Record<string, unknown> }).__notchyTestHooks = {
 						getDb: getDbFn,
-						createBackup: backup.createBackup,
 						restoreCompatibleDatabase
 					};
 				}
@@ -158,12 +156,10 @@ class DbStore {
 			const hasTauri = (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ !== undefined;
 
 			if (hasMockMarker || !hasTauri) {
-				const backup = await import('$lib/backup');
 				const { restoreCompatibleDatabase } = await import('$lib/recovery');
 				const { getDb: getDbFn } = await import('$lib/db');
 				(window as unknown as { __notchyTestHooks?: Record<string, unknown> }).__notchyTestHooks = {
 					getDb: getDbFn,
-					createBackup: backup.createBackup,
 					restoreCompatibleDatabase
 				};
 			}
