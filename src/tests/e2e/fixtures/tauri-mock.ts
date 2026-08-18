@@ -523,18 +523,18 @@ window.__TAURI_INTERNALS__ = {
 			if (rows.length === 0) return null;
 			const r = rows[0];
 			const today = new Date().toISOString().slice(0, 10);
-			const bal = select(db, 'SELECT COALESCE(SUM(CASE WHEN kind=\'income\' THEN amount WHEN kind=\'adjustment\' THEN amount WHEN kind=\'refund\' THEN amount WHEN kind=\'expense\' THEN -amount WHEN kind=\'transfer\' AND account_id=? THEN -amount WHEN kind=\'transfer\' AND transfer_account_id=? THEN amount ELSE 0 END), 0) AS balance FROM transactions WHERE (account_id=? OR (kind=\'transfer\' AND transfer_account_id=?)) AND deleted_at IS NULL AND date<=?', [args.id, args.id, args.id, args.id, today]);
+			const bal = select(db, 'SELECT COALESCE(SUM(CASE WHEN kind=\\'income\\' THEN amount WHEN kind=\\'adjustment\\' THEN amount WHEN kind=\\'refund\\' THEN amount WHEN kind=\\'expense\\' THEN -amount WHEN kind=\\'transfer\\' AND account_id=? THEN -amount WHEN kind=\\'transfer\\' AND transfer_account_id=? THEN amount ELSE 0 END), 0) AS balance FROM transactions WHERE (account_id=? OR (kind=\\'transfer\\' AND transfer_account_id=?)) AND deleted_at IS NULL AND date<=?', [args.id, args.id, args.id, args.id, today]);
 			return { ...r, balance: bal[0]?.balance || 0, counterparty: r.counterparty || null };
 		}
 		if (cmd === 'account_get_balance') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
 			const today = new Date().toISOString().slice(0, 10);
-			const bal = select(db, 'SELECT COALESCE(SUM(CASE WHEN kind=\'income\' THEN amount WHEN kind=\'adjustment\' THEN amount WHEN kind=\'refund\' THEN amount WHEN kind=\'expense\' THEN -amount WHEN kind=\'transfer\' AND account_id=? THEN -amount WHEN kind=\'transfer\' AND transfer_account_id=? THEN amount ELSE 0 END), 0) AS balance FROM transactions WHERE (account_id=? OR (kind=\'transfer\' AND transfer_account_id=?)) AND deleted_at IS NULL AND date<=?', [args.accountId, args.accountId, args.accountId, args.accountId, today]);
+			const bal = select(db, 'SELECT COALESCE(SUM(CASE WHEN kind=\\'income\\' THEN amount WHEN kind=\\'adjustment\\' THEN amount WHEN kind=\\'refund\\' THEN amount WHEN kind=\\'expense\\' THEN -amount WHEN kind=\\'transfer\\' AND account_id=? THEN -amount WHEN kind=\\'transfer\\' AND transfer_account_id=? THEN amount ELSE 0 END), 0) AS balance FROM transactions WHERE (account_id=? OR (kind=\\'transfer\\' AND transfer_account_id=?)) AND deleted_at IS NULL AND date<=?', [args.accountId, args.accountId, args.accountId, args.accountId, today]);
 			return bal[0]?.balance || 0;
 		}
 		if (cmd === 'account_get_balance_as_of') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
-			const bal = select(db, 'SELECT COALESCE(SUM(CASE WHEN kind=\'income\' THEN amount WHEN kind=\'adjustment\' THEN amount WHEN kind=\'refund\' THEN amount WHEN kind=\'expense\' THEN -amount WHEN kind=\'transfer\' AND account_id=? THEN -amount WHEN kind=\'transfer\' AND transfer_account_id=? THEN amount ELSE 0 END), 0) AS balance FROM transactions WHERE (account_id=? OR (kind=\'transfer\' AND transfer_account_id=?)) AND deleted_at IS NULL AND date<=?', [args.accountId, args.accountId, args.accountId, args.accountId, args.date]);
+			const bal = select(db, 'SELECT COALESCE(SUM(CASE WHEN kind=\\'income\\' THEN amount WHEN kind=\\'adjustment\\' THEN amount WHEN kind=\\'refund\\' THEN amount WHEN kind=\\'expense\\' THEN -amount WHEN kind=\\'transfer\\' AND account_id=? THEN -amount WHEN kind=\\'transfer\\' AND transfer_account_id=? THEN amount ELSE 0 END), 0) AS balance FROM transactions WHERE (account_id=? OR (kind=\\'transfer\\' AND transfer_account_id=?)) AND deleted_at IS NULL AND date<=?', [args.accountId, args.accountId, args.accountId, args.accountId, args.date]);
 			return bal[0]?.balance || 0;
 		}
 		if (cmd === 'account_create') {
@@ -548,7 +548,7 @@ window.__TAURI_INTERNALS__ = {
 				const txId = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
 				const date = input.initial_balance_date || now.slice(0, 10);
 				const kind = (input.type === 'credit_card' || input.type === 'loan_from_person') ? 'expense' : 'adjustment';
-				db.run('INSERT INTO transactions (id, kind, date, amount, account_id, tag_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, \'tag_initial_balance\', ?, ?)',
+				db.run('INSERT INTO transactions (id, kind, date, amount, account_id, tag_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, \\'tag_initial_balance\\', ?, ?)',
 					[txId, kind, date, Math.abs(input.initial_balance), id, now, now]);
 			}
 			return id;
@@ -729,7 +729,7 @@ window.__TAURI_INTERNALS__ = {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
 			const start = args.month + '-01';
 			const end = args.month + '-31';
-			const r = select(db, 'SELECT COALESCE(SUM(amount), 0) as spent FROM transactions WHERE tag_id IN (SELECT id FROM tags WHERE category_id = ? AND deleted_at IS NULL) AND kind = \'expense\' AND date >= ? AND date <= ? AND deleted_at IS NULL', [args.typeId, start, end]);
+			const r = select(db, 'SELECT COALESCE(SUM(amount), 0) as spent FROM transactions WHERE tag_id IN (SELECT id FROM tags WHERE category_id = ? AND deleted_at IS NULL) AND kind = \\'expense\\' AND date >= ? AND date <= ? AND deleted_at IS NULL', [args.typeId, start, end]);
 			return r[0]?.spent || 0;
 		}
 		if (cmd === 'budget_get_rolled_over') {
@@ -763,7 +763,7 @@ window.__TAURI_INTERNALS__ = {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
 			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
 			const now = new Date().toISOString();
-			db.run('INSERT INTO goals (id, name, goal_type, target_amount, target_date, linked_account_id, starting_amount, show_on_dashboard, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, \'active\', ?, ?)',
+			db.run('INSERT INTO goals (id, name, goal_type, target_amount, target_date, linked_account_id, starting_amount, show_on_dashboard, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, \\'active\\', ?, ?)',
 				[id, args.name, args.goalType, args.targetAmount, args.targetDate, args.linkedAccountId || null, args.startingAmount || 0, args.showOnDashboard || 1, now, now]);
 			return id;
 		}
@@ -823,14 +823,14 @@ window.__TAURI_INTERNALS__ = {
 		}
 		if (cmd === 'rule_upsert_learned') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
-			const existing = select(db, 'SELECT id FROM rules WHERE payee_term = ? AND source = \'learned\' AND deleted_at IS NULL', [args.payeeTerm]);
+			const existing = select(db, 'SELECT id FROM rules WHERE payee_term = ? AND source = \\'learned\\' AND deleted_at IS NULL', [args.payeeTerm]);
 			const now = new Date().toISOString();
 			if (existing.length > 0) {
 				db.run('UPDATE rules SET tag_id = ?, updated_at = ? WHERE id = ?', [args.tagId, now, existing[0].id]);
 				return { id: existing[0].id, payee_term: args.payeeTerm, match_mode: 'contains', tag_id: args.tagId, source: 'learned', enabled: 1, created_at: now, updated_at: now };
 			}
 			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
-			db.run('INSERT INTO rules (id, payee_term, match_mode, tag_id, source, enabled, created_at, updated_at) VALUES (?, ?, \'contains\', ?, \'learned\', 1, ?, ?)',
+			db.run('INSERT INTO rules (id, payee_term, match_mode, tag_id, source, enabled, created_at, updated_at) VALUES (?, ?, \\'contains\\', ?, \\'learned\\', 1, ?, ?)',
 				[id, args.payeeTerm, args.tagId, now, now]);
 			return { id, payee_term: args.payeeTerm, match_mode: 'contains', tag_id: args.tagId, source: 'learned', enabled: 1, created_at: now, updated_at: now };
 		}
@@ -851,60 +851,60 @@ window.__TAURI_INTERNALS__ = {
 		}
 		if (cmd === 'meta_is_first_run_complete') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
-			const r = select(db, 'SELECT value FROM app_meta WHERE key = \'first_run_complete\'', []);
+			const r = select(db, 'SELECT value FROM app_meta WHERE key = \\'first_run_complete\\'', []);
 			return r.length > 0 && r[0].value === '1';
 		}
 		if (cmd === 'meta_get_locale') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
-			const r = select(db, 'SELECT value FROM app_meta WHERE key = \'locale\'', []);
+			const r = select(db, 'SELECT value FROM app_meta WHERE key = \\'locale\\'', []);
 			return r.length > 0 ? r[0].value : 'en';
 		}
 		if (cmd === 'meta_get_currency') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
-			const r = select(db, 'SELECT value FROM app_meta WHERE key = \'currency\'', []);
+			const r = select(db, 'SELECT value FROM app_meta WHERE key = \\'currency\\'', []);
 			return r.length > 0 ? r[0].value : 'VND';
 		}
 		if (cmd === 'meta_is_tour_complete') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
-			const r = select(db, 'SELECT value FROM app_meta WHERE key = \'tour_complete\'', []);
+			const r = select(db, 'SELECT value FROM app_meta WHERE key = \\'tour_complete\\'', []);
 			return r.length > 0 && r[0].value === '1';
 		}
 		if (cmd === 'meta_set_tour_complete') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
-			db.run('INSERT OR REPLACE INTO app_meta (key, value) VALUES (\'tour_complete\', \'1\')', []);
+			db.run('INSERT OR REPLACE INTO app_meta (key, value) VALUES (\\'tour_complete\\', \\'1\\')', []);
 			return {};
 		}
 		if (cmd === 'meta_set_first_run_complete') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
-			db.run('INSERT OR REPLACE INTO app_meta (key, value) VALUES (\'first_run_complete\', \'1\')', []);
+			db.run('INSERT OR REPLACE INTO app_meta (key, value) VALUES (\\'first_run_complete\\', \\'1\\')', []);
 			return {};
 		}
 		if (cmd === 'meta_get_default_quick_account') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
-			const r = select(db, 'SELECT value FROM app_meta WHERE key = \'default_quick_account\'', []);
+			const r = select(db, 'SELECT value FROM app_meta WHERE key = \\'default_quick_account\\'', []);
 			return r.length > 0 ? r[0].value : null;
 		}
 		if (cmd === 'meta_set_default_quick_account') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
-			db.run('INSERT OR REPLACE INTO app_meta (key, value) VALUES (\'default_quick_account\', ?)', [args.accountId]);
+			db.run('INSERT OR REPLACE INTO app_meta (key, value) VALUES (\\'default_quick_account\\', ?)', [args.accountId]);
 			return {};
 		}
 		if (cmd === 'meta_clear_default_quick_account') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
-			db.run('DELETE FROM app_meta WHERE key = \'default_quick_account\'', []);
+			db.run('DELETE FROM app_meta WHERE key = \\'default_quick_account\\'', []);
 			return {};
 		}
 		if (cmd === 'debt_list') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
-			const iOwe = select(db, 'SELECT a.*, COALESCE(SUM(CASE WHEN t.kind=\'expense\' THEN t.amount WHEN t.kind=\'transfer\' AND t.transfer_account_id=a.id THEN t.amount ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN t.kind=\'transfer\' AND t.account_id=a.id THEN t.amount ELSE 0 END), 0) as balance FROM accounts a LEFT JOIN transactions t ON (t.account_id=a.id OR t.transfer_account_id=a.id) AND t.deleted_at IS NULL WHERE a.type=\'loan_to_person\' AND a.deleted_at IS NULL GROUP BY a.id', []);
-			const owedToMe = select(db, 'SELECT a.*, COALESCE(SUM(CASE WHEN t.kind=\'expense\' THEN t.amount WHEN t.kind=\'transfer\' AND t.transfer_account_id=a.id THEN t.amount ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN t.kind=\'transfer\' AND t.account_id=a.id THEN t.amount ELSE 0 END), 0) as balance FROM accounts a LEFT JOIN transactions t ON (t.account_id=a.id OR t.transfer_account_id=a.id) AND t.deleted_at IS NULL WHERE a.type=\'loan_from_person\' AND a.deleted_at IS NULL GROUP BY a.id', []);
+			const iOwe = select(db, 'SELECT a.*, COALESCE(SUM(CASE WHEN t.kind=\\'expense\\' THEN t.amount WHEN t.kind=\\'transfer\\' AND t.transfer_account_id=a.id THEN t.amount ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN t.kind=\\'transfer\\' AND t.account_id=a.id THEN t.amount ELSE 0 END), 0) as balance FROM accounts a LEFT JOIN transactions t ON (t.account_id=a.id OR t.transfer_account_id=a.id) AND t.deleted_at IS NULL WHERE a.type=\\'loan_to_person\\' AND a.deleted_at IS NULL GROUP BY a.id', []);
+			const owedToMe = select(db, 'SELECT a.*, COALESCE(SUM(CASE WHEN t.kind=\\'expense\\' THEN t.amount WHEN t.kind=\\'transfer\\' AND t.transfer_account_id=a.id THEN t.amount ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN t.kind=\\'transfer\\' AND t.account_id=a.id THEN t.amount ELSE 0 END), 0) as balance FROM accounts a LEFT JOIN transactions t ON (t.account_id=a.id OR t.transfer_account_id=a.id) AND t.deleted_at IS NULL WHERE a.type=\\'loan_from_person\\' AND a.deleted_at IS NULL GROUP BY a.id', []);
 			return { i_owe: iOwe, owed_to_me: owedToMe };
 		}
 		if (cmd === 'debt_write_off') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
 			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
 			const now = new Date().toISOString();
-			db.run('INSERT INTO transactions (id, kind, date, amount, account_id, tag_id, description, created_at, updated_at) VALUES (?, \'adjustment\', ?, ?, ?, ?, \'Debt write-off\', ?, ?)',
+			db.run('INSERT INTO transactions (id, kind, date, amount, account_id, tag_id, description, created_at, updated_at) VALUES (?, \\'adjustment\\', ?, ?, ?, ?, \\'Debt write-off\\', ?, ?)',
 				[id, now.slice(0, 10), args.amount, args.accountId, args.tagId || null, now, now]);
 			return id;
 		}
@@ -920,7 +920,7 @@ window.__TAURI_INTERNALS__ = {
 				[id, args.accountId, args.actualBalance, args.actualBalance, args.notes || null, now, now, now]);
 			if (args.createAdjustment) {
 				const txId = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
-				db.run('INSERT INTO transactions (id, kind, date, amount, account_id, tag_id, description, created_at, updated_at) VALUES (?, \'adjustment\', ?, ?, ?, NULL, \'Reconciliation adjustment\', ?, ?)',
+				db.run('INSERT INTO transactions (id, kind, date, amount, account_id, tag_id, description, created_at, updated_at) VALUES (?, \\'adjustment\\', ?, ?, ?, NULL, \\'Reconciliation adjustment\\', ?, ?)',
 					[txId, now.slice(0, 10), args.actualBalance, args.accountId, now, now]);
 			}
 			return { reconciliation_id: id, difference: args.actualBalance };
@@ -929,8 +929,8 @@ window.__TAURI_INTERNALS__ = {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
 			const start = args.month + '-01';
 			const end = args.month + '-31';
-			const income = select(db, 'SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE kind=\'income\' AND date >= ? AND date <= ? AND deleted_at IS NULL', [start, end]);
-			const expense = select(db, 'SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE kind=\'expense\' AND date >= ? AND date <= ? AND deleted_at IS NULL', [start, end]);
+			const income = select(db, 'SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE kind=\\'income\\' AND date >= ? AND date <= ? AND deleted_at IS NULL', [start, end]);
+			const expense = select(db, 'SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE kind=\\'expense\\' AND date >= ? AND date <= ? AND deleted_at IS NULL', [start, end]);
 			return { month: args.month, income: income[0]?.total || 0, expense: expense[0]?.total || 0, net: (income[0]?.total || 0) - (expense[0]?.total || 0), by_category: [] };
 		}
 		if (cmd === 'report_get_trend') {
@@ -1063,9 +1063,12 @@ export async function lastOpenedPath(page: Page): Promise<string | null> {
  *   test.use({ tauriMockOptions: { seedMeta: {...} } })
  */
 export const test = base.extend<{ tauriMockPage: Page; tauriMockOptions: TauriMockOptions }>({
-	tauriMockOptions: [{}, { option: true }],
+	// Undefined by default: the mock is only injected when a test explicitly
+	// opts in via test.use({ tauriMockOptions }). UI-flow specs run the browser
+	// fallback (real repos, documented E2E path); DB-lifecycle specs opt in.
+	tauriMockOptions: [undefined, { option: true }],
 	tauriMockPage: async ({ page, tauriMockOptions }, use) => {
-		await injectTauriMock(page, tauriMockOptions);
+		if (tauriMockOptions !== undefined) await injectTauriMock(page, tauriMockOptions);
 		await use(page);
 	},
 });
