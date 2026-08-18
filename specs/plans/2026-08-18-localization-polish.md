@@ -30,7 +30,7 @@
 - Consumes: `messages/en.json`, `messages/vi.json` (read via `fs`, repo-root relative path)
 - Produces: test names `i18n messages > …` used by Tasks 2–4 to verify each fix
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -92,12 +92,12 @@ describe('i18n messages', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec vitest run src/tests/unit/i18n-messages.test.ts`
 Expected: FAIL — 3 failures: "no known-dead keys" (12 keys listed), "no stray English File" (`import_tx_error_file_too_large`, `import_tx_error_parse`), "no period" (`errors_account_delete_linked_goals`, `errors_unknown`). Key-set and placeholder tests pass.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/tests/unit/i18n-messages.test.ts
@@ -115,7 +115,7 @@ git commit -m "test: add i18n catalog parity and convention checks"
 - Consumes: `DEAD_KEYS` list from Task 1
 - Produces: nothing — removal only; no code referenced these keys
 
-- [ ] **Step 1: Remove these exact lines from both files**
+- [x] **Step 1: Remove these exact lines from both files**
 
 ```
 "budgets_remaining"            (en: "remaining" / vi: "còn lại")
@@ -134,22 +134,22 @@ git commit -m "test: add i18n catalog parity and convention checks"
 
 (Verify each pair matches what's actually in the files before deleting; the en/vi values above are from the 2026-08-18 review.)
 
-- [ ] **Step 2: Regenerate Paraglide output**
+- [x] **Step 2: Regenerate Paraglide output**
 
 Run: `pnpm check`
 Expected: exits 0; `src/lib/paraglide/messages/` regenerated (gitignored — no commit needed for it).
 
-- [ ] **Step 3: Run the dead-key test**
+- [x] **Step 3: Run the dead-key test**
 
 Run: `pnpm exec vitest run src/tests/unit/i18n-messages.test.ts -t "dead keys"`
 Expected: PASS
 
-- [ ] **Step 4: Run full unit suite**
+- [x] **Step 4: Run full unit suite**
 
 Run: `pnpm test`
 Expected: PASS (nothing referenced the deleted keys; if anything fails, a key was live — restore it and remove it from `DEAD_KEYS` instead)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add messages/en.json messages/vi.json
@@ -167,7 +167,7 @@ git commit -m "chore: remove 12 unused i18n message keys"
 - Consumes: nothing
 - Produces: nothing — string values only; keys, placeholders, and call sites (`src/lib/utils/errors.ts:42-43`, `src/lib/components/forms/AccountForm.svelte:36`) unchanged
 
-- [ ] **Step 1: Apply these exact replacements**
+- [x] **Step 1: Apply these exact replacements**
 
 `messages/vi.json`:
 
@@ -185,22 +185,22 @@ git commit -m "chore: remove 12 unused i18n message keys"
 |---|---|---|
 | `validation_counterparty_required` | `Counterparty is required for loans` | `Counterparty is required for loan accounts` |
 
-- [ ] **Step 2: Regenerate Paraglide output**
+- [x] **Step 2: Regenerate Paraglide output**
 
 Run: `pnpm check`
 Expected: exits 0
 
-- [ ] **Step 3: Run the File-wording test**
+- [x] **Step 3: Run the File-wording test**
 
 Run: `pnpm exec vitest run src/tests/unit/i18n-messages.test.ts -t "Tệp"`
 Expected: PASS
 
-- [ ] **Step 4: Run full unit suite + E2E accounts tests (they assert counterparty validation copy)**
+- [x] **Step 4: Run full unit suite + E2E accounts tests (they assert counterparty validation copy)**
 
 Run: `pnpm test && pnpm test:e2e src/tests/e2e/accounts-extended.spec.ts`
 Expected: PASS (E2E matches by test-id/behavior, not the message string — but verify; if a spec asserts the old vi/en string, update that assertion in the same commit)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add messages/en.json messages/vi.json
@@ -218,7 +218,7 @@ git commit -m "fix(i18n): standardize vi terminology (Tệp, đối tác) and cl
 - Consumes: nothing
 - Produces: nothing — convention enforced by Task 1's "end no errors_* message with a period" test
 
-- [ ] **Step 1: Remove trailing periods from these exact values**
+- [x] **Step 1: Remove trailing periods from these exact values**
 
 `messages/en.json`:
 
@@ -236,22 +236,22 @@ git commit -m "fix(i18n): standardize vi terminology (Tệp, đối tác) and cl
 
 Internal sentence periods stay; only the final period goes.
 
-- [ ] **Step 2: Regenerate Paraglide output**
+- [x] **Step 2: Regenerate Paraglide output**
 
 Run: `pnpm check`
 Expected: exits 0
 
-- [ ] **Step 3: Run the whole i18n test file**
+- [x] **Step 3: Run the whole i18n test file**
 
 Run: `pnpm exec vitest run src/tests/unit/i18n-messages.test.ts`
 Expected: PASS (all 5 tests — Tasks 2–4 fixes all in)
 
-- [ ] **Step 4: Run full suite**
+- [x] **Step 4: Run full suite**
 
 Run: `pnpm test`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add messages/en.json messages/vi.json
@@ -265,16 +265,16 @@ git commit -m "fix(i18n): drop trailing periods from errors_* messages"
 **Files:**
 - Regenerate: `specs/STATUS.md` (generated — never hand-edit)
 
-- [ ] **Step 1: Flip this plan's checkboxes as tasks complete**
+- [x] **Step 1: Flip this plan's checkboxes as tasks complete**
 
 Each task's steps get `- [ ]` → `- [x]` when its commit lands.
 
-- [ ] **Step 2: Refresh STATUS.md**
+- [x] **Step 2: Refresh STATUS.md**
 
 Run: `pnpm test:roadmap`
 Expected: exit 0, no `⚠ stale`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add specs/plans/2026-08-18-localization-polish.md specs/STATUS.md
