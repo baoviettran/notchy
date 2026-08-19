@@ -79,7 +79,7 @@ test.describe('accounts — extended', () => {
 		// Counterparty field now visible but left empty.
 		await modal.getByRole('button', { name: 'Create' }).click();
 		// AccountForm.svelte:36 → validation_counterparty_required.
-		await expect(modal.getByText('Counterparty is required for loans')).toBeVisible();
+		await expect(modal.getByText('Counterparty is required for loan accounts')).toBeVisible();
 	});
 
 	test('edit account: name change persists; type Select is disabled', async ({ onboardedPage: page }) => {
