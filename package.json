@@ -32,7 +32,10 @@
     "onlyBuiltDependencies": [
       "esbuild",
       "better-sqlite3"
-    ]
+    ],
+    "patchedDependencies": {
+      "@sveltejs/vite-plugin-svelte": "patches/@sveltejs__vite-plugin-svelte.patch"
+    }
   },
   "devDependencies": {
     "@fontsource/ibm-plex-mono": "5.2.7",

@@ -1,0 +1,32 @@
+diff --git a/src/index.js b/src/index.js
+index 9ec43e9eca0be07ae1e0f3e67c9c380fdfbff114..b3591abafb1b34ab20d44c7a490ce3b47635f4cd 100644
+--- a/src/index.js
++++ b/src/index.js
+@@ -122,6 +122,27 @@ export function svelte(inlineOptions) {
+ 							if (css) {
+ 								return css;
+ 							}
++							// Cache miss: the style virtual module was requested (e.g. by Vite's
++							// dev HTML CSS collection with importer=index.html) before this
++							// component's main transform ran. Compile on demand so the raw
++							// .svelte source is never handed to vite:css/postcss, which would
++							// throw "Unknown word". Mirrors the transform path below - NOT
++							// loadRaw: loadRaw's stable compilerOptions would desync the
++							// scoped CSS hash from the transform-compiled JS.
++							log.debug(
++								`style module requested before transform, compiling ${filename}`,
++								undefined,
++								'load'
++							);
++							try {
++								const code = fs.readFileSync(filename, 'utf-8');
++								const compileData = await compileSvelte(svelteRequest, code, options);
++								cache.update(compileData);
++								return compileData.compiled.css ?? '';
++							} catch (e) {
++								cache.setError(svelteRequest, e);
++								throw toRollupError(e, options);
++							}
+ 						}
+ 						// prevent vite asset plugin from loading files as url that should be compiled in transform
+ 						if (viteConfig.assetsInclude(filename)) {
