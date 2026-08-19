@@ -10,6 +10,12 @@ use database::commands::*;
 use database::executor::DatabaseManager;
 use database::connection::DatabasePaths;
 
+/// Quick-capture window. `true` registers the global shortcut, the tray
+/// "Quick Add" item, and tray-left-click capture. Set to `false` to disable
+/// the feature entirely (the hidden window stays in the config, just
+/// unreachable). Disabled 2026-08-19 per user request.
+const QUICK_ADD_ENABLED: bool = false;
+
 fn show_quick_add(app: &tauri::AppHandle) {
     if let Some(w) = app.get_webview_window("quick-add") {
         let _ = w.show();
@@ -121,17 +127,20 @@ pub fn run() {
             report_get_year_over_year,
             report_get_net_worth_series,
         ])
-        .plugin(
-            tauri_plugin_global_shortcut::Builder::new()
-                .with_shortcut("CmdOrCtrl+Shift+N")
-                .unwrap()
-                .with_handler(|app, _shortcut, event| {
-                    if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-                        show_quick_add(app);
-                    }
-                })
-                .build(),
-        )
+        .plugin({
+            let mut builder = tauri_plugin_global_shortcut::Builder::new();
+            if QUICK_ADD_ENABLED {
+                builder = builder
+                    .with_shortcut("CmdOrCtrl+Shift+N")
+                    .unwrap()
+                    .with_handler(|app, _shortcut, event| {
+                        if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                            show_quick_add(app);
+                        }
+                    });
+            }
+            builder.build()
+        })
         .setup(|app| {
             // Spawn the database manager early so the IPC handler can resolve it.
             let data_dir = app.path().app_data_dir().expect("failed to resolve app data dir");
@@ -141,10 +150,14 @@ pub fn run() {
                 .expect("failed to spawn database manager");
             app.manage(manager);
 
-            let quick_add = MenuItem::with_id(app, "quick_add", "Quick Add", true, None::<&str>)?;
             let show = MenuItem::with_id(app, "show", "Show Notchy", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&quick_add, &show, &quit])?;
+            let menu = if QUICK_ADD_ENABLED {
+                let quick_add = MenuItem::with_id(app, "quick_add", "Quick Add", true, None::<&str>)?;
+                Menu::with_items(app, &[&quick_add, &show, &quit])?
+            } else {
+                Menu::with_items(app, &[&show, &quit])?
+            };
 
             TrayIconBuilder::with_id("main-tray")
                 .icon(app.default_window_icon().unwrap().clone())
@@ -163,7 +176,11 @@ pub fn run() {
                         ..
                     } = event
                     {
-                        show_quick_add(tray.app_handle());
+                        if QUICK_ADD_ENABLED {
+                            show_quick_add(tray.app_handle());
+                        } else {
+                            show_main(tray.app_handle());
+                        }
                     }
                 })
                 .build(app)?;
