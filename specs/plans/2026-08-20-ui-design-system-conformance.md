@@ -1,6 +1,6 @@
 # UI Design-System Conformance Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Bring Notchy's outliers into the Adding Machine design system — chart colors, page titles, the reports sub-nav, and the top bar's dead controls.
 
@@ -38,7 +38,7 @@
 
 Fixes the spec finding #1: `var(--color-phosphor, #00ff00)` → green fallback, `var(--color-chalk, #666)` → gray fallback. The real tokens are `--phosphor`, `--line`, `--dim`.
 
-- [ ] **Step 1: Write the failing test for LineChart**
+- [x] **Step 1: Write the failing test for LineChart**
 
 Append to `src/tests/unit/components/LineChart.test.ts`:
 
@@ -59,12 +59,12 @@ Append to `src/tests/unit/components/LineChart.test.ts`:
 	});
 ```
 
-- [ ] **Step 2: Run the LineChart test to verify it fails**
+- [x] **Step 2: Run the LineChart test to verify it fails**
 
 Run: `pnpm test -- src/tests/unit/components/LineChart.test.ts`
 Expected: FAIL — `expect(style).not.toContain('--color-')` (the compiled style still contains `--color-phosphor` / `--color-chalk`).
 
-- [ ] **Step 3: Fix the LineChart style block**
+- [x] **Step 3: Fix the LineChart style block**
 
 In `src/lib/components/charts/LineChart.svelte`, replace the `<style>` rules:
 
@@ -99,12 +99,12 @@ In `src/lib/components/charts/LineChart.svelte`, replace the `<style>` rules:
 
 (`.y-axis .tick-label` is unchanged.)
 
-- [ ] **Step 4: Run the LineChart test to verify it passes**
+- [x] **Step 4: Run the LineChart test to verify it passes**
 
 Run: `pnpm test -- src/tests/unit/components/LineChart.test.ts`
 Expected: PASS (all tests in the file).
 
-- [ ] **Step 5: Write the failing test for StackedAreaChart**
+- [x] **Step 5: Write the failing test for StackedAreaChart**
 
 Append to `src/tests/unit/components/StackedAreaChart.test.ts`:
 
@@ -129,12 +129,12 @@ Append to `src/tests/unit/components/StackedAreaChart.test.ts`:
 	});
 ```
 
-- [ ] **Step 6: Run the StackedAreaChart test to verify it fails**
+- [x] **Step 6: Run the StackedAreaChart test to verify it fails**
 
 Run: `pnpm test -- src/tests/unit/components/StackedAreaChart.test.ts`
 Expected: FAIL — `not.toContain('--color-')`.
 
-- [ ] **Step 7: Fix the StackedAreaChart style block**
+- [x] **Step 7: Fix the StackedAreaChart style block**
 
 In `src/lib/components/charts/StackedAreaChart.svelte`, replace the `<style>` rules:
 
@@ -165,12 +165,12 @@ In `src/lib/components/charts/StackedAreaChart.svelte`, replace the `<style>` ru
 	}
 ```
 
-- [ ] **Step 8: Run the StackedAreaChart test to verify it passes**
+- [x] **Step 8: Run the StackedAreaChart test to verify it passes**
 
 Run: `pnpm test -- src/tests/unit/components/StackedAreaChart.test.ts`
 Expected: PASS.
 
-- [ ] **Step 9: Write the failing test for GroupedBarChart**
+- [x] **Step 9: Write the failing test for GroupedBarChart**
 
 Append to `src/tests/unit/components/GroupedBarChart.test.ts`:
 
@@ -194,26 +194,26 @@ Append to `src/tests/unit/components/GroupedBarChart.test.ts`:
 	});
 ```
 
-- [ ] **Step 10: Run the GroupedBarChart test to verify it fails**
+- [x] **Step 10: Run the GroupedBarChart test to verify it fails**
 
 Run: `pnpm test -- src/tests/unit/components/GroupedBarChart.test.ts`
 Expected: FAIL — `not.toContain('--color-')`.
 
-- [ ] **Step 11: Fix the GroupedBarChart style block**
+- [x] **Step 11: Fix the GroupedBarChart style block**
 
 In `src/lib/components/charts/GroupedBarChart.svelte`, replace the `<style>` rules exactly as in Step 7 (`.axis-line` → `var(--line)`, `.tick-line` → `var(--line)`, `.tick-label` → `var(--dim)`, `.legend-label` → `var(--dim)`).
 
-- [ ] **Step 12: Run the GroupedBarChart test to verify it passes**
+- [x] **Step 12: Run the GroupedBarChart test to verify it passes**
 
 Run: `pnpm test -- src/tests/unit/components/GroupedBarChart.test.ts`
 Expected: PASS.
 
-- [ ] **Step 13: Run the full suite**
+- [x] **Step 13: Run the full suite**
 
 Run: `pnpm test`
 Expected: all green.
 
-- [ ] **Step 14: Commit**
+- [x] **Step 14: Commit**
 
 ```bash
 git add src/lib/components/charts/LineChart.svelte src/lib/components/charts/StackedAreaChart.svelte src/lib/components/charts/GroupedBarChart.svelte src/tests/unit/components/LineChart.test.ts src/tests/unit/components/StackedAreaChart.test.ts src/tests/unit/components/GroupedBarChart.test.ts
@@ -232,7 +232,7 @@ git commit -m "fix(charts): use design-system tokens in chart styles"
 - Consumes: nothing.
 - Produces: `reportSeriesColors: readonly string[]` (6 `var(--...)` token strings) and `seriesColor(index: number): string` (cycles, tolerates negatives). Tasks 3 and 4 consume these.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/tests/unit/palette.test.ts`:
 
@@ -260,12 +260,12 @@ describe('report series palette', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm test -- src/tests/unit/palette.test.ts`
 Expected: FAIL — module `'../../lib/utils/palette'` cannot be resolved.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `src/lib/utils/palette.ts`:
 
@@ -290,12 +290,12 @@ export function seriesColor(index: number): string {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm test -- src/tests/unit/palette.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/utils/palette.ts src/tests/unit/palette.test.ts
@@ -315,7 +315,7 @@ git commit -m "feat(ui): add token-derived report palette module"
 - Consumes: `seriesColor` from Task 2.
 - Produces: `DonutChart` gains an optional `centerLabel?: string` prop and renders colors through `style="fill: ..."`. Later tasks do not depend on these, but the ramp is reused in Task 4.
 
-- [ ] **Step 1: Write the failing tests for DonutChart**
+- [x] **Step 1: Write the failing tests for DonutChart**
 
 Append to `src/tests/unit/components/DonutChart.test.ts`:
 
@@ -336,12 +336,12 @@ Append to `src/tests/unit/components/DonutChart.test.ts`:
 	});
 ```
 
-- [ ] **Step 2: Run the DonutChart tests to verify they fail**
+- [x] **Step 2: Run the DonutChart tests to verify they fail**
 
 Run: `pnpm test -- src/tests/unit/components/DonutChart.test.ts`
 Expected: FAIL — first test's path has no `style` attribute (it uses `fill={arc.color}`); second fails because the `centerLabel` prop does not exist yet.
 
-- [ ] **Step 3: Modify DonutChart**
+- [x] **Step 3: Modify DonutChart**
 
 In `src/lib/components/charts/DonutChart.svelte`:
 
@@ -373,19 +373,19 @@ let { data = [], centerLabel = '' }: { data?: DonutDatum[]; centerLabel?: string
 
 (The `fill-tape` center circle now sits under the centered `figures` readout.)
 
-- [ ] **Step 4: Run the DonutChart tests to verify they pass**
+- [x] **Step 4: Run the DonutChart tests to verify they pass**
 
 Run: `pnpm test -- src/tests/unit/components/DonutChart.test.ts`
 Expected: PASS (existing tests still pass — the arc count is unchanged, the center circle is a `<circle>`, not a `<path>`).
 
-- [ ] **Step 5: Write the failing assertion for the overview page's ramp**
+- [x] **Step 5: Write the failing assertion for the overview page's ramp**
 
 The overview's palette change is covered by the module test in Task 2 plus `pnpm check`. There is no page-render test harness for routes (they need stores + DB, which the testing conventions say not to mock). This step is the red-green hook for the page edit: first assert the current state is out of conformance.
 
 Run: `pnpm check`
 Expected: PASS against the *current* (non-conforming) page — this documents the baseline. Then proceed to Step 6; Step 7 re-runs `pnpm check` against the conforming page.
 
-- [ ] **Step 6: Point the overview donut at the token ramp and pass the total**
+- [x] **Step 6: Point the overview donut at the token ramp and pass the total**
 
 In `src/routes/reports/+page.svelte`:
 
@@ -418,7 +418,7 @@ import { seriesColor } from '$lib/utils/palette';
 <DonutChart data={donutData} centerLabel={report ? formatCurrency(totalSpending, settings.currency, settings.locale) : ''} />
 ```
 
-- [ ] **Step 7: Verify the page change**
+- [x] **Step 7: Verify the page change**
 
 Run: `pnpm check`
 Expected: PASS, no type errors (`formatCurrency` and `settings` are already imported in the file).
@@ -426,7 +426,7 @@ Expected: PASS, no type errors (`formatCurrency` and `settings` are already impo
 Run: `pnpm test`
 Expected: all green.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/lib/components/charts/DonutChart.svelte src/routes/reports/+page.svelte src/tests/unit/components/DonutChart.test.ts
@@ -446,7 +446,7 @@ git commit -m "feat(ui): donut uses token palette with center total readout"
 - Consumes: `seriesColor` from Task 2.
 - Produces: `StackedAreaChart` renders series fills via `style` so `var()` references resolve. No API change.
 
-- [ ] **Step 1: Write the failing test for StackedAreaChart**
+- [x] **Step 1: Write the failing test for StackedAreaChart**
 
 Append to `src/tests/unit/components/StackedAreaChart.test.ts`:
 
@@ -466,12 +466,12 @@ Append to `src/tests/unit/components/StackedAreaChart.test.ts`:
 	});
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm test -- src/tests/unit/components/StackedAreaChart.test.ts`
 Expected: FAIL — the `<path>` uses `fill={colors[...]}` (presentation attribute, no `style`).
 
-- [ ] **Step 3: Modify StackedAreaChart**
+- [x] **Step 3: Modify StackedAreaChart**
 
 In `src/lib/components/charts/StackedAreaChart.svelte`:
 
@@ -491,12 +491,12 @@ In `src/lib/components/charts/StackedAreaChart.svelte`:
 						<span class="legend-color" style="background-color: {colors[tag.tagId] ?? 'var(--dim)'}"></span>
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm test -- src/tests/unit/components/StackedAreaChart.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Point the composition page at the token ramp**
+- [x] **Step 5: Point the composition page at the token ramp**
 
 In `src/routes/reports/composition/+page.svelte`:
 
@@ -522,7 +522,7 @@ import { seriesColor } from '$lib/utils/palette';
 	});
 ```
 
-- [ ] **Step 6: Verify the page change**
+- [x] **Step 6: Verify the page change**
 
 Run: `pnpm check`
 Expected: PASS.
@@ -530,7 +530,7 @@ Expected: PASS.
 Run: `pnpm test`
 Expected: all green.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/lib/components/charts/StackedAreaChart.svelte src/routes/reports/composition/+page.svelte src/tests/unit/components/StackedAreaChart.test.ts
@@ -551,7 +551,7 @@ git commit -m "fix(ui): stacked-area chart and composition on token ramp"
 
 Implements spec finding #2's YOY special case: income is `--phosphor`, expense is `--debit`; year is encoded as intensity, not new hues.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `src/tests/unit/components/GroupedBarChart.test.ts`:
 
@@ -583,12 +583,12 @@ Append to `src/tests/unit/components/GroupedBarChart.test.ts`:
 	});
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm test -- src/tests/unit/components/GroupedBarChart.test.ts`
 Expected: FAIL — bars render with hex `fill` attributes and no `opacity`.
 
-- [ ] **Step 3: Modify GroupedBarChart**
+- [x] **Step 3: Modify GroupedBarChart**
 
 In `src/lib/components/charts/GroupedBarChart.svelte`:
 
@@ -655,18 +655,18 @@ and inside the push:
 					<span class="legend-color" style="background-color: {colors[key as keyof typeof colors]}; opacity: {faded.has(key) ? 0.55 : 1}"></span>
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm test -- src/tests/unit/components/GroupedBarChart.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Run the full suite and check**
+- [x] **Step 5: Run the full suite and check**
 
 Run: `pnpm test`
 Run: `pnpm check`
 Expected: all green.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/lib/components/charts/GroupedBarChart.svelte src/tests/unit/components/GroupedBarChart.test.ts
@@ -695,7 +695,7 @@ git commit -m "fix(ui): yoy bars use two-ink intensity language"
 
 Implements spec findings #4 and #5 (single source of truth, `flex-wrap` for narrow widths).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/tests/unit/components/ReportsNav.test.ts`:
 
@@ -719,12 +719,12 @@ describe('ReportsNav', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm test -- src/tests/unit/components/ReportsNav.test.ts`
 Expected: FAIL — `'$lib/components/layout/ReportsNav.svelte'` cannot be resolved.
 
-- [ ] **Step 3: Create the component**
+- [x] **Step 3: Create the component**
 
 Create `src/lib/components/layout/ReportsNav.svelte`:
 
@@ -762,12 +762,12 @@ Create `src/lib/components/layout/ReportsNav.svelte`:
 </nav>
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm test -- src/tests/unit/components/ReportsNav.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Replace the inline nav in every report page**
+- [x] **Step 5: Replace the inline nav in every report page**
 
 For each of the seven report pages, in the header row `<div class="flex items-center justify-between">`, replace the whole inline `<div class="flex gap-2 text-sm">…</div>` block with `<ReportsNav />`, and add the import. Example (reports overview, `src/routes/reports/+page.svelte`):
 
@@ -785,7 +785,7 @@ For each of the seven report pages, in the header row `<div class="flex items-ce
 
 Repeat for `trend`, `compare`, `net-worth`, `category`, `composition`, and `yoy`. The pages with other header rows (`compare`, `net-worth`, `category`, `yoy`) keep their `flex items-center justify-between` wrapper; only the inline nav block is replaced.
 
-- [ ] **Step 6: Verify**
+- [x] **Step 6: Verify**
 
 Run: `pnpm check`
 Expected: PASS.
@@ -793,7 +793,7 @@ Expected: PASS.
 Run: `pnpm test`
 Expected: all green.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/lib/components/layout/ReportsNav.svelte src/tests/unit/components/ReportsNav.test.ts src/routes/reports/+page.svelte src/routes/reports/trend/+page.svelte src/routes/reports/compare/+page.svelte src/routes/reports/net-worth/+page.svelte src/routes/reports/category/+page.svelte src/routes/reports/composition/+page.svelte src/routes/reports/yoy/+page.svelte
@@ -814,7 +814,7 @@ git commit -m "refactor(ui): extract ReportsNav component"
 
 Implements spec finding #6. **TDD exception** (markup class convention — no unit-test harness for route pages; per `src/tests/CLAUDE.md`, stores/DB are not mocked). Verified with `pnpm check` + grep.
 
-- [ ] **Step 1: Write the failing assertion (grep)**
+- [x] **Step 1: Write the failing assertion (grep)**
 
 Run:
 
@@ -824,7 +824,7 @@ grep -rn '<h1' src/routes --include="*.svelte" | grep -v quick-add
 
 Expected: one non-conforming title — `src/routes/+page.svelte:45` uses `<h1 class="plate">`; the other 16 routes already use `figures text-xl text-ledger tracking-wide`.
 
-- [ ] **Step 2: Fix the dashboard h1**
+- [x] **Step 2: Fix the dashboard h1**
 
 In `src/routes/+page.svelte:45`, replace:
 
@@ -838,14 +838,14 @@ with:
 		<h1 class="figures text-xl text-ledger tracking-wide">{m.nav_dashboard()}</h1>
 ```
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 Run the grep from Step 1 again — every `<h1>` should now use `figures text-xl text-ledger tracking-wide`.
 
 Run: `pnpm check`
 Expected: PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/routes/+page.svelte
@@ -868,7 +868,7 @@ git commit -m "fix(ui): standardize page-title type convention"
 
 Implements spec finding #7. The two component wirings (`goto` on Enter, `setLocale` toggle) are behavioral glue — per the testing conventions (no store/DB mocks) they have no unit test; the pure URL helper carries the logic under test. **TDD exception** for the wirings; verify via `pnpm check` + `pnpm dev` + grep.
 
-- [ ] **Step 1: Write the failing test for the URL helper**
+- [x] **Step 1: Write the failing test for the URL helper**
 
 Create `src/tests/unit/search.test.ts`:
 
@@ -892,12 +892,12 @@ describe('transactionsSearchUrl', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm test -- src/tests/unit/search.test.ts`
 Expected: FAIL — `'../../lib/utils/search'` cannot be resolved.
 
-- [ ] **Step 3: Write the helper**
+- [x] **Step 3: Write the helper**
 
 Create `src/lib/utils/search.ts`:
 
@@ -908,12 +908,12 @@ export function transactionsSearchUrl(query: string): string {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm test -- src/tests/unit/search.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Wire the TopBar search and language toggle**
+- [x] **Step 5: Wire the TopBar search and language toggle**
 
 Replace `src/lib/components/layout/TopBar.svelte` with:
 
@@ -958,7 +958,7 @@ Notes:
 - The `m` import is kept so the search placeholder (`m.layout_search_placeholder()`) and the sr-only label (`m.layout_search()`) stay translated.
 - The language button now shows the **target** locale code (`VI` when English is active) — a plain string, not a translated message. This makes `layout_lang_label_en` unused; leave the message in `messages/*.json`.
 
-- [ ] **Step 6: Verify the TopBar changes**
+- [x] **Step 6: Verify the TopBar changes**
 
 Run: `pnpm check`
 Expected: PASS.
@@ -966,7 +966,7 @@ Expected: PASS.
 Run: `pnpm test`
 Expected: all green.
 
-- [ ] **Step 7: Make the transactions page respect the `q` param**
+- [x] **Step 7: Make the transactions page respect the `q` param**
 
 In `src/routes/transactions/+page.svelte`:
 
@@ -984,7 +984,7 @@ import { page } from '$app/stores';
 
 `onMount(loadPage)` already runs `loadPage()`, which queries with `search`, so a `?q=...` navigation searches on arrival.
 
-- [ ] **Step 8: Verify the full change**
+- [x] **Step 8: Verify the full change**
 
 Run: `pnpm check`
 Run: `pnpm test`
@@ -992,7 +992,7 @@ Expected: all green.
 
 Run: `pnpm dev`, visit `/transactions?q=coffee`, confirm the search field is pre-filled and results are filtered. On the dashboard, focus the top bar search, type, press Enter, and confirm the app navigates to `/transactions?q=...`. Toggle the language button and confirm the UI flips between EN and VI (settings persist).
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/lib/utils/search.ts src/tests/unit/search.test.ts src/lib/components/layout/TopBar.svelte src/routes/transactions/+page.svelte
@@ -1014,7 +1014,7 @@ git commit -m "feat(ui): wire top bar search and language toggle"
 
 Implements spec finding #8. **TDD exception** (dependency/config — the font face is verified visually; `pnpm check` catches class/import errors).
 
-- [ ] **Step 1: Add the dependency**
+- [x] **Step 1: Add the dependency**
 
 Run:
 
@@ -1024,7 +1024,7 @@ pnpm add @fontsource/ibm-plex-sans
 
 Expected: `@fontsource/ibm-plex-sans` added to `package.json` (same 5.x line as `@fontsource/ibm-plex-mono`).
 
-- [ ] **Step 2: Import the font weights**
+- [x] **Step 2: Import the font weights**
 
 In `src/routes/+layout.svelte`, after the three Plex Mono imports, add:
 
@@ -1034,7 +1034,7 @@ import '@fontsource/ibm-plex-sans/500.css';
 import '@fontsource/ibm-plex-sans/600.css';
 ```
 
-- [ ] **Step 3: Point the sans family at Plex Sans**
+- [x] **Step 3: Point the sans family at Plex Sans**
 
 In `tailwind.config.ts`, update `fontFamily.sans`:
 
@@ -1045,7 +1045,7 @@ In `tailwind.config.ts`, update `fontFamily.sans`:
 			}
 ```
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 Run: `pnpm check`
 Expected: PASS.
@@ -1053,7 +1053,7 @@ Expected: PASS.
 Run: `pnpm dev`
 Expected: body text renders in IBM Plex Sans (slightly wider than system UI); `figures`/`.plate` remain Plex Mono. Confirm both light and dark.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add package.json pnpm-lock.yaml src/routes/+layout.svelte tailwind.config.ts
@@ -1071,12 +1071,12 @@ git commit -m "feat(ui): pair IBM Plex Sans with Plex Mono"
 **Interfaces:**
 - Consumes: all prior tasks' commits.
 
-- [ ] **Step 1: Regenerate the rollup**
+- [x] **Step 1: Regenerate the rollup**
 
 Run: `pnpm test:roadmap`
 Expected: no `⚠ stale` warning; `specs/STATUS.md` regenerated.
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add specs/STATUS.md
