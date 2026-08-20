@@ -4,6 +4,7 @@
 	import Modal from '$lib/components/primitives/Modal.svelte';
 	import Button from '$lib/components/primitives/Button.svelte';
 	import TransactionForm from '$lib/components/forms/TransactionForm.svelte';
+	import { page } from '$app/stores';
 	import { transactions } from '$lib/stores/transactions.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
@@ -16,11 +17,11 @@
 	import ContextMenu from '$lib/components/primitives/ContextMenu.svelte';
 	import ImportTransactionsModal from '$lib/components/modals/ImportTransactionsModal.svelte';
 
-	let search = $state('');
+	let search = $state(($page.url.searchParams.get('q') as string) ?? '');
 	let editing = $state<Transaction | null>(null);
 	let showEditModal = $state(false);
 	let showImport = $state(false);
-	let page = $state(0);
+	let pageNum = $state(0);
 	let hasNextPage = $state(false);
 	const PAGE_SIZE = 50;
 
@@ -36,7 +37,7 @@
 		await transactions.load({
 			query: search || undefined,
 			limit: PAGE_SIZE + 1,
-			offset: page * PAGE_SIZE
+			offset: pageNum * PAGE_SIZE
 		});
 		hasNextPage = transactions.items.length > PAGE_SIZE;
 	}
@@ -44,7 +45,7 @@
 	onMount(loadPage);
 
 	async function onSearch() {
-		page = 0;
+		pageNum = 0;
 		await loadPage();
 	}
 
@@ -64,8 +65,8 @@
 		toast.show(m.transactions_duplicated());
 	}
 
-	async function nextPage() { page += 1; await loadPage(); }
-	async function prevPage() { if (page > 0) { page -= 1; await loadPage(); } }
+	async function nextPage() { pageNum += 1; await loadPage(); }
+	async function prevPage() { if (pageNum > 0) { pageNum -= 1; await loadPage(); } }
 </script>
 
 <div class="space-y-4">
@@ -113,8 +114,8 @@
 	</div>
 
 	<div class="flex justify-between items-center text-sm">
-		<Button variant="ghost" size="sm" disabled={page === 0} onclick={prevPage}>{m.transactions_previous()}</Button>
-		<span class="text-dim">{m.transactions_page({ page: page + 1 })}</span>
+		<Button variant="ghost" size="sm" disabled={pageNum === 0} onclick={prevPage}>{m.transactions_previous()}</Button>
+		<span class="text-dim">{m.transactions_page({ page: pageNum + 1 })}</span>
 		<Button variant="ghost" size="sm" disabled={!hasNextPage} onclick={nextPage}>{m.transactions_next()}</Button>
 	</div>
 

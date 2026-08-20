@@ -17,7 +17,8 @@ export default defineWorkspace([
 		resolve: {
 			alias: {
 				'$lib': path.resolve(__dirname, 'src/lib'),
-				'$app/stores': path.resolve(__dirname, 'src/tests/unit/helpers/app-stores-mock.ts')
+				'$app/stores': path.resolve(__dirname, 'src/tests/unit/helpers/app-stores-mock.ts'),
+				'$app/navigation': path.resolve(__dirname, 'src/tests/unit/helpers/app-navigation-mock.ts')
 			},
 			conditions: ['browser']
 		},

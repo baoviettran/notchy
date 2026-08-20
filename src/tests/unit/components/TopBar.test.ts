@@ -16,7 +16,7 @@ describe('TopBar', () => {
 
 	it('renders the language toggle', () => {
 		render(TopBar);
-		expect(screen.getByText('EN')).toBeInTheDocument();
+		expect(screen.getByText('VI')).toBeInTheDocument();
 	});
 
 	it('renders a search input', () => {

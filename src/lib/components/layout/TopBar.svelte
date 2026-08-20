@@ -1,13 +1,18 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { transactionsSearchUrl } from '$lib/utils/search';
+	import { settings } from '$lib/stores/settings.svelte';
 	import * as m from '$lib/paraglide/messages';
+
+	let search = $state('');
+
+	function onSearchKeydown(event: KeyboardEvent) {
+		if (event.key === 'Enter') {
+			goto(transactionsSearchUrl(search));
+		}
+	}
 </script>
 
-<!-- Utility bar: search + language toggle only. Navigation lives in Sidebar
-     (desktop) and BottomNav (mobile); the brand mark lives in the Sidebar.
-     The old hamburger menu button was a dead button — the handler was never
-     passed from +layout.svelte, and the Sidebar it revealed is hidden
-     md:flex. Removed entirely; BottomNav's "More" sheet now carries the
-     secondary destinations on mobile. -->
 <header class="h-14 flex items-center gap-3 px-4 border-b border-line bg-tape shrink-0">
 	<label class="relative block flex-1 max-w-md mx-auto">
 		<span class="sr-only">{m.layout_search()}</span>
@@ -15,8 +20,15 @@
 		<input
 			type="search"
 			placeholder={m.layout_search_placeholder()}
+			bind:value={search}
+			onkeydown={onSearchKeydown}
 			class="w-full pl-8 pr-3 py-1.5 text-sm rounded-md border border-line bg-ink text-ledger placeholder:text-dim/70"
 		/>
 	</label>
-	<button class="plate px-2 py-1 rounded border border-line text-dim hover:text-ledger">{m.layout_lang_label_en()}</button>
+	<button
+		onclick={() => settings.setLocale(settings.locale === 'en' ? 'vi' : 'en')}
+		class="plate px-2 py-1 rounded border border-line text-dim hover:text-ledger"
+	>
+		{settings.locale === 'en' ? 'VI' : 'EN'}
+	</button>
 </header>
