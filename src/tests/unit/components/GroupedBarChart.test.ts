@@ -69,6 +69,32 @@ describe('GroupedBarChart', () => {
 		expect(svg).toBeNull();
 	});
 
+	it('uses the two-ink palette and fades year B to half strength', () => {
+		const data = [
+			{
+				month: '01',
+				yearAIncome: 5000,
+				yearAExpense: 3000,
+				yearBIncome: 5500,
+				yearBExpense: 3200
+			}
+		];
+		const { container } = render(GroupedBarChart, {
+			props: {
+				data,
+				yFormat: (n) => `$${n}`,
+				xFormat: (m) => m
+			}
+		});
+		const rects = container.querySelectorAll('rect');
+		expect(rects.length).toBe(4);
+		expect(rects[0].getAttribute('style')).toContain('var(--phosphor)');
+		expect(rects[1].getAttribute('style')).toContain('var(--debit)');
+		expect(rects[0].getAttribute('opacity')).toBe('1');
+		expect(rects[2].getAttribute('opacity')).toBe('0.55');
+		expect(rects[3].getAttribute('opacity')).toBe('0.55');
+	});
+
 	it('uses design-system tokens, not library fallbacks', () => {
 		const source = readFileSync(
 			resolve(import.meta.dirname, '../../../lib/components/charts/GroupedBarChart.svelte'),

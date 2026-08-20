@@ -20,12 +20,16 @@
 	const innerHeight = chartHeight - margin.top - margin.bottom;
 
 	const series = ['yearAIncome', 'yearAExpense', 'yearBIncome', 'yearBExpense'];
-	const colors = {
-		yearAIncome: '#10b981',
-		yearAExpense: '#f59e0b',
-		yearBIncome: '#059669',
-		yearBExpense: '#d97706'
+	// Two inks, two strengths: income is phosphor, expense is debit (the app-wide
+	// convention); year B is the same ink at half strength, so "year" reads as
+	// intensity rather than a new set of colors.
+	const colors: Record<string, string> = {
+		yearAIncome: 'var(--phosphor)',
+		yearAExpense: 'var(--debit)',
+		yearBIncome: 'var(--phosphor)',
+		yearBExpense: 'var(--debit)'
 	};
+	const faded = new Set(['yearBIncome', 'yearBExpense']);
 	const labels = {
 		yearAIncome: m.reports_legend_year_a_income(),
 		yearAExpense: m.reports_legend_year_a_expense(),
@@ -70,6 +74,7 @@
 			width: number;
 			height: number;
 			fill: string;
+			opacity: number;
 			key: string;
 		}> = [];
 
@@ -88,6 +93,7 @@
 					width: barWidth,
 					height: barHeight,
 					fill: colors[key as keyof typeof colors],
+					opacity: faded.has(key) ? 0.55 : 1,
 					key: `${d.month}-${key}`
 				});
 			});
@@ -114,7 +120,8 @@
 							y={bar.y}
 							width={bar.width}
 							height={bar.height}
-							fill={bar.fill}
+							style="fill: {bar.fill}"
+							opacity={bar.opacity}
 						/>
 					{/each}
 
@@ -151,7 +158,7 @@
 	<div class="legend">
 		{#each series as key}
 			<div class="legend-item">
-				<span class="legend-color" style="background-color: {colors[key as keyof typeof colors]}"></span>
+				<span class="legend-color" style="background-color: {colors[key as keyof typeof colors]}; opacity: {faded.has(key) ? 0.55 : 1}"></span>
 				<span class="legend-label">{labels[key as keyof typeof labels]}</span>
 			</div>
 		{/each}
