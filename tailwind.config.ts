@@ -19,7 +19,7 @@ export default {
 			},
 			fontFamily: {
 				mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
-				sans: ['ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif']
+				sans: ['"IBM Plex Sans"', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif']
 			}
 		}
 	},
