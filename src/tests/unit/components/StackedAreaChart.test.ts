@@ -74,6 +74,20 @@ describe('StackedAreaChart', () => {
         expect(svg).toBeNull();
     });
 
+    it('renders series fills via style so CSS var() references resolve', () => {
+        const data = [{ month: '01', tags: [{ tagId: 't1', name: 'Food', total: 100 }] }];
+        const { container } = render(StackedAreaChart, {
+            props: {
+                data,
+                colors: { t1: 'var(--phosphor)' },
+                yFormat: (n) => `$${n}`,
+                xFormat: (m) => m
+            }
+        });
+        const path = container.querySelector('path');
+        expect(path?.getAttribute('style')).toContain('var(--phosphor)');
+    });
+
     it('uses design-system tokens, not library fallbacks', () => {
         const source = readFileSync(
             resolve(import.meta.dirname, '../../../lib/components/charts/StackedAreaChart.svelte'),

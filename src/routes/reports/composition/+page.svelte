@@ -5,6 +5,7 @@
 	import { formatCurrency } from '$lib/utils/currency';
 	import { settings } from '$lib/stores/settings.svelte';
 	import * as m from '$lib/paraglide/messages';
+	import { seriesColor } from '$lib/utils/palette';
 
 	onMount(() => {
 		reportsStore.loadStackedComposition();
@@ -19,12 +20,11 @@
 	const chartData = $derived(reportsStore.stackedComposition);
 
 	const colors = $derived.by(() => {
-		const palette = ['#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#84cc16'];
 		const colorMap: Record<string, string> = {};
 		chartData.forEach((point) => {
 			point.tags.forEach((tag) => {
 				if (tag.tagId && !colorMap[tag.tagId]) {
-					colorMap[tag.tagId] = palette[Object.keys(colorMap).length % palette.length];
+					colorMap[tag.tagId] = seriesColor(Object.keys(colorMap).length);
 				}
 			});
 		});

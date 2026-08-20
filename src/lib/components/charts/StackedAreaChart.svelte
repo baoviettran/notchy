@@ -119,7 +119,7 @@
 					{#each stackedPaths() as stackItem}
 						<path
 							d={stackItem.path}
-							fill={colors[stackItem.tagId] ?? '#999'}
+							style="fill: {colors[stackItem.tagId] ?? 'var(--dim)'}"
 							opacity="0.7"
 						/>
 					{/each}
@@ -157,7 +157,7 @@
 	<div class="legend">
 		{#each allTags() as tag}
 			<div class="legend-item">
-				<span class="legend-color" style="background-color: {colors[tag.tagId] ?? '#999'}"></span>
+				<span class="legend-color" style="background-color: {colors[tag.tagId] ?? 'var(--dim)'}"></span>
 				<span class="legend-label">{tag.name}</span>
 			</div>
 		{/each}
