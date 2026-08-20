@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeAll } from 'vitest';
 import { render } from '@testing-library/svelte';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import LineChart from '../../../lib/components/charts/LineChart.svelte';
 
 // Mock ResizeObserver for LayerCake
@@ -54,5 +56,19 @@ describe('LineChart', () => {
 		});
 		const svg = container.querySelector('svg');
 		expect(svg).toBeNull();
+	});
+
+	it('uses design-system tokens, not library fallbacks', () => {
+		const source = readFileSync(
+			resolve(import.meta.dirname, '../../../lib/components/charts/LineChart.svelte'),
+			'utf-8'
+		);
+		const styleBlock = source.match(/<style>([\s\S]*?)<\/style>/)?.[1] ?? '';
+		expect(styleBlock).toMatch(/\.line-stroke\s*\{[^}]*var\(--phosphor\)/);
+		expect(styleBlock).toMatch(/\.tick-label\s*\{[^}]*var\(--dim\)/);
+		expect(styleBlock).toMatch(/\.axis-line\s*\{[^}]*var\(--line\)/);
+		expect(styleBlock).not.toContain('--color-');
+		expect(styleBlock).not.toContain('#00ff00');
+		expect(styleBlock).not.toContain('#666');
 	});
 });

@@ -110,28 +110,28 @@
 	}
 
 	.area-fill {
-		fill: var(--color-phosphor, #00ff00);
+		fill: var(--phosphor);
 		opacity: 0.2;
 	}
 
 	.line-stroke {
 		fill: none;
-		stroke: var(--color-phosphor, #00ff00);
+		stroke: var(--phosphor);
 		stroke-width: 2;
 	}
 
 	.axis-line {
-		stroke: var(--color-chalk, #666);
+		stroke: var(--line);
 		stroke-width: 1;
 	}
 
 	.tick-line {
-		stroke: var(--color-chalk, #666);
+		stroke: var(--line);
 		stroke-width: 1;
 	}
 
 	.tick-label {
-		fill: var(--color-chalk, #666);
+		fill: var(--dim);
 		font-size: 10px;
 		text-anchor: middle;
 	}

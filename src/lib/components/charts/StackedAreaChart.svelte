@@ -171,17 +171,17 @@
 	}
 
 	.axis-line {
-		stroke: var(--color-chalk, #666);
+		stroke: var(--line);
 		stroke-width: 1;
 	}
 
 	.tick-line {
-		stroke: var(--color-chalk, #666);
+		stroke: var(--line);
 		stroke-width: 1;
 	}
 
 	.tick-label {
-		fill: var(--color-chalk, #666);
+		fill: var(--dim);
 		font-size: 10px;
 		text-anchor: middle;
 	}
@@ -213,6 +213,6 @@
 	}
 
 	.legend-label {
-		color: var(--color-chalk, #666);
+		color: var(--dim);
 	}
 </style>
