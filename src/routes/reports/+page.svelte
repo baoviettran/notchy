@@ -5,19 +5,22 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
 	import DonutChart from '$lib/components/charts/DonutChart.svelte';
+	import { seriesColor } from '$lib/utils/palette';
 	import * as m from '$lib/paraglide/messages';
 
 	let report = $state<OverviewReport | null>(null);
 	let includeAdjustments = $state(false);
 
-	const bucketColors: Record<string, string> = {
-		Essentials: '#f59e0b', 'Learning & Entertainment': '#8b5cf6',
-		'Saving & Investment': '#10b981', Adjustments: '#64748b'
-	};
+	// Stable per-bucket ordering so a bucket keeps one color across months.
+	const bucketRank = ['Essentials', 'Learning & Entertainment', 'Saving & Investment', 'Adjustments'];
+
+	let totalSpending = $derived(report?.spending_by_bucket.reduce((s, b) => s + b.total, 0) ?? 0);
 
 	let donutData = $derived(
 		report?.spending_by_bucket.map((b) => ({
-			label: b.name, value: b.total, color: bucketColors[b.name] ?? '#94a3b8'
+			label: b.name,
+			value: b.total,
+			color: seriesColor(bucketRank.indexOf(b.name))
 		})) ?? []
 	);
 
@@ -88,7 +91,7 @@
 		{#if report.spending_by_bucket.length > 0}
 			<div class="bg-tape rounded-lg border border-line p-4">
 				<h2 class="plate mb-3">{m.reports_spending_by_bucket()}</h2>
-				<DonutChart data={donutData} />
+				<DonutChart data={donutData} centerLabel={report ? formatCurrency(totalSpending, settings.currency, settings.locale) : ''} />
 				<div class="space-y-2 mt-4">
 					{#each report.spending_by_bucket as b}
 						<div class="flex items-center justify-between text-sm">

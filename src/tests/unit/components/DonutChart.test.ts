@@ -39,4 +39,19 @@ describe('DonutChart', () => {
         const svg = container.querySelector('svg');
         expect(svg).toBeNull();
     });
+
+	it('applies colors through the style attribute so CSS var() references resolve', () => {
+		const data = [{ label: 'A', value: 100, color: 'var(--phosphor)' }];
+		const { container } = render(DonutChart, { props: { data } });
+		const path = container.querySelector('path');
+		expect(path?.getAttribute('style')).toContain('var(--phosphor)');
+	});
+
+	it('renders the center label when provided', () => {
+		const data = [{ label: 'A', value: 100, color: 'var(--phosphor)' }];
+		const { container } = render(DonutChart, {
+			props: { data, centerLabel: '1,234 ₫' }
+		});
+		expect(container.textContent).toContain('1,234 ₫');
+	});
 });

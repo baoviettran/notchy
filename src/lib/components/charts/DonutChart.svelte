@@ -3,7 +3,7 @@
 
 	type DonutDatum = { label: string; value: number; color: string };
 
-	let { data = [] }: { data: DonutDatum[] } = $props();
+	let { data = [], centerLabel = '' }: { data?: DonutDatum[]; centerLabel?: string } = $props();
 
 	const total = $derived(data.reduce((sum, d) => sum + d.value, 0));
 	const arcs = $derived(computeArcs(data, total));
@@ -33,16 +33,21 @@
 
 {#if data.length > 0 && total > 0}
 	<div class="donut-container">
-		<LayerCake data={data} x={(d: DonutDatum) => d.value} y={(_d: DonutDatum, i: number) => i}>
-			<Svg>
-				<svg viewBox="0 0 100 100" class="w-32 h-32 shrink-0">
-					{#each arcs as arc}
-						<path d={describeArc(50, 50, 45, arc.startAngle, arc.endAngle)} fill={arc.color} />
-					{/each}
-					<circle cx="50" cy="50" r="25" class="fill-tape" />
-				</svg>
-			</Svg>
-		</LayerCake>
+		<div class="relative">
+			<LayerCake data={data} x={(d: DonutDatum) => d.value} y={(_d: DonutDatum, i: number) => i}>
+				<Svg>
+					<svg viewBox="0 0 100 100" class="w-32 h-32 shrink-0">
+						{#each arcs as arc}
+							<path d={describeArc(50, 50, 45, arc.startAngle, arc.endAngle)} style="fill: {arc.color}" />
+						{/each}
+						<circle cx="50" cy="50" r="32" class="fill-tape" />
+					</svg>
+				</Svg>
+			</LayerCake>
+			{#if centerLabel}
+				<span class="absolute inset-0 flex items-center justify-center figures text-[10px] leading-tight text-ledger truncate pointer-events-none px-1">{centerLabel}</span>
+			{/if}
+		</div>
 		<div class="legend">
 			{#each data as d}
 				<div class="legend-item">
