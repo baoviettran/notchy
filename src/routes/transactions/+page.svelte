@@ -17,7 +17,14 @@
 	import ContextMenu from '$lib/components/primitives/ContextMenu.svelte';
 	import ImportTransactionsModal from '$lib/components/modals/ImportTransactionsModal.svelte';
 
-	let search = $state(($page.url.searchParams.get('q') as string) ?? '');
+	let search = $state($page.url.searchParams.get('q') ?? '');
+
+	// Re-sync when the URL ?q= param changes (e.g. TopBar search while already on /transactions).
+	$effect(() => {
+		const q = $page.url.searchParams.get('q') ?? '';
+		if (q !== search) search = q;
+	});
+
 	let editing = $state<Transaction | null>(null);
 	let showEditModal = $state(false);
 	let showImport = $state(false);
