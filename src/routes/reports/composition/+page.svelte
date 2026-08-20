@@ -6,6 +6,7 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { seriesColor } from '$lib/utils/palette';
+	import ReportsNav from '$lib/components/layout/ReportsNav.svelte';
 
 	onMount(() => {
 		reportsStore.loadStackedComposition();
@@ -39,15 +40,7 @@
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
 		<h1 class="figures text-xl text-ledger tracking-wide">{m.reports_composition()}</h1>
-		<div class="flex gap-2 text-sm">
-			<a href="/reports" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">{m.reports_overview()}</a>
-			<a href="/reports/trend" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">{m.reports_trend()}</a>
-			<a href="/reports/compare" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">{m.reports_compare()}</a>
-			<a href="/reports/net-worth" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">{m.reports_net_worth()}</a>
-			<a href="/reports/category" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">{m.reports_category_trend()}</a>
-			<a href="/reports/composition" class="px-3 py-1.5 rounded-md bg-phosphor/15 text-phosphor font-medium">{m.reports_composition()}</a>
-			<a href="/reports/yoy" class="px-3 py-1.5 rounded-md text-dim hover:bg-line/40">{m.reports_year_over_year()}</a>
-		</div>
+		<ReportsNav />
 	</div>
 
 	<div class="flex items-center gap-4">
