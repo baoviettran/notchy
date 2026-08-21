@@ -32,6 +32,15 @@
 		--phosphor: #FFB454;
 		--phosphor-bright: #FFD79A;
 		--debit: #E5484D;
+
+		--ink-rgb: 20 17 12;
+		--tape-rgb: 28 24 18;
+		--ledger-rgb: 214 207 192;
+		--dim-rgb: 138 129 112;
+		--line-rgb: 128 119 99;
+		--phosphor-rgb: 255 180 84;
+		--phosphor-bright-rgb: 255 215 154;
+		--debit-rgb: 229 72 77;
 	}
 
 	html.light {
@@ -50,6 +59,15 @@
 		--phosphor: #B8721A;
 		--phosphor-bright: #B8721A;
 		--debit: #C23B3F;
+
+		--ink-rgb: 244 239 226;
+		--tape-rgb: 251 248 241;
+		--ledger-rgb: 31 27 20;
+		--dim-rgb: 107 99 83;
+		--line-rgb: 154 140 110;
+		--phosphor-rgb: 184 114 26;
+		--phosphor-bright-rgb: 184 114 26;
+		--debit-rgb: 194 59 63;
 	}
 
 	html {
