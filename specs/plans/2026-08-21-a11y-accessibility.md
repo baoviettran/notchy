@@ -1162,7 +1162,7 @@ Expected: no errors beyond the pre-existing `tauri-mock.ts` one.
 - [x] **Step 4: Regenerate the roadmap**
 
 Run: `pnpm test:roadmap`
-Expected: the a11y plan reports `implemented 1/1` and `specs/STATUS.md` refreshes. If it prints `⚠ stale`, check that every task's commit block used the heredoc form and every checkbox is `[x]`.
+Expected: the a11y plan reports `implemented 7/7` (one rollup line per plan; this plan has 7 tasks) and `specs/STATUS.md` refreshes. If it prints `⚠ stale`, check that every task's commit block used the heredoc form and every checkbox is `[x]`.
 
 - [x] **Step 5: Commit**
 
