@@ -1144,27 +1144,27 @@ EOF
 
 **Interfaces:** none — verification only.
 
-- [ ] **Step 1: Full unit suite**
+- [x] **Step 1: Full unit suite**
 
 Run: `pnpm test`
 Expected: all unit tests green.
 
-- [ ] **Step 2: Full E2E suite**
+- [x] **Step 2: Full E2E suite**
 
 Run: `pnpm test:e2e`
 Expected: all specs green (retries absorb the known in-memory-DB worker flakiness).
 
-- [ ] **Step 3: Typecheck**
+- [x] **Step 3: Typecheck**
 
 Run: `pnpm check`
 Expected: no errors beyond the pre-existing `tauri-mock.ts` one.
 
-- [ ] **Step 4: Regenerate the roadmap**
+- [x] **Step 4: Regenerate the roadmap**
 
 Run: `pnpm test:roadmap`
 Expected: the a11y plan reports `implemented 1/1` and `specs/STATUS.md` refreshes. If it prints `⚠ stale`, check that every task's commit block used the heredoc form and every checkbox is `[x]`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add specs/plans/2026-08-21-a11y-accessibility.md specs/STATUS.md
