@@ -1,19 +1,21 @@
 export const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
 
-function focusFirst(panelEl: HTMLElement | undefined): void {
-	const first = panelEl?.querySelector<HTMLElement>(FOCUSABLE);
+function focusFirst(panelEl: HTMLElement | undefined, selector: string): void {
+	const first = panelEl?.querySelector<HTMLElement>(selector);
 	(first ?? panelEl)?.focus();
 }
 
-// Per-dialog trap instance: remembers the trigger for focus restore, traps
+// Per-widget trap instance: remembers the trigger for focus restore, traps
 // Tab within the panel, and returns the $effect cleanup that restores focus.
-export function createFocusTrap() {
+// The selector defaults to FOCUSABLE (dialogs); ContextMenu passes
+// '[role="menuitem"]' (Task 4).
+export function createFocusTrap(selector: string = FOCUSABLE) {
 	let lastFocused: HTMLElement | null = null;
 	return {
 		// Handles the Tab key only; callers route Escape themselves.
 		trap(e: KeyboardEvent, panelEl: HTMLElement | undefined) {
 			if (e.key !== 'Tab') return;
-			const focusables = Array.from(panelEl?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [])
+			const focusables = Array.from(panelEl?.querySelectorAll<HTMLElement>(selector) ?? [])
 				.filter((el) => {
 					const style = getComputedStyle(el);
 					return style.display !== 'none' && style.visibility !== 'hidden';
@@ -31,7 +33,7 @@ export function createFocusTrap() {
 		enter(getPanel: () => HTMLElement | undefined): () => void {
 			lastFocused = document.activeElement as HTMLElement | null;
 			const panelEl = getPanel();
-			focusFirst(panelEl);
+			focusFirst(panelEl, selector);
 			return () => { lastFocused?.focus?.(); lastFocused = null; };
 		},
 	};

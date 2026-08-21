@@ -388,20 +388,22 @@ shared logic lives in one util. Create `src/lib/utils/focusTrap.ts`:
 ```ts
 export const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
 
-function focusFirst(panelEl: HTMLElement | undefined): void {
-	const first = panelEl?.querySelector<HTMLElement>(FOCUSABLE);
+function focusFirst(panelEl: HTMLElement | undefined, selector: string): void {
+	const first = panelEl?.querySelector<HTMLElement>(selector);
 	(first ?? panelEl)?.focus();
 }
 
-// Per-dialog trap instance: remembers the trigger for focus restore, traps
+// Per-widget trap instance: remembers the trigger for focus restore, traps
 // Tab within the panel, and returns the $effect cleanup that restores focus.
-export function createFocusTrap() {
+// The selector defaults to FOCUSABLE (dialogs); ContextMenu passes
+// '[role="menuitem"]' (Task 4).
+export function createFocusTrap(selector: string = FOCUSABLE) {
 	let lastFocused: HTMLElement | null = null;
 	return {
 		// Handles the Tab key only; callers route Escape themselves.
 		trap(e: KeyboardEvent, panelEl: HTMLElement | undefined) {
 			if (e.key !== 'Tab') return;
-			const focusables = Array.from(panelEl?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [])
+			const focusables = Array.from(panelEl?.querySelectorAll<HTMLElement>(selector) ?? [])
 				.filter((el) => {
 					const style = getComputedStyle(el);
 					return style.display !== 'none' && style.visibility !== 'hidden';
@@ -419,7 +421,7 @@ export function createFocusTrap() {
 		enter(getPanel: () => HTMLElement | undefined): () => void {
 			lastFocused = document.activeElement as HTMLElement | null;
 			const panelEl = getPanel();
-			focusFirst(panelEl);
+			focusFirst(panelEl, selector);
 			return () => { lastFocused?.focus?.(); lastFocused = null; };
 		},
 	};
@@ -553,6 +555,7 @@ EOF
 ### Task 4: ContextMenu keyboard navigation
 
 **Files:**
+- Modify: `src/lib/utils/focusTrap.ts` (add the `selector` param, default `FOCUSABLE`)
 - Modify: `src/lib/components/primitives/ContextMenu.svelte`
 - Create: `src/tests/unit/components/helpers/ContextMenuProbe.svelte`
 - Modify: `src/tests/unit/components/ContextMenu.test.ts`
@@ -561,7 +564,7 @@ EOF
 - Consumes: callers' `role="menuitem"` buttons (e.g. `src/routes/transactions/+page.svelte:108-111`). No caller changes.
 - Produces: menu items reachable and navigable by keyboard; trigger gains `aria-haspopup="menu"`. Existing `aria-label`/`aria-expanded` behavior preserved.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `src/tests/unit/components/helpers/ContextMenuProbe.svelte`:
 
@@ -618,18 +621,19 @@ it('exposes aria-haspopup on the trigger', () => {
 });
 ```
 
-- [ ] **Step 2: Run them and verify they fail**
+- [x] **Step 2: Run them and verify they fail**
 
 Run: `pnpm vitest run src/tests/unit/components/ContextMenu.test.ts`
 Expected: new tests FAIL (focus never moves into the menu; arrow keys do nothing; no aria-haspopup). Existing tests stay green.
 
-- [ ] **Step 3: Implement keyboard navigation**
+- [x] **Step 3: Implement keyboard navigation**
 
 Rewrite `src/lib/components/primitives/ContextMenu.svelte`:
 
 ```svelte
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { createFocusTrap } from '$lib/utils/focusTrap';
 	let { label = 'Actions', children }: {
 		label?: string;
 		children: Snippet;
@@ -637,7 +641,9 @@ Rewrite `src/lib/components/primitives/ContextMenu.svelte`:
 
 	let open = $state(false);
 	let panelEl = $state<HTMLElement>();
-	let lastFocused: HTMLElement | null = null;
+	// Reuses the focus-in/restore lifecycle from focusTrap.ts (Task 3),
+	// parameterized to menuitems instead of the generic FOCUSABLE selector.
+	const focusTrap = createFocusTrap('[role="menuitem"]');
 
 	function toggle() { open = !open; }
 	function close() { open = false; }
@@ -645,11 +651,7 @@ Rewrite `src/lib/components/primitives/ContextMenu.svelte`:
 	// Menu focus lifecycle: capture the trigger, focus the first item when the
 	// menu opens, restore the trigger when it closes.
 	$effect(() => {
-		if (open) {
-			lastFocused = document.activeElement as HTMLElement | null;
-			panelEl?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
-			return () => { lastFocused?.focus?.(); lastFocused = null; };
-		}
+		if (open) return focusTrap.enter(() => panelEl);
 	});
 
 	function onMenuKeydown(e: KeyboardEvent) {
@@ -702,20 +704,20 @@ Rewrite `src/lib/components/primitives/ContextMenu.svelte`:
 </div>
 ```
 
-- [ ] **Step 4: Run the tests and verify they pass**
+- [x] **Step 4: Run the tests and verify they pass**
 
 Run: `pnpm vitest run src/tests/unit/components/ContextMenu.test.ts`
 Expected: all pass.
 
-- [ ] **Step 5: Typecheck**
+- [x] **Step 5: Typecheck**
 
 Run: `pnpm check`
 Expected: no new errors.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
-git add src/lib/components/primitives/ContextMenu.svelte src/tests/unit/components/helpers/ContextMenuProbe.svelte src/tests/unit/components/ContextMenu.test.ts specs/plans/2026-08-21-a11y-accessibility.md
+git add src/lib/utils/focusTrap.ts src/lib/components/primitives/ContextMenu.svelte src/tests/unit/components/helpers/ContextMenuProbe.svelte src/tests/unit/components/ContextMenu.test.ts specs/plans/2026-08-21-a11y-accessibility.md
 git commit -m "$(cat <<'EOF'
 fix(a11y): keyboard navigation for ContextMenu (arrow keys + focus)
 
