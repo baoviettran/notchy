@@ -1,43 +1,24 @@
 <script lang="ts">
 	import Button from './Button.svelte';
 	import * as m from '$lib/paraglide/messages';
+	import { createFocusTrap } from '$lib/utils/focusTrap';
 
 	let { open = $bindable(false), title = '', message = '', confirmLabel = '', danger = true, onconfirm = () => {} }: {
 		open?: boolean; title?: string; message?: string; confirmLabel?: string; danger?: boolean; onconfirm?: () => void;
 	} = $props();
 
 	let panelEl = $state<HTMLElement>();
-	let lastFocused: HTMLElement | null = null;
-	const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+	const focusTrap = createFocusTrap();
 
 	function confirm() { onconfirm(); open = false; }
 
 	$effect(() => {
-		if (open) {
-			lastFocused = document.activeElement as HTMLElement | null;
-			const first = panelEl?.querySelector<HTMLElement>(FOCUSABLE);
-			(first ?? panelEl)?.focus();
-			return () => { lastFocused?.focus?.(); lastFocused = null; };
-		}
+		if (open) return focusTrap.enter(() => panelEl);
 	});
 
 	// Escape closes; every other key is handed to the Tab trap. Both live on
 	// the role="dialog" panel (svelte-check flags keydown on role-less elements).
-	function onKeydown(e: KeyboardEvent) { if (e.key === 'Escape') open = false; else trapFocus(e); }
-	function trapFocus(e: KeyboardEvent) {
-		if (e.key !== 'Tab') return;
-		const focusables = Array.from(panelEl?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [])
-			.filter((el) => {
-				const style = getComputedStyle(el);
-				return style.display !== 'none' && style.visibility !== 'hidden';
-			});
-		if (focusables.length === 0) return;
-		const first = focusables[0];
-		const last = focusables[focusables.length - 1];
-		const active = document.activeElement as HTMLElement | null;
-		if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
-		else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
-	}
+	function onKeydown(e: KeyboardEvent) { if (e.key === 'Escape') open = false; else focusTrap.trap(e, panelEl); }
 </script>
 
 {#if open}

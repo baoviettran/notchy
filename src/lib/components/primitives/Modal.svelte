@@ -1,48 +1,28 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import * as m from '$lib/paraglide/messages';
+	import { createFocusTrap } from '$lib/utils/focusTrap';
 
 	let { open = $bindable(false), title = '', children }: {
 		open?: boolean; title?: string; children: Snippet;
 	} = $props();
 
 	let panelEl = $state<HTMLElement>();
-	let lastFocused: HTMLElement | null = null;
 	const titleId = `modal-title-${Math.random().toString(36).slice(2, 9)}`;
-	const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+	const focusTrap = createFocusTrap();
 
 	function onBackdrop() { open = false; }
 	// Escape closes; every other key is handed to the Tab trap (svelte-check
 	// flags keydown on role-less elements, so both live on this role="dialog"
 	// wrapper which already carries the a11y svelte-ignore).
-	function onKeydown(e: KeyboardEvent) { if (e.key === 'Escape') open = false; else trapFocus(e); }
+	function onKeydown(e: KeyboardEvent) { if (e.key === 'Escape') open = false; else focusTrap.trap(e, panelEl); }
 
 	// Focus lifecycle: capture the trigger, move focus into the dialog when it
 	// opens, restore it on close. Runs after the {#if open} block paints, so
 	// panelEl is bound before the effect body reads it.
 	$effect(() => {
-		if (open) {
-			lastFocused = document.activeElement as HTMLElement | null;
-			const first = panelEl?.querySelector<HTMLElement>(FOCUSABLE);
-			(first ?? panelEl)?.focus();
-			return () => { lastFocused?.focus?.(); lastFocused = null; };
-		}
+		if (open) return focusTrap.enter(() => panelEl);
 	});
-
-	function trapFocus(e: KeyboardEvent) {
-		if (e.key !== 'Tab') return;
-		const focusables = Array.from(panelEl?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [])
-			.filter((el) => {
-				const style = getComputedStyle(el);
-				return style.display !== 'none' && style.visibility !== 'hidden';
-			});
-		if (focusables.length === 0) return;
-		const first = focusables[0];
-		const last = focusables[focusables.length - 1];
-		const active = document.activeElement as HTMLElement | null;
-		if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
-		else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
-	}
 </script>
 
 {#if open}

@@ -290,6 +290,7 @@ EOF
 ### Task 3: Dialog focus management (Modal + ConfirmDialog)
 
 **Files:**
+- Create: `src/lib/utils/focusTrap.ts`
 - Modify: `src/lib/components/primitives/Modal.svelte`
 - Modify: `src/lib/components/primitives/ConfirmDialog.svelte`
 - Create: `src/tests/unit/components/helpers/ModalProbe.svelte`
@@ -380,54 +381,79 @@ Expected: the new tests FAIL (focus stays on the trigger / Tab is not trapped / 
 
 - [x] **Step 3: Implement Modal focus management**
 
+The focus-in lifecycle, `FOCUSABLE` selector, and Tab trap are identical in
+Modal and ConfirmDialog (and the ContextMenu task reuses the trap), so the
+shared logic lives in one util. Create `src/lib/utils/focusTrap.ts`:
+
+```ts
+export const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+
+function focusFirst(panelEl: HTMLElement | undefined): void {
+	const first = panelEl?.querySelector<HTMLElement>(FOCUSABLE);
+	(first ?? panelEl)?.focus();
+}
+
+// Per-dialog trap instance: remembers the trigger for focus restore, traps
+// Tab within the panel, and returns the $effect cleanup that restores focus.
+export function createFocusTrap() {
+	let lastFocused: HTMLElement | null = null;
+	return {
+		// Handles the Tab key only; callers route Escape themselves.
+		trap(e: KeyboardEvent, panelEl: HTMLElement | undefined) {
+			if (e.key !== 'Tab') return;
+			const focusables = Array.from(panelEl?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [])
+				.filter((el) => {
+					const style = getComputedStyle(el);
+					return style.display !== 'none' && style.visibility !== 'hidden';
+				});
+			if (focusables.length === 0) return;
+			const first = focusables[0];
+			const last = focusables[focusables.length - 1];
+			const active = document.activeElement as HTMLElement | null;
+			if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
+			else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
+		},
+		// Focus-in: capture the trigger, focus the first focusable (or panel).
+		// Call from inside a component-level $effect when the dialog is open;
+		// the returned cleanup restores focus and is what $effect runs on close.
+		enter(getPanel: () => HTMLElement | undefined): () => void {
+			lastFocused = document.activeElement as HTMLElement | null;
+			const panelEl = getPanel();
+			focusFirst(panelEl);
+			return () => { lastFocused?.focus?.(); lastFocused = null; };
+		},
+	};
+}
+```
+
 Rewrite `src/lib/components/primitives/Modal.svelte`:
 
 ```svelte
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import * as m from '$lib/paraglide/messages';
+	import { createFocusTrap } from '$lib/utils/focusTrap';
 
 	let { open = $bindable(false), title = '', children }: {
 		open?: boolean; title?: string; children: Snippet;
 	} = $props();
 
 	let panelEl = $state<HTMLElement>();
-	let lastFocused: HTMLElement | null = null;
 	const titleId = `modal-title-${Math.random().toString(36).slice(2, 9)}`;
-	const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+	const focusTrap = createFocusTrap();
 
 	function onBackdrop() { open = false; }
 	// Escape closes; every other key is handed to the Tab trap (svelte-check
 	// flags keydown on role-less elements, so both live on this role="dialog"
 	// wrapper which already carries the a11y svelte-ignore).
-	function onKeydown(e: KeyboardEvent) { if (e.key === 'Escape') open = false; else trapFocus(e); }
+	function onKeydown(e: KeyboardEvent) { if (e.key === 'Escape') open = false; else focusTrap.trap(e, panelEl); }
 
 	// Focus lifecycle: capture the trigger, move focus into the dialog when it
 	// opens, restore it on close. Runs after the {#if open} block paints, so
 	// panelEl is bound before the effect body reads it.
 	$effect(() => {
-		if (open) {
-			lastFocused = document.activeElement as HTMLElement | null;
-			const first = panelEl?.querySelector<HTMLElement>(FOCUSABLE);
-			(first ?? panelEl)?.focus();
-			return () => { lastFocused?.focus?.(); lastFocused = null; };
-		}
+		if (open) return focusTrap.enter(() => panelEl);
 	});
-
-	function trapFocus(e: KeyboardEvent) {
-		if (e.key !== 'Tab') return;
-		const focusables = Array.from(panelEl.querySelectorAll<HTMLElement>(FOCUSABLE))
-			.filter((el) => {
-				const style = getComputedStyle(el);
-				return style.display !== 'none' && style.visibility !== 'hidden';
-			});
-		if (focusables.length === 0) return;
-		const first = focusables[0];
-		const last = focusables[focusables.length - 1];
-		const active = document.activeElement as HTMLElement | null;
-		if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
-		else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
-	}
 </script>
 
 {#if open}
@@ -451,49 +477,30 @@ Rewrite `src/lib/components/primitives/Modal.svelte`:
 {/if}
 ```
 
-**Implement ConfirmDialog focus management** — edit `src/lib/components/primitives/ConfirmDialog.svelte`: add the same `$effect` focus lifecycle (no trap change needed beyond focusing in), add an Escape handler, and give the panel `tabindex="-1"`:
+**Implement ConfirmDialog focus management** — edit `src/lib/components/primitives/ConfirmDialog.svelte`: consume the shared `createFocusTrap` (same `$effect` lifecycle + trap), add an Escape handler, and give the panel `tabindex="-1"`:
 
 ```svelte
 <script lang="ts">
 	import Button from './Button.svelte';
 	import * as m from '$lib/paraglide/messages';
+	import { createFocusTrap } from '$lib/utils/focusTrap';
 
 	let { open = $bindable(false), title = '', message = '', confirmLabel = '', danger = true, onconfirm = () => {} }: {
 		open?: boolean; title?: string; message?: string; confirmLabel?: string; danger?: boolean; onconfirm?: () => void;
 	} = $props();
 
 	let panelEl = $state<HTMLElement>();
-	let lastFocused: HTMLElement | null = null;
-	const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+	const focusTrap = createFocusTrap();
 
 	function confirm() { onconfirm(); open = false; }
 
 	$effect(() => {
-		if (open) {
-			lastFocused = document.activeElement as HTMLElement | null;
-			const first = panelEl?.querySelector<HTMLElement>(FOCUSABLE);
-			(first ?? panelEl)?.focus();
-			return () => { lastFocused?.focus?.(); lastFocused = null; };
-		}
+		if (open) return focusTrap.enter(() => panelEl);
 	});
 
 	// Escape closes; every other key is handed to the Tab trap. Both live on
 	// the role="dialog" panel (svelte-check flags keydown on role-less elements).
-	function onKeydown(e: KeyboardEvent) { if (e.key === 'Escape') open = false; else trapFocus(e); }
-	function trapFocus(e: KeyboardEvent) {
-		if (e.key !== 'Tab') return;
-		const focusables = Array.from(panelEl.querySelectorAll<HTMLElement>(FOCUSABLE))
-			.filter((el) => {
-				const style = getComputedStyle(el);
-				return style.display !== 'none' && style.visibility !== 'hidden';
-			});
-		if (focusables.length === 0) return;
-		const first = focusables[0];
-		const last = focusables[focusables.length - 1];
-		const active = document.activeElement as HTMLElement | null;
-		if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
-		else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
-	}
+	function onKeydown(e: KeyboardEvent) { if (e.key === 'Escape') open = false; else focusTrap.trap(e, panelEl); }
 </script>
 
 {#if open}
@@ -527,7 +534,7 @@ Expected: no new errors.
 - [x] **Step 6: Commit**
 
 ```bash
-git add src/lib/components/primitives/Modal.svelte src/lib/components/primitives/ConfirmDialog.svelte src/tests/unit/components/helpers/ModalProbe.svelte src/tests/unit/components/Modal.test.ts src/tests/unit/components/ConfirmDialog.test.ts specs/plans/2026-08-21-a11y-accessibility.md
+git add src/lib/utils/focusTrap.ts src/lib/components/primitives/Modal.svelte src/lib/components/primitives/ConfirmDialog.svelte src/tests/unit/components/helpers/ModalProbe.svelte src/tests/unit/components/Modal.test.ts src/tests/unit/components/ConfirmDialog.test.ts specs/plans/2026-08-21-a11y-accessibility.md
 git commit -m "$(cat <<'EOF'
 fix(a11y): move/trap/restore focus in Modal and ConfirmDialog
 
@@ -646,7 +653,7 @@ Rewrite `src/lib/components/primitives/ContextMenu.svelte`:
 	});
 
 	function onMenuKeydown(e: KeyboardEvent) {
-		const items = Array.from(panelEl.querySelectorAll<HTMLElement>('[role="menuitem"]'))
+		const items = Array.from(panelEl?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])
 			.filter((el) => {
 				const style = getComputedStyle(el);
 				return style.display !== 'none' && style.visibility !== 'hidden';
