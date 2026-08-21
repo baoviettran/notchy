@@ -50,4 +50,16 @@ describe('ConfirmDialog', () => {
 		expect(dialog).toBeInTheDocument();
 		expect(dialog.getAttribute('aria-modal')).toBe('true');
 	});
+
+	it('moves focus into the dialog on open', () => {
+		render(ConfirmDialog, { open: true, title: 'Delete?', message: 'Sure?', confirmLabel: 'Delete' });
+		// First focusable control is the Cancel button.
+		expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
+	});
+
+	it('closes on Escape', async () => {
+		render(ConfirmDialog, { open: true, title: 'Delete?', message: 'Sure?' });
+		await fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+	});
 });

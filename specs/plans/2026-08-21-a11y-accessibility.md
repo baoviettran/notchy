@@ -300,7 +300,7 @@ EOF
 - Consumes: existing `Modal` props (`open`, `title`, `children`) and `ConfirmDialog` props (`open`, `title`, `message`, `confirmLabel`, `danger`, `onconfirm`). No prop signature changes.
 - Produces: dialogs that move focus in on open, trap Tab, restore focus on close; `Modal`'s `<h2>` id linked via `aria-labelledby`. Later tasks reuse the same `$effect` focus-lifecycle shape.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `src/tests/unit/components/helpers/ModalProbe.svelte` (mirrors the existing `AutocompleteBindProbe` helper pattern — `snip()` can only produce plain text, not focusable elements):
 
@@ -311,7 +311,7 @@ Create `src/tests/unit/components/helpers/ModalProbe.svelte` (mirrors the existi
 </script>
 
 <button onclick={() => (open = true)}>Open</button>
-<Modal bind:open title="Probe">
+<Modal bind:open>
 	<button>First</button>
 	<button>Second</button>
 </Modal>
@@ -373,12 +373,12 @@ it('closes on Escape', async () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and verify they fail**
+- [x] **Step 2: Run the tests and verify they fail**
 
 Run: `pnpm vitest run src/tests/unit/components/Modal.test.ts src/tests/unit/components/ConfirmDialog.test.ts`
 Expected: the new tests FAIL (focus stays on the trigger / Tab is not trapped / no `aria-labelledby` / no Escape on ConfirmDialog). Existing assertions stay green.
 
-- [ ] **Step 3: Implement Modal focus management**
+- [x] **Step 3: Implement Modal focus management**
 
 Rewrite `src/lib/components/primitives/Modal.svelte`:
 
@@ -391,13 +391,16 @@ Rewrite `src/lib/components/primitives/Modal.svelte`:
 		open?: boolean; title?: string; children: Snippet;
 	} = $props();
 
-	let panelEl: HTMLElement;
+	let panelEl = $state<HTMLElement>();
 	let lastFocused: HTMLElement | null = null;
 	const titleId = `modal-title-${Math.random().toString(36).slice(2, 9)}`;
 	const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
 
 	function onBackdrop() { open = false; }
-	function onKeydown(e: KeyboardEvent) { if (e.key === 'Escape') open = false; }
+	// Escape closes; every other key is handed to the Tab trap (svelte-check
+	// flags keydown on role-less elements, so both live on this role="dialog"
+	// wrapper which already carries the a11y svelte-ignore).
+	function onKeydown(e: KeyboardEvent) { if (e.key === 'Escape') open = false; else trapFocus(e); }
 
 	// Focus lifecycle: capture the trigger, move focus into the dialog when it
 	// opens, restore it on close. Runs after the {#if open} block paints, so
@@ -414,7 +417,10 @@ Rewrite `src/lib/components/primitives/Modal.svelte`:
 	function trapFocus(e: KeyboardEvent) {
 		if (e.key !== 'Tab') return;
 		const focusables = Array.from(panelEl.querySelectorAll<HTMLElement>(FOCUSABLE))
-			.filter((el) => el.offsetParent !== null);
+			.filter((el) => {
+				const style = getComputedStyle(el);
+				return style.display !== 'none' && style.visibility !== 'hidden';
+			});
 		if (focusables.length === 0) return;
 		const first = focusables[0];
 		const last = focusables[focusables.length - 1];
@@ -428,7 +434,7 @@ Rewrite `src/lib/components/primitives/Modal.svelte`:
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4" tabindex="-1" onkeydown={onKeydown} role="dialog" aria-modal="true" aria-labelledby={titleId}>
 		<div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick={onBackdrop} role="presentation"></div>
-		<div bind:this={panelEl} onkeydown={trapFocus} tabindex="-1" class="relative bg-tape border border-line rounded-lg shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-scale-in">
+		<div bind:this={panelEl} tabindex="-1" class="relative bg-tape border border-line rounded-lg shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-scale-in">
 			{#if title}
 				<div class="flex items-center justify-between px-6 py-4 border-b border-line">
 					<h2 id={titleId} class="figures text-ledger tracking-wide">{title}</h2>
@@ -456,7 +462,7 @@ Rewrite `src/lib/components/primitives/Modal.svelte`:
 		open?: boolean; title?: string; message?: string; confirmLabel?: string; danger?: boolean; onconfirm?: () => void;
 	} = $props();
 
-	let panelEl: HTMLElement;
+	let panelEl = $state<HTMLElement>();
 	let lastFocused: HTMLElement | null = null;
 	const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
 
@@ -471,11 +477,16 @@ Rewrite `src/lib/components/primitives/Modal.svelte`:
 		}
 	});
 
-	function onKeydown(e: KeyboardEvent) { if (e.key === 'Escape') open = false; }
+	// Escape closes; every other key is handed to the Tab trap. Both live on
+	// the role="dialog" panel (svelte-check flags keydown on role-less elements).
+	function onKeydown(e: KeyboardEvent) { if (e.key === 'Escape') open = false; else trapFocus(e); }
 	function trapFocus(e: KeyboardEvent) {
 		if (e.key !== 'Tab') return;
 		const focusables = Array.from(panelEl.querySelectorAll<HTMLElement>(FOCUSABLE))
-			.filter((el) => el.offsetParent !== null);
+			.filter((el) => {
+				const style = getComputedStyle(el);
+				return style.display !== 'none' && style.visibility !== 'hidden';
+			});
 		if (focusables.length === 0) return;
 		const first = focusables[0];
 		const last = focusables[focusables.length - 1];
@@ -486,9 +497,10 @@ Rewrite `src/lib/components/primitives/Modal.svelte`:
 </script>
 
 {#if open}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4" onkeydown={onKeydown}>
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
 		<div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick={() => open = false} role="presentation"></div>
-		<div bind:this={panelEl} onkeydown={trapFocus} tabindex="-1" class="relative bg-tape border border-line rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4 animate-scale-in" role="dialog" aria-modal="true" aria-label={title}>
+		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+		<div bind:this={panelEl} onkeydown={onKeydown} tabindex="-1" class="relative bg-tape border border-line rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4 animate-scale-in" role="dialog" aria-modal="true" aria-label={title}>
 			<h2 class="text-lg font-semibold text-ledger">{title}</h2>
 			{#if message}
 				<p class="text-sm text-dim">{message}</p>
@@ -502,17 +514,17 @@ Rewrite `src/lib/components/primitives/Modal.svelte`:
 {/if}
 ```
 
-- [ ] **Step 4: Run the tests and verify they pass**
+- [x] **Step 4: Run the tests and verify they pass**
 
 Run: `pnpm vitest run src/tests/unit/components/Modal.test.ts src/tests/unit/components/ConfirmDialog.test.ts`
 Expected: all pass, including the existing "Close" / Escape / variant assertions.
 
-- [ ] **Step 5: Typecheck**
+- [x] **Step 5: Typecheck**
 
 Run: `pnpm check`
 Expected: no new errors.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/lib/components/primitives/Modal.svelte src/lib/components/primitives/ConfirmDialog.svelte src/tests/unit/components/helpers/ModalProbe.svelte src/tests/unit/components/Modal.test.ts src/tests/unit/components/ConfirmDialog.test.ts specs/plans/2026-08-21-a11y-accessibility.md
@@ -617,7 +629,7 @@ Rewrite `src/lib/components/primitives/ContextMenu.svelte`:
 	} = $props();
 
 	let open = $state(false);
-	let panelEl: HTMLElement;
+	let panelEl = $state<HTMLElement>();
 	let lastFocused: HTMLElement | null = null;
 
 	function toggle() { open = !open; }
@@ -635,7 +647,10 @@ Rewrite `src/lib/components/primitives/ContextMenu.svelte`:
 
 	function onMenuKeydown(e: KeyboardEvent) {
 		const items = Array.from(panelEl.querySelectorAll<HTMLElement>('[role="menuitem"]'))
-			.filter((el) => el.offsetParent !== null);
+			.filter((el) => {
+				const style = getComputedStyle(el);
+				return style.display !== 'none' && style.visibility !== 'hidden';
+			});
 		if (items.length === 0) { if (e.key === 'Escape') close(); return; }
 		const idx = items.indexOf(document.activeElement as HTMLElement);
 		if (e.key === 'ArrowDown') { e.preventDefault(); items[(idx + 1) % items.length].focus(); }
