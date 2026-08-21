@@ -56,8 +56,8 @@
 		/* Phosphor-bright collapsed to phosphor in light: as a bare accent
 		   #D99935 managed only 2.31:1 — it's used for active nav and selected
 		   toggles, so it needs the same contrast as phosphor itself. */
-		--phosphor: #B8721A;
-		--phosphor-bright: #B8721A;
+		--phosphor: #9A5700;
+		--phosphor-bright: #9A5700;
 		--debit: #C23B3F;
 
 		--ink-rgb: 244 239 226;
@@ -65,8 +65,8 @@
 		--ledger-rgb: 31 27 20;
 		--dim-rgb: 107 99 83;
 		--line-rgb: 154 140 110;
-		--phosphor-rgb: 184 114 26;
-		--phosphor-bright-rgb: 184 114 26;
+		--phosphor-rgb: 154 87 0;
+		--phosphor-bright-rgb: 154 87 0;
 		--debit-rgb: 194 59 63;
 	}
 
