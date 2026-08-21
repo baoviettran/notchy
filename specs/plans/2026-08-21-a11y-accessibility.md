@@ -786,6 +786,14 @@ describe('keyboard selection', () => {
 		await fireEvent.keyDown(input, { key: 'Escape' });
 		expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
 	});
+
+	it('moves to the last option on ArrowUp from a closed list', async () => {
+		render(Autocomplete, { options: OPTS });
+		const input = screen.getByRole('combobox');
+		await fireEvent.keyDown(input, { key: 'ArrowUp' });
+		const opts = screen.getAllByRole('option');
+		await vi.waitFor(() => expect(input).toHaveAttribute('aria-activedescendant', opts[1].id));
+	});
 });
 ```
 
@@ -807,7 +815,11 @@ Add state and helpers after the `inputId` const:
 	function moveActive(delta: number) {
 		if (filtered.length === 0) return;
 		open = true;
-		activeIndex = (activeIndex + delta + filtered.length) % filtered.length;
+		// First press from a closed/unhighlighted list: ArrowDown → first,
+		// ArrowUp → last (WAI-ARIA combobox pattern). The naive modulo from
+		// -1 would map ArrowUp to N-2.
+		if (activeIndex < 0) activeIndex = delta < 0 ? filtered.length - 1 : 0;
+		else activeIndex = (activeIndex + delta + filtered.length) % filtered.length;
 	}
 ```
 

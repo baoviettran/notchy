@@ -124,4 +124,12 @@ describe('keyboard selection', () => {
 		await fireEvent.keyDown(input, { key: 'Escape' });
 		expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
 	});
+
+	it('moves to the last option on ArrowUp from a closed list', async () => {
+		render(Autocomplete, { options: OPTS });
+		const input = screen.getByRole('combobox');
+		await fireEvent.keyDown(input, { key: 'ArrowUp' });
+		const opts = screen.getAllByRole('option');
+		await vi.waitFor(() => expect(input).toHaveAttribute('aria-activedescendant', opts[1].id));
+	});
 });

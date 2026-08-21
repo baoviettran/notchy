@@ -29,7 +29,11 @@
 	function moveActive(delta: number) {
 		if (filtered.length === 0) return;
 		open = true;
-		activeIndex = (activeIndex + delta + filtered.length) % filtered.length;
+		// First press from a closed/unhighlighted list: ArrowDown → first,
+		// ArrowUp → last (WAI-ARIA combobox pattern). The naive modulo from
+		// -1 would map ArrowUp to N-2.
+		if (activeIndex < 0) activeIndex = delta < 0 ? filtered.length - 1 : 0;
+		else activeIndex = (activeIndex + delta + filtered.length) % filtered.length;
 	}
 
 	// The filter term: free-text filters on the live value; id mode filters on
