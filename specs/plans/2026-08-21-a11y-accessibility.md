@@ -741,7 +741,7 @@ EOF
 - Consumes: existing props (`label`, `value`/`$bindable`, `options`, `placeholder`, `allowFreeText`, `onselect`). No signature changes.
 - Produces: combobox navigable by keyboard — ArrowDown/Up (wrap), Home/End, Enter selects the highlighted option, `aria-activedescendant` on the input. Both id-mode and free-text mode.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `src/tests/unit/components/Autocomplete.test.ts`:
 
@@ -789,12 +789,12 @@ describe('keyboard selection', () => {
 });
 ```
 
-- [ ] **Step 2: Run them and verify they fail**
+- [x] **Step 2: Run them and verify they fail**
 
 Run: `pnpm vitest run src/tests/unit/components/Autocomplete.test.ts`
 Expected: the new tests FAIL (arrow keys do nothing today; no `aria-activedescendant`; Enter has no handler). Existing tests (free-text blur commit, id-mode discard) stay green.
 
-- [ ] **Step 3: Implement keyboard selection**
+- [x] **Step 3: Implement keyboard selection**
 
 Edit `src/lib/components/primitives/Autocomplete.svelte`:
 
@@ -873,7 +873,7 @@ Give each option an id, a highlight when active, and a mouse-enter sync:
 						id={optionId(i)}
 						onmousedown={() => select(opt)}
 						onmouseenter={() => { activeIndex = i; }}
-						class="w-full text-left px-3 py-2 text-sm transition-colors {i === activeIndex ? 'bg-line/40' : ''} {opt.value === value ? 'text-phosphor font-medium' : 'text-ledger'}"
+						class="w-full text-left px-3 py-2 text-sm transition-colors hover:bg-line/40 {i === activeIndex ? 'bg-line/40' : ''} {opt.value === value ? 'text-phosphor font-medium' : 'text-ledger'}"
 						role="option"
 						aria-selected={opt.value === value}
 					>{opt.label}</button>
@@ -881,17 +881,17 @@ Give each option an id, a highlight when active, and a mouse-enter sync:
 			{/each}
 ```
 
-- [ ] **Step 4: Run the tests and verify they pass**
+- [x] **Step 4: Run the tests and verify they pass**
 
 Run: `pnpm vitest run src/tests/unit/components/Autocomplete.test.ts`
 Expected: all pass, including the pre-existing blur-commit and id-discard tests.
 
-- [ ] **Step 5: Typecheck**
+- [x] **Step 5: Typecheck**
 
 Run: `pnpm check`
 Expected: no new errors.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/lib/components/primitives/Autocomplete.svelte src/tests/unit/components/Autocomplete.test.ts specs/plans/2026-08-21-a11y-accessibility.md
