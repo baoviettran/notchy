@@ -103,7 +103,7 @@ test.describe('light-mode contrast meets AA', () => {
 			let n = el.parentElement;
 			while (n) {
 				const c = getComputedStyle(n);
-				const m = c.backgroundColor.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)?/);
+				const m = c.backgroundColor.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?/);
 				if (m && (m[4] === undefined || m[4] === '1')) { over = `rgb(${m[1]}, ${m[2]}, ${m[3]})`; break; }
 				n = n.parentElement;
 			}
@@ -177,7 +177,7 @@ EOF
 - Consumes: the `toast` store (`src/lib/stores/toast.svelte.ts` — `toast.show(message, {action, onaction, duration})`, `toast.dismiss()`, `toast.current`).
 - Produces: `role="status"` region present in the DOM even when no toast is active. No other component consumes this.
 
-- [ ] **Step 1: Write the failing unit test**
+- [x] **Step 1: Write the failing unit test**
 
 Create `src/tests/unit/components/GlobalToast.test.ts`:
 
@@ -213,12 +213,12 @@ describe('GlobalToast', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and verify it fails**
+- [x] **Step 2: Run it and verify it fails**
 
 Run: `pnpm vitest run src/tests/unit/components/GlobalToast.test.ts`
 Expected: FAIL — the current GlobalToast renders no `role="status"` and its ✕ button has no accessible name.
 
-- [ ] **Step 3: Implement the live region**
+- [x] **Step 3: Implement the live region**
 
 Rewrite `src/lib/components/primitives/GlobalToast.svelte`:
 
@@ -260,17 +260,17 @@ Add the key to `messages/en.json` and `messages/vi.json`:
 "common_close": "Đóng"
 ```
 
-- [ ] **Step 4: Run the test and verify it passes**
+- [x] **Step 4: Run the test and verify it passes**
 
 Run: `pnpm vitest run src/tests/unit/components/GlobalToast.test.ts`
 Expected: 3 PASS.
 
-- [ ] **Step 5: Compile + typecheck**
+- [x] **Step 5: Compile + typecheck**
 
 Run: `pnpm check`
 Expected: paraglide regenerates with the new key; no new errors.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/lib/components/primitives/GlobalToast.svelte messages/en.json messages/vi.json src/tests/unit/components/GlobalToast.test.ts specs/plans/2026-08-21-a11y-accessibility.md
