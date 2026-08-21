@@ -18,6 +18,8 @@
 	];
 
 	let moreOpen = $state(false);
+	let sheetEl = $state<HTMLElement | null>(null);
+	let lastFocused: HTMLElement | null = null;
 
 	function toggleMore() {
 		moreOpen = !moreOpen;
@@ -32,6 +34,16 @@
 			closeMore();
 		}
 	}
+
+	// Focus lifecycle: capture the trigger, move focus to the first sheet link
+	// when it opens, restore it on close.
+	$effect(() => {
+		if (moreOpen) {
+			lastFocused = document.activeElement as HTMLElement | null;
+			sheetEl?.querySelector<HTMLElement>('a')?.focus();
+			return () => { lastFocused?.focus?.(); lastFocused = null; };
+		}
+	});
 
 	function isActive(href: string, path: string): boolean {
 		return href === '/' ? path === '/' : path === href || path.startsWith(href + '/');
@@ -59,6 +71,8 @@
 
 	<button
 		onclick={toggleMore}
+		aria-expanded={moreOpen}
+		aria-haspopup="dialog"
 		class="flex-1 flex flex-col items-center justify-center gap-1 text-[10px] transition-colors {moreOpen ? 'text-phosphor-bright' : 'text-dim'}"
 	>
 		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 {moreOpen ? 'text-phosphor' : ''}">
@@ -73,7 +87,13 @@
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div class="md:hidden fixed inset-0 bg-black/50 z-40" onclick={closeMore}></div>
 
-	<div class="md:hidden fixed bottom-16 left-0 right-0 bg-tape border-t border-line rounded-t-lg p-4 z-50" transition:slideUp>
+	<div
+		bind:this={sheetEl}
+		role="dialog"
+		aria-label={m.layout_more()}
+		class="md:hidden fixed bottom-16 left-0 right-0 bg-tape border-t border-line rounded-t-lg p-4 z-50"
+		transition:slideUp
+	>
 		<div class="grid grid-cols-4 gap-4">
 			{#each moreItems as item}
 				{@const active = isActive(item.href, $page.url.pathname)}

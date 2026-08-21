@@ -243,6 +243,8 @@
 	"layout_budget": "Budget",
 	"layout_home": "Home",
 	"layout_lang_label_en": "EN",
+	"layout_lang_toggle_en": "Switch to Vietnamese",
+	"layout_lang_toggle_vi": "Switch to English",
 	"layout_ledger": "Ledger",
 	"layout_local_offline": "Local · offline",
 	"layout_more": "More",

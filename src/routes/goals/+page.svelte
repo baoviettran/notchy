@@ -75,7 +75,7 @@
 								<button onclick={() => confirmDelete = g} class="text-xs text-dim hover:text-debit pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 transition-opacity px-1">{m.goals_delete()}</button>
 							</div>
 						</div>
-						<Progress value={g.progress_pct} max={100} size="sm" />
+						<Progress value={g.progress_pct} max={100} size="sm" label={g.name} />
 						<div class="flex justify-between text-xs text-dim">
 							<span>{formatCurrency(g.current_amount, settings.currency, settings.locale)} / {formatCurrency(g.target_amount, settings.currency, settings.locale)}</span>
 							<span>{g.progress_pct}% · {m.goals_due_date({ date: g.target_date })}</span>

@@ -23,4 +23,10 @@ describe('TopBar', () => {
 		render(TopBar);
 		expect(screen.getByRole('searchbox')).toBeInTheDocument();
 	});
+
+	it('names the locale toggle for screen readers', () => {
+		render(TopBar);
+		// Default locale is en, so the toggle announces its target: Vietnamese.
+		expect(screen.getByRole('button', { name: 'Switch to Vietnamese' })).toBeInTheDocument();
+	});
 });

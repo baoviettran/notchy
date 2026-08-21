@@ -129,7 +129,7 @@
 						</button>
 					{/if}
 				</div>
-				<Progress value={pct} max={100} size="sm" />
+				<Progress value={pct} max={100} size="sm" label={bucket.name} />
 				{#if rolledOver !== 0}
 					<div class="text-xs text-dim">
 						{m.budgets_rolled_in({ amount: formatCurrency(rolledOver, settings.currency, settings.locale) })}

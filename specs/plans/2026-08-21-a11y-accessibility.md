@@ -926,7 +926,7 @@ EOF
 - Modify: `src/lib/components/layout/TopBar.svelte`
 - Modify: `src/lib/components/primitives/Progress.svelte`
 - Modify: `src/lib/components/layout/BottomNav.svelte`
-- Modify: `src/routes/+page.svelte` (dashboard — budget meter line ~92, goal row line ~155)
+- Modify: `src/routes/+page.svelte` (dashboard — budget meter line ~92, empty-budget skeleton line ~104, goal row line ~155)
 - Modify: `src/routes/budgets/+page.svelte` (line 132)
 - Modify: `src/routes/goals/+page.svelte` (line 78)
 - Modify: `messages/en.json`, `messages/vi.json` (add `layout_lang_toggle_en` / `layout_lang_toggle_vi`)
@@ -938,7 +938,7 @@ EOF
 - Consumes: `settings.locale` (`'en' | 'vi'`), `budgetableBuckets`/`bucket.name` in the budgets page, `goals`/`g.name` on dashboard + goals pages, `m.layout_budget()`.
 - Produces: `Progress` gains a new optional prop `label?: string` (rendered as `aria-label`); callers pass names. TopBar locale button gains `aria-label`. BottomNav More sheet becomes a named dialog with an expanded trigger + focus move/restore.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `src/tests/unit/components/Progress.test.ts`:
 
@@ -989,17 +989,18 @@ it('exposes the More sheet as a labeled dialog with an expanded trigger', async 
 it('moves focus to the first sheet link when it opens', async () => {
 	render(BottomNav);
 	await fireEvent.click(screen.getByRole('button', { name: 'More' }));
-	const first = screen.getAllByRole('link')[0];
-	expect(first).toHaveFocus();
+	// First sheet item is Accounts; the nav bar's own links precede the sheet
+	// in DOM order, so address it by name rather than index.
+	expect(screen.getByRole('link', { name: 'Accounts' })).toHaveFocus();
 });
 ```
 
-- [ ] **Step 2: Run them and verify they fail**
+- [x] **Step 2: Run them and verify they fail**
 
 Run: `pnpm vitest run src/tests/unit/components/Progress.test.ts src/tests/unit/components/TopBar.test.ts src/tests/unit/components/BottomNav.test.ts`
 Expected: new tests FAIL (no `aria-label` on Progress; locale button unnamed; More sheet anonymous with no expanded state; focus stays on the trigger). Existing TopBar/BottomNav assertions stay green.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 **TopBar.svelte** — add `aria-label` to the locale button:
 
@@ -1050,6 +1051,7 @@ Expected: new tests FAIL (no `aria-label` on Progress; locale button unnamed; Mo
 
 - `src/routes/budgets/+page.svelte:132` → `<Progress value={pct} max={100} size="sm" label={bucket.name} />`
 - `src/routes/+page.svelte:92` → `<Progress value={budgetPct} max={100} label={m.layout_budget()} />`
+- `src/routes/+page.svelte:104` (empty-budget skeleton) → `<Progress value={0} max={100} label={m.layout_budget()} />`
 - `src/routes/+page.svelte:155` → `<Progress value={g.progress_pct} max={100} size="sm" segments={16} label={g.name} />`
 - `src/routes/goals/+page.svelte:78` → `<Progress value={g.progress_pct} max={100} size="sm" label={g.name} />`
 
@@ -1057,7 +1059,7 @@ Expected: new tests FAIL (no `aria-label` on Progress; locale button unnamed; Mo
 
 ```svelte
 	let moreOpen = $state(false);
-	let sheetEl: HTMLElement | null = null;
+	let sheetEl = $state<HTMLElement | null>(null);
 	let lastFocused: HTMLElement | null = null;
 
 	function toggleMore() {
@@ -1106,17 +1108,17 @@ Sheet:
 	>
 ```
 
-- [ ] **Step 4: Run the tests and verify they pass**
+- [x] **Step 4: Run the tests and verify they pass**
 
 Run: `pnpm vitest run src/tests/unit/components/Progress.test.ts src/tests/unit/components/TopBar.test.ts src/tests/unit/components/BottomNav.test.ts`
 Expected: all pass. Note the existing BottomNav test `screen.getByText('More')` still matches (the trigger's name is unchanged).
 
-- [ ] **Step 5: Typecheck + compile paraglide**
+- [x] **Step 5: Typecheck + compile paraglide**
 
 Run: `pnpm check`
 Expected: paraglide regenerates with the two new keys; no new errors.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/lib/components/layout/TopBar.svelte src/lib/components/primitives/Progress.svelte src/lib/components/layout/BottomNav.svelte src/routes/+page.svelte src/routes/budgets/+page.svelte src/routes/goals/+page.svelte messages/en.json messages/vi.json src/tests/unit/components/Progress.test.ts src/tests/unit/components/TopBar.test.ts src/tests/unit/components/BottomNav.test.ts specs/plans/2026-08-21-a11y-accessibility.md

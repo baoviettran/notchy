@@ -1,6 +1,6 @@
 <script lang="ts">
-	let { value = 0, max = 100, size = 'md', segments = 20 }: {
-		value?: number; max?: number; size?: 'sm' | 'md'; segments?: number;
+	let { value = 0, max = 100, size = 'md', segments = 20, label = '' }: {
+		value?: number; max?: number; size?: 'sm' | 'md'; segments?: number; label?: string;
 	} = $props();
 	const pct = Math.min(100, Math.max(0, (value / max) * 100));
 	const overBudget = pct > 100;
@@ -12,6 +12,7 @@
 <div
 	class="w-full {heights[size]} flex gap-[2px] p-[2px] rounded-sm border border-line bg-ink overflow-hidden"
 	role="progressbar"
+	aria-label={label || undefined}
 	aria-valuenow={Math.round(pct)}
 	aria-valuemin={0}
 	aria-valuemax={100}

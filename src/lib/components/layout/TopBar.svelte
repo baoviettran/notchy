@@ -27,6 +27,7 @@
 	</label>
 	<button
 		onclick={() => settings.setLocale(settings.locale === 'en' ? 'vi' : 'en')}
+		aria-label={settings.locale === 'en' ? m.layout_lang_toggle_en() : m.layout_lang_toggle_vi()}
 		class="plate px-2 py-1 rounded border border-line text-dim hover:text-ledger"
 	>
 		{settings.locale === 'en' ? 'VI' : 'EN'}

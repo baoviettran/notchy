@@ -89,7 +89,7 @@
 				<span class="text-sm text-dim figures">/ {formatCurrency(totalAllocated, settings.currency, settings.locale)}</span>
 				<span class="ml-auto plate">{budgetPct}%</span>
 			</div>
-			<Progress value={budgetPct} max={100} />
+			<Progress value={budgetPct} max={100} label={m.layout_budget()} />
 			<div class="mt-4 space-y-1.5">
 				{#each budgets.items.slice(0, 4) as b}
 					<div class="flex items-center justify-between text-xs">
@@ -101,7 +101,7 @@
 		{:else}
 			<!-- Empty budget: show the meter skeleton so the card teaches what budgeting
 			     looks like here, instead of going inert. -->
-			<Progress value={0} max={100} />
+			<Progress value={0} max={100} label={m.layout_budget()} />
 			<div class="mt-4 flex items-center justify-between text-sm">
 				<p class="text-dim">{m.dashboard_no_budget({ month: budgets.month })}</p>
 				<a href="/budgets" class="text-phosphor hover:underline">{m.dashboard_setup_budget()}</a>
@@ -152,7 +152,7 @@
 							<span class="text-ledger">{g.name}</span>
 							<span class="figures text-dim">{g.progress_pct}%</span>
 						</div>
-						<Progress value={g.progress_pct} max={100} size="sm" segments={16} />
+						<Progress value={g.progress_pct} max={100} size="sm" segments={16} label={g.name} />
 					</div>
 				{/each}
 			</div>
