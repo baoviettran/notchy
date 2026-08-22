@@ -98,12 +98,15 @@
 	<div class="flex items-center justify-between">
 		<h1 class="figures text-xl text-ledger tracking-wide">{m.budgets_title()}</h1>
 		<div class="flex items-center gap-2 text-sm">
-			<button onclick={prevMonth} class="p-1 text-dim hover:text-ledger">◀</button>
+			<button onclick={prevMonth} class="p-2 text-dim hover:text-ledger">◀</button>
 			<span class="figures font-medium text-ledger">{budgets.month}</span>
-			<button onclick={nextMonth} class="p-1 text-dim hover:text-ledger">▶</button>
+			<button onclick={nextMonth} class="p-2 text-dim hover:text-ledger">▶</button>
 		</div>
 	</div>
 
+	{#if budgets.loading}
+		<p class="text-dim text-sm py-8 text-center">{m.common_loading()}</p>
+	{:else}
 	{#if !budgets.hasAllocations}
 		<div class="bg-phosphor/10 border border-phosphor/30 rounded-lg p-4 flex items-center justify-between">
 			<p class="text-sm text-phosphor">{m.budgets_no_budget_for_month()}</p>
@@ -160,4 +163,5 @@
 			</div>
 		{/each}
 	</div>
+	{/if}
 </div>

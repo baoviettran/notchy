@@ -79,15 +79,20 @@
 		<Button size="sm" variant="secondary" onclick={() => showImport = true}>{m.import_tx_title()}</Button>
 	</div>
 
-	{#if displayItems.length > 0}
-		<p class="text-xs text-dim">
-			{displayItems.length === 0 ? m.transactions_count_none() : m.transactions_count_many({ count: displayItems.length })}
-		</p>
-	{/if}
+	{#if transactions.loading}
+		<p class="text-dim text-sm py-8 text-center">{m.common_loading()}</p>
+	{:else if transactions.error}
+		<p class="text-debit text-sm py-8 text-center">{transactions.error}</p>
+	{:else}
+		{#if displayItems.length > 0}
+			<p class="text-xs text-dim">
+				{displayItems.length === 0 ? m.transactions_count_none() : m.transactions_count_many({ count: displayItems.length })}
+			</p>
+		{/if}
 
-	<div class="bg-tape rounded-lg border border-line divide-y divide-line">
-		{#if displayItems.length === 0}
-			<EmptyState message={m.transactions_empty_state()} icon="▮▯▯▯" />
+		<div class="bg-tape rounded-lg border border-line divide-y divide-line">
+			{#if displayItems.length === 0}
+				<EmptyState message={m.transactions_empty_state()} icon="▮▯▯▯" />
 		{:else}
 			{#each displayItems as tx}
 				<div class="p-4 flex items-center justify-between group">
@@ -101,7 +106,7 @@
 						<div class="text-xs text-dim">{formatDateRelative(tx.date, settings.locale)} · {labelFor(tx.kind)}</div>
 					</button>
 					<span class="figures text-sm mr-3 {tx.kind === 'expense' ? 'text-debit' : tx.kind === 'income' ? 'text-phosphor' : 'text-dim'}">
-						{tx.kind === 'expense' ? '-' : ''}{formatCurrency(tx.amount, settings.currency, settings.locale)}
+						{tx.kind === 'expense' ? '−' : ''}{formatCurrency(tx.amount, settings.currency, settings.locale)}
 					</span>
 					<ContextMenu label={m.transactions_duplicate() + ' · ' + m.common_delete()}>
 						<button onclick={() => doDuplicate(tx)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-ledger hover:bg-line/40">{m.transactions_duplicate()}</button>
@@ -121,6 +126,7 @@
 	{/if}
 
 	<ImportTransactionsModal bind:open={showImport} />
+	{/if}
 </div>
 
 <Modal bind:open={showEditModal} title={m.transactions_edit()}>

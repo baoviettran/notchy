@@ -322,7 +322,9 @@
 	"reports_legend_year_b_expense": "Năm B Chi tiêu",
 	"reports_select_tag": "Chọn danh mục",
 	"reports_select_year": "Chọn năm",
-	"recovery_app_version": "Phiên bản ứng dụng",
+	"frequent_repeat_header": "Lặp lại · 30 ngày qua",
+"frequent_saved_toast": "Đã lưu · {payee} · {amount}",
+"recovery_app_version": "Phiên bản ứng dụng",
 	"recovery_backup_path": "Bản sao lưu khôi phục",
 	"recovery_code_database_corrupt": "Không thể đọc tệp cơ sở dữ liệu. Tệp có thể đã bị hỏng.",
 	"recovery_code_database_schema_invalid": "Cơ sở dữ liệu có cấu trúc Notchy không nhận dạng được.",
@@ -427,5 +429,7 @@
 	"validation_invalid_amount": "Số tiền không hợp lệ",
 	"validation_name_required": "Tên là bắt buộc",
 	"validation_source_dest_differ": "Tài khoản nguồn và đích phải khác nhau",
-	"validation_target_date_required": "Ngày mục tiêu là bắt buộc"
+	"validation_target_date_required": "Ngày mục tiêu là bắt buộc",
+	"common_loading": "Đang tải...",
+	"common_error": "Đã xảy ra lỗi"
 }

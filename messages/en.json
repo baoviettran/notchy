@@ -322,7 +322,9 @@
 	"reports_legend_year_b_expense": "Year B Expense",
 	"reports_select_tag": "Select category",
 	"reports_select_year": "Select year",
-	"recovery_app_version": "App version",
+	"frequent_repeat_header": "Repeat · last 30 days",
+"frequent_saved_toast": "Saved · {payee} · {amount}",
+"recovery_app_version": "App version",
 	"recovery_backup_path": "Recovery backup",
 	"recovery_code_database_corrupt": "Your database file could not be read. It may be damaged.",
 	"recovery_code_database_schema_invalid": "Your database file has a schema Notchy doesn't recognize.",
@@ -427,5 +429,7 @@
 	"validation_invalid_amount": "Invalid amount",
 	"validation_name_required": "Name is required",
 	"validation_source_dest_differ": "Source and destination must differ",
-	"validation_target_date_required": "Target date is required"
+	"validation_target_date_required": "Target date is required",
+	"common_loading": "Loading...",
+	"common_error": "Something went wrong"
 }
