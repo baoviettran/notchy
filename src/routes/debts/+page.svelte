@@ -73,6 +73,10 @@
 		<h2 class="plate mb-2">{m.debts_i_owe()}</h2>
 		{#if debts.i_owe.length === 0}
 			<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
+				<!-- Being debt-free is a real milestone — the celebration gets a
+				     designed lamp (phosphor ring + tint) instead of a trailing
+				     emoji in the sentence. The copy carries the meaning. -->
+				<div class="mx-auto mb-3 w-12 h-12 rounded-full border border-phosphor/40 bg-phosphor/10 flex items-center justify-center text-xl" aria-hidden="true">🎉</div>
 				<p class="text-sm">{m.debts_empty_i_owe()}</p>
 			</div>
 		{:else}

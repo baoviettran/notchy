@@ -61,6 +61,16 @@ test.describe('debts — extended', () => {
 		await expect(main.getByText('No debts. You\'re debt-free!')).toBeVisible();
 	});
 
+	test('debt-free celebration: the emoji is a designed badge, not a trailing glyph', async ({ onboardedPage: page }) => {
+		// A fresh app has no i-owe debts. The 🎉 now lives in its own
+		// celebration badge (debts/+page.svelte:76) instead of trailing the
+		// sentence — the message reads clean and the emoji is deliberate.
+		await page.getByRole('link', { name: 'Debts', exact: true }).click();
+		const main = page.getByRole('main');
+		await expect(main.getByText('No debts. You\'re debt-free!')).toBeVisible();
+		await expect(main.getByText('🎉', { exact: true })).toBeVisible();
+	});
+
 	test('i-owe: a loan_from_person account surfaces under "I Owe"', async ({ onboardedPage: page }) => {
 		await createLoanAccount(page, 'Loan from Person', 'Alice', 'Alice Debt');
 		await page.getByRole('link', { name: 'Debts', exact: true }).click();

@@ -111,7 +111,15 @@
 					{#each currencies as c}
 						<button onclick={() => currency = c.value}
 							class="w-full p-4 rounded-md border text-left transition-colors {currency === c.value ? 'border-phosphor bg-phosphor/10' : 'border-line hover:border-dim'}">
-							<span class="font-medium text-ledger">{c.flag} {c.code} — {c.value === 'VND' ? m.onboarding_currency_desc_vnd() : m.onboarding_currency_desc_usd()}</span>
+							<span class="flex items-center gap-3">
+								<!-- The flag is the currency's identity, stamped like a chip;
+								     the code + name carry the meaning for screen readers. -->
+								<span class="w-10 h-10 shrink-0 rounded-md border border-line bg-ink flex items-center justify-center text-lg" aria-hidden="true">{c.flag}</span>
+								<span class="min-w-0">
+									<span class="block font-medium text-ledger">{c.code}</span>
+									<span class="block text-sm text-dim">— {c.value === 'VND' ? m.onboarding_currency_desc_vnd() : m.onboarding_currency_desc_usd()}</span>
+								</span>
+							</span>
 						</button>
 					{/each}
 				</div>

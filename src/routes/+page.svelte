@@ -20,6 +20,17 @@
 	let totalSpent = $derived(budgets.items.reduce((s, b) => s + b.spent, 0));
 	let budgetPct = $derived(totalAllocated > 0 ? Math.round((totalSpent / totalAllocated) * 100) : 0);
 
+// Empty-budget teaching state: a sample month that shows the shape of a
+// budget before the user has made one. The amounts are illustrative, scaled
+// to a believable magnitude for the user's currency so the example reads in
+// their money rather than an abstract unit.
+const sampleScale = settings.currency === 'VND' ? 1_000_000 : 100;
+const sampleBuckets = [
+	{ name: m.dashboard_sample_rent(), spent: 6 * sampleScale, allocated: 6 * sampleScale },
+	{ name: m.dashboard_sample_groceries(), spent: 4 * sampleScale, allocated: 6 * sampleScale },
+	{ name: m.dashboard_sample_savings(), spent: 3 * sampleScale, allocated: 6 * sampleScale }
+];
+
 	// This-month net flow from recent visible transactions (income − expense),
 	// shown as a directional delta beside the net figure.
 	let monthFlow = $derived(
@@ -99,12 +110,24 @@
 				{/each}
 			</div>
 		{:else}
-			<!-- Empty budget: show the meter skeleton so the card teaches what budgeting
-			     looks like here, instead of going inert. -->
-			<Progress value={0} max={100} label={m.layout_budget()} />
-			<div class="mt-4 flex items-center justify-between text-sm">
-				<p class="text-dim">{m.dashboard_no_budget({ month: budgets.month })}</p>
-				<a href="/budgets" class="text-phosphor hover:underline">{m.dashboard_setup_budget()}</a>
+			<!-- Empty budget: instead of an inert skeleton, teach the shape of a
+			     budgeted month — warm copy, a sample of the real rows rendered
+			     with the actual meter, and the CTA. -->
+			<p class="text-sm text-dim">{m.dashboard_no_budget({ month: budgets.month })}</p>
+			<p class="mt-1 text-sm text-dim">{m.dashboard_budget_teach()}</p>
+			<div class="mt-4 space-y-3">
+				{#each sampleBuckets as s}
+					<div>
+						<div class="flex items-center justify-between text-xs mb-1">
+							<span class="text-ledger">{s.name}</span>
+							<span class="figures text-ledger">{formatCurrency(s.spent, settings.currency, settings.locale)} <span class="text-dim">/ {formatCurrency(s.allocated, settings.currency, settings.locale)}</span></span>
+						</div>
+						<Progress value={Math.round((s.spent / s.allocated) * 100)} max={100} size="sm" label={s.name} />
+					</div>
+				{/each}
+			</div>
+			<div class="mt-4 text-right">
+				<a href="/budgets" class="text-phosphor hover:underline text-sm">{m.dashboard_setup_budget()}</a>
 			</div>
 		{/if}
 	</section>
