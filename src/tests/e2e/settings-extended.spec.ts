@@ -51,20 +51,21 @@ test.describe('settings — extended', () => {
 		await expect(lightBtn).not.toHaveClass(/border-phosphor/);
 	});
 
-	test('language buttons reload the page so the new locale takes effect', async ({ onboardedPage: page }) => {
-		// setLocale persists the locale then calls location.reload(), because
-		// Paraglide's m.*() calls are not reactive to Svelte's render cycle —
-		// the text only updates on a fresh load. In the E2E harness a reload
-		// wipes the in-memory sql.js DB and re-triggers onboarding, so the
-		// proof the reload happened is: onboarding re-appears.
+	test('language buttons update UI in place without a page reload', async ({ onboardedPage: page }) => {
+		// setLocale persists the locale and calls setLanguageTag(). A reactive
+		// bridge in Sidebar/TopBar causes m.*() labels to re-evaluate, so the
+		// UI updates in place — no reload, no data loss.
 		await page.getByRole('link', { name: 'Settings', exact: true }).click();
 		const main = page.getByRole('main');
 		const viBtn = main.getByRole('button', { name: 'Tiếng Việt' });
 		// English active by default post-onboarding.
 		await expect(main.getByRole('button', { name: 'English' })).toHaveClass(/border-phosphor/);
-		// Click VI → reload fires → onboarding re-appears (Choose your language).
+		// Click VI → UI updates in place.
 		await viBtn.click();
-		await expect(page.getByRole('heading', { name: 'Choose your language' })).toBeVisible();
+		// Onboarding must NOT re-appear (no reload).
+		await expect(page.getByRole('heading', { name: 'Choose your language' })).toHaveCount(0);
+		// Sidebar nav text must update to Vietnamese.
+		await expect(page.getByRole('link', { name: 'Tổng quan', exact: true })).toBeVisible({ timeout: 5000 });
 	});
 
 // Drive the quick-add Select reliably. The Select's options load async (from
@@ -187,5 +188,20 @@ async function changeQuickSelect(page: import('@playwright/test').Page, optionLa
 		await page.getByRole('link', { name: /Categories/ }).first().click();
 		const learning = page.getByRole('main').locator('section', { hasText: 'Learning' });
 		await expect(learning.getByText('No tags yet.')).toBeVisible();
+	});
+
+	test('language switch updates UI text without a full page reload', async ({ onboardedPage: page }) => {
+		// Verify sidebar nav is visible (desktop viewport).
+		const dashLink = page.getByRole('link', { name: 'Dashboard', exact: true });
+		await expect(dashLink).toBeVisible({ timeout: 5000 });
+		// Navigate to settings.
+		await page.getByRole('link', { name: 'Settings', exact: true }).click();
+		// Switch to Vietnamese.
+		const viBtn = page.getByRole('main').getByRole('button', { name: 'Tiếng Việt' });
+		await viBtn.click();
+		// The page must NOT reload — onboarding must NOT re-appear.
+		await expect(page.getByRole('heading', { name: 'Choose your language' })).toHaveCount(0);
+		// Sidebar nav text must have updated to Vietnamese.
+		await expect(page.getByRole('link', { name: 'Tổng quan', exact: true })).toBeVisible({ timeout: 5000 });
 	});
 });

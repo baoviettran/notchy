@@ -7,6 +7,7 @@
 	import { getDb, isTauri } from '$lib/db';
 	import { parseQuickInput } from '$lib/utils/quick_parse';
 	import { AppError } from '$lib/errors';
+	import { mapError } from '$lib/utils/errors';
 
 	let value = $state('');
 	let error = $state<string | null>(null);
@@ -22,6 +23,8 @@
 			? m.quick_add_database_update_required()
 			: null;
 	}
+
+	const noAccountHint = $derived(!ready || !activeAccount ? m.quick_add_no_account_hint() : null);
 
 	async function loadDefaultAccount(): Promise<void> {
 		const db = getDb();
@@ -49,7 +52,7 @@
 			await loadDefaultAccount();
 			ready = true;
 		} catch (e) {
-			error = updateRequiredError(e) ?? m.errors_unknown();
+			error = updateRequiredError(e) ?? mapError(e);
 			return;
 		}
 		queueMicrotask(() => document.getElementById('qa-input')?.focus());
@@ -87,14 +90,14 @@
 			try {
 				db = await getDb();
 			} catch (e) {
-				error = updateRequiredError(e) ?? m.errors_unknown();
+				error = updateRequiredError(e) ?? mapError(e);
 				return;
 			}
 			let parsed;
 			try {
 				parsed = parseQuickInput(value, settings.locale, settings.currency);
 			} catch (e) {
-				error = e instanceof AppError ? m.quick_add_placeholder() : m.errors_unknown();
+				error = e instanceof AppError ? m.quick_add_placeholder() : mapError(e);
 				return;
 			}
 
@@ -151,6 +154,10 @@
 		onkeydown={onKeydown}
 		disabled={!ready || !activeAccount}
 	/>
+
+	{#if noAccountHint}
+		<div id="qa-hint" class="hint" aria-live="polite">{noAccountHint}</div>
+	{/if}
 
 	<div class="rule"></div>
 
@@ -226,6 +233,11 @@
 	}
 	.error {
 		color: var(--phosphor);
+		font-size: 11px;
+		margin-top: 0.25rem;
+	}
+	.hint {
+		color: var(--dim);
 		font-size: 11px;
 		margin-top: 0.25rem;
 	}

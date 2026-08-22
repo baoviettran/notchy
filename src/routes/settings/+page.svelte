@@ -20,12 +20,8 @@
 		settings.setTheme(theme);
 	}
 
-	// Paraglide's m.*() calls are not reactive to Svelte's render cycle, so the
-	// page text only re-renders on a fresh load. Persist the new locale, then
-	// reload so all text updates immediately. (setTheme IS reactive — no reload.)
 	async function setLocale(locale: 'en' | 'vi') {
 		await settings.setLocale(locale);
-		globalThis.location.reload();
 	}
 
 	let quickAccountId = $state<string>('');

@@ -2,6 +2,7 @@ import { getDb } from '$lib/db';
 import type { Transaction, NewTransaction, TransactionFilter } from '$lib/db/client';
 import { toast } from '$lib/stores/toast.svelte';
 import { mapError } from '$lib/utils/errors';
+import * as m from '$lib/paraglide/messages';
 
 class TransactionsStore {
 	items = $state<Transaction[]>([]);
@@ -44,14 +45,14 @@ class TransactionsStore {
 		await this.load();
 
 		if (tx) {
-			toast.show('Transaction deleted.', {
-				action: 'UNDO',
+			toast.show(m.transactions_deleted_toast(), {
+				action: m.transactions_undo(),
 				duration: 5000,
 				onaction: async () => {
 					const db2 = getDb();
 					await db2.transactions.restore(id);
 					await this.load();
-					toast.show('Transaction restored.');
+					toast.show(m.transactions_restored_toast());
 				}
 			});
 		}

@@ -1,19 +1,29 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { settings } from '$lib/stores/settings.svelte';
 	import * as m from '$lib/paraglide/messages';
 
-	const primaryNav = [
+	// Bridge: track settings.locale so Svelte re-renders nav items when
+	// the language changes. m.*() calls are not reactive, but re-evaluating
+	// them in a derived that depends on _locale picks up the new language tag.
+	let _locale = $state(settings.locale);
+	$effect(() => { _locale = settings.locale; });
+
+	// _locale is read inside each $derived so Svelte recomputes the array
+	// when the language changes, causing the {#each} blocks to re-render
+	// and re-evaluate the m.*() label functions with the new languageTag.
+	const primaryNav = $derived((() => { void _locale; return [
 		{ href: '/', key: 'dashboard', label: () => m.nav_dashboard() },
 		{ href: '/transactions', key: 'transactions', label: () => m.nav_transactions(), tourId: 'transactions' },
 		{ href: '/budgets', key: 'budgets', label: () => m.nav_budgets(), tourId: 'budgets' },
 		{ href: '/reports', key: 'reports', label: () => m.nav_reports() }
-	];
-	const secondaryNav = [
+	]; })());
+	const secondaryNav = $derived((() => { void _locale; return [
 		{ href: '/accounts', key: 'accounts', label: () => m.nav_accounts(), tourId: 'accounts' },
 		{ href: '/goals', key: 'goals', label: () => m.nav_goals() },
 		{ href: '/debts', key: 'debts', label: () => m.nav_debts() },
 		{ href: '/settings', key: 'settings', label: () => m.nav_settings(), tourId: 'settings' }
-	];
+	]; })());
 
 	function isActive(href: string, path: string): boolean {
 		return href === '/' ? path === '/' : path === href || path.startsWith(href + '/');
