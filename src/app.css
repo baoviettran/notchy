@@ -126,7 +126,10 @@
 }
 
 @layer components {
-	/* intentionally empty — add shared component recipes here */
+	.surface {
+		background-color: var(--tape);
+		border: 1px solid var(--line);
+	}
 }
 
 @layer utilities {
