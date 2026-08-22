@@ -13,6 +13,8 @@
 	import type { Transaction } from '$lib/db/repos/transactions';
 	import * as m from '$lib/paraglide/messages';
 	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
+	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
+	import ConfirmDialog from '$lib/components/primitives/ConfirmDialog.svelte';
 	import ContextMenu from '$lib/components/primitives/ContextMenu.svelte';
 	import ImportTransactionsModal from '$lib/components/modals/ImportTransactionsModal.svelte';
 
@@ -21,6 +23,8 @@
 	let editing = $state<Transaction | null>(null);
 	let showEditModal = $state(false);
 	let showImport = $state(false);
+	let showDeleteConfirm = $state(false);
+	let pendingDeleteId = $state<string | null>(null);
 	let pageNum = $state(0);
 	let hasNextPage = $state(false);
 	const PAGE_SIZE = 50;
@@ -57,9 +61,16 @@
 		showEditModal = true;
 	}
 
-	async function doDelete(tx: Transaction) {
-		await transactions.delete(tx.id);
+	function confirmDelete(tx: Transaction) {
+		pendingDeleteId = tx.id;
+		showDeleteConfirm = true;
+	}
+
+	async function doDelete() {
+		if (!pendingDeleteId) return;
+		await transactions.delete(pendingDeleteId);
 		await loadPage();
+		pendingDeleteId = null;
 	}
 
 	async function doDuplicate(tx: Transaction) {
@@ -82,7 +93,7 @@
 	{#if transactions.loading}
 		<p class="text-dim text-sm py-8 text-center">{m.common_loading()}</p>
 	{:else if transactions.error}
-		<p class="text-debit text-sm py-8 text-center">{transactions.error}</p>
+		<ErrorState description={transactions.error} onRetry={loadPage} />
 	{:else}
 		{#if displayItems.length > 0}
 			<p class="text-xs text-dim">
@@ -110,7 +121,7 @@
 					</span>
 					<ContextMenu label={m.transactions_duplicate() + ' · ' + m.common_delete()}>
 						<button onclick={() => doDuplicate(tx)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-ledger hover:bg-line/40">{m.transactions_duplicate()}</button>
-						<button onclick={() => doDelete(tx)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.common_delete()}</button>
+						<button onclick={() => confirmDelete(tx)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.common_delete()}</button>
 					</ContextMenu>
 				</div>
 			{/each}
@@ -132,3 +143,11 @@
 <Modal bind:open={showEditModal} title={m.transactions_edit()}>
 	<TransactionForm existing={editing} onclose={() => showEditModal = false} onsave={loadPage} />
 </Modal>
+
+<ConfirmDialog
+	open={showDeleteConfirm}
+	title={m.transactions_delete_confirm_title()}
+	message={m.transactions_delete_confirm_body()}
+	confirmLabel={m.common_delete()}
+	onconfirm={doDelete}
+/>

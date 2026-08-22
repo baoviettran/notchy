@@ -95,7 +95,7 @@
 		</a>
 		<div class="bg-tape rounded-lg border border-line p-4">
 			<div class="plate mb-2">{m.settings_theme()}</div>
-			<div class="flex gap-2" role="radiogroup" aria-label="Theme">
+			<div class="flex gap-2" role="group" aria-label="Theme">
 				{#each ['auto', 'light', 'dark'] as theme}
 					<button
 						onclick={() => setTheme(theme as 'auto' | 'light' | 'dark')}
@@ -107,7 +107,7 @@
 		</div>
 		<div class="bg-tape rounded-lg border border-line p-4">
 			<div class="plate mb-2">{m.settings_language()}</div>
-			<div class="flex gap-2" role="radiogroup" aria-label="Language">
+			<div class="flex gap-2" role="group" aria-label="Language">
 				<button
 					onclick={() => setLocale('en')}
 					aria-pressed={settings.locale === 'en'}
