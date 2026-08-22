@@ -73,17 +73,28 @@ test.describe('transactions — extended', () => {
 		await expect(main.getByText('Acme Corp')).toBeVisible();
 		await expect(main.getByText('Bigshop')).toBeVisible();
 
-		// Search for one payee (transactions/+page.svelte:72-74: search Input +
-		// "Search" button → onSearch → reloads with query).
-		await main.getByPlaceholder('Search payee, description...').fill('Acme');
-		await main.getByRole('button', { name: 'Search' }).click();
+		// TopBar search: focus the global search (type="search" in the layout header),
+		// type a query, press Enter → SPA navigates to /transactions?q=Acme,
+		// the page's $effect picks up the URL param and reloads the list.
+		const topSearch = page.locator('[type="search"]').first();
+		await topSearch.fill('Acme');
+		await topSearch.press('Enter');
 		await expect(main.getByText('Acme Corp')).toBeVisible();
 		await expect(main.getByText('Bigshop')).toHaveCount(0);
 
 		// Clear search → both back.
-		await main.getByPlaceholder('Search payee, description...').fill('');
-		await main.getByRole('button', { name: 'Search' }).click();
+		await topSearch.fill('');
+		await topSearch.press('Enter');
 		await expect(main.getByText('Bigshop')).toBeVisible();
+	});
+
+	test('pagination bar is hidden on a single-page list', async ({ onboardedPage: page }) => {
+		// Fresh onboarding → 0 transactions, certainly 1 page. The Prev/Next
+		// buttons should not be rendered at all (no dead controls).
+		await page.getByRole('link', { name: 'Transactions', exact: true }).click();
+		await page.waitForURL('**/transactions');
+		await expect(page.getByRole('button', { name: '← Previous' })).toHaveCount(0);
+		await expect(page.getByRole('button', { name: 'Next →' })).toHaveCount(0);
 	});
 
 	test('payee autocomplete surfaces existing payees', async ({ onboardedPage: page }) => {

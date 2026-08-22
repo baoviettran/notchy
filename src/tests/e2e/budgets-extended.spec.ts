@@ -88,6 +88,17 @@ test.describe('budgets — extended', () => {
 		await page.getByRole('button', { name: '▶' }).click();
 		// budgets/+page.svelte:69 budgets_no_budget_for_month = "No budget set for this month."
 		await expect(page.getByText('No budget set for this month.')).toBeVisible();
+		// No previous-month allocations exist, so "Copy from previous" is hidden.
+		await expect(page.getByRole('button', { name: 'Copy from previous' })).toHaveCount(0);
+	});
+
+	test('Copy from previous appears only when previous month has allocations', async ({ onboardedPage: page }) => {
+		// Create a budget in the current month so the NEXT month has something to copy.
+		await page.getByRole('link', { name: 'Budgets', exact: true }).click();
+		await allocateFirstBucket(page, '500000');
+		// Navigate to next month: empty, but previous month (current) has allocations.
+		await page.getByRole('button', { name: '▶' }).click();
+		await expect(page.getByText('No budget set for this month.')).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Copy from previous' })).toBeVisible();
 	});
 

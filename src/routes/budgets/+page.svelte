@@ -14,6 +14,7 @@
 	let editing = $state<string | null>(null);
 	let editValue = $state('');
 	let monthIncome = $state(0);
+	let hasPrevAllocations = $state(false);
 
 	async function loadMonthIncome() {
 		// Soft over-allocation ceiling: this month's income (kind='income') plus
@@ -34,7 +35,9 @@
 
 	// Refresh the ceiling whenever allocations change (e.g. after a roll-over or
 	// a new month). loadMonthIncome re-reads budgets.items for the rolled total.
-	$effect(() => { budgets.items; budgets.month; void loadMonthIncome(); });
+	// Also re-check whether the previous month has allocations (for the
+	// "Copy from previous" guard).
+	$effect(() => { budgets.items; budgets.month; void loadMonthIncome(); void checkPrevAllocations(); });
 
 	let totalAllocated = $derived(budgets.items.reduce((s, b) => s + b.allocated, 0));
 	let overAmount = $derived(Math.max(0, totalAllocated - monthIncome));
@@ -73,6 +76,19 @@
 
 	const budgetableBuckets = $derived(categories.buckets.filter((b) => b.budgetable));
 
+	// Guard "Copy from previous": only show when the previous month actually
+	// has allocations to copy. Without this, the button appears on the very
+	// first month where there's nothing behind it.
+	function previousMonthKey(m: string): string {
+		const [y, mo] = m.split('-').map(Number);
+		return mo === 1 ? `${y - 1}-12` : `${y}-${String(mo - 1).padStart(2, '0')}`;
+	}
+
+	async function checkPrevAllocations() {
+		const prev = previousMonthKey(budgets.month);
+		hasPrevAllocations = await getDb().budgets.hasAllocations(prev);
+	}
+
 	function getBudget(typeId: string) {
 		return budgets.items.find((b) => b.type_id === typeId);
 	}
@@ -91,7 +107,9 @@
 	{#if !budgets.hasAllocations}
 		<div class="bg-phosphor/10 border border-phosphor/30 rounded-lg p-4 flex items-center justify-between">
 			<p class="text-sm text-phosphor">{m.budgets_no_budget_for_month()}</p>
-			<Button size="sm" variant="secondary" onclick={() => budgets.copyFromPrevious()}>{m.budgets_copy_from_previous()}</Button>
+			{#if hasPrevAllocations}
+				<Button size="sm" variant="secondary" onclick={() => budgets.copyFromPrevious()}>{m.budgets_copy_from_previous()}</Button>
+			{/if}
 		</div>
 	{/if}
 

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Input from '$lib/components/primitives/Input.svelte';
 	import Modal from '$lib/components/primitives/Modal.svelte';
 	import Button from '$lib/components/primitives/Button.svelte';
 	import TransactionForm from '$lib/components/forms/TransactionForm.svelte';
@@ -45,10 +44,13 @@
 
 	onMount(loadPage);
 
-	async function onSearch() {
-		pageNum = 0;
-		await loadPage();
-	}
+	// The global search in TopBar navigates to /transactions?q=...; stay in
+	// sync when the URL param changes (e.g. typing in the header search on
+	// the transactions page itself, or arriving via an external link).
+	$effect(() => {
+		const q = $page.url.searchParams.get('q') ?? '';
+		if (q !== search) { search = q; void loadPage(); }
+	});
 
 	function openEdit(tx: Transaction) {
 		editing = tx;
@@ -74,11 +76,7 @@
 	<h1 class="figures text-xl text-ledger tracking-wide">{m.transactions_title()}</h1>
 
 	<div class="flex gap-2">
-		<div class="flex-1">
-			<Input type="search" placeholder={m.transactions_search_placeholder()} bind:value={search} />
-		</div>
 		<Button size="sm" variant="secondary" onclick={() => showImport = true}>{m.import_tx_title()}</Button>
-		<Button size="sm" onclick={onSearch}>{m.common_search()}</Button>
 	</div>
 
 	{#if displayItems.length > 0}
@@ -114,11 +112,13 @@
 		{/if}
 	</div>
 
-	<div class="flex justify-between items-center text-sm">
-		<Button variant="ghost" size="sm" disabled={pageNum === 0} onclick={prevPage}>{m.transactions_previous()}</Button>
-		<span class="text-dim">{m.transactions_page({ page: pageNum + 1 })}</span>
-		<Button variant="ghost" size="sm" disabled={!hasNextPage} onclick={nextPage}>{m.transactions_next()}</Button>
-	</div>
+	{#if pageNum > 0 || hasNextPage}
+		<div class="flex justify-between items-center text-sm">
+			<Button variant="ghost" size="sm" disabled={pageNum === 0} onclick={prevPage}>{m.transactions_previous()}</Button>
+			<span class="text-dim">{m.transactions_page({ page: pageNum + 1 })}</span>
+			<Button variant="ghost" size="sm" disabled={!hasNextPage} onclick={nextPage}>{m.transactions_next()}</Button>
+		</div>
+	{/if}
 
 	<ImportTransactionsModal bind:open={showImport} />
 </div>
