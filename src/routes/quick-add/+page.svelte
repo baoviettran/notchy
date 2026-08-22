@@ -150,6 +150,7 @@
 		autocomplete="off"
 		spellcheck="false"
 		placeholder={m.quick_add_placeholder()}
+		aria-label={m.quick_add_placeholder()}
 		bind:value
 		onkeydown={onKeydown}
 		disabled={!ready || !activeAccount}

@@ -161,9 +161,10 @@
 	<Input label={m.common_amount()} bind:value={amount} placeholder={m.forms_amount_placeholder()} autofocus />
 
 	<!-- KIND: secondary toggle -->
-	<div class="flex flex-wrap gap-2">
+	<div class="flex flex-wrap gap-2" role="radiogroup" aria-label="Transaction kind">
 		{#each kinds as k}
 			<button onclick={() => kind = k.value as TransactionKind} disabled={isEdit}
+				aria-pressed={kind === k.value}
 				class="px-3 py-1.5 text-sm rounded-md border transition-colors {kind === k.value ? 'border-phosphor bg-phosphor/10 text-phosphor-bright font-medium' : 'border-line text-dim hover:text-ledger'} {isEdit ? 'cursor-not-allowed opacity-60' : ''}"
 			>{k.label}</button>
 		{/each}

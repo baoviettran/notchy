@@ -95,10 +95,11 @@
 		</a>
 		<div class="bg-tape rounded-lg border border-line p-4">
 			<div class="plate mb-2">{m.settings_theme()}</div>
-			<div class="flex gap-2">
+			<div class="flex gap-2" role="radiogroup" aria-label="Theme">
 				{#each ['auto', 'light', 'dark'] as theme}
 					<button
 						onclick={() => setTheme(theme as 'auto' | 'light' | 'dark')}
+						aria-pressed={settings.theme === theme}
 						class="px-3 py-1.5 text-sm rounded-md border transition-colors {settings.theme === theme ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
 					>{themeLabels[theme as keyof typeof themeLabels]()}</button>
 				{/each}
@@ -106,13 +107,15 @@
 		</div>
 		<div class="bg-tape rounded-lg border border-line p-4">
 			<div class="plate mb-2">{m.settings_language()}</div>
-			<div class="flex gap-2">
+			<div class="flex gap-2" role="radiogroup" aria-label="Language">
 				<button
 					onclick={() => setLocale('en')}
+					aria-pressed={settings.locale === 'en'}
 					class="px-3 py-1.5 text-sm rounded-md border transition-colors {settings.locale === 'en' ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
 				>{m.lang_english()}</button>
 				<button
 					onclick={() => setLocale('vi')}
+					aria-pressed={settings.locale === 'vi'}
 					class="px-3 py-1.5 text-sm rounded-md border transition-colors {settings.locale === 'vi' ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
 				>{m.lang_vietnamese()}</button>
 			</div>
