@@ -171,7 +171,7 @@
 	</footer>
 
 	{#if error}
-		<div class="error">{error}</div>
+		<div class="error" aria-live="polite">{error}</div>
 	{/if}
 </div>
 
@@ -232,7 +232,7 @@
 		text-transform: uppercase;
 	}
 	.error {
-		color: var(--phosphor);
+		color: var(--debit);
 		font-size: 11px;
 		margin-top: 0.25rem;
 	}

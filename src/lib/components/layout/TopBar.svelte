@@ -35,6 +35,6 @@
 		aria-label={_locale === 'en' ? m.layout_lang_toggle_en() : m.layout_lang_toggle_vi()}
 		class="plate px-2 py-1 rounded border border-line text-dim hover:text-ledger"
 	>
-		{_locale === 'en' ? 'VI' : 'EN'}
+		{_locale === 'en' ? m.layout_lang_label_vi() : m.layout_lang_label_en()}
 	</button>
 </header>

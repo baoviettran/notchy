@@ -52,7 +52,7 @@
 		{#each primaryNav as item}
 			<a
 				href={item.href}
-				data-tour={item.tourId}
+				data-tour={item.tourId || undefined}
 				aria-current={isActive(item.href, $page.url.pathname) ? 'page' : undefined}
 				class="group flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors
 					{isActive(item.href, $page.url.pathname)
@@ -70,7 +70,7 @@
 		{#each secondaryNav as item}
 			<a
 				href={item.href}
-				data-tour={item.tourId}
+				data-tour={item.tourId || undefined}
 				aria-current={isActive(item.href, $page.url.pathname) ? 'page' : undefined}
 				class="group flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors
 					{isActive(item.href, $page.url.pathname)

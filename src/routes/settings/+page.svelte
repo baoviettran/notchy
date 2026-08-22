@@ -2,7 +2,6 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import Button from '$lib/components/primitives/Button.svelte';
 	import Select from '$lib/components/primitives/Select.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { tour } from '$lib/stores/tour.svelte';
@@ -99,14 +98,14 @@
 			<div class="flex gap-2">
 				{#each ['auto', 'light', 'dark'] as theme}
 					<button
-						onclick={() => setTheme(theme as any)}
+						onclick={() => setTheme(theme as 'auto' | 'light' | 'dark')}
 						class="px-3 py-1.5 text-sm rounded-md border transition-colors {settings.theme === theme ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
 					>{themeLabels[theme as keyof typeof themeLabels]()}</button>
 				{/each}
 			</div>
 		</div>
 		<div class="bg-tape rounded-lg border border-line p-4">
-			<div class="plate mb-1">{m.settings_language()}</div>
+			<div class="plate mb-2">{m.settings_language()}</div>
 			<div class="flex gap-2">
 				<button
 					onclick={() => setLocale('en')}
@@ -127,7 +126,7 @@
 				disabled={!quickAccountLoaded}
 			/>
 			{#if quickAccountError}
-				<div class="text-xs text-phosphor mt-2">{quickAccountError}</div>
+				<div class="text-xs text-debit mt-2">{quickAccountError}</div>
 			{/if}
 		</div>
 		<div class="bg-tape rounded-lg border border-line p-4">

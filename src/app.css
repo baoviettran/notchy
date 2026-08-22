@@ -126,14 +126,7 @@
 }
 
 @layer components {
-	/* Single card recipe so hierarchy is consistent across screens. */
-	.surface {
-		background-color: var(--tape);
-		border: 1px solid var(--line);
-	}
-	.hairline {
-		border-color: var(--line);
-	}
+	/* intentionally empty — add shared component recipes here */
 }
 
 @layer utilities {
