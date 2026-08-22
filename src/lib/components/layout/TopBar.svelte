@@ -27,7 +27,7 @@
 			placeholder={m.layout_search_placeholder()}
 			bind:value={search}
 			onkeydown={onSearchKeydown}
-			class="w-full pl-8 pr-3 py-1.5 text-sm rounded-md border border-line bg-ink text-ledger placeholder:text-dim/70"
+			class="w-full pl-8 pr-3 py-1.5 text-sm rounded-md border border-line bg-ink text-ledger placeholder:text-dim"
 		/>
 	</label>
 	<button

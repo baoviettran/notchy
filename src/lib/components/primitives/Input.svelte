@@ -15,7 +15,7 @@
 		id={inputId} {type} {placeholder} {disabled} {maxlength} {autofocus} bind:value
 		class="w-full px-3 py-2 text-base rounded-md border transition-colors
 			{error ? 'border-debit' : 'border-line'}
-			bg-ink text-ledger placeholder:text-dim/60
+			bg-ink text-ledger placeholder:text-dim
 			disabled:opacity-50"
 	/>
 	{#if error}
