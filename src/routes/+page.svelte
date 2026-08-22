@@ -12,6 +12,9 @@
 	import { labelFor } from '$lib/utils/tx-kind';
 	import * as m from '$lib/paraglide/messages';
 
+	let isLoading = $derived(transactions.loading || accounts.loading || budgets.loading || goals.loading);
+	let storeError = $derived(transactions.error || accounts.error || null);
+
 	let recentTxns = $derived(transactions.items.slice(0, 6));
 	let totalAssets = $derived(accounts.assets.reduce((s, a) => s + a.balance, 0));
 	let totalLiabilities = $derived(accounts.liabilities.reduce((s, a) => s + Math.abs(a.balance), 0));
@@ -46,6 +49,11 @@ const sampleBuckets = [
 </script>
 
 <div class="space-y-5">
+	{#if isLoading && !storeError}
+		<p class="text-dim text-sm py-8 text-center">{m.common_loading()}</p>
+	{:else if storeError}
+		<p class="text-debit text-sm py-8 text-center">{storeError}</p>
+	{:else}
 	<header class="flex items-center justify-between">
 		<h1 class="figures text-xl text-ledger tracking-wide">{m.nav_dashboard()}</h1>
 		<span class="plate">{budgets.month}</span>
@@ -174,5 +182,6 @@ const sampleBuckets = [
 				{/each}
 			</div>
 		</section>
+	{/if}
 	{/if}
 </div>

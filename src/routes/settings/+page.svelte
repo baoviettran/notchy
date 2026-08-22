@@ -100,7 +100,7 @@
 					<button
 						onclick={() => setTheme(theme as 'auto' | 'light' | 'dark')}
 						aria-pressed={settings.theme === theme}
-						class="px-3 py-1.5 text-sm rounded-md border transition-colors {settings.theme === theme ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
+						class="px-3 py-2.5 text-sm rounded-md border transition-colors {settings.theme === theme ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
 					>{themeLabels[theme as keyof typeof themeLabels]()}</button>
 				{/each}
 			</div>
@@ -111,12 +111,12 @@
 				<button
 					onclick={() => setLocale('en')}
 					aria-pressed={settings.locale === 'en'}
-					class="px-3 py-1.5 text-sm rounded-md border transition-colors {settings.locale === 'en' ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
+					class="px-3 py-2.5 text-sm rounded-md border transition-colors {settings.locale === 'en' ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
 				>{m.lang_english()}</button>
 				<button
 					onclick={() => setLocale('vi')}
 					aria-pressed={settings.locale === 'vi'}
-					class="px-3 py-1.5 text-sm rounded-md border transition-colors {settings.locale === 'vi' ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
+					class="px-3 py-2.5 text-sm rounded-md border transition-colors {settings.locale === 'vi' ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
 				>{m.lang_vietnamese()}</button>
 			</div>
 		</div>
@@ -137,7 +137,7 @@
 			<div class="text-sm text-dim mb-3">{m.tour_replay_desc()}</div>
 			<button
 				onclick={replayTour}
-				class="px-3 py-1.5 text-sm rounded-md bg-phosphor text-ink font-medium hover:bg-phosphor-bright transition-colors"
+				class="px-3 py-2.5 text-sm rounded-md bg-phosphor text-ink font-medium hover:bg-phosphor-bright transition-colors"
 			>{m.tour_replay()}</button>
 		</div>
 		<div class="bg-tape rounded-lg border border-line p-4">

@@ -5,7 +5,9 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
+	import { formatNumber } from '$lib/utils/currency';
 	import type { FrequentTx } from '$lib/db/client';
+	import * as m from '$lib/paraglide/messages';
 
 	let items = $state<FrequentTx[]>([]);
 
@@ -23,8 +25,8 @@
 			account_id: item.account_id,
 			tag_id: item.tag_id ?? undefined
 		});
-		toast.show(`Saved · ${item.payee} · ${formatCurrency(item.amount, settings.currency, settings.locale)}`, {
-			action: 'UNDO', duration: 5000,
+		toast.show(m.frequent_saved_toast({ payee: item.payee ?? '', amount: formatCurrency(item.amount, settings.currency, settings.locale) }), {
+			action: m.transactions_undo(), duration: 5000,
 			onaction: async () => {
 				// Delete the exact row this repeat created — never "most recent",
 				// which could be a different transaction created after this one.
@@ -36,7 +38,7 @@
 
 {#if items.length >= 3}
 	<section class="surface rounded-lg p-5">
-		<h2 class="plate mb-3">Repeat · last 30 days</h2>
+		<h2 class="plate mb-3">{m.frequent_repeat_header()}</h2>
 		<div class="flex gap-2 overflow-x-auto pb-1">
 			{#each items as item}
 				<button

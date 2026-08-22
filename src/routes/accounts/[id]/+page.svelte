@@ -99,7 +99,7 @@
 								<div class="text-xs text-dim">{formatDateRelative(tx.date, settings.locale)}</div>
 							</div>
 							<span class="figures {tx.kind === 'expense' ? 'text-debit' : tx.kind === 'income' ? 'text-phosphor' : 'text-dim'}">
-								{tx.kind === 'expense' ? '-' : ''}{formatCurrency(tx.amount, settings.currency, settings.locale)}
+								{tx.kind === 'expense' ? '−' : ''}{formatCurrency(tx.amount, settings.currency, settings.locale)}
 							</span>
 						</div>
 					{/each}

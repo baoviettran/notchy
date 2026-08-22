@@ -47,6 +47,11 @@
 		<Button size="sm" onclick={openCreate}>{m.accounts_add()}</Button>
 	</div>
 
+	{#if accounts.loading}
+		<p class="text-dim text-sm py-8 text-center">{m.common_loading()}</p>
+	{:else if accounts.error}
+		<p class="text-debit text-sm py-8 text-center">{accounts.error}</p>
+	{:else}
 	<section>
 		<h2 class="plate mb-2">{m.accounts_assets()}</h2>
 		{#if accounts.assets.length === 0}
@@ -112,6 +117,7 @@
 				{/each}
 			</div>
 		</section>
+	{/if}
 	{/if}
 </div>
 
