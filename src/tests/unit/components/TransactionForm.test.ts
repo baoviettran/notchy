@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/svelte';
+import { render, screen, fireEvent } from '@testing-library/svelte';
 
 const mockMatchTag = vi.hoisted(() => vi.fn());
 
@@ -53,5 +53,37 @@ describe('TransactionForm', () => {
 		mockMatchTag.mockReturnValue(tagId);
 		render(TransactionForm, { mode: 'full' });
 		expect(screen.getByText('Auto')).toBeInTheDocument();
+	});
+
+	it('shows only expense and income kind buttons by default', () => {
+		render(TransactionForm, { mode: 'full' });
+		expect(screen.getByText('Expense')).toBeInTheDocument();
+		expect(screen.getByText('Income')).toBeInTheDocument();
+		expect(screen.queryByText('Transfer')).not.toBeInTheDocument();
+		expect(screen.queryByText('Refund')).not.toBeInTheDocument();
+		expect(screen.queryByText('Adjustment')).not.toBeInTheDocument();
+	});
+
+	it('expands advanced kinds when More is clicked', async () => {
+		render(TransactionForm, { mode: 'full' });
+		const moreButton = screen.getByText('More');
+		expect(moreButton).toHaveAttribute('aria-expanded', 'false');
+
+		await fireEvent.click(moreButton);
+
+		expect(moreButton).toHaveAttribute('aria-expanded', 'true');
+		expect(screen.getByText('Transfer')).toBeInTheDocument();
+		expect(screen.getByText('Refund')).toBeInTheDocument();
+		expect(screen.getByText('Adjustment')).toBeInTheDocument();
+	});
+
+	it('selects an advanced kind after expanding', async () => {
+		render(TransactionForm, { mode: 'full' });
+		await fireEvent.click(screen.getByText('More'));
+		await fireEvent.click(screen.getByText('Transfer'));
+		// Transfer is selected, so the Transfer kind button should show pressed state
+		const transferButton = screen.getByText('Transfer');
+		expect(transferButton).toHaveAttribute('aria-pressed', 'true');
+		expect(screen.getByText('Expense')).toHaveAttribute('aria-pressed', 'false');
 	});
 });

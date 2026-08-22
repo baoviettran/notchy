@@ -159,6 +159,7 @@
 	"forms_goal_type_savings": "Tiết kiệm",
 	"forms_goal_updated": "Đã cập nhật mục tiêu.",
 	"forms_income": "Thu nhập",
+	"forms_more_kinds": "Thêm",
 	"forms_initial_balance": "Số dư ban đầu (tuỳ chọn)",
 	"forms_initial_balance_placeholder": "vd. 5tr, 1000000",
 	"forms_linked_account": "Tài khoản liên kết",
@@ -431,5 +432,10 @@
 	"validation_source_dest_differ": "Tài khoản nguồn và đích phải khác nhau",
 	"validation_target_date_required": "Ngày mục tiêu là bắt buộc",
 	"common_loading": "Đang tải...",
-	"common_error": "Đã xảy ra lỗi"
+	"common_error": "Đã xảy ra lỗi",
+	"errors_state_title": "Đã xảy ra lỗi",
+	"errors_state_retry": "Thử lại",
+	"transactions_delete_confirm_title": "Xoá giao dịch?",
+	"transactions_delete_confirm_body": "Hành động này không thể hoàn tác.",
+	"accounts_archived_undo": "Hoàn tác"
 }

@@ -159,6 +159,7 @@
 	"forms_goal_type_savings": "Savings",
 	"forms_goal_updated": "Goal updated.",
 	"forms_income": "Income",
+	"forms_more_kinds": "More",
 	"forms_initial_balance": "Initial balance (optional)",
 	"forms_initial_balance_placeholder": "e.g. 5tr, 1000000",
 	"forms_linked_account": "Linked account",
@@ -431,5 +432,10 @@
 	"validation_source_dest_differ": "Source and destination must differ",
 	"validation_target_date_required": "Target date is required",
 	"common_loading": "Loading...",
-	"common_error": "Something went wrong"
+	"common_error": "Something went wrong",
+	"errors_state_title": "Something went wrong",
+	"errors_state_retry": "Try again",
+	"transactions_delete_confirm_title": "Delete transaction?",
+	"transactions_delete_confirm_body": "This action cannot be undone.",
+	"accounts_archived_undo": "Undo"
 }
