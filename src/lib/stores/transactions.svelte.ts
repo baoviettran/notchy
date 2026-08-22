@@ -8,6 +8,7 @@ class TransactionsStore {
 	items = $state<Transaction[]>([]);
 	loading = $state(false);
 	error = $state<string | null>(null);
+	monthFlow = $state(0);
 	private lastFilter: TransactionFilter = {};
 
 	async load(filter?: TransactionFilter): Promise<void> {
@@ -21,6 +22,25 @@ class TransactionsStore {
 			this.error = mapError(e);
 		} finally {
 			this.loading = false;
+		}
+	}
+
+	async loadMonthFlow(): Promise<void> {
+		const now = new Date();
+		const year = now.getUTCFullYear();
+		const month = now.getUTCMonth();
+		const dateFrom = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+		const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+		const dateTo = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+		try {
+			const db = getDb();
+			const items = await db.transactions.list({ date_from: dateFrom, date_to: dateTo, limit: 500 });
+			this.monthFlow = items
+				.filter((t) => t.kind === 'income' || t.kind === 'expense')
+				.reduce((s, t) => s + (t.kind === 'income' ? t.amount : -t.amount), 0);
+		} catch {
+			this.monthFlow = 0;
 		}
 	}
 

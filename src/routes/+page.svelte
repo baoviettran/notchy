@@ -31,13 +31,7 @@ const sampleBuckets = [
 	{ name: m.dashboard_sample_savings(), spent: 3 * sampleScale, allocated: 6 * sampleScale }
 ];
 
-	// This-month net flow from recent visible transactions (income − expense),
-	// shown as a directional delta beside the net figure.
-	let monthFlow = $derived(
-		transactions.items
-			.filter((t) => t.kind === 'income' || t.kind === 'expense')
-			.reduce((s, t) => s + (t.kind === 'income' ? t.amount : -t.amount), 0)
-	);
+	let monthFlow = $derived(transactions.monthFlow);
 
 	// The net figure stands alone — a single VFD readout. A ladder of
 	// magnitude ticks only crowded it without encoding anything the number
@@ -47,7 +41,7 @@ const sampleBuckets = [
 	// (labelFor / KIND_LABELS live in src/lib/utils/tx-kind.ts.)
 
 	onMount(async () => {
-		await Promise.all([accounts.load(), budgets.load(), transactions.load({ limit: 5 }), goals.load()]);
+		await Promise.all([accounts.load(), budgets.load(), transactions.load({ limit: 5 }), goals.load(), transactions.loadMonthFlow()]);
 	});
 </script>
 
