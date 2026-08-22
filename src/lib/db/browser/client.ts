@@ -77,6 +77,10 @@ class BrowserAccountOps implements AccountOps {
 	delete(id: string): Promise<void> {
 		return accountsRepo.deleteAccount(this.db, id);
 	}
+
+	restore(id: string): Promise<void> {
+		return accountsRepo.restoreAccount(this.db, id);
+	}
 }
 
 class BrowserTransactionOps implements TransactionOps {

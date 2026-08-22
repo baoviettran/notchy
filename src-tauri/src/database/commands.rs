@@ -155,6 +155,17 @@ pub async fn account_delete(
     }).await
 }
 
+#[tauri::command]
+pub async fn account_restore(
+    manager: State<'_, Arc<DatabaseManager>>,
+    id: String,
+) -> Result<(), DbError> {
+    let op_id = OperationId::generate();
+    manager.data_job(move |state| {
+        domains::accounts::restore_account(state.connection_mut()?, op_id, &id)
+    }).await
+}
+
 // ===========================================================================
 // Transaction commands
 // ===========================================================================

@@ -383,3 +383,39 @@ pub fn delete_account(
     })
     .map(|_| ())
 }
+
+/// Restore a soft-deleted account. The mirror of `delete_account`: clears
+/// `deleted_at` so the account reappears in balances and lists.
+pub fn restore_account(
+    conn: &mut Connection,
+    op_id: OperationId,
+    id: &str,
+) -> DbResult<()> {
+    // Must be currently soft-deleted.
+    let found: bool = conn
+        .query_row(
+            "SELECT 1 FROM accounts WHERE id = ?1 AND deleted_at IS NOT NULL",
+            params![id],
+            |_| Ok(true),
+        )
+        .optional()
+        .map_err(map_sqlite_error)?
+        .is_some();
+    if !found {
+        return Err(DbError::new(ErrorCode::InvalidInput));
+    }
+
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct Void {}
+
+    run_idempotent(conn, op_id, "restore_account", &id.to_string(), |tx| {
+        let now = now_iso_utc();
+        tx.execute(
+            "UPDATE accounts SET deleted_at = NULL, updated_at = ?1 WHERE id = ?2",
+            params![now, id],
+        )
+        .map_err(map_sqlite_error)?;
+        Ok(Void {})
+    })
+    .map(|_| ())
+}

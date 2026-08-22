@@ -206,6 +206,27 @@ describe('deleteAccount', () => {
 	});
 });
 
+describe('restoreAccount', () => {
+	it('restores a soft-deleted account', async () => {
+		const id = await repo.createAccount(db, { name: 'Acc', type: 'checking', currency: 'VND' });
+		await repo.deleteAccount(db, id);
+		expect(await repo.getAccount(db, id)).toBeNull();
+
+		await repo.restoreAccount(db, id);
+		const acc = await repo.getAccount(db, id);
+		expect(acc).not.toBeNull();
+		expect(acc!.name).toBe('Acc');
+	});
+
+	it('restored account appears in the list again', async () => {
+		const id = await repo.createAccount(db, { name: 'Acc', type: 'checking', currency: 'VND' });
+		await repo.deleteAccount(db, id);
+		await repo.restoreAccount(db, id);
+		const list = await repo.listAccounts(db);
+		expect(list.find((a) => a.id === id)).toBeDefined();
+	});
+});
+
 describe('listAccounts', () => {
 	it('returns accounts with balances', async () => {
 		await repo.createAccount(db, { name: 'A', type: 'checking', currency: 'VND', initial_balance: 100000 });

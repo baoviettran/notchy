@@ -83,6 +83,7 @@ export interface AccountOps {
 	create(input: NewAccount): Promise<string>;
 	update(id: string, patch: { name?: string; type?: AccountType; counterparty?: string | null; archived?: number }): Promise<void>;
 	delete(id: string): Promise<void>;
+	restore(id: string): Promise<void>;
 }
 
 export interface TransactionOps {

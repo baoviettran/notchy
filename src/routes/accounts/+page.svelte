@@ -7,6 +7,7 @@
 	import { accounts } from '$lib/stores/accounts.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
+	import { getDb } from '$lib/db';
 	import { formatCurrency } from '$lib/utils/currency';
 	import type { AccountWithBalance } from '$lib/db/repos/accounts';
 	import { accountTypeLabel } from '$lib/utils/account-type';
@@ -19,6 +20,20 @@
 	let showForm = $state(false);
 	let editing = $state<AccountWithBalance | null>(null);
 	let confirmDelete = $state<AccountWithBalance | null>(null);
+	// Transaction count for the account pending deletion, so the confirm dialog
+	// can state the impact. Fetched when the menu's Delete is opened, not on
+	// every render. 0 means "no transactions" → the short body message is used.
+	let deleteTxCount = $state(0);
+
+	// Deleting is a rare, high-impact action: count the account's transactions
+	// before showing the confirm so the user knows what they're about to remove
+	// from their net worth (the transactions themselves stay in history).
+	async function openDeleteConfirm(a: AccountWithBalance) {
+		const db = getDb();
+		const txs = await db.transactions.list({ account_id: a.id, limit: 100000 });
+		deleteTxCount = txs.length;
+		confirmDelete = a;
+	}
 
 	onMount(() => accounts.load());
 
@@ -41,12 +56,14 @@
 	async function doDelete() {
 		if (!confirmDelete) return;
 		try {
+			// The store owns the deleted + undo toasts (same language as
+			// transaction delete and frequent-repeat undo).
 			await accounts.delete(confirmDelete.id);
-			toast.show(m.accounts_deleted_toast());
 		} catch (e) {
 			toast.show(mapError(e));
 		}
 		confirmDelete = null;
+		deleteTxCount = 0;
 	}
 </script>
 
@@ -79,7 +96,7 @@
 						<ContextMenu label={m.common_edit()}>
 							<button onclick={() => openEdit(acc)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-ledger hover:bg-line/40">{m.common_edit()}</button>
 							<button onclick={() => archiveAccount(acc)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-ledger hover:bg-line/40">{acc.archived ? m.accounts_unarchive() : m.accounts_archive()}</button>
-							<button onclick={() => confirmDelete = acc} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.common_delete()}</button>
+							<button onclick={() => openDeleteConfirm(acc)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.common_delete()}</button>
 						</ContextMenu>
 					</div>
 				{/each}
@@ -104,7 +121,7 @@
 						<span class="figures text-sm text-debit mr-3">{formatCurrency(Math.abs(acc.balance), settings.currency, settings.locale)}</span>
 						<ContextMenu label={m.common_edit()}>
 							<button onclick={() => openEdit(acc)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-ledger hover:bg-line/40">{m.common_edit()}</button>
-							<button onclick={() => confirmDelete = acc} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.common_delete()}</button>
+							<button onclick={() => openDeleteConfirm(acc)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.common_delete()}</button>
 						</ContextMenu>
 					</div>
 				{/each}
@@ -137,7 +154,7 @@
 <ConfirmDialog
 	open={confirmDelete !== null}
 	title={m.accounts_delete_confirm_title()}
-	message={m.accounts_delete_confirm_body()}
+	message={deleteTxCount === 1 ? m.accounts_delete_confirm_body_one() : deleteTxCount > 1 ? m.accounts_delete_confirm_body_many({ count: deleteTxCount }) : m.accounts_delete_confirm_body()}
 	confirmLabel={m.common_delete()}
 	onconfirm={doDelete}
 />
