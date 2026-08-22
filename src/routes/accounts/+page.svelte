@@ -13,6 +13,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import { mapError } from '$lib/utils/errors';
 	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
+	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import ContextMenu from '$lib/components/primitives/ContextMenu.svelte';
 
 	let showForm = $state(false);
@@ -25,8 +26,16 @@
 	function openEdit(a: AccountWithBalance) { editing = a; showForm = true; }
 
 	async function archiveAccount(a: AccountWithBalance) {
-		await accounts.update(a.id, { archived: a.archived ? 0 : 1 });
-		toast.show(a.archived ? m.accounts_unarchived_toast() : m.accounts_archived_toast());
+		const wasArchived = !!a.archived;
+		await accounts.update(a.id, { archived: wasArchived ? 0 : 1 });
+		if (wasArchived) {
+			toast.show(m.accounts_unarchived_toast());
+		} else {
+			toast.show(m.accounts_archived_toast(), {
+				action: m.accounts_archived_undo(),
+				onaction: () => { void accounts.update(a.id, { archived: 0 }); }
+			});
+		}
 	}
 
 	async function doDelete() {
@@ -50,7 +59,7 @@
 	{#if accounts.loading}
 		<p class="text-dim text-sm py-8 text-center">{m.common_loading()}</p>
 	{:else if accounts.error}
-		<p class="text-debit text-sm py-8 text-center">{accounts.error}</p>
+		<ErrorState description={accounts.error} onRetry={() => accounts.load()} />
 	{:else}
 	<section>
 		<h2 class="plate mb-2">{m.accounts_assets()}</h2>
