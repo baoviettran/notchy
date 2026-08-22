@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import Progress from '$lib/components/primitives/Progress.svelte';
 	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
+	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import FrequentTransactions from '$lib/components/sections/FrequentTransactions.svelte';
 	import { accounts } from '$lib/stores/accounts.svelte';
 	import { budgets } from '$lib/stores/budgets.svelte';
@@ -14,6 +15,9 @@
 
 	let isLoading = $derived(transactions.loading || accounts.loading || budgets.loading || goals.loading);
 	let storeError = $derived(transactions.error || accounts.error || null);
+	function reloadDashboard() {
+		void Promise.all([accounts.load(), budgets.load(), transactions.load({ limit: 5 }), goals.load(), transactions.loadMonthFlow()]);
+	}
 
 	let recentTxns = $derived(transactions.items.slice(0, 6));
 	let totalAssets = $derived(accounts.assets.reduce((s, a) => s + a.balance, 0));
@@ -52,7 +56,7 @@ const sampleBuckets = [
 	{#if isLoading && !storeError}
 		<p class="text-dim text-sm py-8 text-center">{m.common_loading()}</p>
 	{:else if storeError}
-		<p class="text-debit text-sm py-8 text-center">{storeError}</p>
+		<ErrorState description={storeError} onRetry={reloadDashboard} />
 	{:else}
 	<header class="flex items-center justify-between">
 		<h1 class="figures text-xl text-ledger tracking-wide">{m.nav_dashboard()}</h1>
@@ -90,51 +94,50 @@ const sampleBuckets = [
 		</div>
 	</section>
 
-	<!-- THIS MONTH: segmented budget meter. -->
-	<section class="surface rounded-lg p-5">
-		<div class="flex items-center justify-between mb-3">
-			<h2 class="plate">{m.dashboard_this_month()}</h2>
-			<a href="/budgets" class="plate hover:text-ledger transition-colors">{m.dashboard_budgets_link()}</a>
-		</div>
-		{#if budgets.hasAllocations}
-			<div class="flex items-baseline gap-3 mb-3">
-				<span class="figures-glow text-2xl leading-none">{formatCurrency(totalSpent, settings.currency, settings.locale)}</span>
-				<span class="text-sm text-dim figures">/ {formatCurrency(totalAllocated, settings.currency, settings.locale)}</span>
-				<span class="ml-auto plate">{budgetPct}%</span>
+	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+		<!-- THIS MONTH: segmented budget meter. -->
+		<section class="surface rounded-lg p-5">
+			<div class="flex items-center justify-between mb-3">
+				<h2 class="plate">{m.dashboard_this_month()}</h2>
+				<a href="/budgets" class="plate hover:text-ledger transition-colors">{m.dashboard_budgets_link()}</a>
 			</div>
-			<Progress value={budgetPct} max={100} label={m.layout_budget()} />
-			<div class="mt-4 space-y-1.5">
-				{#each budgets.items.slice(0, 4) as b}
-					<div class="flex items-center justify-between text-xs">
-						<span class="text-dim">{b.type_id.replace('bucket_', '')}</span>
-						<span class="figures text-ledger">{formatCurrency(b.spent, settings.currency, settings.locale)} <span class="text-dim">/ {formatCurrency(b.allocated, settings.currency, settings.locale)}</span></span>
-					</div>
-				{/each}
-			</div>
-		{:else}
-			<!-- Empty budget: instead of an inert skeleton, teach the shape of a
-			     budgeted month — warm copy, a sample of the real rows rendered
-			     with the actual meter, and the CTA. -->
-			<p class="text-sm text-dim">{m.dashboard_no_budget({ month: budgets.month })}</p>
-			<p class="mt-1 text-sm text-dim">{m.dashboard_budget_teach()}</p>
-			<div class="mt-4 space-y-3">
-				{#each sampleBuckets as s}
-					<div>
-						<div class="flex items-center justify-between text-xs mb-1">
-							<span class="text-ledger">{s.name}</span>
-							<span class="figures text-ledger">{formatCurrency(s.spent, settings.currency, settings.locale)} <span class="text-dim">/ {formatCurrency(s.allocated, settings.currency, settings.locale)}</span></span>
+			{#if budgets.hasAllocations}
+				<div class="flex items-baseline gap-3 mb-3">
+					<span class="figures-glow text-2xl leading-none">{formatCurrency(totalSpent, settings.currency, settings.locale)}</span>
+					<span class="text-sm text-dim figures">/ {formatCurrency(totalAllocated, settings.currency, settings.locale)}</span>
+					<span class="ml-auto plate">{budgetPct}%</span>
+				</div>
+				<Progress value={budgetPct} max={100} label={m.layout_budget()} />
+				<div class="mt-4 space-y-1.5">
+					{#each budgets.items.slice(0, 4) as b}
+						<div class="flex items-center justify-between text-xs">
+							<span class="text-dim">{b.type_id.replace('bucket_', '')}</span>
+							<span class="figures text-ledger">{formatCurrency(b.spent, settings.currency, settings.locale)} <span class="text-dim">/ {formatCurrency(b.allocated, settings.currency, settings.locale)}</span></span>
 						</div>
-						<Progress value={Math.round((s.spent / s.allocated) * 100)} max={100} size="sm" label={s.name} />
-					</div>
-				{/each}
-			</div>
-			<div class="mt-4 text-right">
-				<a href="/budgets" class="text-phosphor hover:underline text-sm">{m.dashboard_setup_budget()}</a>
-			</div>
-		{/if}
-	</section>
+					{/each}
+				</div>
+			{:else}
+				<p class="text-sm text-dim">{m.dashboard_no_budget({ month: budgets.month })}</p>
+				<p class="mt-1 text-sm text-dim">{m.dashboard_budget_teach()}</p>
+				<div class="mt-4 space-y-3">
+					{#each sampleBuckets as s}
+						<div>
+							<div class="flex items-center justify-between text-xs mb-1">
+								<span class="text-ledger">{s.name}</span>
+								<span class="figures text-ledger">{formatCurrency(s.spent, settings.currency, settings.locale)} <span class="text-dim">/ {formatCurrency(s.allocated, settings.currency, settings.locale)}</span></span>
+							</div>
+							<Progress value={Math.round((s.spent / s.allocated) * 100)} max={100} size="sm" label={s.name} />
+						</div>
+					{/each}
+				</div>
+				<div class="mt-4 text-right">
+					<a href="/budgets" class="text-phosphor hover:underline text-sm">{m.dashboard_setup_budget()}</a>
+				</div>
+			{/if}
+		</section>
 
-	<FrequentTransactions />
+		<FrequentTransactions />
+	</div>
 
 	<!-- RECENT: the ledger tape. -->
 	<section class="surface rounded-lg overflow-hidden">
