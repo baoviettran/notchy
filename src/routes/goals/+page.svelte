@@ -11,6 +11,7 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
+import Money from '$lib/components/reports/Money.svelte';
 	import type { GoalWithProgress } from '$lib/db/repos/goals';
 	import * as m from '$lib/paraglide/messages';
 
@@ -97,7 +98,7 @@
 						</div>
 						<Progress value={g.progress_pct} max={100} size="sm" label={g.name} />
 						<div class="flex justify-between text-xs text-dim">
-							<span>{formatCurrency(g.current_amount, settings.currency, settings.locale)} / {formatCurrency(g.target_amount, settings.currency, settings.locale)}</span>
+							<span class="figures"><Money amount={g.current_amount} tone="dim" size="text-xs" /> / <Money amount={g.target_amount} tone="dim" size="text-xs" /></span>
 							<span>{g.progress_pct}% · {m.goals_due_date({ date: g.target_date })}</span>
 						</div>
 						{#if g.velocity_status === 'overdue'}

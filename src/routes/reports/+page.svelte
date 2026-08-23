@@ -1,11 +1,9 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { getDb } from '$lib/db';
 	import type { OverviewReport } from '$lib/db/client';
-	import { settings } from '$lib/stores/settings.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import TapeLine from '$lib/components/reports/TapeLine.svelte';
-	import DonutChart from '$lib/components/charts/DonutChart.svelte';
+	import { settings } from '$lib/stores/settings.svelte';
 	import { formatCurrency, formatCurrencyCompact, isLongCurrency } from '$lib/utils/currency';
 	import { seriesColor } from '$lib/utils/palette';
 	import * as m from '$lib/paraglide/messages';
@@ -15,7 +13,7 @@
 	let loaded = $state(false);
 	let includeAdjustments = $state(false);
 
-	// Stable per-bucket ordering so a bucket keeps one color across months.
+	// Stable per-bucket ordering so a bucket keeps one ink across months.
 	const bucketRank = ['Essentials', 'Learning & Entertainment', 'Saving & Investment', 'Adjustments'];
 
 	function fmt(amount: number): string {
@@ -26,13 +24,9 @@
 
 	let totalSpending = $derived(report?.spending_by_bucket.reduce((s, b) => s + b.total, 0) ?? 0);
 
-	let donutData = $derived(
-		report?.spending_by_bucket.map((b) => ({
-			label: b.name,
-			value: b.total,
-			color: seriesColor(bucketRank.indexOf(b.name))
-		})) ?? []
-	);
+	function bucketPct(total: number): number {
+		return totalSpending > 0 ? Math.round((total / totalSpending) * 100) : 0;
+	}
 
 	function currentMonth() {
 		const d = new Date();
@@ -45,7 +39,6 @@
 		loaded = true;
 	}
 
-	onMount(load);
 	$effect(() => { includeAdjustments; load(); });
 </script>
 
@@ -77,12 +70,9 @@
 
 			<div class="mt-2">
 				<p class="plate mb-1">{m.reports_expenses()}</p>
-				{#each report.spending_by_bucket as b}
+				{#each report.spending_by_bucket as b (b.name)}
 					<TapeLine label={b.name} amount={fmt(b.total)} tone="dim" title={formatCurrency(b.total, settings.currency, settings.locale)} />
 				{/each}
-				{#if report.spending_by_bucket.length === 0}
-					<TapeLine label={m.reports_empty()} amount={fmt(0)} tone="dim" />
-				{/if}
 				<TapeLine label={m.reports_subtotal()} amount={fmt(report.total_expense)} tone="debit" variant="subtotal" />
 			</div>
 
@@ -95,9 +85,30 @@
 		</section>
 
 		{#if report.spending_by_bucket.length > 0}
+			<!-- COMPOSITION: stacked tape segments, not a pie. One bar of the
+			     machine's own inks; the ruled lines below are the data, so the
+			     meter stays decorative and the numbers stay accessible. -->
 			<section class="surface rounded-lg p-4">
 				<h2 class="plate mb-3">{m.reports_spending_by_bucket()}</h2>
-				<DonutChart data={donutData} centerLabel={report ? fmt(totalSpending) : ''} />
+				<div
+					class="flex h-3 w-full overflow-hidden rounded-full border border-line/60 mb-4"
+					role="presentation"
+					aria-hidden="true"
+				>
+					{#each report.spending_by_bucket as b (b.name)}
+						<div style="width: {bucketPct(b.total)}%; background: {seriesColor(bucketRank.indexOf(b.name))}"></div>
+					{/each}
+				</div>
+				{#each report.spending_by_bucket as b (b.name)}
+					<TapeLine
+						label={b.name}
+						amount={fmt(b.total)}
+						note="{bucketPct(b.total)}%"
+						tone="dim"
+						title={formatCurrency(b.total, settings.currency, settings.locale)}
+					/>
+				{/each}
+				<TapeLine label={m.reports_subtotal()} amount={fmt(totalSpending)} tone="ledger" variant="subtotal" />
 			</section>
 		{/if}
 

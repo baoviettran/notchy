@@ -12,6 +12,7 @@
 	import { toast } from '$lib/stores/toast.svelte';
 	import { getDb } from '$lib/db';
 	import { formatCurrency } from '$lib/utils/currency';
+import Money from '$lib/components/reports/Money.svelte';
 	import { parseAmount } from '$lib/utils/number_parse';
 	import type { DebtAccount } from '$lib/db/client';
 	import * as m from '$lib/paraglide/messages';
@@ -107,7 +108,7 @@
 							<div class="text-xs text-dim">{d.name}</div>
 						</div>
 						<div class="flex items-center gap-3">
-							<span class="figures text-sm text-debit">{formatCurrency(Math.abs(d.balance), settings.currency, settings.locale)}</span>
+							<Money amount={Math.abs(d.balance)} tone="debit" />
 							<button onclick={() => openPayment(d)} class="min-h-8 px-3 text-xs text-phosphor rounded hover:bg-line/40 transition-colors">{m.debts_pay()}</button>
 							<ContextMenu label={m.common_actions_for({ name: d.counterparty })}>
 								<button onclick={() => openWriteoff(d)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.debts_write_off()}</button>
@@ -134,7 +135,7 @@
 							<div class="text-xs text-dim">{d.name}</div>
 						</div>
 						<div class="flex items-center gap-3">
-							<span class="figures text-sm text-phosphor">{formatCurrency(d.balance, settings.currency, settings.locale)}</span>
+							<Money amount={d.balance} tone="phosphor" />
 							<button onclick={() => openPayment(d)} class="min-h-8 px-3 text-xs text-phosphor rounded hover:bg-line/40 transition-colors">{m.debts_receive()}</button>
 							<ContextMenu label={m.common_actions_for({ name: d.counterparty })}>
 								<button onclick={() => openWriteoff(d)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.debts_write_off()}</button>

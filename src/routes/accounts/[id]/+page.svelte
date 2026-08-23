@@ -11,6 +11,7 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
+	import Money from '$lib/components/reports/Money.svelte';
 	import { formatDateRelative } from '$lib/utils/date';
 	import { parseAmount } from '$lib/utils/number_parse';
 	import { labelFor } from '$lib/utils/tx-kind';
@@ -106,9 +107,7 @@
 								<div class="text-ledger">{tx.payee || labelFor(tx.kind)}</div>
 								<div class="text-xs text-dim">{formatDateRelative(tx.date, settings.locale)}</div>
 							</div>
-							<span class="figures {tx.kind === 'expense' ? 'text-debit' : tx.kind === 'income' ? 'text-phosphor' : 'text-dim'}">
-								{tx.kind === 'expense' ? '−' : tx.kind === 'income' ? '+' : ''}{formatCurrency(tx.amount, settings.currency, settings.locale)}
-							</span>
+							<Money amount={tx.amount} glyph={tx.kind === 'expense' ? '−' : tx.kind === 'income' ? '+' : ''} tone={tx.kind === 'expense' ? 'debit' : tx.kind === 'income' ? 'phosphor' : 'dim'} />
 						</div>
 					{/each}
 				</div>
