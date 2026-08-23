@@ -143,7 +143,7 @@
 						<div class="flex flex-wrap gap-2">
 							{#each accountTypes as t}
 								<button onclick={() => accountType = t.value}
-									class="px-3 py-1.5 text-sm rounded-md border transition-colors {accountType === t.value ? 'border-phosphor bg-phosphor/10 text-phosphor-bright font-medium' : 'border-line text-dim hover:text-ledger'}"
+									class="inline-flex items-center min-h-9 px-3 text-sm rounded-md border transition-colors {accountType === t.value ? 'border-phosphor bg-phosphor/10 text-phosphor-bright font-medium' : 'border-line text-dim hover:text-ledger'}"
 								>{t.label()}</button>
 							{/each}
 						</div>

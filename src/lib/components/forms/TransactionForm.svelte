@@ -198,13 +198,13 @@
 			{#each primaryKinds as k}
 				<button type="button" onclick={() => kind = k.value as TransactionKind} disabled={isEdit}
 					aria-pressed={kind === k.value}
-					class="px-3 py-1.5 text-sm rounded-md border transition-colors {kind === k.value ? 'border-phosphor bg-phosphor/10 text-phosphor-bright font-medium' : 'border-line text-dim hover:text-ledger'} {isEdit ? 'cursor-not-allowed opacity-60' : ''}"
+					class="inline-flex items-center min-h-9 px-3 text-sm rounded-md border transition-colors {kind === k.value ? 'border-phosphor bg-phosphor/10 text-phosphor-bright font-medium' : 'border-line text-dim hover:text-ledger'} {isEdit ? 'cursor-not-allowed opacity-60' : ''}"
 				>{k.label}</button>
 			{/each}
 			{#if advancedKinds.some((k) => !showAdvancedKinds || kind !== k.value)}
 				<button type="button" onclick={() => showAdvancedKinds = !showAdvancedKinds} disabled={isEdit}
 					aria-expanded={showAdvancedKinds}
-					class="px-3 py-1.5 text-xs text-dim hover:text-ledger transition-colors {isEdit ? 'cursor-not-allowed opacity-60' : ''}"
+					class="inline-flex items-center min-h-9 px-3 text-xs text-dim hover:text-ledger transition-colors {isEdit ? 'cursor-not-allowed opacity-60' : ''}"
 				>{m.forms_more_kinds()}</button>
 			{/if}
 		</div>
@@ -213,7 +213,7 @@
 				{#each advancedKinds as k}
 					<button type="button" onclick={() => kind = k.value as TransactionKind} disabled={isEdit}
 						aria-pressed={kind === k.value}
-						class="px-3 py-1.5 text-sm rounded-md border transition-colors {kind === k.value ? 'border-phosphor bg-phosphor/10 text-phosphor-bright font-medium' : 'border-line text-dim hover:text-ledger'} {isEdit ? 'cursor-not-allowed opacity-60' : ''}"
+						class="inline-flex items-center min-h-9 px-3 text-sm rounded-md border transition-colors {kind === k.value ? 'border-phosphor bg-phosphor/10 text-phosphor-bright font-medium' : 'border-line text-dim hover:text-ledger'} {isEdit ? 'cursor-not-allowed opacity-60' : ''}"
 					>{k.label}</button>
 				{/each}
 			</div>

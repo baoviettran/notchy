@@ -36,6 +36,10 @@
 		   #E75358 holds 4.86:1 on tape / 5.18:1 on ink at the same hue. */
 		--debit: #E75358;
 
+		/* Overlay scrims stay neutral black in both themes; tokenized so a
+		   warm-tinted dim could ship without touching call sites. */
+		--scrim-rgb: 0 0 0;
+
 		--ink-rgb: 20 17 12;
 		--tape-rgb: 28 24 18;
 		--ledger-rgb: 214 207 192;
@@ -75,6 +79,33 @@
 
 	html {
 		background-color: var(--ink);
+	}
+
+	/* Browser chrome belongs to the machine too: scrollbars, caret, and native
+	   control accents take tokens instead of OS defaults. */
+	html {
+		scrollbar-width: thin;
+		scrollbar-color: var(--line) transparent;
+		caret-color: var(--phosphor);
+		accent-color: var(--phosphor);
+	}
+	::-webkit-scrollbar {
+		width: 10px;
+		height: 10px;
+	}
+	::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	::-webkit-scrollbar-thumb {
+		background: var(--line);
+		border-radius: 9999px; /* pill — small control */
+		border: 2px solid var(--tape);
+	}
+	::-webkit-scrollbar-thumb:hover {
+		background: var(--dim);
+	}
+	::-webkit-scrollbar-corner {
+		background: transparent;
 	}
 
 	body {

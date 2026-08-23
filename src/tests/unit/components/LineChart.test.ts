@@ -58,6 +58,32 @@ describe('LineChart', () => {
 		expect(svg).toBeNull();
 	});
 
+	it('exposes an accessible name when a label is provided', () => {
+		const { container } = render(LineChart, {
+			props: { data: sampleData, xFormat, yFormat, label: 'Net worth over time' }
+		});
+		const svg = container.querySelector('svg[role="img"]');
+		expect(svg).not.toBeNull();
+		expect(svg).toHaveAttribute('aria-label', 'Net worth over time');
+	});
+
+	it('provides an sr-only data table when a label is provided', () => {
+		const { container } = render(LineChart, {
+			props: { data: sampleData, xFormat, yFormat, label: 'Net worth over time' }
+		});
+		const table = container.querySelector('table.sr-only');
+		expect(table).not.toBeNull();
+		expect(table?.querySelector('caption')?.textContent).toBe('Net worth over time');
+		expect(table?.querySelectorAll('tbody tr').length).toBe(sampleData.length);
+	});
+
+	it('omits the sr-only data table when no label is provided', () => {
+		const { container } = render(LineChart, {
+			props: { data: sampleData, xFormat, yFormat }
+		});
+		expect(container.querySelector('table')).toBeNull();
+	});
+
 	it('uses design-system tokens, not library fallbacks', () => {
 		const source = readFileSync(
 			resolve(import.meta.dirname, '../../../lib/components/charts/LineChart.svelte'),

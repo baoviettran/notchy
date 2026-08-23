@@ -124,7 +124,7 @@ import Money from '$lib/components/reports/Money.svelte';
 								     favor), never a masked oxblood "you still owe". -->
 								<Money amount={Math.abs(d.balance)} glyph="+" tone="phosphor" />
 							{/if}
-							<button onclick={() => openPayment(d)} class="min-h-8 px-3 text-xs text-phosphor rounded hover:bg-line/40 transition-colors">{m.debts_pay()}</button>
+							<button onclick={() => openPayment(d)} class="min-h-11 px-3 text-xs text-phosphor rounded hover:bg-line/40 transition-colors">{m.debts_pay()}</button>
 							<ContextMenu label={m.common_actions_for({ name: d.counterparty })}>
 								<button onclick={() => openWriteoff(d)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.debts_write_off()}</button>
 							</ContextMenu>
@@ -156,7 +156,7 @@ import Money from '$lib/components/reports/Money.svelte';
 								<!-- They paid back more than owed: the ledger prints the flip. -->
 								<Money amount={Math.abs(d.balance)} glyph="−" tone="debit" />
 							{/if}
-							<button onclick={() => openPayment(d)} class="min-h-8 px-3 text-xs text-phosphor rounded hover:bg-line/40 transition-colors">{m.debts_receive()}</button>
+							<button onclick={() => openPayment(d)} class="min-h-11 px-3 text-xs text-phosphor rounded hover:bg-line/40 transition-colors">{m.debts_receive()}</button>
 							<ContextMenu label={m.common_actions_for({ name: d.counterparty })}>
 								<button onclick={() => openWriteoff(d)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.debts_write_off()}</button>
 							</ContextMenu>

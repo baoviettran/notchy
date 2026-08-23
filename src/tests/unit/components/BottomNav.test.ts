@@ -47,4 +47,13 @@ describe('BottomNav', () => {
 		// in DOM order, so address it by name rather than index.
 		expect(screen.getByRole('link', { name: 'Accounts' })).toHaveFocus();
 	});
+
+	it('keeps Tab focus inside the More sheet when cycling forward past its last link', async () => {
+		render(BottomNav);
+		await fireEvent.click(screen.getByRole('button', { name: 'More' }));
+		const lastLink = screen.getByRole('link', { name: 'Settings' });
+		lastLink.focus();
+		await fireEvent.keyDown(screen.getByRole('dialog', { name: 'More' }), { key: 'Tab' });
+		expect(screen.getByRole('link', { name: 'Accounts' })).toHaveFocus();
+	});
 });

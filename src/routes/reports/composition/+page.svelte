@@ -95,7 +95,7 @@
 	{:else if chartData.length > 0 && chartData.some((point) => point.tags.length > 0)}
 		<section class="surface rounded-lg border border-line p-4">
 			<div role="img" aria-label={chartSummary}>
-				<StackedAreaChart data={chartData} {yFormat} {xFormat} {colors} />
+				<StackedAreaChart data={chartData} {yFormat} {xFormat} {colors} label={m.reports_composition_chart_label()} />
 			</div>
 		</section>
 

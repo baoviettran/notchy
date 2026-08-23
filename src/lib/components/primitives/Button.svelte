@@ -10,7 +10,7 @@
 	} = $props();
 
 	const base = 'inline-flex items-center justify-center font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
-	const sizes = { sm: 'px-3 py-1.5 text-sm', md: 'px-4 py-2 text-sm' };
+	const sizes = { sm: 'min-h-9 px-3 text-sm', md: 'min-h-10 px-4 py-2 text-sm' };
 	const variants = {
 		primary: 'bg-phosphor text-ink hover:brightness-110',
 		secondary: 'border border-dim bg-tape text-ledger hover:border-ledger',

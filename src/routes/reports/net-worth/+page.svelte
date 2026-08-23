@@ -66,7 +66,7 @@
 	{:else}
 	{#if hasNetWorthData}
 		<div class="bg-tape rounded-lg border border-line p-4">
-			<LineChart data={chartData} {yFormat} {xFormat} showArea={true} />
+			<LineChart data={chartData} {yFormat} {xFormat} showArea={true} label={m.reports_net_worth_chart_label()} />
 		</div>
 	{:else}
 		<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim min-h-[200px] flex items-center justify-center">

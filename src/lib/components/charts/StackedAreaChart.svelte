@@ -2,6 +2,7 @@
 	import { LayerCake, Svg } from 'layercake';
 	import { scaleBand, scaleLinear } from 'd3-scale';
 	import { stack, area, type SeriesPoint } from 'd3-shape';
+	import * as m from '$lib/paraglide/messages';
 
 	type StackDatum = {
 		month: string;
@@ -12,12 +13,14 @@
 		data,
 		yFormat,
 		xFormat,
-		colors
+		colors,
+		label
 	}: {
 		data: { month: string; tags: { tagId: string | null; name: string; total: number }[] }[];
 		yFormat: (n: number) => string;
 		xFormat: (month: string) => string;
 		colors: Record<string, string>;
+		label?: string;
 	} = $props();
 
 	const chartWidth = 400;
@@ -113,7 +116,7 @@
 {#if data.length > 0}
 	<LayerCake data={data} x="month" y="tags">
 		<Svg>
-			<svg viewBox="0 0 {chartWidth} {chartHeight}" class="stacked-area-chart" preserveAspectRatio="xMidYMid meet">
+			<svg viewBox="0 0 {chartWidth} {chartHeight}" class="stacked-area-chart" preserveAspectRatio="xMidYMid meet" role="img" aria-label={label}>
 				<g transform="translate({margin.left}, {margin.top})">
 					<!-- Stacked areas -->
 					{#each stackedPaths() as stackItem}
@@ -162,6 +165,31 @@
 			</div>
 		{/each}
 	</div>
+
+	<!-- Non-visual readers get the actual data, not just the chart's name. -->
+	{#if label}
+		<table class="sr-only">
+			<caption>{label}</caption>
+			<thead>
+				<tr>
+					<th scope="col">{m.chart_col_period()}</th>
+					<th scope="col">{m.reports_category()}</th>
+					<th scope="col">{m.chart_col_amount()}</th>
+				</tr>
+			</thead>
+			<tbody>
+				{#each data as d}
+					{#each d.tags as t}
+						<tr>
+							<th scope="row">{xFormat(d.month)}</th>
+							<td>{t.name}</td>
+							<td>{yFormat(t.total)}</td>
+						</tr>
+					{/each}
+				{/each}
+			</tbody>
+		</table>
+	{/if}
 {/if}
 
 <style>

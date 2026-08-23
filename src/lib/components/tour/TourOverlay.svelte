@@ -4,11 +4,15 @@
 	import { tour } from '$lib/stores/tour.svelte';
 	import { TOUR_STEPS } from '$lib/tour/steps';
 	import * as m from '$lib/paraglide/messages';
+	import { createFocusTrap } from '$lib/utils/focusTrap';
 
 	let tooltipPos = $state({ top: 0, left: 0 });
 	let targetRect = $state<DOMRect | null>(null);
+	let tooltipEl = $state<HTMLElement>();
 	const TOOLTIP_WIDTH = 320; // w-80
 	const TOOLTIP_MARGIN = 8;
+	const focusTrap = createFocusTrap();
+	let lastFocused: HTMLElement | null = null;
 
 	const mKeys: Record<string, () => string> = {
 		tour_net_title: () => m.tour_net_title(),
@@ -74,6 +78,10 @@
 	function onKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') {
 			tour.skip();
+		} else {
+			// The overlay claims aria-modal, so Tab must stay inside the tooltip
+			// instead of walking into the occluded background.
+			focusTrap.trap(e, tooltipEl);
 		}
 	}
 
@@ -94,13 +102,26 @@
 		void tour.active;
 		measure();
 	});
+
+	// Focus lifecycle: capture the trigger when the tour starts, keep focus on
+	// the tooltip (it moves with each step), restore the trigger on close.
+	$effect(() => {
+		if (tour.active) {
+			lastFocused ??= document.activeElement as HTMLElement | null;
+			tooltipEl?.focus();
+		} else if (lastFocused) {
+			lastFocused.focus?.();
+			lastFocused = null;
+		}
+	});
 </script>
 
 <svelte:window onkeydown={onKeydown} />
 
 {#if tour.active}
 	<!-- Backdrop with cutout -->
-	<div class="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={title()}>
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<div class="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={title()} tabindex="-1" onkeydown={onKeydown}>
 		<!-- SVG backdrop with a hole cut around the target -->
 		<svg class="absolute inset-0 w-full h-full" aria-hidden="true">
 			<defs>
@@ -118,7 +139,7 @@
 					{/if}
 				</mask>
 			</defs>
-			<rect width="100%" height="100%" fill="rgba(0,0,0,0.6)" mask="url(#tour-mask)" />
+			<rect width="100%" height="100%" style="fill: rgb(var(--scrim-rgb) / 0.6)" mask="url(#tour-mask)" />
 		</svg>
 
 		<!-- Highlight ring around target -->
@@ -131,7 +152,9 @@
 
 		<!-- Tooltip -->
 		<div
-			class="absolute z-10 w-80 max-w-[calc(100vw-2rem)] surface rounded-lg border border-line p-4 shadow-xl"
+			bind:this={tooltipEl}
+			tabindex="-1"
+			class="absolute z-10 w-80 max-w-[calc(100vw-2rem)] surface rounded-lg border border-line p-4 shadow-xl outline-none"
 			style="top: {tooltipPos.top}px; left: {tooltipPos.left}px;"
 		>
 			<h3 class="plate text-ledger text-base mb-1">{title()}</h3>
@@ -146,25 +169,25 @@
 				<div class="flex gap-2">
 					<button
 						onclick={() => tour.skip()}
-						class="px-3 py-1 text-sm rounded-md text-dim hover:text-ledger transition-colors"
+						class="inline-flex items-center min-h-10 px-3 text-sm rounded-md text-dim hover:text-ledger transition-colors"
 						>{m.tour_skip()}</button
 					>
 					<button
 						onclick={() => tour.back()}
 						disabled={tour.currentStep === 0}
-						class="px-3 py-1 text-sm rounded-md border border-line text-dim hover:text-ledger disabled:opacity-30 transition-colors"
+						class="inline-flex items-center min-h-10 px-3 text-sm rounded-md border border-line text-dim hover:text-ledger disabled:opacity-30 transition-colors"
 						>{m.tour_back()}</button
 					>
 					{#if tour.currentStep >= TOUR_STEPS.length - 1}
 						<button
 							onclick={() => tour.finish()}
-							class="px-3 py-1 text-sm rounded-md bg-phosphor text-ink font-medium hover:bg-phosphor-bright transition-colors"
+							class="inline-flex items-center min-h-10 px-3 text-sm rounded-md bg-phosphor text-ink font-medium hover:bg-phosphor-bright transition-colors"
 							>{m.tour_finish()}</button
 						>
 					{:else}
 						<button
 							onclick={() => tour.next()}
-							class="px-3 py-1 text-sm rounded-md bg-phosphor text-ink font-medium hover:bg-phosphor-bright transition-colors"
+							class="inline-flex items-center min-h-10 px-3 text-sm rounded-md bg-phosphor text-ink font-medium hover:bg-phosphor-bright transition-colors"
 							>{m.tour_next()}</button
 						>
 					{/if}

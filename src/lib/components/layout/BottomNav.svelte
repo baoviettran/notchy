@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import { slideUp } from '$lib/transitions/motion';
 	import * as m from '$lib/paraglide/messages';
+	import { createFocusTrap } from '$lib/utils/focusTrap';
 
 	const tabs = [
 		{ href: '/', label: m.layout_home(), d: 'M3 12h7V3H3zM14 21h7v-9h-7zM14 3v6h7V3zM3 21h7v-3H3z' },
@@ -19,7 +20,7 @@
 
 	let moreOpen = $state(false);
 	let sheetEl = $state<HTMLElement | null>(null);
-	let lastFocused: HTMLElement | null = null;
+	const focusTrap = createFocusTrap();
 
 	function toggleMore() {
 		moreOpen = !moreOpen;
@@ -36,13 +37,9 @@
 	}
 
 	// Focus lifecycle: capture the trigger, move focus to the first sheet link
-	// when it opens, restore it on close.
+	// when it opens, trap Tab within the sheet, restore focus on close.
 	$effect(() => {
-		if (moreOpen) {
-			lastFocused = document.activeElement as HTMLElement | null;
-			sheetEl?.querySelector<HTMLElement>('a')?.focus();
-			return () => { lastFocused?.focus?.(); lastFocused = null; };
-		}
+		if (moreOpen) return focusTrap.enter(() => sheetEl ?? undefined);
 	});
 
 	function isActive(href: string, path: string): boolean {
@@ -85,10 +82,13 @@
 {#if moreOpen}
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="md:hidden fixed inset-0 bg-black/50 z-40" onclick={closeMore}></div>
+	<div class="md:hidden fixed inset-0 bg-[rgb(var(--scrim-rgb)/0.5)] z-40" onclick={closeMore}></div>
 
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<div
 		bind:this={sheetEl}
+		tabindex="-1"
+		onkeydown={(e) => focusTrap.trap(e, sheetEl ?? undefined)}
 		role="dialog"
 		aria-label={m.layout_more()}
 		class="md:hidden fixed bottom-16 left-0 right-0 bg-tape border-t border-line rounded-t-lg p-4 z-50"

@@ -15,6 +15,7 @@ class SettingsStore {
 		this.currency = await db.meta.getCurrency();
 		this.firstRunComplete = await db.meta.isFirstRunComplete();
 		this.applyThemeClass();
+		this.applyDocumentLang();
 	}
 
 	async setLocale(newLocale: Locale): Promise<void> {
@@ -22,6 +23,7 @@ class SettingsStore {
 		await db.meta.set('locale', newLocale);
 		this.locale = newLocale;
 		setLanguageTag(newLocale);
+		this.applyDocumentLang();
 	}
 
 	async setCurrency(currency: string): Promise<void> {
@@ -46,6 +48,13 @@ class SettingsStore {
 		if (typeof document === 'undefined') return;
 		document.documentElement.classList.remove('light', 'dark');
 		if (this.theme !== 'auto') document.documentElement.classList.add(this.theme);
+	}
+
+	// Screen readers pick pronunciation rules from <html lang>; paraglide's
+	// setLanguageTag only swaps message tables, so mirror the locale here.
+	private applyDocumentLang(): void {
+		if (typeof document === 'undefined') return;
+		document.documentElement.lang = this.locale;
 	}
 }
 
