@@ -44,7 +44,9 @@ export class ImportStore {
   get newCount(): number { return this.rows.filter(r => r.status === 'new').length; }
   get duplicateCount(): number { return this.rows.filter(r => r.status === 'duplicate').length; }
   get invalidCount(): number { return this.rows.filter(r => r.status === 'invalid').length; }
-  get includedCount(): number { return this.rows.filter(r => r.included && r.status !== 'invalid').length; }
+  // Only genuinely new rows are committable — duplicates are locked out of
+  // the count and the checkbox so a stray click can't double-book an entry.
+  get includedCount(): number { return this.rows.filter(r => r.included && r.status === 'new').length; }
 
   async loadFile(csvText: string, accountId: string): Promise<void> {
     this.accountId = accountId;
@@ -202,7 +204,7 @@ export class ImportStore {
   }
 
   async commit(): Promise<number> {
-    const toInsert = this.rows.filter(r => r.included && r.status !== 'invalid');
+    const toInsert = this.rows.filter(r => r.included && r.status === 'new');
     if (toInsert.length === 0) {
       this.phase = 'done';
       return 0;

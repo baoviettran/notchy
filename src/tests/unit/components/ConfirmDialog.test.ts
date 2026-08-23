@@ -28,14 +28,16 @@ describe('ConfirmDialog', () => {
 		expect(screen.queryByText('Delete?')).not.toBeInTheDocument();
 	});
 
-	it('shows danger variant button by default', () => {
+	it('shows primary variant by default (danger is opt-in)', () => {
 		render(ConfirmDialog, { open: true, title: 'Delete?', message: 'Sure?' });
-		expect(screen.getByText('Delete').className).toContain('bg-debit');
+		expect(screen.getByText('Delete').className).toContain('bg-phosphor');
 	});
 
-	it('shows primary variant when danger=false', () => {
-		render(ConfirmDialog, { open: true, title: 'Confirm?', message: 'Sure?', danger: false, confirmLabel: 'OK' });
-		expect(screen.getByText('OK').className).toContain('bg-phosphor');
+	it('shows the danger variant when danger=true, with ink text for AA contrast', () => {
+		render(ConfirmDialog, { open: true, title: 'Delete?', message: 'Sure?', danger: true });
+		const className = screen.getByText('Delete').className;
+		expect(className).toContain('bg-debit');
+		expect(className).toContain('text-ink');
 	});
 
 	it('uses custom confirmLabel', () => {
@@ -49,5 +51,17 @@ describe('ConfirmDialog', () => {
 		const dialog = screen.getByRole('dialog');
 		expect(dialog).toBeInTheDocument();
 		expect(dialog.getAttribute('aria-modal')).toBe('true');
+	});
+
+	it('moves focus into the dialog on open', () => {
+		render(ConfirmDialog, { open: true, title: 'Delete?', message: 'Sure?', confirmLabel: 'Delete' });
+		// First focusable control is the Cancel button.
+		expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus();
+	});
+
+	it('closes on Escape', async () => {
+		render(ConfirmDialog, { open: true, title: 'Delete?', message: 'Sure?' });
+		await fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 	});
 });

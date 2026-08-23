@@ -8,10 +8,11 @@ import { addTransaction } from './helpers/ui';
 //
 // Verified against:
 //  - src/routes/accounts/+page.svelte: assets/liabilities sections; liability
-//    balances render Math.abs(acc.balance) (line 88, so shown as a positive
+//    balances render Math.abs(acc.balance) (line 121, so shown as a positive
 //    magnitude, not negative — a debt is displayed as the amount owed);
-//    per-row Edit/Archive/Delete buttons (lines 64-66, hover-revealed);
-//    ConfirmDialog on delete (lines 120-126).
+//    per-row ContextMenu with Edit/Archive/Delete (lines 96-100);
+//    ConfirmDialog on delete (lines 154-160), whose message states the
+//    account's transaction count (openDeleteConfirm, lines 31-36).
 //  - src/lib/components/forms/AccountForm.svelte: 6 types (lines 22-29); the
 //    Type Select is disabled in edit mode (line 69 disabled={isEdit}) — so the
 //    "cannot change to/from loan type" rule is enforced by disabling type
@@ -139,6 +140,29 @@ test.describe('accounts — extended', () => {
 		await page.getByText('Delete account?').locator('xpath=ancestor::div[contains(@class,"max-w-sm")]').getByRole('button', { name: 'Delete', exact: true }).click();
 		await expect(page.getByText('Delete account?')).toHaveCount(0);
 		await expect(page.getByRole('main').getByText('Test Checking')).toHaveCount(0);
+	});
+
+	test('delete shows a transaction-count warning and can be undone', async ({ onboardedPage: page }) => {
+		// Seed one transaction so the confirm dialog can state the impact
+		// (openDeleteConfirm counts via db.transactions.list, +page.svelte:31-36).
+		await addTransaction(page, { kind: 'expense', amount: '10k' });
+		await page.getByRole('link', { name: 'Accounts', exact: true }).click();
+		const checkingRow = page.getByRole('main').locator('.group', { hasText: 'Test Checking' });
+		await checkingRow.getByRole('button').last().click();
+		await page.getByRole('menuitem', { name: 'Delete' }).click();
+
+		// 1 transaction → the singular body (m.accounts_delete_confirm_body_one).
+		await expect(page.getByText(/This account has 1 transaction/)).toBeVisible();
+
+		await page.getByText('Delete account?').locator('xpath=ancestor::div[contains(@class,"max-w-sm")]').getByRole('button', { name: 'Delete', exact: true }).click();
+
+		// Deleted toast with an Undo action (AccountsStore.delete).
+		await expect(page.getByText('Account deleted.')).toBeVisible();
+		await page.getByRole('button', { name: 'Undo' }).click();
+
+		// Undo restores the soft-deleted account (m.accounts_restored_toast).
+		await expect(page.getByText('Account restored.')).toBeVisible();
+		await expect(page.getByRole('main').getByText('Test Checking')).toBeVisible();
 	});
 
 	test('delete is blocked when the account is linked to an active goal', async ({ onboardedPage: page }) => {

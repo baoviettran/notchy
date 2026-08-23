@@ -30,4 +30,21 @@ describe('BottomNav', () => {
 		await fireEvent.click(screen.getByText('Goals'));
 		expect(screen.queryByRole('link', { name: 'Goals' })).not.toBeInTheDocument();
 	});
+
+	it('exposes the More sheet as a labeled dialog with an expanded trigger', async () => {
+		render(BottomNav);
+		const more = screen.getByRole('button', { name: 'More' });
+		expect(more).toHaveAttribute('aria-expanded', 'false');
+		await fireEvent.click(more);
+		expect(more).toHaveAttribute('aria-expanded', 'true');
+		expect(screen.getByRole('dialog', { name: 'More' })).toBeInTheDocument();
+	});
+
+	it('moves focus to the first sheet link when it opens', async () => {
+		render(BottomNav);
+		await fireEvent.click(screen.getByRole('button', { name: 'More' }));
+		// First sheet item is Accounts; the nav bar's own links precede the sheet
+		// in DOM order, so address it by name rather than index.
+		expect(screen.getByRole('link', { name: 'Accounts' })).toHaveFocus();
+	});
 });

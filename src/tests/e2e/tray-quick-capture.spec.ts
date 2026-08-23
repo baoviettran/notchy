@@ -56,9 +56,9 @@ test.describe('quick-add route', () => {
 		await gotoClientSide(page, '/transactions');
 		const main = page.getByRole('main');
 		// Payee renders verbatim (transactions/+page.svelte:94). VND under en-US
-		// formats with no fraction digits → "-₫50,000" (transactions/+page.svelte:102).
+		// formats with no fraction digits → "−₫50,000" (transactions/+page.svelte:102).
 		await expect(main.getByText('coffee')).toBeVisible({ timeout: 10000 });
-		await expect(main.getByText('-₫50,000')).toBeVisible();
+		await expect(main.getByText('−₫50,000')).toBeVisible();
 	});
 
 	test('saves an income with the + prefix', async ({ onboardedPage: page }) => {

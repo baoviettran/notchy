@@ -2,17 +2,33 @@
 	import { onMount } from 'svelte';
 	import Progress from '$lib/components/primitives/Progress.svelte';
 	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
+	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
+	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import FrequentTransactions from '$lib/components/sections/FrequentTransactions.svelte';
 	import { accounts } from '$lib/stores/accounts.svelte';
 	import { budgets } from '$lib/stores/budgets.svelte';
 	import { transactions } from '$lib/stores/transactions.svelte';
 	import { goals } from '$lib/stores/goals.svelte';
+	import { categories } from '$lib/stores/categories.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { formatCurrency, formatNumber } from '$lib/utils/currency';
+	import { formatDateRelative } from '$lib/utils/date';
 	import { labelFor } from '$lib/utils/tx-kind';
 	import * as m from '$lib/paraglide/messages';
 
-	let recentTxns = $derived(transactions.items.slice(0, 6));
+	// Bucket display names come from the localized catalogue — never the raw
+	// bucket_ slug.
+	function bucketName(typeId: string): string {
+		return categories.buckets.find((b) => b.id === typeId)?.name ?? typeId;
+	}
+
+	let isLoading = $derived(transactions.loading || accounts.loading || budgets.loading || goals.loading);
+	let storeError = $derived(transactions.error || accounts.error || null);
+	function reloadDashboard() {
+		void Promise.all([accounts.load(), budgets.load(), transactions.load({ limit: 5 }), goals.load(), transactions.loadMonthFlow()]);
+	}
+
+	let recentTxns = $derived(transactions.items.slice(0, 5));
 	let totalAssets = $derived(accounts.assets.reduce((s, a) => s + a.balance, 0));
 	let totalLiabilities = $derived(accounts.liabilities.reduce((s, a) => s + Math.abs(a.balance), 0));
 	let netPosition = $derived(totalAssets - totalLiabilities);
@@ -20,13 +36,18 @@
 	let totalSpent = $derived(budgets.items.reduce((s, b) => s + b.spent, 0));
 	let budgetPct = $derived(totalAllocated > 0 ? Math.round((totalSpent / totalAllocated) * 100) : 0);
 
-	// This-month net flow from recent visible transactions (income − expense),
-	// shown as a directional delta beside the net figure.
-	let monthFlow = $derived(
-		transactions.items
-			.filter((t) => t.kind === 'income' || t.kind === 'expense')
-			.reduce((s, t) => s + (t.kind === 'income' ? t.amount : -t.amount), 0)
-	);
+// Empty-budget teaching state: a sample month that shows the shape of a
+// budget before the user has made one. The amounts are illustrative, scaled
+// to a believable magnitude for the user's currency so the example reads in
+// their money rather than an abstract unit.
+const sampleScale = settings.currency === 'VND' ? 1_000_000 : 100;
+const sampleBuckets = [
+	{ name: m.dashboard_sample_rent(), spent: 6 * sampleScale, allocated: 6 * sampleScale },
+	{ name: m.dashboard_sample_groceries(), spent: 4 * sampleScale, allocated: 6 * sampleScale },
+	{ name: m.dashboard_sample_savings(), spent: 3 * sampleScale, allocated: 6 * sampleScale }
+];
+
+	let monthFlow = $derived(transactions.monthFlow);
 
 	// The net figure stands alone — a single VFD readout. A ladder of
 	// magnitude ticks only crowded it without encoding anything the number
@@ -36,11 +57,18 @@
 	// (labelFor / KIND_LABELS live in src/lib/utils/tx-kind.ts.)
 
 	onMount(async () => {
-		await Promise.all([accounts.load(), budgets.load(), transactions.load({ limit: 5 }), goals.load()]);
+		await Promise.all([accounts.load(), budgets.load(), categories.load(), transactions.load({ limit: 5 }), goals.load(), transactions.loadMonthFlow()]);
 	});
 </script>
 
 <div class="space-y-5">
+	{#if isLoading && !storeError}
+		<div class="surface rounded-lg p-5">
+			<Skeleton lines={4} />
+		</div>
+	{:else if storeError}
+		<ErrorState description={storeError} onRetry={reloadDashboard} />
+	{:else}
 	<header class="flex items-center justify-between">
 		<h1 class="figures text-xl text-ledger tracking-wide">{m.nav_dashboard()}</h1>
 		<span class="plate">{budgets.month}</span>
@@ -77,39 +105,50 @@
 		</div>
 	</section>
 
-	<!-- THIS MONTH: segmented budget meter. -->
-	<section class="surface rounded-lg p-5">
-		<div class="flex items-center justify-between mb-3">
-			<h2 class="plate">{m.dashboard_this_month()}</h2>
-			<a href="/budgets" class="plate hover:text-ledger transition-colors">{m.dashboard_budgets_link()}</a>
-		</div>
-		{#if budgets.hasAllocations}
-			<div class="flex items-baseline gap-3 mb-3">
-				<span class="figures-glow text-2xl leading-none">{formatCurrency(totalSpent, settings.currency, settings.locale)}</span>
-				<span class="text-sm text-dim figures">/ {formatCurrency(totalAllocated, settings.currency, settings.locale)}</span>
-				<span class="ml-auto plate">{budgetPct}%</span>
+	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+		<!-- THIS MONTH: segmented budget meter. -->
+		<section class="surface rounded-lg p-5">
+			<div class="flex items-center justify-between mb-3">
+				<h2 class="plate">{m.dashboard_this_month()}</h2>
+				<a href="/budgets" class="plate hover:text-ledger transition-colors">{m.dashboard_budgets_link()}</a>
 			</div>
-			<Progress value={budgetPct} max={100} />
-			<div class="mt-4 space-y-1.5">
-				{#each budgets.items.slice(0, 4) as b}
-					<div class="flex items-center justify-between text-xs">
-						<span class="text-dim">{b.type_id.replace('bucket_', '')}</span>
-						<span class="figures text-ledger">{formatCurrency(b.spent, settings.currency, settings.locale)} <span class="text-dim">/ {formatCurrency(b.allocated, settings.currency, settings.locale)}</span></span>
-					</div>
-				{/each}
-			</div>
-		{:else}
-			<!-- Empty budget: show the meter skeleton so the card teaches what budgeting
-			     looks like here, instead of going inert. -->
-			<Progress value={0} max={100} />
-			<div class="mt-4 flex items-center justify-between text-sm">
-				<p class="text-dim">{m.dashboard_no_budget({ month: budgets.month })}</p>
-				<a href="/budgets" class="text-phosphor hover:underline">{m.dashboard_setup_budget()}</a>
-			</div>
-		{/if}
-	</section>
+			{#if budgets.hasAllocations}
+				<div class="flex items-baseline gap-3 mb-3">
+					<span class="figures-glow text-2xl leading-none">{formatCurrency(totalSpent, settings.currency, settings.locale)}</span>
+					<span class="text-sm text-dim figures">/ {formatCurrency(totalAllocated, settings.currency, settings.locale)}</span>
+					<span class="ml-auto plate">{budgetPct}%</span>
+				</div>
+				<Progress value={budgetPct} max={100} label={m.layout_budget()} />
+				<div class="mt-4 space-y-1.5">
+					{#each budgets.items.slice(0, 4) as b}
+						<div class="flex items-center justify-between text-xs">
+							<span class="text-dim">{bucketName(b.type_id)}</span>
+							<span class="figures text-ledger">{formatCurrency(b.spent, settings.currency, settings.locale)} <span class="text-dim">/ {formatCurrency(b.allocated, settings.currency, settings.locale)}</span></span>
+						</div>
+					{/each}
+				</div>
+			{:else}
+				<p class="text-sm text-dim">{m.dashboard_no_budget({ month: budgets.month })}</p>
+				<p class="mt-1 text-sm text-dim">{m.dashboard_budget_teach()}</p>
+				<div class="mt-4 space-y-3">
+					{#each sampleBuckets as s}
+						<div>
+							<div class="flex items-center justify-between text-xs mb-1">
+								<span class="text-ledger">{s.name}</span>
+								<span class="figures text-ledger">{formatCurrency(s.spent, settings.currency, settings.locale)} <span class="text-dim">/ {formatCurrency(s.allocated, settings.currency, settings.locale)}</span></span>
+							</div>
+							<Progress value={Math.round((s.spent / s.allocated) * 100)} max={100} size="sm" label={s.name} />
+						</div>
+					{/each}
+				</div>
+				<div class="mt-4 text-right">
+					<a href="/budgets" class="text-phosphor hover:underline text-sm">{m.dashboard_setup_budget()}</a>
+				</div>
+			{/if}
+		</section>
 
-	<FrequentTransactions />
+		<FrequentTransactions />
+	</div>
 
 	<!-- RECENT: the ledger tape. -->
 	<section class="surface rounded-lg overflow-hidden">
@@ -127,7 +166,7 @@
 					<li class="px-5 py-3 flex items-center justify-between gap-3">
 						<div class="min-w-0">
 							<p class="text-sm text-ledger truncate">{tx.payee || labelFor(tx.kind)}</p>
-							<p class="plate mt-0.5">{tx.date}</p>
+							<p class="plate mt-0.5">{formatDateRelative(tx.date, settings.locale)}</p>
 						</div>
 						<span class="figures text-sm shrink-0 {tx.kind === 'expense' ? 'text-debit' : tx.kind === 'income' ? 'text-phosphor' : 'text-dim'}">
 							{tx.kind === 'expense' ? '−' : tx.kind === 'income' ? '+' : ''}{formatCurrency(tx.amount, settings.currency, settings.locale)}
@@ -152,10 +191,11 @@
 							<span class="text-ledger">{g.name}</span>
 							<span class="figures text-dim">{g.progress_pct}%</span>
 						</div>
-						<Progress value={g.progress_pct} max={100} size="sm" segments={16} />
+						<Progress value={g.progress_pct} max={100} size="sm" segments={16} label={g.name} />
 					</div>
 				{/each}
 			</div>
 		</section>
+	{/if}
 	{/if}
 </div>

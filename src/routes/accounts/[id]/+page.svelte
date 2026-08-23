@@ -7,6 +7,7 @@
 	import ConfirmDialog from '$lib/components/primitives/ConfirmDialog.svelte';
 	import { getDb } from '$lib/db';
 	import { isLargeDiscrepancy } from '$lib/db/repos/reconciliations';
+	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
@@ -24,6 +25,7 @@
 	let actualBalance = $state('');
 	let confirmLarge = $state(false);
 	let pendingDiscrepancy = $state(0);
+	let pendingActual = $state(0);
 
 	const accountId = $derived($page.params.id);
 
@@ -44,6 +46,9 @@
 			const discrepancy = parsed - expected;
 			if (isLargeDiscrepancy(discrepancy)) {
 				pendingDiscrepancy = discrepancy;
+				// Restate the entered figure through the same formatter the rest
+				// of the ledger speaks — never the raw input string.
+				pendingActual = parsed;
 				confirmLarge = true;
 				return;
 			}
@@ -99,7 +104,7 @@
 								<div class="text-xs text-dim">{formatDateRelative(tx.date, settings.locale)}</div>
 							</div>
 							<span class="figures {tx.kind === 'expense' ? 'text-debit' : tx.kind === 'income' ? 'text-phosphor' : 'text-dim'}">
-								{tx.kind === 'expense' ? '-' : ''}{formatCurrency(tx.amount, settings.currency, settings.locale)}
+								{tx.kind === 'expense' ? '−' : tx.kind === 'income' ? '+' : ''}{formatCurrency(tx.amount, settings.currency, settings.locale)}
 							</span>
 						</div>
 					{/each}
@@ -126,7 +131,9 @@
 			</section>
 		{/if}
 	{:else}
-		<p class="text-dim">{m.accounts_loading()}</p>
+		<div class="surface rounded-lg p-4">
+			<Skeleton lines={4} />
+		</div>
 	{/if}
 </div>
 
@@ -147,7 +154,11 @@
 <ConfirmDialog
 	open={confirmLarge}
 	title={m.accounts_large_discrepancy_title()}
-	message={m.accounts_large_discrepancy_body({ amount: formatCurrency(pendingDiscrepancy, settings.currency, settings.locale) })}
+	message={m.accounts_large_discrepancy_body({
+		amount: formatCurrency(pendingDiscrepancy, settings.currency, settings.locale),
+		expected: formatCurrency(account?.balance ?? 0, settings.currency, settings.locale),
+		actual: formatCurrency(pendingActual, settings.currency, settings.locale)
+	})}
 	confirmLabel={m.accounts_yes_reconcile()}
 	danger={false}
 	onconfirm={confirmLargeReconcile}

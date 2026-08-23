@@ -12,9 +12,9 @@
 	const base = 'inline-flex items-center justify-center font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
 	const sizes = { sm: 'px-3 py-1.5 text-sm', md: 'px-4 py-2 text-sm' };
 	const variants = {
-		primary: 'bg-phosphor text-ink hover:bg-phosphor-bright',
+		primary: 'bg-phosphor text-ink hover:brightness-110',
 		secondary: 'border border-dim bg-tape text-ledger hover:border-ledger',
-		danger: 'bg-debit text-ledger hover:brightness-110',
+		danger: 'bg-debit text-ink hover:brightness-110',
 		ghost: 'text-dim hover:text-ledger hover:bg-line/40'
 	};
 </script>

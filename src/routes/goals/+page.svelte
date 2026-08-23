@@ -3,7 +3,9 @@
 	import Button from '$lib/components/primitives/Button.svelte';
 	import Modal from '$lib/components/primitives/Modal.svelte';
 	import ConfirmDialog from '$lib/components/primitives/ConfirmDialog.svelte';
+	import ContextMenu from '$lib/components/primitives/ContextMenu.svelte';
 	import Progress from '$lib/components/primitives/Progress.svelte';
+	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
 	import GoalForm from '$lib/components/forms/GoalForm.svelte';
 	import { goals } from '$lib/stores/goals.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
@@ -16,7 +18,7 @@
 	let editing = $state<GoalWithProgress | null>(null);
 	let confirmDelete = $state<GoalWithProgress | null>(null);
 
-	const statusIcons: Record<string, string> = { on_track: '✓', behind: '⚠', ahead: '★', overdue: '⏰', insufficient_data: '…' };
+	const statusIcons: Record<string, string> = { on_track: '✓', behind: '⚠', ahead: '★', overdue: '!', insufficient_data: '…' };
 
 	onMount(() => goals.load());
 
@@ -36,7 +38,9 @@
 
 	async function markComplete(g: GoalWithProgress) {
 		await goals.update(g.id, { status: 'completed' });
-		toast.show(m.goals_marked_complete());
+		// A milestone earns more than the default beat — hold it long enough
+		// for the phosphor flicker to register.
+		toast.show(m.goals_marked_complete(), { duration: 5000 });
 	}
 	async function markAbandoned(g: GoalWithProgress) {
 		await goals.update(g.id, { status: 'abandoned' });
@@ -49,6 +53,16 @@
 		toast.show(m.goals_deleted_toast());
 		confirmDelete = null;
 	}
+
+	// Numeric restatement: the confirm names what is being destroyed.
+	const deleteMessage = $derived(
+		confirmDelete
+			? m.goals_delete_confirm_body({
+					name: confirmDelete.name,
+					amount: formatCurrency(confirmDelete.current_amount, settings.currency, settings.locale)
+				})
+			: ''
+	);
 </script>
 
 <div class="space-y-6">
@@ -60,8 +74,12 @@
 	<section>
 		<h2 class="plate mb-2">{m.goals_active()}</h2>
 		{#if goals.active.length === 0}
-			<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
-				<p class="text-sm">{m.goals_no_active()} <button onclick={openCreate} class="text-phosphor hover:underline">{m.goals_empty_state()}</button></p>
+			<div class="bg-tape rounded-lg border border-line">
+				<EmptyState message={m.goals_no_active()} icon="▮▯▯▯">
+					{#snippet action()}
+						<button onclick={openCreate} class="text-phosphor hover:underline text-sm">{m.goals_empty_state()}</button>
+					{/snippet}
+				</EmptyState>
 			</div>
 		{:else}
 			<div class="space-y-3">
@@ -71,11 +89,13 @@
 							<button onclick={() => openEdit(g)} class="figures text-sm font-medium text-ledger text-left">{g.name}</button>
 							<div class="flex items-center gap-2">
 								<span class="text-xs text-dim">{statusIcons[g.velocity_status] ?? ''} {goalStatusLabel(g.velocity_status)}</span>
-								<button onclick={() => markComplete(g)} class="text-xs text-dim hover:text-phosphor pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 transition-opacity px-1">{m.goals_mark_complete()}</button>
-								<button onclick={() => confirmDelete = g} class="text-xs text-dim hover:text-debit pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 transition-opacity px-1">{m.goals_delete()}</button>
+								<ContextMenu label={m.common_actions_for({ name: g.name })}>
+									<button onclick={() => markComplete(g)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-phosphor hover:bg-line/40">{m.goals_mark_complete()}</button>
+									<button onclick={() => confirmDelete = g} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.goals_delete()}</button>
+								</ContextMenu>
 							</div>
 						</div>
-						<Progress value={g.progress_pct} max={100} size="sm" />
+						<Progress value={g.progress_pct} max={100} size="sm" label={g.name} />
 						<div class="flex justify-between text-xs text-dim">
 							<span>{formatCurrency(g.current_amount, settings.currency, settings.locale)} / {formatCurrency(g.target_amount, settings.currency, settings.locale)}</span>
 							<span>{g.progress_pct}% · {m.goals_due_date({ date: g.target_date })}</span>
@@ -97,9 +117,11 @@
 			<h2 class="plate mb-2">{m.goals_completed()}</h2>
 			<div class="space-y-2">
 				{#each goals.completed as g}
+					<!-- Completed goals get the lamp treatment, not a dim afterthought —
+					     same phosphor ring language as the debt-free celebration. -->
 					<div class="bg-tape rounded-lg border border-line p-3 flex items-center justify-between text-sm">
 						<span class="text-dim">{g.name}</span>
-						<span class="text-phosphor">✓ {m.goals_complete()}</span>
+						<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-phosphor/40 bg-phosphor/10 figures text-xs text-phosphor">✓ {m.goals_complete()}</span>
 					</div>
 				{/each}
 			</div>
@@ -114,7 +136,8 @@
 <ConfirmDialog
 	open={confirmDelete !== null}
 	title={m.goals_delete_confirm_title()}
-	message={m.goals_delete_confirm_body()}
+	message={deleteMessage}
 	confirmLabel={m.common_delete()}
+	danger={true}
 	onconfirm={doDelete}
 />

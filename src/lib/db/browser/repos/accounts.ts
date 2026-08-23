@@ -226,6 +226,14 @@ export async function deleteAccount(db: DatabaseService, id: string): Promise<vo
 	await db.execute(`UPDATE accounts SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`, [now, now, id]);
 }
 
+export async function restoreAccount(db: DatabaseService, id: string): Promise<void> {
+	const now = new Date().toISOString();
+	await db.execute(
+		`UPDATE accounts SET deleted_at = NULL, updated_at = ? WHERE id = ? AND deleted_at IS NOT NULL`,
+		[now, id]
+	);
+}
+
 function validateTypeChange(from: AccountType, to: AccountType): void {
 	const fromIsAsset = ASSET_TYPES.includes(from);
 	const toIsAsset = ASSET_TYPES.includes(to);

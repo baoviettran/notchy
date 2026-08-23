@@ -78,6 +78,20 @@ describe('ImportStore', () => {
     expect(txs[0].payee).toBe('Store B');
   });
 
+  it('never commits a duplicate row even when manually re-included', async () => {
+    await txRepo.createTransaction(db, {
+      kind: 'expense', date: '2024-01-01', amount: 100, account_id: 'acc1', payee: 'Store'
+    });
+
+    const csv = 'date,amount,payee\n2024-01-01,100,Store';
+    await store.loadFile(csv, 'acc1');
+
+    // Force the duplicate back on: the commit filter must still refuse it.
+    store.rows[0].included = true;
+    const count = await store.commit();
+    expect(count).toBe(0);
+  });
+
   it('detects duplicates among transactions older than the default limit of 50', async () => {
     // Insert 60 transactions spanning Jan 1 – Mar 1 2024 (60 days).
     // listTransactions orders by date DESC, so with limit=50 the 10 oldest

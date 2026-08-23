@@ -109,6 +109,20 @@ test.describe('dashboard — extended (§2)', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('dashboard empty budget: teaching card shows a sample month, not a hollow meter', async ({ onboardedPage: page }) => {
+		// Fresh onboarding → no allocations. The empty-budget state teaches the
+		// shape of a budgeted month (+page.svelte:101-108): warm lead copy, three
+		// sample buckets rendered with real progress meters, and the setup CTA.
+		const main = page.getByRole('main');
+		await expect(main.getByText(/A budget gives every dollar a job/)).toBeVisible();
+		await expect(main.getByText('Rent', { exact: true })).toBeVisible();
+		await expect(main.getByText('Groceries', { exact: true })).toBeVisible();
+		await expect(main.getByText('Savings', { exact: true })).toBeVisible();
+		// The sample month uses real meters, so the card visibly shows the shape.
+		await expect(main.getByRole('progressbar').first()).toBeVisible();
+		await expect(main.getByRole('link', { name: 'Set up budget →' })).toBeVisible();
+	});
+
 	test('dashboard empty state: fresh onboarding shows the no-transactions prompt', async ({ onboardedPage: page }) => {
 		// Fresh onboarding → one account, no transactions. The dashboard recent
 		// section shows dashboard_no_txns_yet (+page.svelte:129).

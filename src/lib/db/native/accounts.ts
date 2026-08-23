@@ -39,3 +39,7 @@ export async function updateAccount(_id: string, _patch: AccountPatch): Promise<
 export async function deleteAccount(_id: string): Promise<void> {
 	throw new Error('native accounts adapter not wired');
 }
+
+export async function restoreAccount(_id: string): Promise<void> {
+	throw new Error('native accounts adapter not wired');
+}

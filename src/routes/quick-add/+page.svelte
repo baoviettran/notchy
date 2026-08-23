@@ -7,12 +7,14 @@
 	import { getDb, isTauri } from '$lib/db';
 	import { parseQuickInput } from '$lib/utils/quick_parse';
 	import { AppError } from '$lib/errors';
+	import { mapError } from '$lib/utils/errors';
 
 	let value = $state('');
 	let error = $state<string | null>(null);
 	let activeAccount = $state<{ id: string; name: string } | null>(null);
 	let ready = $state(false);
 	let submitting = $state(false);
+	let justSaved = $state(false);
 	let unlistenFocus: (() => void) | undefined;
 
 	const accountName = $derived(activeAccount?.name ?? '');
@@ -22,6 +24,8 @@
 			? m.quick_add_database_update_required()
 			: null;
 	}
+
+	const noAccountHint = $derived(!ready || !activeAccount ? m.quick_add_no_account_hint() : null);
 
 	async function loadDefaultAccount(): Promise<void> {
 		const db = getDb();
@@ -49,7 +53,7 @@
 			await loadDefaultAccount();
 			ready = true;
 		} catch (e) {
-			error = updateRequiredError(e) ?? m.errors_unknown();
+			error = updateRequiredError(e) ?? mapError(e);
 			return;
 		}
 		queueMicrotask(() => document.getElementById('qa-input')?.focus());
@@ -87,14 +91,15 @@
 			try {
 				db = await getDb();
 			} catch (e) {
-				error = updateRequiredError(e) ?? m.errors_unknown();
+				error = updateRequiredError(e) ?? mapError(e);
 				return;
 			}
 			let parsed;
 			try {
 				parsed = parseQuickInput(value, settings.locale, settings.currency);
 			} catch (e) {
-				error = e instanceof AppError ? m.quick_add_placeholder() : m.errors_unknown();
+				// A parse failure must say what's wrong, not echo the placeholder.
+				error = e instanceof AppError ? m.validation_invalid_amount() : mapError(e);
 				return;
 			}
 
@@ -116,6 +121,11 @@
 			}
 
 			value = '';
+			// The machine registers the keypress: one phosphor flicker before the
+			// window hides, so a save never vanishes unacknowledged.
+			justSaved = true;
+			await new Promise((r) => setTimeout(r, 250));
+			justSaved = false;
 			await hideWindow();
 		} finally {
 			submitting = false;
@@ -136,7 +146,7 @@
 
 <div class="tape">
 	<header class="top">
-		<span class="mark">▮</span>
+		<span class="mark" class:animate-flash={justSaved}>▮</span>
 		<span class="esc">ESC</span>
 	</header>
 
@@ -147,10 +157,15 @@
 		autocomplete="off"
 		spellcheck="false"
 		placeholder={m.quick_add_placeholder()}
+		aria-label={m.quick_add_placeholder()}
 		bind:value
 		onkeydown={onKeydown}
 		disabled={!ready || !activeAccount}
 	/>
+
+	{#if noAccountHint}
+		<div id="qa-hint" class="hint" aria-live="polite">{noAccountHint}</div>
+	{/if}
 
 	<div class="rule"></div>
 
@@ -160,11 +175,11 @@
 
 	<footer class="status">
 		<span>{accountName} · {m.quick_add_today()}</span>
-		<span>{m.quick_add_save()} ⏎</span>
+		<span class:animate-flash={justSaved}>{m.quick_add_save()} ⏎</span>
 	</footer>
 
 	{#if error}
-		<div class="error">{error}</div>
+		<div class="error" aria-live="polite">{error}</div>
 	{/if}
 </div>
 
@@ -209,7 +224,7 @@
 	}
 	.payee {
 		color: var(--ledger);
-		font-size: 15px;
+		font-size: 16px;
 		min-height: 1.2em;
 	}
 	.payee.empty {
@@ -225,8 +240,13 @@
 		text-transform: uppercase;
 	}
 	.error {
-		color: var(--phosphor);
-		font-size: 11px;
+		color: var(--debit);
+		font-size: 13px;
+		margin-top: 0.25rem;
+	}
+	.hint {
+		color: var(--dim);
+		font-size: 13px;
 		margin-top: 0.25rem;
 	}
 </style>

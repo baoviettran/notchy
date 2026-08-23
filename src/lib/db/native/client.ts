@@ -104,6 +104,10 @@ class NativeAccountOps implements AccountOps {
 	delete(id: string): Promise<void> {
 		return invoke<void>('account_delete', { id });
 	}
+
+	restore(id: string): Promise<void> {
+		return invoke<void>('account_restore', { id });
+	}
 }
 
 // ---------------------------------------------------------------------------

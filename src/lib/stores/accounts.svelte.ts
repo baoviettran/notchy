@@ -1,6 +1,8 @@
 import { getDb } from '$lib/db';
 import { isAssetType, type AccountWithBalance, type NewAccount, type AccountType } from '$lib/db/client';
 import { mapError } from '$lib/utils/errors';
+import { toast } from '$lib/stores/toast.svelte';
+import * as m from '$lib/paraglide/messages';
 
 class AccountsStore {
 	items = $state<AccountWithBalance[]>([]);
@@ -47,8 +49,23 @@ class AccountsStore {
 
 	async delete(id: string): Promise<void> {
 		const db = getDb();
+		// Capture for undo
+		const acc = await db.accounts.get(id);
 		await db.accounts.delete(id);
 		await this.load();
+
+		if (acc) {
+			toast.show(m.accounts_deleted_toast(), {
+				action: m.common_undo(),
+				duration: 5000,
+				onaction: async () => {
+					const db2 = getDb();
+					await db2.accounts.restore(id);
+					await this.load();
+					toast.show(m.accounts_restored_toast());
+				}
+			});
+		}
 	}
 }
 

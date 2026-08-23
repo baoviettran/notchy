@@ -13,5 +13,6 @@ export {
 	getBalanceAsOf,
 	createAccount,
 	updateAccount,
-	deleteAccount
+	deleteAccount,
+	restoreAccount
 } from '../browser/repos/accounts';

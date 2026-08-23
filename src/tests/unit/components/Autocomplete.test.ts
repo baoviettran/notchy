@@ -83,3 +83,53 @@ describe('Autocomplete render', () => {
 		expect(screen.getByText('Payee')).toBeInTheDocument();
 	});
 });
+
+describe('keyboard selection', () => {
+	it('opens and highlights the first option on ArrowDown', async () => {
+		render(Autocomplete, { options: OPTS });
+		const input = screen.getByRole('combobox');
+		await fireEvent.keyDown(input, { key: 'ArrowDown' });
+		expect(screen.getByRole('listbox')).toBeInTheDocument();
+		const opts = screen.getAllByRole('option');
+		await vi.waitFor(() => expect(input).toHaveAttribute('aria-activedescendant', opts[0].id));
+	});
+
+	it('selects the highlighted option with Enter', async () => {
+		const onselect = vi.fn();
+		render(Autocomplete, { options: OPTS, value: 'a1', onselect });
+		const input = screen.getByRole('combobox');
+		await fireEvent.keyDown(input, { key: 'ArrowDown' });
+		await fireEvent.keyDown(input, { key: 'ArrowDown' });
+		await fireEvent.keyDown(input, { key: 'Enter' });
+		expect(onselect).toHaveBeenCalledWith('b2');
+	});
+
+	it('moves the highlight with ArrowUp / Home / End', async () => {
+		render(Autocomplete, { options: OPTS });
+		const input = screen.getByRole('combobox');
+		const opts = () => screen.getAllByRole('option');
+		await fireEvent.keyDown(input, { key: 'End' });
+		await vi.waitFor(() => expect(input).toHaveAttribute('aria-activedescendant', opts()[1].id));
+		await fireEvent.keyDown(input, { key: 'Home' });
+		await vi.waitFor(() => expect(input).toHaveAttribute('aria-activedescendant', opts()[0].id));
+		await fireEvent.keyDown(input, { key: 'ArrowUp' });
+		await vi.waitFor(() => expect(input).toHaveAttribute('aria-activedescendant', opts()[1].id));
+	});
+
+	it('dismisses the listbox on Escape', async () => {
+		render(Autocomplete, { options: OPTS });
+		const input = screen.getByRole('combobox');
+		await fireEvent.keyDown(input, { key: 'ArrowDown' });
+		expect(screen.getByRole('listbox')).toBeInTheDocument();
+		await fireEvent.keyDown(input, { key: 'Escape' });
+		expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+	});
+
+	it('moves to the last option on ArrowUp from a closed list', async () => {
+		render(Autocomplete, { options: OPTS });
+		const input = screen.getByRole('combobox');
+		await fireEvent.keyDown(input, { key: 'ArrowUp' });
+		const opts = screen.getAllByRole('option');
+		await vi.waitFor(() => expect(input).toHaveAttribute('aria-activedescendant', opts[1].id));
+	});
+});

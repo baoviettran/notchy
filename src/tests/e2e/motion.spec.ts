@@ -59,7 +59,8 @@ test.describe('Popover origins', () => {
 		// The onboarding account gives the accounts page one row with a ⋮ menu.
 		await page.getByRole('link', { name: 'Accounts', exact: true }).click();
 		await expect(page.getByRole('heading', { name: 'Accounts' })).toBeVisible();
-		await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
+		// Kebab triggers are labeled "Actions: {name}"; the first account is "Test Checking".
+		await page.getByRole('button', { name: 'Actions: Test Checking' }).click();
 		const menu = page.getByRole('menu');
 		await expect(menu).toBeVisible();
 		// origin-top-right resolves to 100% of the element's own width, 0px.

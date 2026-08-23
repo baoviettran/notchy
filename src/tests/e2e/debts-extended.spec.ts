@@ -61,6 +61,20 @@ test.describe('debts — extended', () => {
 		await expect(main.getByText('No debts. You\'re debt-free!')).toBeVisible();
 	});
 
+	test('debt-free celebration: the badge is a designed phosphor lamp, not an emoji', async ({ onboardedPage: page }) => {
+		// A fresh app has no i-owe debts. The celebration badge is a phosphor
+		// ring with the ✓ glyph (debts/+page.svelte) — on-brand, aria-hidden,
+		// never a trailing emoji in the sentence.
+		await page.getByRole('link', { name: 'Debts', exact: true }).click();
+		const main = page.getByRole('main');
+		await expect(main.getByText('No debts. You\'re debt-free!')).toBeVisible();
+		const badge = main.locator('div.rounded-full[aria-hidden="true"]');
+		await expect(badge).toBeVisible();
+		await expect(badge).toHaveClass(/border-phosphor/);
+		await expect(badge).toHaveText('✓');
+		await expect(main.getByText('🎉')).toHaveCount(0);
+	});
+
 	test('i-owe: a loan_from_person account surfaces under "I Owe"', async ({ onboardedPage: page }) => {
 		await createLoanAccount(page, 'Loan from Person', 'Alice', 'Alice Debt');
 		await page.getByRole('link', { name: 'Debts', exact: true }).click();
@@ -114,7 +128,10 @@ test.describe('debts — extended', () => {
 		await page.getByRole('link', { name: 'Debts', exact: true }).click();
 		const main = page.getByRole('main');
 		await expect(main.getByText('500,000')).toBeVisible();
-		await main.locator('div.group', { hasText: 'Alice' }).getByRole('button', { name: 'Write off' }).click();
+		// Write off lives in the row's overflow menu (persistent kebab, no hover-gate).
+		const debtRow = main.locator('div.group', { hasText: 'Alice' });
+		await debtRow.getByRole('button', { name: 'Actions: Alice' }).click();
+		await debtRow.getByRole('menuitem', { name: 'Write off' }).click();
 		const modal = page.getByRole('dialog');
 		await expect(modal.getByRole('heading', { name: 'Write off debt' })).toBeVisible();
 		await modal.getByLabel('Amount').fill('500k');
@@ -132,11 +149,12 @@ test.describe('debts — extended', () => {
 		// the debts page reflects it.
 		await createLoanAccount(page, 'Loan from Person', 'Carol', 'Carol Debt');
 		await page.getByRole('link', { name: 'Accounts', exact: true }).click();
-		// Liability rows have a ContextMenu trigger (⋮ button) that opens a dropdown with Edit.
+		// Liability rows have a ContextMenu trigger (⋮) labeled "Actions: {name}"
+		// that opens a dropdown with Edit.
 		const liabilitiesRow = page.getByRole('main').locator('section', { hasText: 'Liabilities' }).locator('div.group', { hasText: 'Carol' });
-		const editButton = liabilitiesRow.getByRole('button', { name: /Edit/ });
-		await editButton.waitFor({ state: 'visible' });
-		await editButton.click();
+		const kebab = liabilitiesRow.getByRole('button', { name: 'Actions: Carol' });
+		await kebab.waitFor({ state: 'visible' });
+		await kebab.click();
 		const editMenuItem = page.getByRole('menuitem', { name: 'Edit' });
 		await editMenuItem.waitFor({ state: 'visible' });
 		await editMenuItem.click();

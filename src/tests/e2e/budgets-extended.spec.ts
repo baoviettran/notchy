@@ -85,8 +85,19 @@ test.describe('budgets — extended', () => {
 	test('empty-month banner offers Copy from previous', async ({ onboardedPage: page }) => {
 		// Navigate to next month (no allocations) → banner appears.
 		await page.getByRole('link', { name: 'Budgets', exact: true }).click();
-		await page.getByRole('button', { name: '▶' }).click();
+		await page.getByRole('button', { name: 'Next month' }).click();
 		// budgets/+page.svelte:69 budgets_no_budget_for_month = "No budget set for this month."
+		await expect(page.getByText('No budget set for this month.')).toBeVisible();
+		// No previous-month allocations exist, so "Copy from previous" is hidden.
+		await expect(page.getByRole('button', { name: 'Copy from previous' })).toHaveCount(0);
+	});
+
+	test('Copy from previous appears only when previous month has allocations', async ({ onboardedPage: page }) => {
+		// Create a budget in the current month so the NEXT month has something to copy.
+		await page.getByRole('link', { name: 'Budgets', exact: true }).click();
+		await allocateFirstBucket(page, '500000');
+		// Navigate to next month: empty, but previous month (current) has allocations.
+		await page.getByRole('button', { name: 'Next month' }).click();
 		await expect(page.getByText('No budget set for this month.')).toBeVisible();
 		await expect(page.getByRole('button', { name: 'Copy from previous' })).toBeVisible();
 	});
@@ -127,12 +138,12 @@ test.describe('budgets — extended', () => {
 
 		// Allocate 500k in the PREVIOUS month with no spend there → 500k surplus.
 		await page.getByRole('link', { name: 'Budgets', exact: true }).click();
-		await page.getByRole('button', { name: '◀' }).click();
+		await page.getByRole('button', { name: 'Previous month' }).click();
 		await allocateFirstBucket(page, '500000');
 		await expect(page.locator('main button.figures').first()).toContainText('500,000');
 
 		// Current month: allocation is independent (0 by default).
-		await page.getByRole('button', { name: '▶' }).click();
+		await page.getByRole('button', { name: 'Next month' }).click();
 		await expect(page.locator('main button.figures').first()).toContainText('₫0');
 
 		// Allocate 500k in the current month too. The prior 500k surplus rolls

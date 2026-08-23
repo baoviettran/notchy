@@ -38,4 +38,18 @@ describe('Select', () => {
 		const select = container.querySelector('select');
 		expect(select!.querySelectorAll('option')).toHaveLength(3);
 	});
+
+	it('shows error message and wires aria attributes when error provided', () => {
+		const { container } = render(Select, { options, label: 'Account', error: 'Select an account' });
+		const select = container.querySelector('select');
+		expect(screen.getByText('Select an account')).toBeInTheDocument();
+		expect(select).toHaveAttribute('aria-invalid', 'true');
+		expect(select).toHaveAttribute('aria-describedby');
+		expect(screen.getByRole('alert')).toHaveTextContent('Select an account');
+	});
+
+	it('does not set aria-invalid when error is empty', () => {
+		const { container } = render(Select, { options, error: '' });
+		expect(container.querySelector('select')).not.toHaveAttribute('aria-invalid');
+	});
 });

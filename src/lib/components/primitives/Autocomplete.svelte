@@ -23,6 +23,19 @@
 	const listboxId = `listbox-${Math.random().toString(36).slice(2, 9)}`;
 	const inputId = `ac-${Math.random().toString(36).slice(2, 9)}`;
 
+	let activeIndex = $state(-1);
+	const optionId = (i: number) => `${listboxId}-opt-${i}`;
+
+	function moveActive(delta: number) {
+		if (filtered.length === 0) return;
+		open = true;
+		// First press from a closed/unhighlighted list: ArrowDown → first,
+		// ArrowUp → last (WAI-ARIA combobox pattern). The naive modulo from
+		// -1 would map ArrowUp to N-2.
+		if (activeIndex < 0) activeIndex = delta < 0 ? filtered.length - 1 : 0;
+		else activeIndex = (activeIndex + delta + filtered.length) % filtered.length;
+	}
+
 	// The filter term: free-text filters on the live value; id mode filters on
 	// the transient query typed since focus.
 	let term = $derived(allowFreeText ? value : query);
@@ -34,7 +47,7 @@
 
 	let displayValue = $derived(options.find((o) => o.value === value)?.label ?? '');
 
-	function onFocus() { open = true; query = ''; }
+	function onFocus() { open = true; query = ''; activeIndex = -1; }
 	function onBlur() {
 		// Close on a short delay so an option click (mousedown) isn't pre-empted
 		// by the input blur. id mode discards the transient query; free-text
@@ -49,17 +62,29 @@
 			query = v;
 		}
 		open = true;
+		activeIndex = -1;
 	}
 
 	function select(opt: { value: string; label: string }) {
 		value = opt.value;
 		query = '';
 		open = false;
+		activeIndex = -1;
 		onselect(opt.value);
 	}
 
 	function onKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape') { open = false; inputEl?.blur(); }
+		if (e.key === 'Escape') { open = false; inputEl?.blur(); activeIndex = -1; }
+		else if (e.key === 'ArrowDown') { e.preventDefault(); moveActive(1); }
+		else if (e.key === 'ArrowUp') { e.preventDefault(); moveActive(-1); }
+		else if (e.key === 'Home') { e.preventDefault(); open = true; activeIndex = 0; }
+		else if (e.key === 'End') { e.preventDefault(); open = true; activeIndex = filtered.length - 1; }
+		else if (e.key === 'Enter') {
+			if (open && activeIndex >= 0 && filtered[activeIndex]) {
+				e.preventDefault();
+				select(filtered[activeIndex]);
+			}
+		}
 	}
 </script>
 
@@ -81,16 +106,19 @@
 		role="combobox"
 		aria-expanded={open}
 		aria-controls={listboxId}
+		aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
 		autocomplete="off"
 	/>
 	{#if open && filtered.length > 0}
 		<ul id={listboxId} class="absolute z-20 w-full mt-1 bg-tape border border-line rounded-lg shadow-lg max-h-48 overflow-y-auto origin-top animate-scale-in" role="listbox">
-			{#each filtered as opt}
+			{#each filtered as opt, i}
 				<li>
 					<button
 						type="button"
+						id={optionId(i)}
 						onmousedown={() => select(opt)}
-						class="w-full text-left px-3 py-2 text-sm hover:bg-line/40 transition-colors {opt.value === value ? 'text-phosphor font-medium' : 'text-ledger'}"
+						onmouseenter={() => { activeIndex = i; }}
+						class="w-full text-left px-3 py-2 text-sm transition-colors hover:bg-line/40 {i === activeIndex ? 'bg-line/40' : ''} {opt.value === value ? 'text-phosphor font-medium' : 'text-ledger'}"
 						role="option"
 						aria-selected={opt.value === value}
 					>{opt.label}</button>

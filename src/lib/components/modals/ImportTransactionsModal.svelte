@@ -2,6 +2,7 @@
   import { ImportStore } from '$lib/stores/import.svelte';
   import Modal from '$lib/components/primitives/Modal.svelte';
   import Button from '$lib/components/primitives/Button.svelte';
+  import Select from '$lib/components/primitives/Select.svelte';
   import * as m from '$lib/paraglide/messages';
   import { getDb } from '$lib/db';
   import { accounts } from '$lib/stores/accounts.svelte';
@@ -57,7 +58,7 @@
       const db = await getDb();
       store = new ImportStore(db, settings.currency);
       await store.loadFile(fileText, selectedAccountId);
-    } catch (e) {
+    } catch {
       errorMsg = m.import_tx_error_parse();
       store = null;
     } finally {
@@ -72,8 +73,6 @@
       const count = await store.commit();
       if (count > 0) {
         // Cross-window refresh: emit the existing event the layout listens for.
-        // In Tauri, @tauri-apps/api/event emit reaches other webviews; in the
-        // web/E2E build, dispatch a window event the same listener catches.
         try {
           if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
             const { emit } = await import('@tauri-apps/api/event');
@@ -89,7 +88,7 @@
       }
       open = false;
       reset();
-    } catch (e) {
+    } catch {
       errorMsg = m.import_tx_error_commit();
     } finally {
       loading = false;
@@ -109,35 +108,73 @@
   let invalidCount = $derived(store?.invalidCount ?? 0);
   let includedCount = $derived(store?.includedCount ?? 0);
 
-  // Column-role options for the editable mapping dropdowns
   const dateFormats = ['YYYY-MM-DD', 'DD/MM/YYYY', 'MM/DD/YYYY'] as const;
 
-  // Computed phase for template (helps TypeScript narrow store)
   let currentPhase = $derived(store ? store.phase : 'select');
+
+  // First data row's raw value for a column: every role dropdown shows what
+  // it actually points at instead of asking the user to trust headers.
+  function sampleFor(col: number | null): string | null {
+    if (col == null || !store) return null;
+    const raw = store.rows[0]?.raw?.[col];
+    const s = raw == null ? '' : String(raw).trim();
+    return s === '' ? null : s;
+  }
+
+  function columnOptions(s: ImportStore): { value: number | null; label: string }[] {
+    return [
+      { value: null, label: m.import_tx_mapping_ignore() },
+      ...s.headerRow.map((header, i) => ({ value: i as number | null, label: header || m.import_tx_column_fallback({ number: i + 1 }) }))
+    ];
+  }
+
+  type ColumnRole = 'date' | 'amount' | 'debit' | 'credit' | 'payee' | 'notes';
+  type RoleGroup = 'money' | 'detail';
+
+  function roleFields(s: ImportStore): { key: ColumnRole; label: string; col: number | null; group: RoleGroup }[] {
+    return [
+      { key: 'date', label: m.import_tx_mapping_date(), col: s.mapping.date, group: 'money' },
+      ...(s.mapping.signConvention === 'signed'
+        ? [{ key: 'amount' as const, label: m.import_tx_mapping_amount(), col: s.mapping.amount, group: 'money' as const }]
+        : [
+            { key: 'debit' as const, label: m.import_tx_mapping_debit(), col: s.mapping.debit, group: 'money' as const },
+            { key: 'credit' as const, label: m.import_tx_mapping_credit(), col: s.mapping.credit, group: 'money' as const }
+          ]),
+      { key: 'payee', label: m.import_tx_mapping_payee(), col: s.mapping.payee, group: 'detail' },
+      { key: 'notes', label: m.import_tx_mapping_notes(), col: s.mapping.notes, group: 'detail' }
+    ];
+  }
+
+  const signOptions = [
+    { value: 'signed', label: m.import_tx_mapping_sign_signed() },
+    { value: 'debit_credit_separate', label: m.import_tx_mapping_sign_separate() }
+  ];
+  const localeOptions = [
+    { value: 'en', label: m.import_tx_mapping_amount_locale_en() },
+    { value: 'vi', label: m.import_tx_mapping_amount_locale_vi() }
+  ];
+
+  const dateFormatOptions = dateFormats.map((f) => ({ value: f, label: f }));
 </script>
 
-<Modal bind:open title={m.import_tx_title()}>
+<Modal bind:open title={m.import_tx_title()} locked={loading}>
   {#if !store}
     <!-- Phase: select -->
     <div class="space-y-4">
-      <label class="block">
-        <span class="text-sm text-dim">{m.import_tx_select_account()}</span>
-        <select bind:value={selectedAccountId} class="mt-1 w-full bg-ink border border-line rounded-md px-3 py-2 text-sm text-ledger">
-          <option value="">—</option>
-          {#each activeAccounts as acc}
-            <option value={acc.id}>{acc.name}</option>
-          {/each}
-        </select>
-      </label>
+      <Select
+        label={m.import_tx_select_account()}
+        bind:value={selectedAccountId}
+        options={[{ value: '', label: '—' }, ...activeAccounts.map((acc) => ({ value: acc.id, label: acc.name }))]}
+      />
 
-      <label class="block">
-        <span class="text-sm text-dim">{m.import_tx_select_file()}</span>
+      <div class="space-y-1">
+        <span class="plate block">{m.import_tx_select_file()}</span>
         <input type="file" accept=".csv,text/csv" onchange={onFileChosen}
-          class="mt-1 block w-full text-sm text-dim file:mr-3 file:rounded-md file:border-0 file:bg-phosphor file:px-3 file:py-1.5 file:text-ink" />
-      </label>
+          class="block w-full text-sm text-dim file:mr-3 file:rounded-md file:border-0 file:bg-phosphor file:px-3 file:py-1.5 file:text-ink" />
+      </div>
 
       {#if errorMsg}
-        <p class="text-sm text-debit">{errorMsg}</p>
+        <p class="text-sm text-debit" role="alert">{errorMsg}</p>
       {/if}
 
       <div class="flex justify-end">
@@ -148,92 +185,56 @@
     </div>
   {:else}
     {@const s = store}
-    {#if s.phase === 'mapping'}
-      <!-- Phase: editable mapping -->
-      <div class="space-y-4">
-        <h3 class="text-sm text-ledger font-medium">{m.import_tx_mapping_heading()}</h3>
+    {#if currentPhase === 'mapping'}
+      <!-- Phase: editable mapping. Chunked into three labeled groups — money
+           columns (the ones that decide whether a row is valid), detail
+           columns, then formats. The sign convention sits above the money
+           grid it reshapes, so the mutation reads as cause then effect. -->
+      <div class="space-y-5">
+        <section class="space-y-3">
+          <h3 class="plate">{m.import_tx_group_money()}</h3>
+          <Select label={m.import_tx_mapping_sign()} bind:value={s.mapping.signConvention} options={signOptions} />
+          <div class="grid grid-cols-2 gap-x-4 gap-y-3">
+            {#each roleFields(s).filter((r) => r.group === 'money') as role (role.key)}
+              <div>
+                <Select
+                  label={role.label}
+                  bind:value={s.mapping[role.key]}
+                  options={columnOptions(s)}
+                />
+                {#if sampleFor(role.col)}
+                  <p class="mt-1 text-xs text-dim figures truncate">{m.import_tx_mapping_sample()}: {sampleFor(role.col)}</p>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        </section>
 
-        <!-- Sign convention toggle -->
-        <div class="grid grid-cols-2 gap-3">
-          <label class="block">
-            <span class="text-xs text-dim">{m.import_tx_mapping_sign()}</span>
-            <select bind:value={s.mapping.signConvention} class="mt-1 w-full bg-ink border border-line rounded-md px-2 py-1.5 text-sm text-ledger">
-              <option value="signed">{m.import_tx_mapping_sign_signed()}</option>
-              <option value="debit_credit_separate">{m.import_tx_mapping_sign_separate()}</option>
-            </select>
-          </label>
-        </div>
+        <section class="space-y-3 border-t border-line pt-4">
+          <h3 class="plate">{m.import_tx_group_detail()}</h3>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-3">
+            {#each roleFields(s).filter((r) => r.group === 'detail') as role (role.key)}
+              <div>
+                <Select
+                  label={role.label}
+                  bind:value={s.mapping[role.key]}
+                  options={columnOptions(s)}
+                />
+                {#if sampleFor(role.col)}
+                  <p class="mt-1 text-xs text-dim figures truncate">{m.import_tx_mapping_sample()}: {sampleFor(role.col)}</p>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        </section>
 
-        <!-- Column role dropdowns -->
-        <div class="grid grid-cols-2 gap-3">
-          <label class="block">
-            <span class="text-xs text-dim">{m.import_tx_mapping_date()}</span>
-            <select bind:value={s.mapping.date} class="mt-1 w-full bg-ink border border-line rounded-md px-2 py-1.5 text-sm text-ledger">
-              <option value={null}>{m.import_tx_mapping_ignore()}</option>
-              {#each s.headerRow as header, i}<option value={i}>{header || `Column ${i + 1}`}</option>{/each}
-            </select>
-          </label>
-
-          {#if s.mapping.signConvention === 'signed'}
-            <label class="block">
-              <span class="text-xs text-dim">{m.import_tx_mapping_amount()}</span>
-              <select bind:value={s.mapping.amount} class="mt-1 w-full bg-ink border border-line rounded-md px-2 py-1.5 text-sm text-ledger">
-                <option value={null}>{m.import_tx_mapping_ignore()}</option>
-                {#each s.headerRow as header, i}<option value={i}>{header || `Column ${i + 1}`}</option>{/each}
-              </select>
-            </label>
-          {:else}
-            <label class="block">
-              <span class="text-xs text-dim">{m.import_tx_mapping_debit()}</span>
-              <select bind:value={s.mapping.debit} class="mt-1 w-full bg-ink border border-line rounded-md px-2 py-1.5 text-sm text-ledger">
-                <option value={null}>{m.import_tx_mapping_ignore()}</option>
-                {#each s.headerRow as header, i}<option value={i}>{header || `Column ${i + 1}`}</option>{/each}
-              </select>
-            </label>
-
-            <label class="block">
-              <span class="text-xs text-dim">{m.import_tx_mapping_credit()}</span>
-              <select bind:value={s.mapping.credit} class="mt-1 w-full bg-ink border border-line rounded-md px-2 py-1.5 text-sm text-ledger">
-                <option value={null}>{m.import_tx_mapping_ignore()}</option>
-                {#each s.headerRow as header, i}<option value={i}>{header || `Column ${i + 1}`}</option>{/each}
-              </select>
-            </label>
-          {/if}
-
-          <label class="block">
-            <span class="text-xs text-dim">{m.import_tx_mapping_payee()}</span>
-            <select bind:value={s.mapping.payee} class="mt-1 w-full bg-ink border border-line rounded-md px-2 py-1.5 text-sm text-ledger">
-              <option value={null}>{m.import_tx_mapping_ignore()}</option>
-              {#each s.headerRow as header, i}<option value={i}>{header || `Column ${i + 1}`}</option>{/each}
-            </select>
-          </label>
-
-          <label class="block">
-            <span class="text-xs text-dim">{m.import_tx_mapping_notes()}</span>
-            <select bind:value={s.mapping.notes} class="mt-1 w-full bg-ink border border-line rounded-md px-2 py-1.5 text-sm text-ledger">
-              <option value={null}>{m.import_tx_mapping_ignore()}</option>
-              {#each s.headerRow as header, i}<option value={i}>{header || `Column ${i + 1}`}</option>{/each}
-            </select>
-          </label>
-        </div>
-
-        <!-- Format overrides -->
-        <div class="grid grid-cols-2 gap-3">
-          <label class="block">
-            <span class="text-xs text-dim">{m.import_tx_mapping_date_format()}</span>
-            <select bind:value={s.mapping.dateFormat} class="mt-1 w-full bg-ink border border-line rounded-md px-2 py-1.5 text-sm text-ledger">
-              {#each dateFormats as f}<option value={f}>{f}</option>{/each}
-            </select>
-          </label>
-
-          <label class="block">
-            <span class="text-xs text-dim">{m.import_tx_mapping_amount_locale()}</span>
-            <select bind:value={s.mapping.amountLocale} class="mt-1 w-full bg-ink border border-line rounded-md px-2 py-1.5 text-sm text-ledger">
-              <option value="en">{m.import_tx_mapping_amount_locale_en()}</option>
-              <option value="vi">{m.import_tx_mapping_amount_locale_vi()}</option>
-            </select>
-          </label>
-        </div>
+        <section class="space-y-3 border-t border-line pt-4">
+          <h3 class="plate">{m.import_tx_group_formats()}</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <Select label={m.import_tx_mapping_date_format()} bind:value={s.mapping.dateFormat} options={dateFormatOptions} />
+            <Select label={m.import_tx_mapping_amount_locale()} bind:value={s.mapping.amountLocale} options={localeOptions} />
+          </div>
+        </section>
 
         <p class="text-xs text-dim">
           {m.import_tx_summary({ count: newCount, duplicates: dupCount, invalid: invalidCount })}
@@ -246,7 +247,7 @@
           </Button>
         </div>
       </div>
-    {:else if s.phase === 'preview'}
+    {:else if currentPhase === 'preview'}
       <!-- Phase: preview -->
       <div class="space-y-4">
         <p class="text-sm text-dim">
@@ -254,26 +255,28 @@
         </p>
 
         {#if errorMsg}
-          <p class="text-sm text-debit">{errorMsg}</p>
+          <p class="text-sm text-debit" role="alert">{errorMsg}</p>
         {/if}
 
         <div class="max-h-96 overflow-y-auto border border-line rounded-md">
           <table class="w-full text-sm">
             <thead class="bg-ink sticky top-0">
-              <tr class="text-left text-xs text-dim">
-                <th class="p-2">{m.import_tx_col_include()}</th>
-                <th class="p-2">{m.import_tx_col_date()}</th>
-                <th class="p-2">{m.import_tx_col_payee()}</th>
-                <th class="p-2 text-right">{m.import_tx_col_amount()}</th>
-                <th class="p-2">{m.import_tx_col_status()}</th>
+              <tr class="text-left plate">
+                <th class="p-2 font-normal">{m.import_tx_col_include()}</th>
+                <th class="p-2 font-normal">{m.import_tx_col_date()}</th>
+                <th class="p-2 font-normal">{m.import_tx_col_payee()}</th>
+                <th class="p-2 text-right font-normal">{m.import_tx_col_amount()}</th>
+                <th class="p-2 font-normal">{m.import_tx_col_status()}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-line">
               {#each s.rows as row, i}
-                <tr class="{row.status === 'duplicate' ? 'opacity-50' : ''} {row.status === 'invalid' ? 'bg-debit/10' : ''}">
+                <tr class="{row.status !== 'new' ? 'opacity-50' : ''} {row.status === 'invalid' ? 'bg-debit/10' : ''}">
                   <td class="p-2">
+                    <!-- Only genuinely new rows are committable; duplicates and
+                          invalid rows are locked so a stray click can't double-book. -->
                     <input type="checkbox" bind:checked={s.rows[i].included}
-                      disabled={row.status === 'invalid'} />
+                      disabled={row.status !== 'new'} />
                   </td>
                   <td class="p-2 text-ledger">{row.date ?? '—'}</td>
                   <td class="p-2 text-ledger">{row.payee ?? '—'}</td>
@@ -298,7 +301,7 @@
           </Button>
         </div>
       </div>
-    {:else if s.phase === 'done'}
+    {:else if currentPhase === 'done'}
       <p class="text-sm text-ledger">{m.import_tx_done()}</p>
       <div class="flex justify-end mt-4">
         <Button onclick={() => { open = false; reset(); }}>{m.import_tx_done()}</Button>

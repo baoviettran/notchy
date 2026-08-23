@@ -6,6 +6,11 @@
 
 	let search = $state('');
 
+	// Bridge: track settings.locale in a local $state so Svelte re-renders
+	// the template (and re-evaluates m.*() calls) when the language changes.
+	let _locale = $state(settings.locale);
+	$effect(() => { _locale = settings.locale; });
+
 	function onSearchKeydown(event: KeyboardEvent) {
 		if (event.key === 'Enter') {
 			goto(transactionsSearchUrl(search));
@@ -22,13 +27,14 @@
 			placeholder={m.layout_search_placeholder()}
 			bind:value={search}
 			onkeydown={onSearchKeydown}
-			class="w-full pl-8 pr-3 py-1.5 text-sm rounded-md border border-line bg-ink text-ledger placeholder:text-dim/70"
+			class="w-full pl-8 pr-3 py-1.5 text-sm rounded-md border border-line bg-ink text-ledger placeholder:text-dim"
 		/>
 	</label>
 	<button
-		onclick={() => settings.setLocale(settings.locale === 'en' ? 'vi' : 'en')}
-		class="plate px-2 py-1 rounded border border-line text-dim hover:text-ledger"
+		onclick={() => settings.setLocale(_locale === 'en' ? 'vi' : 'en')}
+		aria-label={_locale === 'en' ? m.layout_lang_toggle_en() : m.layout_lang_toggle_vi()}
+		class="plate px-2 py-2 rounded border border-line text-dim hover:text-ledger"
 	>
-		{settings.locale === 'en' ? 'VI' : 'EN'}
+		{_locale === 'en' ? m.layout_lang_label_vi() : m.layout_lang_label_en()}
 	</button>
 </header>

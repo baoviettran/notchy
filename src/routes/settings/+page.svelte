@@ -2,8 +2,8 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import Button from '$lib/components/primitives/Button.svelte';
 	import Select from '$lib/components/primitives/Select.svelte';
+	import Button from '$lib/components/primitives/Button.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { tour } from '$lib/stores/tour.svelte';
 	import { getDb } from '$lib/db';
@@ -20,12 +20,8 @@
 		settings.setTheme(theme);
 	}
 
-	// Paraglide's m.*() calls are not reactive to Svelte's render cycle, so the
-	// page text only re-renders on a fresh load. Persist the new locale, then
-	// reload so all text updates immediately. (setTheme IS reactive — no reload.)
 	async function setLocale(locale: 'en' | 'vi') {
 		await settings.setLocale(locale);
-		globalThis.location.reload();
 	}
 
 	let quickAccountId = $state<string>('');
@@ -100,25 +96,28 @@
 		</a>
 		<div class="bg-tape rounded-lg border border-line p-4">
 			<div class="plate mb-2">{m.settings_theme()}</div>
-			<div class="flex gap-2">
+			<div class="flex gap-2" role="group" aria-label={m.settings_theme()}>
 				{#each ['auto', 'light', 'dark'] as theme}
 					<button
-						onclick={() => setTheme(theme as any)}
-						class="px-3 py-1.5 text-sm rounded-md border transition-colors {settings.theme === theme ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
+						onclick={() => setTheme(theme as 'auto' | 'light' | 'dark')}
+						aria-pressed={settings.theme === theme}
+						class="px-3 py-2.5 text-sm rounded-md border transition-colors {settings.theme === theme ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
 					>{themeLabels[theme as keyof typeof themeLabels]()}</button>
 				{/each}
 			</div>
 		</div>
 		<div class="bg-tape rounded-lg border border-line p-4">
-			<div class="plate mb-1">{m.settings_language()}</div>
-			<div class="flex gap-2">
+			<div class="plate mb-2">{m.settings_language()}</div>
+			<div class="flex gap-2" role="group" aria-label={m.settings_language()}>
 				<button
 					onclick={() => setLocale('en')}
-					class="px-3 py-1.5 text-sm rounded-md border transition-colors {settings.locale === 'en' ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
+					aria-pressed={settings.locale === 'en'}
+					class="px-3 py-2.5 text-sm rounded-md border transition-colors {settings.locale === 'en' ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
 				>{m.lang_english()}</button>
 				<button
 					onclick={() => setLocale('vi')}
-					class="px-3 py-1.5 text-sm rounded-md border transition-colors {settings.locale === 'vi' ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
+					aria-pressed={settings.locale === 'vi'}
+					class="px-3 py-2.5 text-sm rounded-md border transition-colors {settings.locale === 'vi' ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
 				>{m.lang_vietnamese()}</button>
 			</div>
 		</div>
@@ -131,16 +130,13 @@
 				disabled={!quickAccountLoaded}
 			/>
 			{#if quickAccountError}
-				<div class="text-xs text-phosphor mt-2">{quickAccountError}</div>
+				<div class="text-xs text-debit mt-2">{quickAccountError}</div>
 			{/if}
 		</div>
 		<div class="bg-tape rounded-lg border border-line p-4">
 			<div class="font-medium text-ledger">{m.tour_replay()}</div>
 			<div class="text-sm text-dim mb-3">{m.tour_replay_desc()}</div>
-			<button
-				onclick={replayTour}
-				class="px-3 py-1.5 text-sm rounded-md bg-phosphor text-ink font-medium hover:bg-phosphor-bright transition-colors"
-			>{m.tour_replay()}</button>
+			<Button size="sm" onclick={replayTour}>{m.tour_replay()}</Button>
 		</div>
 		<div class="bg-tape rounded-lg border border-line p-4">
 			<div class="text-xs text-dim">{m.settings_version()}</div>

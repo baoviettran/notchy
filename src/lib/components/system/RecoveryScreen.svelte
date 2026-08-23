@@ -95,6 +95,7 @@
 			title={m.recovery_restore_confirm_title()}
 			message={m.recovery_restore_confirm_message({ path: context.liveDatabasePath })}
 			confirmLabel={m.recovery_restore()}
+			danger={true}
 			onconfirm={onrestore}
 		/>
 	{/if}

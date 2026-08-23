@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Input from '$lib/components/primitives/Input.svelte';
 	import Modal from '$lib/components/primitives/Modal.svelte';
 	import Button from '$lib/components/primitives/Button.svelte';
 	import TransactionForm from '$lib/components/forms/TransactionForm.svelte';
@@ -11,17 +10,34 @@
 	import { formatCurrency } from '$lib/utils/currency';
 	import { formatDateRelative } from '$lib/utils/date';
 	import { labelFor } from '$lib/utils/tx-kind';
-	import type { Transaction } from '$lib/db/repos/transactions';
 	import * as m from '$lib/paraglide/messages';
 	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
+	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
+	import ConfirmDialog from '$lib/components/primitives/ConfirmDialog.svelte';
 	import ContextMenu from '$lib/components/primitives/ContextMenu.svelte';
 	import ImportTransactionsModal from '$lib/components/modals/ImportTransactionsModal.svelte';
+	import Select from '$lib/components/primitives/Select.svelte';
+	import Input from '$lib/components/primitives/Input.svelte';
+	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
+	import { accounts } from '$lib/stores/accounts.svelte';
+	import { categories } from '$lib/stores/categories.svelte';
+	import type { Transaction, TransactionKind } from '$lib/db/repos/transactions';
 
 	let search = $state($page.url.searchParams.get('q') ?? '');
+
+	// Filter chips — empty string means "no constraint". They feed straight
+	// into TransactionFilter so filtering happens in SQL, never client-side.
+	let filterKind = $state('');
+	let filterAccount = $state('');
+	let filterTag = $state('');
+	let filterMonth = $state('');
 
 	let editing = $state<Transaction | null>(null);
 	let showEditModal = $state(false);
 	let showImport = $state(false);
+	let showFilters = $state(false);
+	let showDeleteConfirm = $state(false);
+	let pendingDeleteId = $state<string | null>(null);
 	let pageNum = $state(0);
 	let hasNextPage = $state(false);
 	const PAGE_SIZE = 50;
@@ -34,30 +50,78 @@
 	// payee autocomplete; truncating it here corrupts those views.
 	let displayItems = $derived(transactions.items.slice(0, PAGE_SIZE));
 
+	// Any constraint beyond search is active → offer a one-click exit.
+	let hasActiveFilters = $derived(Boolean(filterKind || filterAccount || filterTag || filterMonth));
+	let activeFilterCount = $derived([filterKind, filterAccount, filterTag, filterMonth].filter(Boolean).length);
+
+	function clearFilters() {
+		filterKind = '';
+		filterAccount = '';
+		filterTag = '';
+		filterMonth = '';
+	}
+
+	// Honest match count: the store holds PAGE_SIZE+1 rows, so an exact total
+	// is only knowable when there is no next page — otherwise show "N+".
+	let countLine = $derived.by(() => {
+		if (hasNextPage) return m.transactions_count_more({ count: (pageNum + 1) * PAGE_SIZE });
+		const total = pageNum * PAGE_SIZE + displayItems.length;
+		return total === 0 ? m.transactions_count_none() : m.transactions_count_many({ count: total });
+	});
+
 	async function loadPage() {
 		await transactions.load({
 			query: search || undefined,
+			kind: (filterKind || undefined) as TransactionKind | undefined,
+			account_id: filterAccount || undefined,
+			tag_id: filterTag || undefined,
+			date_from: filterMonth ? `${filterMonth}-01` : undefined,
+			date_to: filterMonth ? monthEnd(filterMonth) : undefined,
 			limit: PAGE_SIZE + 1,
 			offset: pageNum * PAGE_SIZE
 		});
 		hasNextPage = transactions.items.length > PAGE_SIZE;
 	}
 
-	onMount(loadPage);
-
-	async function onSearch() {
-		pageNum = 0;
-		await loadPage();
+	function monthEnd(ym: string): string {
+		const [y, mo] = ym.split('-').map(Number);
+		return new Date(Date.UTC(y, mo, 0)).toISOString().split('T')[0];
 	}
+
+	onMount(() => {
+		void accounts.load();
+		void categories.load();
+	});
+
+	let lastFilterKey = '';
+	// Re-queries whenever search (URL-driven) or any filter chip changes.
+	// The key comparison keeps the effect from re-triggering off the state
+	// it writes back (`search`) or off paging (`pageNum`).
+	$effect(() => {
+		const q = $page.url.searchParams.get('q') ?? '';
+		const key = [q, filterKind, filterAccount, filterTag, filterMonth].join('|');
+		if (key === lastFilterKey) return;
+		lastFilterKey = key;
+		if (q !== search) search = q;
+		pageNum = 0;
+		void loadPage();
+	});
 
 	function openEdit(tx: Transaction) {
 		editing = tx;
 		showEditModal = true;
 	}
 
-	async function doDelete(tx: Transaction) {
-		await transactions.delete(tx.id);
+	function confirmDelete(tx: Transaction) {
+		pendingDeleteId = tx.id;
+		showDeleteConfirm = true;
+	}
+
+	async function doDelete() {
+		if (!pendingDeleteId) return;
+		await transactions.delete(pendingDeleteId);
 		await loadPage();
+		pendingDeleteId = null;
 	}
 
 	async function doDuplicate(tx: Transaction) {
@@ -73,23 +137,77 @@
 <div class="space-y-4">
 	<h1 class="figures text-xl text-ledger tracking-wide">{m.transactions_title()}</h1>
 
-	<div class="flex gap-2">
-		<div class="flex-1">
-			<Input type="search" placeholder={m.transactions_search_placeholder()} bind:value={search} />
-		</div>
+	<!-- One action row: filters stay behind a toggle (with an active count)
+	     until they matter, and Import stops floating in its own region. -->
+	<div class="flex items-center gap-2">
+		<Button
+			size="sm"
+			variant={activeFilterCount > 0 ? 'primary' : 'secondary'}
+			onclick={() => showFilters = !showFilters}
+		>
+			{m.transactions_filters()}
+			{#if activeFilterCount > 0}
+				<span class="figures ml-1.5 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full text-[11px] bg-ink/20">{activeFilterCount}</span>
+			{/if}
+		</Button>
 		<Button size="sm" variant="secondary" onclick={() => showImport = true}>{m.import_tx_title()}</Button>
-		<Button size="sm" onclick={onSearch}>{m.common_search()}</Button>
 	</div>
 
-	{#if displayItems.length > 0}
-		<p class="text-xs text-dim">
-			{displayItems.length === 0 ? m.transactions_count_none() : m.transactions_count_many({ count: displayItems.length })}
-		</p>
+	{#if showFilters || activeFilterCount > 0}
+		<div class="flex flex-wrap gap-3">
+			<div class="w-44">
+				<Select
+					label={m.transactions_filter_kind()}
+					bind:value={filterKind}
+					options={[
+						{ value: '', label: m.transactions_filter_all_kinds() },
+						{ value: 'expense', label: m.forms_expense() },
+						{ value: 'income', label: m.forms_income() },
+						{ value: 'transfer', label: m.forms_transfer() },
+						{ value: 'refund', label: m.forms_refund() },
+						{ value: 'adjustment', label: m.forms_adjustment() }
+					]}
+				/>
+			</div>
+			<div class="w-44">
+				<Select
+					label={m.transactions_filter_account()}
+					bind:value={filterAccount}
+					options={[{ value: '', label: m.transactions_filter_all_accounts() }, ...accounts.items.map((a) => ({ value: a.id, label: a.name }))]}
+				/>
+			</div>
+			<div class="w-44">
+				<Select
+					label={m.transactions_filter_tag()}
+					bind:value={filterTag}
+					options={[{ value: '', label: m.transactions_filter_all_tags() }, ...categories.tags.map((t) => ({ value: t.id, label: t.name }))]}
+				/>
+			</div>
+			<div class="w-44">
+				<Input type="month" label={m.transactions_filter_month()} bind:value={filterMonth} />
+			</div>
+		</div>
 	{/if}
 
-	<div class="bg-tape rounded-lg border border-line divide-y divide-line">
-		{#if displayItems.length === 0}
-			<EmptyState message={m.transactions_empty_state()} icon="▮▯▯▯" />
+	{#if transactions.loading}
+		<div class="bg-tape rounded-lg border border-line p-4">
+			<Skeleton lines={6} />
+		</div>
+	{:else if transactions.error}
+		<ErrorState description={transactions.error} onRetry={loadPage} />
+	{:else}
+		{#if displayItems.length > 0 || hasActiveFilters}
+			<div class="flex items-center justify-between gap-2">
+				<p class="text-xs text-dim">{countLine}</p>
+				{#if hasActiveFilters}
+					<Button variant="ghost" size="sm" onclick={clearFilters}>{m.transactions_filter_clear()}</Button>
+				{/if}
+			</div>
+		{/if}
+
+		<div class="bg-tape rounded-lg border border-line divide-y divide-line">
+			{#if displayItems.length === 0}
+				<EmptyState message={m.transactions_empty_state()} icon="▮▯▯▯" />
 		{:else}
 			{#each displayItems as tx}
 				<div class="p-4 flex items-center justify-between group">
@@ -103,26 +221,38 @@
 						<div class="text-xs text-dim">{formatDateRelative(tx.date, settings.locale)} · {labelFor(tx.kind)}</div>
 					</button>
 					<span class="figures text-sm mr-3 {tx.kind === 'expense' ? 'text-debit' : tx.kind === 'income' ? 'text-phosphor' : 'text-dim'}">
-						{tx.kind === 'expense' ? '-' : ''}{formatCurrency(tx.amount, settings.currency, settings.locale)}
+						{tx.kind === 'expense' ? '−' : tx.kind === 'income' ? '+' : ''}{formatCurrency(tx.amount, settings.currency, settings.locale)}
 					</span>
-					<ContextMenu label={m.transactions_duplicate() + ' · ' + m.common_delete()}>
+					<ContextMenu label={m.common_actions_for({ name: tx.payee || labelFor(tx.kind) })}>
 						<button onclick={() => doDuplicate(tx)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-ledger hover:bg-line/40">{m.transactions_duplicate()}</button>
-						<button onclick={() => doDelete(tx)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.common_delete()}</button>
+						<button onclick={() => confirmDelete(tx)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.common_delete()}</button>
 					</ContextMenu>
 				</div>
 			{/each}
 		{/if}
 	</div>
 
-	<div class="flex justify-between items-center text-sm">
-		<Button variant="ghost" size="sm" disabled={pageNum === 0} onclick={prevPage}>{m.transactions_previous()}</Button>
-		<span class="text-dim">{m.transactions_page({ page: pageNum + 1 })}</span>
-		<Button variant="ghost" size="sm" disabled={!hasNextPage} onclick={nextPage}>{m.transactions_next()}</Button>
-	</div>
+	{#if pageNum > 0 || hasNextPage}
+		<div class="flex justify-between items-center text-sm">
+			<Button variant="ghost" size="sm" disabled={pageNum === 0} onclick={prevPage}>{m.transactions_previous()}</Button>
+			<span class="text-dim">{m.transactions_page({ page: pageNum + 1 })}</span>
+			<Button variant="ghost" size="sm" disabled={!hasNextPage} onclick={nextPage}>{m.transactions_next()}</Button>
+		</div>
+	{/if}
 
 	<ImportTransactionsModal bind:open={showImport} />
+	{/if}
 </div>
 
 <Modal bind:open={showEditModal} title={m.transactions_edit()}>
 	<TransactionForm existing={editing} onclose={() => showEditModal = false} onsave={loadPage} />
 </Modal>
+
+<ConfirmDialog
+	open={showDeleteConfirm}
+	title={m.transactions_delete_confirm_title()}
+	message={m.transactions_delete_confirm_body()}
+	confirmLabel={m.common_delete()}
+	danger={true}
+	onconfirm={doDelete}
+/>

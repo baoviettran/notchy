@@ -36,6 +36,30 @@
 	let transferAccountId = $state(existing?.transfer_account_id ?? '');
 	let saving = $state(false);
 	let error = $state('');
+	let amountError = $state('');
+	let accountError = $state('');
+	let transferError = $state('');
+	let showAdvancedKinds = $state(false);
+
+	// Field-level validation errors clear themselves once the offending field
+	// changes from the value that failed. Snapshots record what each field
+	// held when the error was raised; `error` above stays reserved for
+	// failures returned by the persistence layer.
+	let amountAtError = '';
+	let accountAtError = '';
+	let transferAtError = '';
+
+	function flagField(field: 'amount' | 'account' | 'transfer', message: string) {
+		if (field === 'amount') { amountError = message; amountAtError = amount; }
+		if (field === 'account') { accountError = message; accountAtError = accountId; }
+		if (field === 'transfer') { transferError = message; transferAtError = transferAccountId; }
+	}
+
+	$effect(() => {
+		if (amountError && amount !== amountAtError) amountError = '';
+		if (accountError && accountId !== accountAtError) accountError = '';
+		if (transferError && transferAccountId !== transferAtError) transferError = '';
+	});
 
 	let suggestedTag = $derived(rules.matchTag(payee));
 
@@ -80,6 +104,9 @@
 		{ value: 'adjustment', label: m.forms_adjustment() }
 	];
 
+	const primaryKinds = kinds.filter((k) => k.value === 'expense' || k.value === 'income');
+	const advancedKinds = kinds.filter((k) => k.value !== 'expense' && k.value !== 'income');
+
 	let accountOptions = $derived(accounts.items.map((a) => ({ value: a.id, label: a.name })));
 	let tagOptions = $derived(categories.tags.map((t) => ({ value: t.id, label: t.name })));
 	let payeeOptions = $derived(
@@ -91,16 +118,19 @@
 	async function save() {
 		if (saving) return;
 		error = '';
+		amountError = '';
+		accountError = '';
+		transferError = '';
 		let parsedAmount: number;
 		try {
 			parsedAmount = parseAmount(amount, settings.locale, settings.currency);
 		} catch {
-			error = m.validation_invalid_amount();
+			flagField('amount', m.validation_invalid_amount());
 			return;
 		}
-		if (!accountId) { error = m.forms_select_account(); return; }
-		if (kind === 'transfer' && !transferAccountId) { error = m.forms_select_destination(); return; }
-		if (kind === 'transfer' && transferAccountId === accountId) { error = m.validation_source_dest_differ(); return; }
+		if (!accountId) { flagField('account', m.forms_select_account()); return; }
+		if (kind === 'transfer' && !transferAccountId) { flagField('transfer', m.forms_select_destination()); return; }
+		if (kind === 'transfer' && transferAccountId === accountId) { flagField('transfer', m.validation_source_dest_differ()); return; }
 
 		saving = true;
 		try {
@@ -157,24 +187,43 @@
 		<p class="text-sm text-debit">{error}</p>
 	{/if}
 
-	<!-- AMOUNT: primary input, autofocus -->
-	<Input label={m.common_amount()} bind:value={amount} placeholder={m.forms_amount_placeholder()} autofocus />
+		<!-- AMOUNT: primary input, autofocus -->
+	<Input label={m.common_amount()} bind:value={amount} placeholder={m.forms_amount_placeholder()} error={amountError} autofocus />
 
-	<!-- KIND: secondary toggle -->
-	<div class="flex flex-wrap gap-2">
-		{#each kinds as k}
-			<button onclick={() => kind = k.value as TransactionKind} disabled={isEdit}
-				class="px-3 py-1.5 text-sm rounded-md border transition-colors {kind === k.value ? 'border-phosphor bg-phosphor/10 text-phosphor-bright font-medium' : 'border-line text-dim hover:text-ledger'} {isEdit ? 'cursor-not-allowed opacity-60' : ''}"
-			>{k.label}</button>
-		{/each}
+	<!-- KIND: secondary toggle with progressive disclosure -->
+	<div class="space-y-2" role="group" aria-label={m.forms_kind_group()}>
+		<div class="flex flex-wrap gap-2">
+			{#each primaryKinds as k}
+				<button onclick={() => kind = k.value as TransactionKind} disabled={isEdit}
+					aria-pressed={kind === k.value}
+					class="px-3 py-1.5 text-sm rounded-md border transition-colors {kind === k.value ? 'border-phosphor bg-phosphor/10 text-phosphor-bright font-medium' : 'border-line text-dim hover:text-ledger'} {isEdit ? 'cursor-not-allowed opacity-60' : ''}"
+				>{k.label}</button>
+			{/each}
+			{#if advancedKinds.some((k) => !showAdvancedKinds || kind !== k.value)}
+				<button onclick={() => showAdvancedKinds = !showAdvancedKinds} disabled={isEdit}
+					aria-expanded={showAdvancedKinds}
+					class="px-3 py-1.5 text-xs text-dim hover:text-ledger transition-colors {isEdit ? 'cursor-not-allowed opacity-60' : ''}"
+				>{m.forms_more_kinds()}</button>
+			{/if}
+		</div>
+		{#if showAdvancedKinds}
+			<div class="flex flex-wrap gap-2 pt-1 border-t border-line/50">
+				{#each advancedKinds as k}
+					<button onclick={() => kind = k.value as TransactionKind} disabled={isEdit}
+						aria-pressed={kind === k.value}
+						class="px-3 py-1.5 text-sm rounded-md border transition-colors {kind === k.value ? 'border-phosphor bg-phosphor/10 text-phosphor-bright font-medium' : 'border-line text-dim hover:text-ledger'} {isEdit ? 'cursor-not-allowed opacity-60' : ''}"
+					>{k.label}</button>
+				{/each}
+			</div>
+		{/if}
 	</div>
 
 	<!-- ACCOUNT/TAG -->
 	{#if kind === 'transfer'}
-		<Select label={m.forms_from_account()} bind:value={accountId} options={accountOptions} disabled={isEdit} />
-		<Select label={m.forms_to_account()} bind:value={transferAccountId} options={accountOptions} disabled={isEdit} />
+		<Select label={m.forms_from_account()} bind:value={accountId} options={accountOptions} disabled={isEdit} error={accountError} />
+		<Select label={m.forms_to_account()} bind:value={transferAccountId} options={accountOptions} disabled={isEdit} error={transferError} />
 	{:else}
-		<Select label={m.forms_account()} bind:value={accountId} options={accountOptions} disabled={isEdit} />
+		<Select label={m.forms_account()} bind:value={accountId} options={accountOptions} disabled={isEdit} error={accountError} />
 		<Autocomplete label={m.forms_tag()} bind:value={tagId} options={tagOptions} placeholder={m.forms_search_tags_placeholder()} />
 		{#if suggestedTag && tagId === suggestedTag}
 			<span class="text-xs text-dim mt-1">{m.forms_tag_auto()}</span>

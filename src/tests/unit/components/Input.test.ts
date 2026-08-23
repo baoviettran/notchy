@@ -15,8 +15,18 @@ describe('Input', () => {
 	});
 
 	it('renders error message when provided', () => {
-		render(Input, { error: 'Required field' });
+		render(Input, { error: 'Required field', id: 'err-field' });
+		const input = document.getElementById('err-field');
 		expect(screen.getByText('Required field')).toBeInTheDocument();
+		expect(input).toHaveAttribute('aria-invalid', 'true');
+		expect(input).toHaveAttribute('aria-describedby', 'err-field-error');
+		expect(screen.getByText('Required field')).toHaveAttribute('id', 'err-field-error');
+		expect(screen.getByRole('alert')).toHaveTextContent('Required field');
+	});
+
+	it('does not set aria-invalid when error is empty', () => {
+		render(Input, { error: '', id: 'no-err' });
+		expect(document.getElementById('no-err')).not.toHaveAttribute('aria-invalid');
 	});
 
 	it('does not render error paragraph when error is empty', () => {

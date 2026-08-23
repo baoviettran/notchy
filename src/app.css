@@ -32,6 +32,15 @@
 		--phosphor: #FFB454;
 		--phosphor-bright: #FFD79A;
 		--debit: #E5484D;
+
+		--ink-rgb: 20 17 12;
+		--tape-rgb: 28 24 18;
+		--ledger-rgb: 214 207 192;
+		--dim-rgb: 138 129 112;
+		--line-rgb: 128 119 99;
+		--phosphor-rgb: 255 180 84;
+		--phosphor-bright-rgb: 255 215 154;
+		--debit-rgb: 229 72 77;
 	}
 
 	html.light {
@@ -47,9 +56,18 @@
 		/* Phosphor-bright collapsed to phosphor in light: as a bare accent
 		   #D99935 managed only 2.31:1 — it's used for active nav and selected
 		   toggles, so it needs the same contrast as phosphor itself. */
-		--phosphor: #B8721A;
-		--phosphor-bright: #B8721A;
+		--phosphor: #9A5700;
+		--phosphor-bright: #9A5700;
 		--debit: #C23B3F;
+
+		--ink-rgb: 244 239 226;
+		--tape-rgb: 251 248 241;
+		--ledger-rgb: 31 27 20;
+		--dim-rgb: 107 99 83;
+		--line-rgb: 154 140 110;
+		--phosphor-rgb: 154 87 0;
+		--phosphor-bright-rgb: 154 87 0;
+		--debit-rgb: 194 59 63;
 	}
 
 	html {
@@ -108,13 +126,9 @@
 }
 
 @layer components {
-	/* Single card recipe so hierarchy is consistent across screens. */
 	.surface {
 		background-color: var(--tape);
 		border: 1px solid var(--line);
-	}
-	.hairline {
-		border-color: var(--line);
 	}
 }
 
@@ -155,4 +169,19 @@
 	.figures-glow {
 		text-shadow: none;
 	}
+}
+
+/* The keypress flash is phosphor glow — paper doesn't glow. Light mode keeps
+   the toast's slide-up entrance but skips the flicker. */
+html.light .animate-flash {
+	animation: none;
+}
+
+/* The FAB's phosphor halo follows the same rule: bloom belongs to the dark
+   casing; paper gets an ordinary ink shadow for lift. */
+:root:not(.light) .fab-halo {
+	box-shadow: 0 0 0 1px rgb(var(--phosphor-rgb) / 0.3), 0 8px 24px -4px rgb(var(--phosphor-rgb) / 0.5);
+}
+html.light .fab-halo {
+	box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.3);
 }

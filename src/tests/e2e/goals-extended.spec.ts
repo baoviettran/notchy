@@ -86,7 +86,7 @@ test.describe('goals — extended', () => {
 	test('edit a goal: target amount change persists', async ({ onboardedPage: page }) => {
 		await createGoal(page, 'Edit Me', '1m', '2027-12-31');
 		// Open edit via the goal name button (goals/+page.svelte:62).
-		await page.getByRole('main').getByRole('button', { name: 'Edit Me' }).click();
+		await page.getByRole('main').getByRole('button', { name: 'Edit Me', exact: true }).click();
 		const editModal = page.getByRole('dialog');
 		await expect(editModal.getByRole('heading', { name: 'Edit goal' })).toBeVisible();
 		// Type Select is disabled in edit mode (GoalForm.svelte:69) — analogous
@@ -107,7 +107,9 @@ test.describe('goals — extended', () => {
 		await createGoal(page, 'Late Goal', '10m', '2020-01-01');
 		const card = page.getByRole('main').locator('div.bg-tape.rounded-lg', { hasText: 'Late Goal' });
 		await expect(card.getByText('Overdue')).toBeVisible();
-		await card.getByRole('button', { name: 'Mark complete' }).click();
+		// Actions live in the row's overflow menu (persistent kebab).
+		await card.getByRole('button', { name: 'Actions: Late Goal' }).click();
+		await page.getByRole('menuitem', { name: 'Mark complete' }).click();
 		// Toast confirms.
 		await expect(page.getByText('Goal marked complete.')).toBeVisible();
 		// The goal leaves Active and appears under Completed with a ✓.
@@ -141,7 +143,9 @@ test.describe('goals — extended', () => {
 		// to remove a goal was the store API (no UI).
 		await createGoal(page, 'Delete Me', '1m', '2027-12-31');
 		const card = page.getByRole('main').locator('div.group', { hasText: 'Delete Me' });
-		await card.getByRole('button', { name: 'Delete', exact: true }).click();
+		// Delete lives in the row's overflow menu (persistent kebab).
+		await card.getByRole('button', { name: 'Actions: Delete Me' }).click();
+		await page.getByRole('menuitem', { name: 'Delete', exact: true }).click();
 		// ConfirmDialog (role=dialog after the a11y fix) → confirm.
 		const confirm = page.getByRole('dialog');
 		await expect(confirm.getByText('Delete goal?')).toBeVisible();
@@ -157,7 +161,8 @@ test.describe('goals — extended', () => {
 		// can be completed manually. No auto-complete at 100% by design.
 		await createGoal(page, 'Finishable', '1m', '2027-12-31');
 		const card = page.getByRole('main').locator('div.group', { hasText: 'Finishable' });
-		await card.getByRole('button', { name: 'Mark complete' }).click();
+		await card.getByRole('button', { name: 'Actions: Finishable' }).click();
+		await page.getByRole('menuitem', { name: 'Mark complete' }).click();
 		await expect(page.getByText('Goal marked complete.')).toBeVisible();
 		// Moves to the Completed section.
 		const completedSection = page.getByRole('main').locator('section', { hasText: 'Completed' });

@@ -17,11 +17,11 @@ class SettingsStore {
 		this.applyThemeClass();
 	}
 
-	async setLocale(locale: Locale): Promise<void> {
+	async setLocale(newLocale: Locale): Promise<void> {
 		const db = getDb();
-		await db.meta.set('locale', locale);
-		this.locale = locale;
-		setLanguageTag(locale);
+		await db.meta.set('locale', newLocale);
+		this.locale = newLocale;
+		setLanguageTag(newLocale);
 	}
 
 	async setCurrency(currency: string): Promise<void> {

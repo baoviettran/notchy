@@ -50,21 +50,6 @@
 		{m.reports_include_adjustments()}
 	</label>
 
-	<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-		<a href="/reports/net-worth" class="bg-tape rounded-lg border border-line p-4 hover:border-phosphor/50 transition-colors">
-			<p class="plate">{m.reports_net_worth()}</p>
-		</a>
-		<a href="/reports/category" class="bg-tape rounded-lg border border-line p-4 hover:border-phosphor/50 transition-colors">
-			<p class="plate">{m.reports_category_trend()}</p>
-		</a>
-		<a href="/reports/composition" class="bg-tape rounded-lg border border-line p-4 hover:border-phosphor/50 transition-colors">
-			<p class="plate">{m.reports_composition()}</p>
-		</a>
-		<a href="/reports/yoy" class="bg-tape rounded-lg border border-line p-4 hover:border-phosphor/50 transition-colors">
-			<p class="plate">{m.reports_year_over_year()}</p>
-		</a>
-	</div>
-
 	{#if report}
 		<div class="grid md:grid-cols-3 gap-4">
 			<div class="bg-tape rounded-lg border border-line p-4">

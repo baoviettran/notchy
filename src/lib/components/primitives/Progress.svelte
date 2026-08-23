@@ -1,26 +1,40 @@
 <script lang="ts">
-	let { value = 0, max = 100, size = 'md', segments = 20 }: {
-		value?: number; max?: number; size?: 'sm' | 'md'; segments?: number;
+	import * as m from '$lib/paraglide/messages';
+
+	let { value = 0, max = 100, size = 'md', segments = 20, label = '' }: {
+		value?: number; max?: number; size?: 'sm' | 'md'; segments?: number; label?: string;
 	} = $props();
+	// Raw percentage drives the over-budget detection; the displayed bar
+	// clamps at full so overflow reads as color, not geometry.
 	const pct = Math.min(100, Math.max(0, (value / max) * 100));
-	const overBudget = pct > 100;
+	const rawPct = max > 0 ? (value / max) * 100 : 0;
+	const overBudget = rawPct > 100;
 	const heights = { sm: 'h-2', md: 'h-3' };
 	const filled = Math.round((Math.min(pct, 100) / 100) * segments);
 </script>
 
-<!-- Segmented VFD bar: like the meters on old hardware, not a smooth blob. -->
-<div
-	class="w-full {heights[size]} flex gap-[2px] p-[2px] rounded-sm border border-line bg-ink overflow-hidden"
-	role="progressbar"
-	aria-valuenow={Math.round(pct)}
-	aria-valuemin={0}
-	aria-valuemax={100}
->
-	{#each Array(segments) as _, i}
-		<div
-			class="flex-1 rounded-[1px] transition-colors {overBudget && i < filled
-				? 'bg-debit'
-				: i < filled ? 'bg-phosphor' : 'bg-line/60'}"
-		></div>
-	{/each}
+<!-- Segmented VFD bar: like the meters on old hardware, not a smooth blob.
+     Over-budget is never color-only: the tick glyph marks it visually and
+     aria-valuetext names it for screen readers. -->
+<div class="w-full">
+	<div
+		class="{heights[size]} flex gap-[2px] p-[2px] rounded-sm border border-line bg-ink overflow-hidden"
+		role="progressbar"
+		aria-label={label || undefined}
+		aria-valuenow={Math.round(pct)}
+		aria-valuetext={overBudget ? `${Math.round(rawPct)}% — ${m.common_over_budget()}` : undefined}
+		aria-valuemin={0}
+		aria-valuemax={100}
+	>
+		{#each Array(segments) as _, i}
+			<div
+				class="flex-1 rounded-[1px] transition-colors {overBudget && i < filled
+					? 'bg-debit'
+					: i < filled ? 'bg-phosphor' : 'bg-line/60'}"
+			></div>
+		{/each}
+	</div>
+	{#if overBudget}
+		<p class="plate mt-1 text-debit" aria-hidden="true">▲ {m.common_over_budget()}</p>
+	{/if}
 </div>
