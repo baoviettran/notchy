@@ -33,15 +33,17 @@
 </script>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
-		<h1 class="figures text-xl text-ledger tracking-wide">{m.reports_year_over_year()}</h1>
-		<ReportsNav />
-	</div>
+	<h1 class="figures text-xl text-ledger tracking-wide">{m.reports_year_over_year()}</h1>
+
+	<!-- The nav owns its band: seven tabs wrapping beside the title turned
+	     every reports header into a ragged block. -->
+	<ReportsNav />
 
 	<div class="flex items-center gap-4">
 		<div class="flex items-center gap-2">
-			<label class="text-sm text-dim">{m.reports_select_year()} A:</label>
+			<label for="yoy-year-a" class="text-sm text-dim">{m.reports_select_year()} A:</label>
 			<input
+				id="yoy-year-a"
 				type="number"
 				bind:value={yearA}
 				class="bg-tape border border-line rounded-md px-3 py-1.5 text-sm text-ledger w-24"
@@ -49,8 +51,9 @@
 		</div>
 
 		<div class="flex items-center gap-2">
-			<label class="text-sm text-dim">{m.reports_select_year()} B:</label>
+			<label for="yoy-year-b" class="text-sm text-dim">{m.reports_select_year()} B:</label>
 			<input
+				id="yoy-year-b"
 				type="number"
 				bind:value={yearB}
 				class="bg-tape border border-line rounded-md px-3 py-1.5 text-sm text-ledger w-24"

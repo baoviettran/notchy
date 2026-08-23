@@ -36,12 +36,11 @@ test.describe('accounts', () => {
 		await page.getByRole('button', { name: 'Reconcile' }).click();
 		const modal = page.getByRole('dialog');
 
-		// The modal pre-fills actualBalance with the account's expected balance
-		// (see +page.svelte: onclick sets actualBalance = String(account.balance)).
-		// After the 50k income that pre-fill is "50000" — re-submitting it yields
-		// discrepancy 0 and the clean reconcile path.
+		// The modal no longer pre-fills raw minor units (that leaked engine
+		// representation into a user field). Type what the statement says:
+		// 50000 matches the expected balance, yielding discrepancy 0.
 		// The Input is labeled accounts_actual_balance_label() → "Actual balance".
-		await expect(modal.getByLabel('Actual balance')).toHaveValue('50000');
+		await modal.getByLabel('Actual balance').fill('50000');
 
 		// Confirm — the modal's confirm button is also "Reconcile"; scope to dialog.
 		await modal.getByRole('button', { name: 'Reconcile' }).click();

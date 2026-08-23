@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/svelte';
+import { waitFor,  render, screen } from '@testing-library/svelte';
 import Input from '$lib/components/primitives/Input.svelte';
 
 describe('Input', () => {
@@ -56,11 +56,11 @@ describe('Input', () => {
 
 	it('does not autofocus by default', () => {
 		render(Input, { label: 'Amount', value: '' });
-		expect(screen.getByLabelText('Amount')).not.toHaveAttribute('autofocus');
+		expect(screen.getByLabelText('Amount')).not.toHaveFocus();
 	});
 
-	it('sets autofocus attribute when autofocus=true', () => {
+	it('focuses the input when autofocus=true', async () => {
 		render(Input, { label: 'Amount', value: '', autofocus: true });
-		expect(screen.getByLabelText('Amount')).toHaveAttribute('autofocus');
+		await waitFor(() => expect(screen.getByLabelText('Amount')).toHaveFocus());
 	});
 });

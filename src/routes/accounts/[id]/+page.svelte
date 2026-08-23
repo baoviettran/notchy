@@ -85,7 +85,7 @@
 				<h1 class="figures text-xl text-ledger tracking-wide">{account.name}</h1>
 				<p class="text-sm text-dim">{accountTypeLabel(account.type)}{account.counterparty ? ` · ${account.counterparty}` : ''}</p>
 			</div>
-			<Button size="sm" variant="secondary" onclick={() => { showReconcile = true; actualBalance = String(account!.balance); reconcileError = ''; }}>{m.accounts_reconcile()}</Button>
+			<Button size="sm" variant="secondary" onclick={() => { showReconcile = true; actualBalance = ''; reconcileError = ''; }}>{m.accounts_reconcile()}</Button>
 		</div>
 
 		<div class="bg-tape rounded-lg border border-line p-4">

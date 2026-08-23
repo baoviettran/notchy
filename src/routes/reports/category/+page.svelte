@@ -50,10 +50,11 @@
 </script>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
-		<h1 class="figures text-xl text-ledger tracking-wide">{m.reports_category_trend()}</h1>
-		<ReportsNav />
-	</div>
+	<h1 class="figures text-xl text-ledger tracking-wide">{m.reports_category_trend()}</h1>
+
+	<!-- The nav owns its band: seven tabs wrapping beside the title turned
+	     every reports header into a ragged block. -->
+	<ReportsNav />
 
 	<div class="flex items-center gap-4">
 		<select bind:value={selectedTagId} class="bg-tape border border-line rounded-md px-3 py-1.5 text-sm text-ledger">

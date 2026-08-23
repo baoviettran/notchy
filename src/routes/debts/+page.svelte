@@ -27,11 +27,13 @@ import Money from '$lib/components/reports/Money.svelte';
 
 	onMount(async () => { await debts.load(); await accounts.load(); });
 
+	let actionError = $state('');
+
 	function openPayment(d: DebtAccount) {
-		activeDebt = d; actionType = 'payment'; amount = ''; fromAccount = ''; showAction = true;
+		activeDebt = d; actionType = 'payment'; amount = ''; fromAccount = ''; actionError = ''; showAction = true;
 	}
 	function openWriteoff(d: DebtAccount) {
-		activeDebt = d; actionType = 'writeoff'; amount = ''; showAction = true;
+		activeDebt = d; actionType = 'writeoff'; amount = ''; actionError = ''; showAction = true;
 	}
 
 	async function doAction() {
@@ -40,7 +42,9 @@ import Money from '$lib/components/reports/Money.svelte';
 		try {
 			const parsed = parseAmount(amount, settings.locale, settings.currency);
 			if (actionType === 'payment') {
-				if (!fromAccount) { toast.show(m.debts_select_account()); saving = false; return; }
+				// Field-level: the missing account lives next to the Select,
+				// not in a toast that vanishes over the form.
+				if (!fromAccount) { actionError = m.debts_select_account(); saving = false; return; }
 				// Payment is a transfer from fromAccount to the debt account
 				await transactions.create({
 					kind: 'transfer',
@@ -66,6 +70,11 @@ import Money from '$lib/components/reports/Money.svelte';
 	}
 
 	const assetAccounts = $derived(accounts.assets.map((a) => ({ value: a.id, label: a.name })));
+
+	// Picking an account retires the field error immediately.
+	$effect(() => {
+		if (fromAccount) actionError = '';
+	});
 
 	// Write-off is irreversible — the modal restates the number being
 	// extinguished and previews what remains so a full forgiveness never
@@ -177,7 +186,7 @@ import Money from '$lib/components/reports/Money.svelte';
 		{/if}
 		<Input label={m.common_amount()} bind:value={amount} placeholder={m.forms_amount_placeholder()} />
 		{#if actionType === 'payment'}
-			<Select label={activeDebt?.type === 'loan_from_person' ? m.debts_from_account() : m.debts_to_account()} bind:value={fromAccount} options={assetAccounts} />
+			<Select label={activeDebt?.type === 'loan_from_person' ? m.debts_from_account() : m.debts_to_account()} bind:value={fromAccount} options={assetAccounts} error={actionError} />
 		{/if}
 		<div class="flex justify-end gap-2 pt-2">
 			<Button variant="ghost" onclick={() => showAction = false}>{m.common_cancel()}</Button>

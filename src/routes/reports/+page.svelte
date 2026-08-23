@@ -47,10 +47,11 @@
 </script>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
-		<h1 class="figures text-xl text-ledger tracking-wide">{m.reports_title()}</h1>
-		<ReportsNav />
-	</div>
+	<h1 class="figures text-xl text-ledger tracking-wide">{m.reports_title()}</h1>
+
+	<!-- The nav owns its band: seven tabs wrapping beside the title turned
+	     every reports header into a ragged block. -->
+	<ReportsNav />
 
 	<label class="flex items-center gap-2 text-sm text-dim">
 		<input type="checkbox" bind:checked={includeAdjustments} class="rounded" />

@@ -64,10 +64,11 @@
 </script>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
-		<h1 class="figures text-xl text-ledger tracking-wide">{m.reports_composition()}</h1>
-		<ReportsNav />
-	</div>
+	<h1 class="figures text-xl text-ledger tracking-wide">{m.reports_composition()}</h1>
+
+	<!-- The nav owns its band: seven tabs wrapping beside the title turned
+	     every reports header into a ragged block. -->
+	<ReportsNav />
 
 	<div class="flex items-center gap-4">
 		<div class="flex gap-1 text-sm">

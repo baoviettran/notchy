@@ -61,10 +61,24 @@
 		budgets.load(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
 	}
 
+	let editOriginal = $state('');
+
 	function startEdit(typeId: string, current: number) {
 		editing = typeId;
 		editValue = current > 0 ? String(current) : '';
+		editOriginal = editValue;
 		editError = '';
+	}
+
+	// Commit on blur when dirty — outside clicks and tab-aways land the
+	// allocation instead of silently discarding a half-typed ritual. Escape
+	// and ✕ remain explicit cancels.
+	function blurEdit() {
+		if (editing === null || editValue.trim() === editOriginal.trim()) {
+			editing = null;
+			return;
+		}
+		if (editing && editError === '') void saveEdit(editing);
 	}
 
 	async function saveEdit(typeId: string) {
@@ -145,18 +159,19 @@
 				<div class="flex items-center justify-between">
 					<h3 class="text-sm font-medium text-ledger">{bucket.name}</h3>
 				{#if editing === bucket.id}
-					<div class="flex gap-2 items-center">
+					<div class="flex gap-1.5 items-center">
 						<input
 							bind:value={editValue}
 							bind:this={editInputEl}
+							onblur={blurEdit}
 							onkeydown={(e) => { if (e.key === 'Enter') saveEdit(bucket.id); if (e.key === 'Escape') editing = null; }}
 							placeholder="0"
 							aria-label={bucket.name}
 							aria-invalid={editError ? 'true' : undefined}
 							class="figures w-32 px-2 py-1 text-xs rounded border bg-ink text-ledger text-right {editError ? 'border-debit' : 'border-line'}"
 						/>
-						<button onclick={() => saveEdit(bucket.id)} aria-label={m.common_save()} class="min-w-7 min-h-7 px-1.5 text-xs text-phosphor rounded hover:bg-line/40">✓</button>
-						<button onclick={() => editing = null} aria-label={m.common_cancel()} class="min-w-7 min-h-7 px-1.5 text-xs text-dim rounded hover:bg-line/40">✕</button>
+						<button onmousedown={(e) => e.preventDefault()} onclick={() => saveEdit(bucket.id)} aria-label={m.common_save()} class="min-w-11 min-h-11 inline-flex items-center justify-center text-sm text-phosphor rounded hover:bg-line/40">✓</button>
+						<button onmousedown={(e) => e.preventDefault()} onclick={() => editing = null} aria-label={m.common_cancel()} class="min-w-11 min-h-11 inline-flex items-center justify-center text-sm text-dim rounded hover:bg-line/40">✕</button>
 					</div>
 					{:else}
 						<button type="button" onclick={() => startEdit(bucket.id, allocated)} class="figures text-xs text-dim hover:text-phosphor text-right"

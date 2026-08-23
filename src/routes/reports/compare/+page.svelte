@@ -50,10 +50,11 @@
 </script>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
-		<h1 class="figures text-xl text-ledger tracking-wide">{m.reports_title()}</h1>
-		<ReportsNav />
-	</div>
+	<h1 class="figures text-xl text-ledger tracking-wide">{m.reports_title()}</h1>
+
+	<!-- The nav owns its band: seven tabs wrapping beside the title turned
+	     every reports header into a ragged block. -->
+	<ReportsNav />
 
 	<div class="flex items-center gap-4">
 		<input type="month" bind:value={monthA} aria-label={monthA} class="px-2 py-1 text-sm rounded border border-line bg-ink text-ledger" />

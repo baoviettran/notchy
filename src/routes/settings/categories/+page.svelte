@@ -96,7 +96,7 @@
 								<span class="text-sm text-ledger">{tag.name}</span>
 								{#if tag.is_system}<span class="text-xs text-dim ml-2">{m.categories_system()}</span>{/if}
 							</div>
-							<div class="flex gap-1 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 transition-opacity">
+							<div class="flex gap-1 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:group-focus-within:opacity-100 transition-opacity">
 								<button onclick={() => openEdit(tag)} class="text-xs text-dim hover:text-phosphor px-2">{m.categories_edit()}</button>
 								{#if !tag.is_system}
 									<button onclick={() => startDelete(tag)} class="text-xs text-dim hover:text-debit px-2">{m.categories_delete()}</button>

@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Modal from '$lib/components/primitives/Modal.svelte';
 	import Button from '$lib/components/primitives/Button.svelte';
-	import TransactionForm from '$lib/components/forms/TransactionForm.svelte';
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { transactions } from '$lib/stores/transactions.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
@@ -33,8 +32,6 @@
 	let filterTag = $state('');
 	let filterMonth = $state('');
 
-	let editing = $state<Transaction | null>(null);
-	let showEditModal = $state(false);
 	let showImport = $state(false);
 	let showFilters = $state(false);
 	let showDeleteConfirm = $state(false);
@@ -107,11 +104,6 @@
 		pageNum = 0;
 		void loadPage();
 	});
-
-	function openEdit(tx: Transaction) {
-		editing = tx;
-		showEditModal = true;
-	}
 
 	function confirmDelete(tx: Transaction) {
 		pendingDeleteId = tx.id;
@@ -212,7 +204,7 @@
 		{:else}
 			{#each displayItems as tx}
 				<div class="p-4 flex items-center justify-between group">
-					<button onclick={() => openEdit(tx)} class="flex-1 text-left">
+					<button onclick={() => goto(`/transactions/${tx.id}`)} class="flex-1 text-left">
 						<div class="text-sm text-ledger flex items-center gap-2">
 							{tx.payee || labelFor(tx.kind)}
 							{#if tx.date > today}
@@ -242,10 +234,6 @@
 	<ImportTransactionsModal bind:open={showImport} />
 	{/if}
 </div>
-
-<Modal bind:open={showEditModal} title={m.transactions_edit()}>
-	<TransactionForm existing={editing} onclose={() => showEditModal = false} onsave={loadPage} />
-</Modal>
 
 <ConfirmDialog
 	open={showDeleteConfirm}

@@ -46,11 +46,12 @@ test.describe('transactions', () => {
 	test('edit a transaction changes the amount in the list', async ({ onboardedPage: page }) => {
 		await addTransaction(page, { kind: 'expense', amount: '50k' });
 		await page.getByRole('link', { name: 'Transactions', exact: true }).click();
-		// Open edit via the row's flex-1 button (transactions/+page.svelte:92). Its
-		// accessible name is "{payee||label} {date} · {label}" — for a payee-less
-		// expense that is "Expense Today · Expense". The amount ("−₫50,000") is a
-		// sibling <span>, not inside the button, so it can't be the click target.
+		// Row tap opens the read-only detail view (/transactions/[id]); Edit
+		// lives there as an action. The row's accessible name for a payee-less
+		// expense is "Expense Today · Expense".
 		await page.getByRole('main').getByRole('button', { name: /^Expense/ }).click();
+		await expect(page.getByRole('heading', { name: 'Expense' })).toBeVisible();
+		await page.getByRole('button', { name: 'Edit' }).click();
 		const editModal = page.getByRole('dialog');
 		// Modal title is m.transactions_edit() = "Edit transaction" (+page.svelte:120).
 		await expect(editModal.getByRole('heading', { name: 'Edit transaction' })).toBeVisible();
@@ -79,8 +80,10 @@ test.describe('transactions', () => {
 	test('transfer kind is disabled in edit mode', async ({ onboardedPage: page }) => {
 		await addTransaction(page, { kind: 'expense', amount: '50k' });
 		await page.getByRole('link', { name: 'Transactions', exact: true }).click();
-		// Row button accessible name: "Expense Today · Expense" (see edit test).
+		// Row tap → detail view → Edit action opens the form modal.
 		await page.getByRole('main').getByRole('button', { name: /^Expense/ }).click();
+		await expect(page.getByRole('heading', { name: 'Expense' })).toBeVisible();
+		await page.getByRole('button', { name: 'Edit' }).click();
 		const editModal = page.getByRole('dialog');
 		// Kind buttons carry disabled={isEdit} (TransactionForm.svelte:145).
 		await expect(editModal.getByRole('button', { name: 'Expense', exact: true })).toBeDisabled();
