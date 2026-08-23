@@ -64,7 +64,7 @@
 </script>
 
 <div class="space-y-6">
-	<h1 class="figures text-xl text-ledger tracking-wide">{m.reports_composition()}</h1>
+	<h1 class="page-title">{m.reports_composition()}</h1>
 
 	<!-- The nav owns its band: seven tabs wrapping beside the title turned
 	     every reports header into a ragged block. -->

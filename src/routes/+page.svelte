@@ -77,7 +77,7 @@ const sampleBuckets = [
 		<ErrorState description={storeError} onRetry={reloadDashboard} />
 	{:else}
 	<header class="flex items-center justify-between">
-		<h1 class="figures text-xl text-ledger tracking-wide">{m.nav_dashboard()}</h1>
+		<h1 class="page-title">{m.nav_dashboard()}</h1>
 		<span class="plate">{budgets.month}</span>
 	</header>
 

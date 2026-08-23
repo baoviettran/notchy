@@ -82,7 +82,7 @@
 	{#if account}
 		<div class="flex items-center justify-between">
 			<div>
-				<h1 class="figures text-xl text-ledger tracking-wide">{account.name}</h1>
+				<h1 class="page-title">{account.name}</h1>
 				<p class="text-sm text-dim">{accountTypeLabel(account.type)}{account.counterparty ? ` · ${account.counterparty}` : ''}</p>
 			</div>
 			<Button size="sm" variant="secondary" onclick={() => { showReconcile = true; actualBalance = ''; reconcileError = ''; }}>{m.accounts_reconcile()}</Button>

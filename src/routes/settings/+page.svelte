@@ -83,7 +83,7 @@
 </script>
 
 <div class="space-y-6">
-	<h1 class="figures text-xl text-ledger tracking-wide">{m.settings_title()}</h1>
+	<h1 class="page-title">{m.settings_title()}</h1>
 
 	<div class="space-y-3">
 		<a href="/settings/categories" class="block bg-tape rounded-lg border border-line p-4 hover:bg-line/30 transition-colors">

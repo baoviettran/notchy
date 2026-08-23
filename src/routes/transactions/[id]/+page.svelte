@@ -87,7 +87,7 @@
 	{:else if tx}
 		<div class="flex items-start justify-between gap-3">
 			<div class="min-w-0">
-				<h1 class="figures text-xl text-ledger tracking-wide truncate">{tx.payee || labelFor(tx.kind)}</h1>
+				<h1 class="page-title truncate">{tx.payee || labelFor(tx.kind)}</h1>
 				<p class="text-sm text-dim">{labelFor(tx.kind)}</p>
 			</div>
 			{#if tx.date > today}

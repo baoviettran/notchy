@@ -96,7 +96,7 @@ import Money from '$lib/components/reports/Money.svelte';
 </script>
 
 <div class="space-y-6">
-	<h1 class="figures text-xl text-ledger tracking-wide">{m.debts_title()}</h1>
+	<h1 class="page-title">{m.debts_title()}</h1>
 
 	<section>
 		<h2 class="plate mb-2">{m.debts_i_owe()}</h2>

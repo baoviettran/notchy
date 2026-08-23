@@ -201,7 +201,7 @@
 </script>
 
 <div class="space-y-4">
-	<h1 class="figures text-xl text-ledger tracking-wide">{m.transactions_title()}</h1>
+	<h1 class="page-title">{m.transactions_title()}</h1>
 
 	<!-- One action row: filters stay behind a toggle (with an active count)
 	     until they matter, and Import stops floating in its own region. -->

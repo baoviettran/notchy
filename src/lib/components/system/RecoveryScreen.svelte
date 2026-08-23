@@ -49,7 +49,7 @@
 	<div class="w-full max-w-md surface rounded-lg p-6 space-y-5">
 		<div class="text-center">
 			<div class="figures-glow text-2xl animate-flash">▮▮</div>
-			<h1 class="figures text-xl text-ledger tracking-wide mt-2">{m.recovery_title()}</h1>
+			<h1 class="page-title mt-2">{m.recovery_title()}</h1>
 			<p class="plate mt-1">{codeMessages[context.code]()}</p>
 		</div>
 

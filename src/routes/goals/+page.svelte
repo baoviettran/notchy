@@ -68,7 +68,7 @@ import Money from '$lib/components/reports/Money.svelte';
 
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
-		<h1 class="figures text-xl text-ledger tracking-wide">{m.goals_title()}</h1>
+		<h1 class="page-title">{m.goals_title()}</h1>
 		<Button size="sm" onclick={openCreate}>{m.goals_add()}</Button>
 	</div>
 

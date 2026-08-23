@@ -78,7 +78,7 @@
 
 <div class="space-y-6">
 	<div class="flex items-center justify-between">
-		<h1 class="figures text-xl text-ledger tracking-wide">{m.categories_title()}</h1>
+		<h1 class="page-title">{m.categories_title()}</h1>
 		<Button size="sm" onclick={openCreate}>{m.categories_add_tag()}</Button>
 	</div>
 

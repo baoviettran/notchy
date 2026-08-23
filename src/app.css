@@ -111,6 +111,7 @@
 	body {
 		font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 		font-variant-numeric: tabular-nums lining-nums;
+		color: var(--ledger);
 		-webkit-font-smoothing: antialiased;
 		text-rendering: optimizeLegibility;
 	}
@@ -163,6 +164,17 @@
 	.surface {
 		background-color: var(--tape);
 		border: 1px solid var(--line);
+	}
+
+	/* Page title: every route heading stamps the same faceplate type —
+	   mono like the figures it introduces, tracked like an engraving. */
+	.page-title {
+		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 1.25rem;
+		line-height: 1.75rem;
+		letter-spacing: 0.025em;
+		color: var(--ledger);
+		font-variant-numeric: tabular-nums lining-nums;
 	}
 }
 
