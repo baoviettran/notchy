@@ -67,3 +67,7 @@ artifacts/
 .claude/worktrees/
 .impeccable/hook.cache.json
 .impeccable/config.local.json
+
+# Vendored agent skills: personal tooling, restorable from skills-lock.json
+.agents/
+.claude/skills/
