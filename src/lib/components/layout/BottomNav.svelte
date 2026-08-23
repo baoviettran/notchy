@@ -59,7 +59,7 @@
 			href={tab.href}
 			data-tour={tab.tourId}
 			aria-current={active ? 'page' : undefined}
-			class="flex-1 flex flex-col items-center justify-center gap-1 text-[10px] transition-colors
+			class="flex-1 flex flex-col items-center justify-center gap-1 text-[11px] transition-colors
 				{active ? 'text-phosphor-bright' : 'text-dim'}"
 		>
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 {active ? 'text-phosphor' : ''}">
@@ -73,7 +73,7 @@
 		onclick={toggleMore}
 		aria-expanded={moreOpen}
 		aria-haspopup="dialog"
-		class="flex-1 flex flex-col items-center justify-center gap-1 text-[10px] transition-colors {moreOpen ? 'text-phosphor-bright' : 'text-dim'}"
+		class="flex-1 flex flex-col items-center justify-center gap-1 text-[11px] transition-colors {moreOpen ? 'text-phosphor-bright' : 'text-dim'}"
 	>
 		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 {moreOpen ? 'text-phosphor' : ''}">
 			<path d="M4 8h16M4 12h16M4 16h16" />

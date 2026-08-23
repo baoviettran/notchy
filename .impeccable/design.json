@@ -56,12 +56,13 @@
 			"debit": {
 				"role": "tertiary",
 				"displayName": "Oxblood Debit",
-				"canonical": "#E5484D",
+				"canonical": "#E75358",
 				"lightVariant": "#C23B3F",
 				"tonalRamp": ["oklch(22% 0.08 25)", "oklch(31% 0.11 25)", "oklch(40% 0.14 25)", "oklch(49% 0.17 25)", "oklch(57% 0.19 25)", "oklch(66% 0.19 25)", "oklch(76% 0.16 25)", "oklch(90% 0.07 25)"]
 			}
 		},
 		"typographyMeta": {
+			"display": { "displayName": "Display", "purpose": "The tape window's hero VFD figure (Quick Add amount) — the machine's main readout." },
 			"figures": { "displayName": "Figures", "purpose": "Every displayed number; the VFD display face." },
 			"body": { "displayName": "Body", "purpose": "Prose and descriptions; global tabular numerals." },
 			"label": { "displayName": "Plate", "purpose": "Engraved uppercase micro-labels (.plate)." }

@@ -25,7 +25,7 @@
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4">
 		<div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick={() => open = false} role="presentation"></div>
 		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-		<div bind:this={panelEl} onkeydown={onKeydown} tabindex="-1" class="relative bg-tape border border-line rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4 animate-scale-in" role="dialog" aria-modal="true" aria-label={title}>
+		<div bind:this={panelEl} onkeydown={onKeydown} tabindex="-1" class="relative bg-tape border border-line rounded-lg shadow-2xl w-full max-w-sm p-6 space-y-4 animate-scale-in" role="dialog" aria-modal="true" aria-label={title}>
 			<!-- Same faceplate voice as Modal: figures face for the title. -->
 			<h2 class="figures text-lg text-ledger tracking-wide">{title}</h2>
 			{#if message}

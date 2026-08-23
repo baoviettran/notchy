@@ -45,7 +45,7 @@
 				</Svg>
 			</LayerCake>
 			{#if centerLabel}
-				<span class="absolute inset-0 flex items-center justify-center figures text-[10px] leading-tight text-ledger truncate pointer-events-none px-1">{centerLabel}</span>
+				<span class="absolute inset-0 flex items-center justify-center figures text-[11px] leading-tight text-ledger truncate pointer-events-none px-1">{centerLabel}</span>
 			{/if}
 		</div>
 		<div class="legend">

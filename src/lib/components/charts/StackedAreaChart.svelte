@@ -182,7 +182,7 @@
 
 	.tick-label {
 		fill: var(--dim);
-		font-size: 10px;
+		font-size: 11px;
 		text-anchor: middle;
 	}
 
@@ -203,7 +203,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.25rem;
-		font-size: 0.875rem;
+		font-size: 11px;
 	}
 
 	.legend-color {

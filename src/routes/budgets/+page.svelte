@@ -8,7 +8,7 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { getDb } from '$lib/db';
-	import { formatCurrency } from '$lib/utils/currency';
+	import { formatCurrency, formatCurrencyCompact, isLongCurrency } from '$lib/utils/currency';
 	import { parseAmount } from '$lib/utils/number_parse';
 	import * as m from '$lib/paraglide/messages';
 
@@ -158,9 +158,12 @@
 						<button onclick={() => saveEdit(bucket.id)} aria-label={m.common_save()} class="min-w-7 min-h-7 px-1.5 text-xs text-phosphor rounded hover:bg-line/40">✓</button>
 						<button onclick={() => editing = null} aria-label={m.common_cancel()} class="min-w-7 min-h-7 px-1.5 text-xs text-dim rounded hover:bg-line/40">✕</button>
 					</div>
-				{:else}
-						<button onclick={() => startEdit(bucket.id, allocated)} class="figures text-xs text-dim hover:text-phosphor">
-							{formatCurrency(spent, settings.currency, settings.locale)} / {formatCurrency(allocated, settings.currency, settings.locale)}
+					{:else}
+						<button type="button" onclick={() => startEdit(bucket.id, allocated)} class="figures text-xs text-dim hover:text-phosphor text-right"
+							title="{formatCurrency(spent, settings.currency, settings.locale)} / {formatCurrency(allocated, settings.currency, settings.locale)}"
+						>
+							{isLongCurrency(spent, settings.currency, settings.locale) ? formatCurrencyCompact(spent, settings.currency, settings.locale) : formatCurrency(spent, settings.currency, settings.locale)}
+							/ {isLongCurrency(allocated, settings.currency, settings.locale) ? formatCurrencyCompact(allocated, settings.currency, settings.locale) : formatCurrency(allocated, settings.currency, settings.locale)}
 						</button>
 					{/if}
 				</div>

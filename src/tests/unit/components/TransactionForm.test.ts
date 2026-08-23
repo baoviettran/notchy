@@ -91,7 +91,7 @@ describe('TransactionForm', () => {
 		const { container } = render(TransactionForm, { mode: 'full' });
 		const amountInput = screen.getByLabelText('Amount');
 		await fireEvent.input(amountInput, { target: { value: 'not a number' } });
-		await fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+		await fireEvent.submit(container.querySelector('form')!);
 
 		expect(screen.getByText('Invalid amount')).toBeInTheDocument();
 		const alert = screen.getByRole('alert');
@@ -102,11 +102,19 @@ describe('TransactionForm', () => {
 	it('attaches the missing-account error to the account select', async () => {
 		const { container } = render(TransactionForm, { mode: 'full' });
 		await fireEvent.input(screen.getByLabelText('Amount'), { target: { value: '100' } });
-		await fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+		await fireEvent.submit(container.querySelector('form')!);
 
 		expect(screen.getByText('Select an account')).toBeInTheDocument();
 		const alert = screen.getByRole('alert');
 		const accountSelect = screen.getByLabelText('Account');
 		expect(alert.closest('div')!.contains(accountSelect)).toBe(true);
+	});
+
+	it('submits from a real form so Enter saves', () => {
+		const { container } = render(TransactionForm, { mode: 'full' });
+		// The wrapper must be a <form> with a submit button — the n-shortcut
+		// flow ends hands-on-keyboard, so Enter in any field submits.
+		expect(container.querySelector('form')).not.toBeNull();
+		expect(screen.getByRole('button', { name: 'Save' })).toHaveAttribute('type', 'submit');
 	});
 });

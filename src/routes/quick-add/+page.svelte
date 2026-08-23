@@ -241,12 +241,12 @@
 	}
 	.error {
 		color: var(--debit);
-		font-size: 13px;
+		font-size: 11px;
 		margin-top: 0.25rem;
 	}
 	.hint {
 		color: var(--dim);
-		font-size: 13px;
+		font-size: 11px;
 		margin-top: 0.25rem;
 	}
 </style>

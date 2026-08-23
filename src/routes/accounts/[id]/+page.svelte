@@ -23,6 +23,7 @@
 	let history = $state<Reconciliation[]>([]);
 	let showReconcile = $state(false);
 	let actualBalance = $state('');
+	let reconcileError = $state('');
 	let confirmLarge = $state(false);
 	let pendingDiscrepancy = $state(0);
 	let pendingActual = $state(0);
@@ -42,6 +43,7 @@
 		if (!actualBalance.trim()) return;
 		try {
 			const parsed = parseAmount(actualBalance, settings.locale, settings.currency);
+			reconcileError = '';
 			const expected = account!.balance;
 			const discrepancy = parsed - expected;
 			if (isLargeDiscrepancy(discrepancy)) {
@@ -54,7 +56,8 @@
 			}
 			await doReconcile(parsed);
 		} catch {
-			toast.show(m.accounts_invalid_amount());
+			// Field-level: the problem lives next to the input, not in a toast.
+			reconcileError = m.accounts_invalid_amount();
 		}
 	}
 
@@ -81,7 +84,7 @@
 				<h1 class="figures text-xl text-ledger tracking-wide">{account.name}</h1>
 				<p class="text-sm text-dim">{accountTypeLabel(account.type)}{account.counterparty ? ` · ${account.counterparty}` : ''}</p>
 			</div>
-			<Button size="sm" variant="secondary" onclick={() => { showReconcile = true; actualBalance = String(account!.balance); }}>{m.accounts_reconcile()}</Button>
+			<Button size="sm" variant="secondary" onclick={() => { showReconcile = true; actualBalance = String(account!.balance); reconcileError = ''; }}>{m.accounts_reconcile()}</Button>
 		</div>
 
 		<div class="bg-tape rounded-lg border border-line p-4">
@@ -140,12 +143,12 @@
 <Modal bind:open={showReconcile} title={m.accounts_reconcile_modal()}>
 	<div class="space-y-4">
 		<p class="text-sm text-dim">{m.accounts_reconcile_body()}</p>
-		<Input label={m.accounts_actual_balance_label()} bind:value={actualBalance} placeholder={m.accounts_amount_placeholder()} />
+		<Input label={m.accounts_actual_balance_label()} bind:value={actualBalance} placeholder={m.accounts_amount_placeholder()} error={reconcileError} />
 		{#if account}
 			<p class="text-xs text-dim">{m.accounts_currently_shown({ balance: formatCurrency(account.balance, settings.currency, settings.locale) })}</p>
 		{/if}
 		<div class="flex justify-end gap-2 pt-2">
-			<Button variant="ghost" onclick={() => showReconcile = false}>{m.common_cancel()}</Button>
+			<Button variant="ghost" onclick={() => { showReconcile = false; reconcileError = ''; }}>{m.common_cancel()}</Button>
 			<Button onclick={startReconcile}>{m.accounts_reconcile()}</Button>
 		</div>
 	</div>

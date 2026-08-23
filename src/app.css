@@ -31,7 +31,10 @@
 		--line: #807763;
 		--phosphor: #FFB454;
 		--phosphor-bright: #FFD79A;
-		--debit: #E5484D;
+		/* Debit lifted from #E5484D (4.51:1 on tape) — passed AA by only
+		   0.01 while carrying most of the data in an expense app.
+		   #E75358 holds 4.86:1 on tape / 5.18:1 on ink at the same hue. */
+		--debit: #E75358;
 
 		--ink-rgb: 20 17 12;
 		--tape-rgb: 28 24 18;
@@ -40,7 +43,7 @@
 		--line-rgb: 128 119 99;
 		--phosphor-rgb: 255 180 84;
 		--phosphor-bright-rgb: 255 215 154;
-		--debit-rgb: 229 72 77;
+		--debit-rgb: 231 83 88;
 	}
 
 	html.light {
@@ -75,7 +78,7 @@
 	}
 
 	body {
-		font-family: theme('fontFamily.sans');
+		font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 		font-variant-numeric: tabular-nums lining-nums;
 		-webkit-font-smoothing: antialiased;
 		text-rendering: optimizeLegibility;
@@ -83,7 +86,7 @@
 
 	/* Phosphor VFD numerals: the adding-machine display. */
 	.figures {
-		font-family: theme('fontFamily.mono');
+		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 		font-variant-numeric: tabular-nums lining-nums;
 		letter-spacing: -0.01em;
 	}
@@ -92,13 +95,13 @@
 	   Resting state is dialed back so the digits themselves stay legible —
 	   the flash keyframe carries the bright keypress moment. */
 	:root:not(.light) .figures-glow {
-		font-family: theme('fontFamily.mono');
+		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 		font-variant-numeric: tabular-nums lining-nums;
 		color: var(--phosphor-bright);
 		text-shadow: 0 0 4px rgba(255, 180, 84, 0.35), 0 0 11px rgba(255, 180, 84, 0.10);
 	}
 	html.light .figures-glow {
-		font-family: theme('fontFamily.mono');
+		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 		font-variant-numeric: tabular-nums lining-nums;
 		color: var(--phosphor);
 		text-shadow: none;
@@ -106,7 +109,7 @@
 
 	/* Engraved faceplate micro-label. */
 	.plate {
-		font-family: theme('fontFamily.mono');
+		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 		text-transform: uppercase;
 		letter-spacing: 0.18em;
 		font-size: 0.6875rem; /* 11px */
