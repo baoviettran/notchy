@@ -95,6 +95,9 @@ export interface TransactionOps {
 	delete(id: string): Promise<void>;
 	restore(id: string): Promise<void>;
 	duplicate(id: string): Promise<string>;
+	deleteMany(ids: string[]): Promise<void>;
+	setTagMany(ids: string[], tagId: string | null): Promise<void>;
+	setAccountMany(ids: string[], accountId: string): Promise<void>;
 	getFrequent(sinceDate: string): Promise<FrequentTx[]>;
 }
 

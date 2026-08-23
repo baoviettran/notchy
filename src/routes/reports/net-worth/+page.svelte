@@ -53,10 +53,20 @@
 				</button>
 			{/each}
 		</div>
-		<label class="flex items-center gap-2 text-sm text-dim">
-			<input type="checkbox" bind:checked={reportsStore.includeAdjustments} class="rounded" />
+		<!-- Same switch vocabulary as the rest of the app — a raw native
+		     checkbox would break the control language of the ledger. -->
+		<button
+			type="button"
+			role="switch"
+			aria-checked={reportsStore.includeAdjustments}
+			onclick={() => (reportsStore.includeAdjustments = !reportsStore.includeAdjustments)}
+			class="flex items-center gap-2 text-sm text-dim hover:text-ledger transition-colors min-h-11 pointer-coarse:min-h-9"
+		>
+			<span aria-hidden="true" class="w-8 h-4.5 rounded-full border border-line relative transition-colors {reportsStore.includeAdjustments ? 'bg-phosphor/20' : 'bg-ink'}">
+				<span class="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full transition-all {reportsStore.includeAdjustments ? 'left-4 bg-phosphor' : 'left-0.5 bg-dim'}"></span>
+			</span>
 			{m.reports_include_adjustments()}
-		</label>
+		</button>
 	</div>
 
 	{#if !loaded}

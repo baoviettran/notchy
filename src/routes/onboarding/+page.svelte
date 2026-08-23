@@ -87,14 +87,14 @@
 			<div class="surface rounded-lg p-6 space-y-5">
 				<h2 class="figures text-ledger tracking-wide">{m.onboarding_choose_language()}</h2>
 				<div class="space-y-3">
-					<button onclick={() => locale = 'en'}
+					<button onclick={() => locale = 'en'} aria-pressed={locale === 'en'}
 						class="w-full p-4 rounded-md border text-left transition-colors {langButtonClass('en')}">
-						<div class="font-medium text-ledger">{m.lang_english()}</div>
+						<div class="font-medium text-ledger">{m.lang_english()}{#if locale === 'en'}<span class="figures text-phosphor ml-2" aria-hidden="true">✓</span>{/if}</div>
 						<div class="text-sm text-dim">{m.onboarding_lang_desc_english()}</div>
 					</button>
-					<button onclick={() => locale = 'vi'}
+					<button onclick={() => locale = 'vi'} aria-pressed={locale === 'vi'}
 						class="w-full p-4 rounded-md border text-left transition-colors {langButtonClass('vi')}">
-						<div class="font-medium text-ledger">{m.lang_vietnamese()}</div>
+						<div class="font-medium text-ledger">{m.lang_vietnamese()}{#if locale === 'vi'}<span class="figures text-phosphor ml-2" aria-hidden="true">✓</span>{/if}</div>
 						<div class="text-sm text-dim">{m.onboarding_lang_desc_vietnamese()}</div>
 					</button>
 				</div>
@@ -109,7 +109,7 @@
 				<p class="text-sm text-dim">{m.onboarding_currency_desc()}</p>
 				<div class="space-y-3">
 					{#each currencies as c}
-						<button onclick={() => currency = c.value}
+						<button onclick={() => currency = c.value} aria-pressed={currency === c.value}
 							class="w-full p-4 rounded-md border text-left transition-colors {currency === c.value ? 'border-phosphor bg-phosphor/10' : 'border-line hover:border-dim'}">
 							<span class="flex items-center gap-3">
 								<!-- The two-letter code is the currency's identity, stamped
@@ -117,7 +117,7 @@
 								     Windows (Tauri's primary desktop) doesn't render. -->
 								<span class="w-10 h-10 shrink-0 rounded-md border border-line bg-ink flex items-center justify-center figures text-sm text-phosphor" aria-hidden="true">{c.plate}</span>
 								<span class="min-w-0">
-									<span class="block font-medium text-ledger">{c.code}</span>
+									<span class="block font-medium text-ledger">{c.code}{#if currency === c.value}<span class="figures text-phosphor ml-2" aria-hidden="true">✓</span>{/if}</span>
 									<span class="block text-sm text-dim">— {c.value === 'VND' ? m.onboarding_currency_desc_vnd() : m.onboarding_currency_desc_usd()}</span>
 								</span>
 							</span>
@@ -142,9 +142,9 @@
 						<label class="plate block mb-2">{m.forms_type()}</label>
 						<div class="flex flex-wrap gap-2">
 							{#each accountTypes as t}
-								<button onclick={() => accountType = t.value}
-									class="inline-flex items-center min-h-9 px-3 text-sm rounded-md border transition-colors {accountType === t.value ? 'border-phosphor bg-phosphor/10 text-phosphor-bright font-medium' : 'border-line text-dim hover:text-ledger'}"
-								>{t.label()}</button>
+								<button onclick={() => accountType = t.value} aria-pressed={accountType === t.value}
+									class="inline-flex items-center min-h-9 pointer-coarse:min-h-11 px-3 text-sm rounded-md border transition-colors {accountType === t.value ? 'border-phosphor bg-phosphor/10 text-phosphor-bright font-medium' : 'border-line text-dim hover:text-ledger'}"
+								>{t.label()}{#if accountType === t.value}<span class="figures ml-2" aria-hidden="true">✓</span>{/if}</button>
 							{/each}
 						</div>
 					</div>

@@ -118,6 +118,18 @@ class BrowserTransactionOps implements TransactionOps {
 		return transactionsRepo.duplicateTransaction(this.db, id);
 	}
 
+	deleteMany(ids: string[]): Promise<void> {
+		return transactionsRepo.deleteTransactions(this.db, ids);
+	}
+
+	setTagMany(ids: string[], tagId: string | null): Promise<void> {
+		return transactionsRepo.setTagMany(this.db, ids, tagId);
+	}
+
+	setAccountMany(ids: string[], accountId: string): Promise<void> {
+		return transactionsRepo.setAccountMany(this.db, ids, accountId);
+	}
+
 	async getFrequent(sinceDate: string): Promise<import('../client').FrequentTx[]> {
 		return this.db.query<import('../client').FrequentTx>(
 			`SELECT payee, tag_id, account_id, amount, kind, COUNT(*) as count

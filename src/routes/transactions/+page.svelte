@@ -6,6 +6,7 @@
 	import { transactions } from '$lib/stores/transactions.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
+	import { getDb } from '$lib/db';
 	import { formatCurrency } from '$lib/utils/currency';
 	import Money from '$lib/components/reports/Money.svelte';
 	import { formatDateRelative } from '$lib/utils/date';
@@ -15,6 +16,7 @@
 	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import ConfirmDialog from '$lib/components/primitives/ConfirmDialog.svelte';
 	import ContextMenu from '$lib/components/primitives/ContextMenu.svelte';
+	import Modal from '$lib/components/primitives/Modal.svelte';
 	import ImportTransactionsModal from '$lib/components/modals/ImportTransactionsModal.svelte';
 	import Select from '$lib/components/primitives/Select.svelte';
 	import Input from '$lib/components/primitives/Input.svelte';
@@ -35,10 +37,20 @@
 	let showImport = $state(false);
 	let showFilters = $state(false);
 	let showDeleteConfirm = $state(false);
-	let pendingDeleteId = $state<string | null>(null);
+	let pendingDeleteTx = $state<Transaction | null>(null);
 	let pageNum = $state(0);
 	let hasNextPage = $state(false);
 	const PAGE_SIZE = 50;
+
+	// Bulk repair mode: multi-select rows, then retag / move / delete them as
+	// one tape segment instead of N × (menu → action → confirm).
+	let selectMode = $state(false);
+	let selected = $state<string[]>([]);
+	let batchOpen = $state(false);
+	let batchMode = $state<'tag' | 'account'>('tag');
+	let batchValue = $state('');
+	let highlightedId = $state<string | null>(null);
+	let highlightTimer: ReturnType<typeof setTimeout> | undefined;
 
 	const today = new Date().toISOString().split('T')[0];
 
@@ -106,25 +118,86 @@
 	});
 
 	function confirmDelete(tx: Transaction) {
-		pendingDeleteId = tx.id;
+		pendingDeleteTx = tx;
 		showDeleteConfirm = true;
 	}
 
 	async function doDelete() {
-		if (!pendingDeleteId) return;
-		await transactions.delete(pendingDeleteId);
+		if (!pendingDeleteTx) return;
+		await transactions.delete(pendingDeleteTx.id);
+		selected = selected.filter((id) => id !== pendingDeleteTx!.id);
 		await loadPage();
-		pendingDeleteId = null;
+		pendingDeleteTx = null;
 	}
 
 	async function doDuplicate(tx: Transaction) {
-		await transactions.duplicate(tx.id);
+		const newId = await transactions.duplicate(tx.id);
 		await loadPage();
 		toast.show(m.transactions_duplicated());
+		flashRow(newId);
 	}
 
-	async function nextPage() { pageNum += 1; await loadPage(); }
-	async function prevPage() { if (pageNum > 0) { pageNum -= 1; await loadPage(); } }
+	function flashRow(id: string) {
+		highlightedId = id;
+		if (highlightTimer) clearTimeout(highlightTimer);
+		highlightTimer = setTimeout(() => (highlightedId = null), 1800);
+		document.querySelector(`[data-tx-id="${id}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+	}
+
+	function scrollToTop() {
+		document.querySelector('main')?.scrollTo({ top: 0 });
+	}
+
+	async function nextPage() { pageNum += 1; await loadPage(); scrollToTop(); }
+	async function prevPage() { if (pageNum > 0) { pageNum -= 1; await loadPage(); scrollToTop(); } }
+
+	function toggleSelected(id: string) {
+		selected = selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id];
+	}
+
+	function setSelectMode(on: boolean) {
+		selectMode = on;
+		if (!on) selected = [];
+	}
+
+	async function bulkDelete() {
+		const ids = [...selected];
+		if (ids.length === 0) return;
+		await transactions.deleteMany(ids);
+		setSelectMode(false);
+		await loadPage();
+		toast.show(m.transactions_bulk_deleted({ count: ids.length }), {
+			action: m.transactions_undo(),
+			duration: 5000,
+			onaction: async () => {
+				const db = getDb();
+				for (const id of ids) await db.transactions.restore(id);
+				await loadPage();
+				toast.show(m.transactions_restored_toast());
+			}
+		});
+	}
+
+	function openBatch(mode: 'tag' | 'account') {
+		batchMode = mode;
+		batchValue = '';
+		batchOpen = true;
+	}
+
+	async function applyBatch() {
+		const ids = [...selected];
+		if (ids.length === 0 || !batchValue) return;
+		if (batchMode === 'tag') {
+			await transactions.setTagMany(ids, batchValue);
+			toast.show(m.transactions_bulk_retagged({ count: ids.length }));
+		} else {
+			await transactions.setAccountMany(ids, batchValue);
+			toast.show(m.transactions_bulk_moved({ count: ids.length }));
+		}
+		batchOpen = false;
+		setSelectMode(false);
+		await loadPage();
+	}
 </script>
 
 <div class="space-y-4">
@@ -144,6 +217,12 @@
 			{/if}
 		</Button>
 		<Button size="sm" variant="secondary" onclick={() => showImport = true}>{m.import_tx_title()}</Button>
+		<Button
+			size="sm"
+			variant={selectMode ? 'primary' : 'secondary'}
+			onclick={() => setSelectMode(!selectMode)}
+			aria-pressed={selectMode}
+		>{selectMode ? m.transactions_done() : m.transactions_select()}</Button>
 	</div>
 
 	{#if showFilters || activeFilterCount > 0}
@@ -202,22 +281,45 @@
 			{#if displayItems.length === 0}
 				<EmptyState message={m.transactions_empty_state()} icon="▮▯▯▯" />
 		{:else}
-			{#each displayItems as tx}
-				<div class="p-4 flex items-center justify-between group">
-					<button onclick={() => goto(`/transactions/${tx.id}`)} class="flex-1 text-left">
-						<div class="text-sm text-ledger flex items-center gap-2">
-							{tx.payee || labelFor(tx.kind)}
-							{#if tx.date > today}
-								<span class="text-[11px] px-1.5 py-0.5 rounded bg-phosphor/15 text-phosphor font-medium uppercase">{m.transactions_future()}</span>
-							{/if}
+			{#each displayItems as tx (tx.id)}
+				<div
+					data-tx-id={tx.id}
+					class="p-4 flex items-center justify-between group {highlightedId === tx.id ? 'bg-phosphor/10 transition-colors' : ''}"
+				>
+					{#if selectMode}
+						<!-- Selection replaces navigation: the whole row toggles, so a
+						     sloppy thumb can't land on the wrong action. -->
+						<button onclick={() => toggleSelected(tx.id)} class="flex-1 text-left" aria-pressed={selected.includes(tx.id)}>
+							<span class="flex items-center gap-3">
+								<span aria-hidden="true" class="w-5 h-5 shrink-0 rounded border flex items-center justify-center figures text-xs {selected.includes(tx.id) ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-transparent'}">✓</span>
+								<span class="min-w-0">
+									<span class="block text-sm text-ledger truncate">{tx.payee || labelFor(tx.kind)}</span>
+									<span class="block text-xs text-dim">{formatDateRelative(tx.date, settings.locale)} · {labelFor(tx.kind)}</span>
+								</span>
+							</span>
+						</button>
+					{:else}
+						<button onclick={() => goto(`/transactions/${tx.id}`)} class="flex-1 text-left">
+							<div class="text-sm text-ledger flex items-center gap-2">
+								{tx.payee || labelFor(tx.kind)}
+								{#if tx.date > today}
+									<span class="text-[11px] px-1.5 py-0.5 rounded bg-phosphor/15 text-phosphor font-medium uppercase">{m.transactions_future()}</span>
+								{/if}
+							</div>
+							<div class="text-xs text-dim">{formatDateRelative(tx.date, settings.locale)} · {labelFor(tx.kind)}</div>
+						</button>
+					{/if}
+					<Money amount={tx.amount} glyph={tx.kind === 'expense' ? '−' : tx.kind === 'income' ? '+' : ''} tone={tx.kind === 'expense' ? 'debit' : tx.kind === 'income' ? 'phosphor' : 'dim'} class="mr-2 shrink-0" />
+					{#if !selectMode}
+						<!-- The pl-2 wrapper keeps the menu's widened hit target clear of
+						     the row link — no accidental navigation from the amount side. -->
+						<div class="shrink-0 pl-2">
+							<ContextMenu label={m.common_actions_for({ name: tx.payee || labelFor(tx.kind) })}>
+								<button onclick={() => doDuplicate(tx)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-ledger hover:bg-line/40">{m.transactions_duplicate()}</button>
+								<button onclick={() => confirmDelete(tx)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.common_delete()}</button>
+							</ContextMenu>
 						</div>
-						<div class="text-xs text-dim">{formatDateRelative(tx.date, settings.locale)} · {labelFor(tx.kind)}</div>
-					</button>
-					<Money amount={tx.amount} glyph={tx.kind === 'expense' ? '−' : tx.kind === 'income' ? '+' : ''} tone={tx.kind === 'expense' ? 'debit' : tx.kind === 'income' ? 'phosphor' : 'dim'} class="mr-3" />
-					<ContextMenu label={m.common_actions_for({ name: tx.payee || labelFor(tx.kind) })}>
-						<button onclick={() => doDuplicate(tx)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-ledger hover:bg-line/40">{m.transactions_duplicate()}</button>
-						<button onclick={() => confirmDelete(tx)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.common_delete()}</button>
-					</ContextMenu>
+					{/if}
 				</div>
 			{/each}
 		{/if}
@@ -235,10 +337,44 @@
 	{/if}
 </div>
 
+<!-- Batch bar: a floating tape segment above the bottom nav. Appears only
+     while rows are selected. -->
+{#if selectMode && selected.length > 0}
+	<div class="fixed bottom-20 inset-x-0 z-30 flex justify-center px-4 pointer-events-none">
+		<div class="pointer-events-auto w-full max-w-md bg-tape border border-line rounded-lg shadow-lg p-3 flex items-center gap-2 animate-scale-in" role="toolbar" aria-label={m.transactions_selected_count({ count: selected.length })}>
+			<span class="figures text-sm text-phosphor flex-1">{m.transactions_selected_count({ count: selected.length })}</span>
+			<Button size="sm" variant="secondary" onclick={() => openBatch('tag')}>{m.transactions_batch_retag()}</Button>
+			<Button size="sm" variant="secondary" onclick={() => openBatch('account')}>{m.transactions_batch_move()}</Button>
+			<Button size="sm" variant="danger" onclick={bulkDelete}>{m.common_delete()}</Button>
+			<Button size="sm" variant="ghost" onclick={() => setSelectMode(false)} aria-label={m.transactions_done()}>✕</Button>
+		</div>
+	</div>
+{/if}
+
+<Modal bind:open={batchOpen} title={batchMode === 'tag' ? m.transactions_batch_retag() : m.transactions_batch_move()}>
+	<div class="space-y-4">
+		{#if batchMode === 'tag'}
+			<Select label={m.forms_tag()} bind:value={batchValue} options={[...categories.tags.map((t) => ({ value: t.id, label: t.name }))]} />
+		{:else}
+			<Select label={m.forms_account()} bind:value={batchValue} options={[...accounts.items.map((a) => ({ value: a.id, label: a.name }))]} />
+		{/if}
+		<div class="flex justify-end gap-2">
+			<Button variant="ghost" onclick={() => batchOpen = false}>{m.common_cancel()}</Button>
+			<Button onclick={applyBatch} disabled={!batchValue}>{m.common_save()}</Button>
+		</div>
+	</div>
+</Modal>
+
 <ConfirmDialog
 	open={showDeleteConfirm}
 	title={m.transactions_delete_confirm_title()}
-	message={m.transactions_delete_confirm_body()}
+	message={pendingDeleteTx
+		? m.transactions_delete_confirm_body() + '\n' + m.transactions_delete_confirm_detail({
+				payee: pendingDeleteTx.payee || labelFor(pendingDeleteTx.kind),
+				amount: formatCurrency(pendingDeleteTx.amount, settings.currency, settings.locale),
+				date: formatDateRelative(pendingDeleteTx.date, settings.locale)
+			})
+		: m.transactions_delete_confirm_body()}
 	confirmLabel={m.common_delete()}
 	danger={true}
 	onconfirm={doDelete}

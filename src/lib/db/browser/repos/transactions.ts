@@ -198,7 +198,36 @@ async function applyPatch(db: DatabaseService, id: string, patch: Partial<NewTra
 		sets.push('description = ?');
 		params.push(patch.description == null ? null : stripControlChars(patch.description));
 	}
-	if (patch.transfer_account_id !== undefined) {
+
+	// Kind changes are the edit-mode repair path: a misfiled expense becomes
+	// an income, refund, or transfer without delete-and-recreate. Transfer
+	// conversions carry column consequences (destination, pair id, refund
+	// link), so they are validated and applied here rather than left to the
+	// generic field branches below.
+	let destHandled = false;
+	const changingKind = patch.kind !== undefined && patch.kind !== existing.kind;
+	if (changingKind && patch.kind === 'transfer') {
+		const dest = patch.transfer_account_id !== undefined ? patch.transfer_account_id : existing.transfer_account_id;
+		if (!dest) throw new AppError('transfer_dest_required');
+		if (dest === existing.account_id) {
+			throw new AppError('transfer_dest_differs');
+		}
+		sets.push('kind = ?', 'transfer_account_id = ?', 'refund_of_id = NULL');
+		params.push('transfer', dest);
+		if (!existing.transfer_pair_id) {
+			sets.push('transfer_pair_id = ?');
+			params.push(ulid());
+		}
+		destHandled = true;
+	} else if (changingKind) {
+		sets.push('kind = ?');
+		params.push(patch.kind);
+		if (existing.kind === 'transfer') {
+			sets.push('transfer_account_id = NULL', 'transfer_pair_id = NULL');
+		}
+	}
+
+	if (patch.transfer_account_id !== undefined && !destHandled) {
 		// Repointing a transfer's destination. Reject self-transfers (source ==
 		// destination): they neither move money nor balance to zero in the
 		// single-row transfer model, and the balance query would double-count.
@@ -237,6 +266,45 @@ export async function restoreTransaction(db: DatabaseService, id: string): Promi
 		`UPDATE transactions SET deleted_at = NULL, updated_at = ? WHERE id = ?`,
 		[now, id]
 	);
+}
+
+export async function deleteTransactions(db: DatabaseService, ids: string[]): Promise<void> {
+	if (ids.length === 0) return;
+	const now = new Date().toISOString();
+	await db.transaction(async (tx) => {
+		for (const id of ids) {
+			await tx.execute(
+				`UPDATE transactions SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`,
+				[now, now, id]
+			);
+		}
+	});
+}
+
+export async function setTagMany(db: DatabaseService, ids: string[], tagId: string | null): Promise<void> {
+	if (ids.length === 0) return;
+	const now = new Date().toISOString();
+	await db.transaction(async (tx) => {
+		for (const id of ids) {
+			await tx.execute(
+				`UPDATE transactions SET tag_id = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`,
+				[tagId, now, id]
+			);
+		}
+	});
+}
+
+export async function setAccountMany(db: DatabaseService, ids: string[], accountId: string): Promise<void> {
+	if (ids.length === 0) return;
+	const now = new Date().toISOString();
+	await db.transaction(async (tx) => {
+		for (const id of ids) {
+			await tx.execute(
+				`UPDATE transactions SET account_id = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`,
+				[accountId, now, id]
+			);
+		}
+	});
 }
 
 export async function duplicateTransaction(db: DatabaseService, id: string): Promise<string> {

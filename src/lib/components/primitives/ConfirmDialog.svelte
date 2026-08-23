@@ -29,7 +29,7 @@
 			<!-- Same faceplate voice as Modal: figures face for the title. -->
 			<h2 class="figures text-lg text-ledger tracking-wide">{title}</h2>
 			{#if message}
-				<p class="text-sm text-dim">{message}</p>
+				<p class="text-sm text-dim whitespace-pre-line">{message}</p>
 			{/if}
 			<div class="flex justify-end gap-2 pt-2">
 				<Button variant="ghost" onclick={() => open = false}>{m.common_cancel()}</Button>

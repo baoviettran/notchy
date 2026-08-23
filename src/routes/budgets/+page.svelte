@@ -3,6 +3,7 @@
 	import Progress from '$lib/components/primitives/Progress.svelte';
 	import Button from '$lib/components/primitives/Button.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
+	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import { budgets } from '$lib/stores/budgets.svelte';
 	import { categories } from '$lib/stores/categories.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
@@ -131,6 +132,8 @@
 		<div class="surface rounded-lg p-4">
 			<Skeleton lines={5} />
 		</div>
+	{:else if budgets.error}
+		<ErrorState description={budgets.error} onRetry={() => budgets.load()} />
 	{:else}
 	{#if !budgets.hasAllocations}
 		<div class="bg-phosphor/10 border border-phosphor/30 rounded-lg p-4 flex items-center justify-between">

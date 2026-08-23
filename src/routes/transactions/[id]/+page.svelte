@@ -152,7 +152,13 @@
 <ConfirmDialog
 	open={showDeleteConfirm}
 	title={m.transactions_delete_confirm_title()}
-	message={m.transactions_delete_confirm_body()}
+	message={tx
+		? m.transactions_delete_confirm_body() + '\n' + m.transactions_delete_confirm_detail({
+				payee: tx.payee || labelFor(tx.kind),
+				amount: formatCurrency(tx.amount, settings.currency, settings.locale),
+				date: formatDateRelative(tx.date, settings.locale)
+			})
+		: m.transactions_delete_confirm_body()}
 	confirmLabel={m.common_delete()}
 	danger={true}
 	onconfirm={doDelete}

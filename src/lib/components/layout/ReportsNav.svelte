@@ -22,7 +22,7 @@
 		<a
 			href={item.href}
 			aria-current={isActive(item.href, $page.url.pathname) ? 'page' : undefined}
-			class="inline-flex items-center min-h-9 px-3 rounded-md transition-colors
+			class="inline-flex items-center min-h-9 pointer-coarse:min-h-11 px-3 rounded-md transition-colors
 				{isActive(item.href, $page.url.pathname)
 					? 'bg-phosphor/15 text-phosphor font-medium'
 					: 'text-dim hover:bg-line/40'}"
