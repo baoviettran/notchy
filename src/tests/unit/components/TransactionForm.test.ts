@@ -86,4 +86,27 @@ describe('TransactionForm', () => {
 		expect(transferButton).toHaveAttribute('aria-pressed', 'true');
 		expect(screen.getByText('Expense')).toHaveAttribute('aria-pressed', 'false');
 	});
+
+	it('attaches the invalid-amount error to the amount field, not the form header', async () => {
+		const { container } = render(TransactionForm, { mode: 'full' });
+		const amountInput = screen.getByLabelText('Amount');
+		await fireEvent.input(amountInput, { target: { value: 'not a number' } });
+		await fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+		expect(screen.getByText('Invalid amount')).toBeInTheDocument();
+		const alert = screen.getByRole('alert');
+		// The alert lives inside the same wrapper as the Amount input
+		expect(alert.closest('div')!.contains(amountInput)).toBe(true);
+	});
+
+	it('attaches the missing-account error to the account select', async () => {
+		const { container } = render(TransactionForm, { mode: 'full' });
+		await fireEvent.input(screen.getByLabelText('Amount'), { target: { value: '100' } });
+		await fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+		expect(screen.getByText('Select an account')).toBeInTheDocument();
+		const alert = screen.getByRole('alert');
+		const accountSelect = screen.getByLabelText('Account');
+		expect(alert.closest('div')!.contains(accountSelect)).toBe(true);
+	});
 });

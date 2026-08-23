@@ -10,15 +10,26 @@
 	import { formatCurrency } from '$lib/utils/currency';
 	import { formatDateRelative } from '$lib/utils/date';
 	import { labelFor } from '$lib/utils/tx-kind';
-	import type { Transaction } from '$lib/db/repos/transactions';
 	import * as m from '$lib/paraglide/messages';
 	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
 	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import ConfirmDialog from '$lib/components/primitives/ConfirmDialog.svelte';
 	import ContextMenu from '$lib/components/primitives/ContextMenu.svelte';
 	import ImportTransactionsModal from '$lib/components/modals/ImportTransactionsModal.svelte';
+	import Select from '$lib/components/primitives/Select.svelte';
+	import Input from '$lib/components/primitives/Input.svelte';
+	import { accounts } from '$lib/stores/accounts.svelte';
+	import { categories } from '$lib/stores/categories.svelte';
+	import type { Transaction, TransactionKind } from '$lib/db/repos/transactions';
 
 	let search = $state($page.url.searchParams.get('q') ?? '');
+
+	// Filter chips — empty string means "no constraint". They feed straight
+	// into TransactionFilter so filtering happens in SQL, never client-side.
+	let filterKind = $state('');
+	let filterAccount = $state('');
+	let filterTag = $state('');
+	let filterMonth = $state('');
 
 	let editing = $state<Transaction | null>(null);
 	let showEditModal = $state(false);
@@ -40,20 +51,39 @@
 	async function loadPage() {
 		await transactions.load({
 			query: search || undefined,
+			kind: (filterKind || undefined) as TransactionKind | undefined,
+			account_id: filterAccount || undefined,
+			tag_id: filterTag || undefined,
+			date_from: filterMonth ? `${filterMonth}-01` : undefined,
+			date_to: filterMonth ? monthEnd(filterMonth) : undefined,
 			limit: PAGE_SIZE + 1,
 			offset: pageNum * PAGE_SIZE
 		});
 		hasNextPage = transactions.items.length > PAGE_SIZE;
 	}
 
-	onMount(loadPage);
+	function monthEnd(ym: string): string {
+		const [y, mo] = ym.split('-').map(Number);
+		return new Date(Date.UTC(y, mo, 0)).toISOString().split('T')[0];
+	}
 
-	// The global search in TopBar navigates to /transactions?q=...; stay in
-	// sync when the URL param changes (e.g. typing in the header search on
-	// the transactions page itself, or arriving via an external link).
+	onMount(() => {
+		void accounts.load();
+		void categories.load();
+	});
+
+	let lastFilterKey = '';
+	// Re-queries whenever search (URL-driven) or any filter chip changes.
+	// The key comparison keeps the effect from re-triggering off the state
+	// it writes back (`search`) or off paging (`pageNum`).
 	$effect(() => {
 		const q = $page.url.searchParams.get('q') ?? '';
-		if (q !== search) { search = q; void loadPage(); }
+		const key = [q, filterKind, filterAccount, filterTag, filterMonth].join('|');
+		if (key === lastFilterKey) return;
+		lastFilterKey = key;
+		if (q !== search) search = q;
+		pageNum = 0;
+		void loadPage();
 	});
 
 	function openEdit(tx: Transaction) {
@@ -88,6 +118,40 @@
 
 	<div class="flex gap-2">
 		<Button size="sm" variant="secondary" onclick={() => showImport = true}>{m.import_tx_title()}</Button>
+	</div>
+
+	<div class="flex flex-wrap gap-3">
+		<div class="w-44">
+			<Select
+				label={m.transactions_filter_kind()}
+				bind:value={filterKind}
+				options={[
+					{ value: '', label: m.transactions_filter_all_kinds() },
+					{ value: 'expense', label: m.forms_expense() },
+					{ value: 'income', label: m.forms_income() },
+					{ value: 'transfer', label: m.forms_transfer() },
+					{ value: 'refund', label: m.forms_refund() },
+					{ value: 'adjustment', label: m.forms_adjustment() }
+				]}
+			/>
+		</div>
+		<div class="w-44">
+			<Select
+				label={m.transactions_filter_account()}
+				bind:value={filterAccount}
+				options={[{ value: '', label: m.transactions_filter_all_accounts() }, ...accounts.items.map((a) => ({ value: a.id, label: a.name }))]}
+			/>
+		</div>
+		<div class="w-44">
+			<Select
+				label={m.transactions_filter_tag()}
+				bind:value={filterTag}
+				options={[{ value: '', label: m.transactions_filter_all_tags() }, ...categories.tags.map((t) => ({ value: t.id, label: t.name }))]}
+			/>
+		</div>
+		<div class="w-44">
+			<Input type="month" label={m.transactions_filter_month()} bind:value={filterMonth} />
+		</div>
 	</div>
 
 	{#if transactions.loading}

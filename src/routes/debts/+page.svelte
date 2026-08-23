@@ -64,6 +64,24 @@
 	}
 
 	const assetAccounts = $derived(accounts.assets.map((a) => ({ value: a.id, label: a.name })));
+
+	// Write-off is irreversible — the modal restates the number being
+	// extinguished and previews what remains so a full forgiveness never
+	// looks like an ordinary payment.
+	let writeoffPreview = $state<number | null>(null);
+
+	function updateWriteoffPreview() {
+		if (actionType !== 'writeoff' || !activeDebt) { writeoffPreview = null; return; }
+		const balance = Math.abs(activeDebt.balance);
+		try {
+			const parsed = parseAmount(amount, settings.locale, settings.currency);
+			writeoffPreview = Math.max(balance - parsed, 0);
+		} catch {
+			writeoffPreview = balance;
+		}
+	}
+
+	$effect(() => { amount; actionType; activeDebt; updateWriteoffPreview(); });
 </script>
 
 <div class="space-y-6">
@@ -89,7 +107,7 @@
 						</div>
 						<div class="flex items-center gap-2">
 							<span class="figures text-sm text-debit">{formatCurrency(Math.abs(d.balance), settings.currency, settings.locale)}</span>
-							<div class="flex gap-1 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 transition-opacity">
+							<div class="flex gap-1 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:group-focus-within:opacity-100 transition-opacity">
 								<button onclick={() => openPayment(d)} class="text-xs text-phosphor hover:underline px-2">{m.debts_pay()}</button>
 								<button onclick={() => openWriteoff(d)} class="text-xs text-dim hover:underline px-2">{m.debts_write_off()}</button>
 							</div>
@@ -116,7 +134,7 @@
 						</div>
 						<div class="flex items-center gap-2">
 							<span class="figures text-sm text-phosphor">{formatCurrency(d.balance, settings.currency, settings.locale)}</span>
-							<div class="flex gap-1 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 transition-opacity">
+							<div class="flex gap-1 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:group-focus-within:opacity-100 transition-opacity">
 								<button onclick={() => openPayment(d)} class="text-xs text-phosphor hover:underline px-2">{m.debts_receive()}</button>
 								<button onclick={() => openWriteoff(d)} class="text-xs text-dim hover:underline px-2">{m.debts_write_off()}</button>
 							</div>
@@ -130,13 +148,27 @@
 
 <Modal bind:open={showAction} title={actionType === 'payment' ? (activeDebt?.type === 'loan_from_person' ? m.debts_make_payment() : m.debts_receive_payment()) : m.debts_write_off_debt()}>
 	<div class="space-y-4">
+		{#if actionType === 'writeoff' && activeDebt}
+			<div class="rounded-md border border-line bg-ink p-3 text-sm">
+				<p class="text-dim">
+					{activeDebt.type === 'loan_to_person'
+						? m.debts_writeoff_context_owed_to_me({ name: activeDebt.counterparty, balance: formatCurrency(Math.abs(activeDebt.balance), settings.currency, settings.locale) })
+						: m.debts_writeoff_context_i_owe({ name: activeDebt.counterparty, balance: formatCurrency(Math.abs(activeDebt.balance), settings.currency, settings.locale) })}
+				</p>
+				{#if writeoffPreview !== null}
+					<p class="figures mt-1 {writeoffPreview === 0 ? 'text-phosphor' : 'text-ledger'}">
+						{m.debts_writeoff_remaining({ remaining: formatCurrency(writeoffPreview, settings.currency, settings.locale) })}
+					</p>
+				{/if}
+			</div>
+		{/if}
 		<Input label={m.common_amount()} bind:value={amount} placeholder={m.forms_amount_placeholder()} />
 		{#if actionType === 'payment'}
 			<Select label={activeDebt?.type === 'loan_from_person' ? m.debts_from_account() : m.debts_to_account()} bind:value={fromAccount} options={assetAccounts} />
 		{/if}
 		<div class="flex justify-end gap-2 pt-2">
 			<Button variant="ghost" onclick={() => showAction = false}>{m.common_cancel()}</Button>
-			<Button disabled={saving} onclick={doAction}>{actionType === 'payment' ? m.debts_record() : m.debts_write_off()}</Button>
+			<Button disabled={saving} variant={actionType === 'writeoff' ? 'danger' : 'primary'} onclick={doAction}>{actionType === 'payment' ? m.debts_record() : m.debts_write_off()}</Button>
 		</div>
 	</div>
 </Modal>

@@ -177,7 +177,7 @@ async function changeQuickSelect(page: import('@playwright/test').Page, optionLa
 		// The transaction still exists (navigate to /transactions, one row).
 		// Expense amounts render with a "-" prefix (transactions/+page.svelte:102).
 		await page.getByRole('link', { name: 'Transactions', exact: true }).click();
-		await expect(page.getByRole('main').getByText('-₫10,000')).toBeVisible();
+		await expect(page.getByRole('main').getByText('−₫10,000')).toBeVisible();
 	});
 
 	test('empty categories: a fresh bucket with no tags shows the empty prompt', async ({ onboardedPage: page }) => {

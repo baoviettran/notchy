@@ -30,6 +30,7 @@ test.describe('transactions — extended', () => {
 		// Refund: drive the modal directly (addTransaction helper doesn't expose it).
 		await page.getByRole('button', { name: 'Add transaction' }).click();
 		let modal = page.getByRole('dialog');
+		await modal.getByRole('button', { name: 'More' }).click();
 		await modal.getByRole('button', { name: 'Refund', exact: true }).click();
 		await modal.getByLabel('Amount').fill('20k');
 		await modal.getByRole('button', { name: 'Save' }).click();
@@ -38,6 +39,7 @@ test.describe('transactions — extended', () => {
 		// Adjustment.
 		await page.getByRole('button', { name: 'Add transaction' }).click();
 		modal = page.getByRole('dialog');
+		await modal.getByRole('button', { name: 'More' }).click();
 		await modal.getByRole('button', { name: 'Adjustment', exact: true }).click();
 		await modal.getByLabel('Amount').fill('10k');
 		await modal.getByRole('button', { name: 'Save' }).click();
@@ -46,7 +48,7 @@ test.describe('transactions — extended', () => {
 		await page.getByRole('link', { name: 'Transactions', exact: true }).click();
 		const main = page.getByRole('main');
 		// Both render as positive (no "-"): ₫20,000 and ₫10,000. Use exact text to
-		// avoid matching the expense's -₫50,000.
+		// avoid matching the expense's −₫50,000.
 		await expect(main.getByText('₫20,000', { exact: true })).toBeVisible();
 		await expect(main.getByText('₫10,000', { exact: true })).toBeVisible();
 	});
@@ -155,7 +157,7 @@ test.describe('transactions — extended', () => {
 		// parseAmount (en/VNĐ) expands "tr" → million. 2tr = 2,000,000.
 		await addTransaction(page, { kind: 'expense', amount: '2tr' });
 		await page.getByRole('link', { name: 'Transactions', exact: true }).click();
-		await expect(page.getByRole('main').getByText('-₫2,000,000')).toBeVisible();
+		await expect(page.getByRole('main').getByText('−₫2,000,000')).toBeVisible();
 	});
 
 	test('self-transfer is rejected with source/destination error', async ({ onboardedPage: page }) => {
@@ -174,6 +176,7 @@ test.describe('transactions — extended', () => {
 		// Now open the transfer form and pick the same account for From and To.
 		await page.getByRole('button', { name: 'Add transaction' }).click();
 		const modal = page.getByRole('dialog');
+		await modal.getByRole('button', { name: 'More' }).click();
 		await modal.getByRole('button', { name: 'Transfer', exact: true }).click();
 		await modal.getByLabel('Amount').fill('10k');
 		// From Account defaults to the first account; set To Account to the same.

@@ -5,6 +5,7 @@
 
 	// Auto-assign a stable id when none is provided so <label for> associates.
 	const inputId = id || `input-${Math.random().toString(36).slice(2, 9)}`;
+	const errorId = `${inputId}-error`;
 </script>
 
 <div class="space-y-1.5">
@@ -17,8 +18,10 @@
 			{error ? 'border-debit' : 'border-line'}
 			bg-ink text-ledger placeholder:text-dim
 			disabled:opacity-50"
+		aria-invalid={error ? 'true' : undefined}
+		aria-describedby={error ? errorId : undefined}
 	/>
 	{#if error}
-		<p class="text-xs text-debit">{error}</p>
+		<p id={errorId} class="text-xs text-debit" role="alert">{error}</p>
 	{/if}
 </div>

@@ -1,8 +1,9 @@
 <script lang="ts">
-	let { label = '', value = $bindable(''), options = [], disabled = false }: {
-		label?: string; value?: string; options: { value: string; label: string }[]; disabled?: boolean;
+	let { label = '', value = $bindable(''), options = [], disabled = false, error = '' }: {
+		label?: string; value?: string; options: { value: string; label: string }[]; disabled?: boolean; error?: string;
 	} = $props();
 	const selectId = `select-${Math.random().toString(36).slice(2, 9)}`;
+	const errorId = `${selectId}-error`;
 </script>
 
 <div class="space-y-1">
@@ -12,10 +13,17 @@
 	<select
 		id={selectId}
 		bind:value {disabled}
-		class="w-full px-3 py-2 text-base rounded-md border border-line bg-ink text-ledger"
+		class="w-full px-3 py-2 text-base rounded-md border transition-colors
+			{error ? 'border-debit' : 'border-line'}
+			bg-ink text-ledger"
+		aria-invalid={error ? 'true' : undefined}
+		aria-describedby={error ? errorId : undefined}
 	>
 		{#each options as opt}
 			<option value={opt.value}>{opt.label}</option>
 		{/each}
 	</select>
+	{#if error}
+		<p id={errorId} class="text-xs text-debit" role="alert">{error}</p>
+	{/if}
 </div>

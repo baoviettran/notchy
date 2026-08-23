@@ -26,5 +26,12 @@ export default {
 			}
 		}
 	},
-	plugins: []
+	plugins: [
+		// Hover-reveal affordances must never hide content on touch devices,
+		// so the reveal is gated behind an actual fine-pointer media query
+		// instead of assuming hover exists wherever there is no `touch`.
+		function ({ addVariant }: { addVariant: (name: string, definition: string) => void }) {
+			addVariant('pointer-fine', '@media (pointer: fine)');
+		}
+	]
 } satisfies Config;

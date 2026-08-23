@@ -25,6 +25,8 @@ test.describe('transactions', () => {
 		await page.getByRole('button', { name: 'Add transaction' }).click();
 		const txModal = page.getByRole('dialog');
 		await expect(txModal.getByRole('heading', { name: 'Add transaction' })).toBeVisible();
+		// Transfer is an advanced kind behind the "More" toggle.
+		await txModal.getByRole('button', { name: 'More' }).click();
 		await txModal.getByRole('button', { name: 'Transfer', exact: true }).click();
 		await txModal.getByLabel('Amount').fill('20k');
 		await txModal.getByLabel('To Account').selectOption('Savings');
@@ -36,8 +38,8 @@ test.describe('transactions', () => {
 		await page.getByRole('link', { name: 'Transactions', exact: true }).click();
 		const main = page.getByRole('main');
 		// Expense is prefixed with "-" (transactions/+page.svelte:102); VND formats
-		// with no fraction digits under en-US locale (currency.ts:4) → "-₫50,000".
-		await expect(main.getByText('-₫50,000')).toBeVisible();
+		// with no fraction digits under en-US locale (currency.ts:4) → "−₫50,000".
+		await expect(main.getByText('−₫50,000')).toBeVisible();
 		await expect(main.getByText('₫1,200')).toBeVisible();
 	});
 
@@ -46,7 +48,7 @@ test.describe('transactions', () => {
 		await page.getByRole('link', { name: 'Transactions', exact: true }).click();
 		// Open edit via the row's flex-1 button (transactions/+page.svelte:92). Its
 		// accessible name is "{payee||label} {date} · {label}" — for a payee-less
-		// expense that is "Expense Today · Expense". The amount ("-₫50,000") is a
+		// expense that is "Expense Today · Expense". The amount ("−₫50,000") is a
 		// sibling <span>, not inside the button, so it can't be the click target.
 		await page.getByRole('main').getByRole('button', { name: /^Expense/ }).click();
 		const editModal = page.getByRole('dialog');
@@ -56,20 +58,22 @@ test.describe('transactions', () => {
 		// Edit-mode save button is m.forms_save_changes() = "Save changes"
 		// (TransactionForm.svelte:171), NOT the add-mode "Save".
 		await editModal.getByRole('button', { name: 'Save changes' }).click();
-		await expect(page.getByRole('main').getByText('-₫75,000')).toBeVisible();
-		await expect(page.getByRole('main').getByText('-₫50,000')).toHaveCount(0);
+		await expect(page.getByRole('main').getByText('−₫75,000')).toBeVisible();
+		await expect(page.getByRole('main').getByText('−₫50,000')).toHaveCount(0);
 	});
 
 	test('delete a transaction removes it from the list', async ({ onboardedPage: page }) => {
 		await addTransaction(page, { kind: 'expense', amount: '50k' });
 		await page.getByRole('link', { name: 'Transactions', exact: true }).click();
-		await expect(page.getByRole('main').getByText('-₫50,000')).toBeVisible();
+		await expect(page.getByRole('main').getByText('−₫50,000')).toBeVisible();
 		// Delete now lives inside a ContextMenu. The row's last button is the
 		// ContextMenu trigger (⋮); open it, then click the Delete menuitem.
-		const txRow = page.getByRole('main').locator('.group', { hasText: '-₫50,000' });
+		const txRow = page.getByRole('main').locator('.group', { hasText: '−₫50,000' });
 		await txRow.getByRole('button').last().click();
 		await page.getByRole('menuitem', { name: 'Delete' }).click();
-		await expect(page.getByRole('main').getByText('-₫50,000')).toHaveCount(0);
+		// Deletion is guarded by a ConfirmDialog; confirm it.
+		await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
+		await expect(page.getByRole('main').getByText('−₫50,000')).toHaveCount(0);
 	});
 
 	test('transfer kind is disabled in edit mode', async ({ onboardedPage: page }) => {

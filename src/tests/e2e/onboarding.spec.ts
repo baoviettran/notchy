@@ -6,7 +6,7 @@ test('onboarding → dashboard → add transaction', async ({ page }) => {
 	await addTransaction(page, { kind: 'expense', amount: '50k' });
 	await expect(page.getByText(/Saved · expense ·/)).toBeVisible();
 	await page.getByRole('link', { name: 'Transactions' }).click();
-	await expect(page.getByRole('main').getByText('-₫50,000')).toBeVisible();
+	await expect(page.getByRole('main').getByText('−₫50,000')).toBeVisible();
 });
 
 test('Finish setup is disabled until an account name is entered', async ({ page }) => {

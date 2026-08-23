@@ -49,7 +49,12 @@ export async function addTransaction(
 	await page.getByRole('button', { name: 'Add transaction' }).click();
 	const modal = page.getByRole('dialog');
 	await expect(modal.getByRole('heading', { name: 'Add transaction' })).toBeVisible();
-	await modal.getByRole('button', { name: opts.kind === 'transfer' ? 'Transfer' : capitalize(opts.kind), exact: true }).click();
+	// Transfer/refund/adjustment are advanced kinds behind the "More" toggle
+	// (TransactionForm progressive disclosure).
+	if (opts.kind !== 'expense' && opts.kind !== 'income') {
+		await modal.getByRole('button', { name: 'More' }).click();
+	}
+	await modal.getByRole('button', { name: capitalize(opts.kind), exact: true }).click();
 
 	// Fill payee first (triggers auto-fill if a rule exists)
 	if (opts.payee) {

@@ -28,10 +28,10 @@ test('a transaction survives a full page reload (IndexedDB persist)', async ({ t
 	await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 	await page.getByRole('link', { name: 'Transactions', exact: true }).click();
 	// Expense amounts render with a "-" prefix (transactions/+page.svelte:102);
-	// VND formats with no fraction digits under en-US → "-₫50,000".
+	// VND formats with no fraction digits under en-US → "−₫50,000".
 	// Scope to the list row (div.divide-y > div), not a bare getByText: a
 	// future summary/totals region sharing the same formatted string would
 	// make the unscoped locator resolve to >1 element and trip strict mode.
-	const txRow = page.getByRole('main').locator('div.divide-y > div').filter({ hasText: '-₫50,000' });
+	const txRow = page.getByRole('main').locator('div.divide-y > div').filter({ hasText: '−₫50,000' });
 	await expect(txRow).toBeVisible();
 });
