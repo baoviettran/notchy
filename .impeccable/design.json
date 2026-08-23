@@ -1,0 +1,199 @@
+{
+	"schemaVersion": 2,
+	"generatedAt": "2026-08-23T00:00:00Z",
+	"title": "Design System: The Adding Machine",
+	"extensions": {
+		"colorMeta": {
+			"ink": {
+				"role": "neutral",
+				"displayName": "Casing Ink",
+				"canonical": "#14110C",
+				"lightVariant": "#F4EFE2",
+				"tonalRamp": ["oklch(15% 0.008 80)", "oklch(24% 0.010 80)", "oklch(33% 0.012 80)", "oklch(42% 0.014 80)", "oklch(52% 0.016 80)", "oklch(65% 0.018 85)", "oklch(80% 0.020 90)", "oklch(95% 0.012 95)"]
+			},
+			"tape": {
+				"role": "neutral",
+				"displayName": "Paper Tape",
+				"canonical": "#1C1812",
+				"lightVariant": "#FBF8F1",
+				"tonalRamp": ["oklch(18% 0.010 80)", "oklch(26% 0.012 82)", "oklch(35% 0.014 84)", "oklch(45% 0.016 86)", "oklch(56% 0.018 88)", "oklch(70% 0.020 92)", "oklch(85% 0.022 96)", "oklch(97% 0.010 98)"]
+			},
+			"ledger": {
+				"role": "neutral",
+				"displayName": "Ledger Bone",
+				"canonical": "#D6CFC0",
+				"lightVariant": "#1F1B14",
+				"tonalRamp": ["oklch(20% 0.012 85)", "oklch(30% 0.014 85)", "oklch(40% 0.016 87)", "oklch(50% 0.018 89)", "oklch(62% 0.020 91)", "oklch(74% 0.022 93)", "oklch(86% 0.020 95)", "oklch(96% 0.014 97)"]
+			},
+			"dim": {
+				"role": "neutral",
+				"displayName": "Engraved Dim",
+				"canonical": "#8A8170",
+				"lightVariant": "#6B6353",
+				"tonalRamp": ["oklch(22% 0.014 88)", "oklch(31% 0.016 88)", "oklch(41% 0.018 88)", "oklch(51% 0.020 88)", "oklch(61% 0.022 90)", "oklch(72% 0.022 92)", "oklch(83% 0.020 94)", "oklch(94% 0.014 96)"]
+			},
+			"line": {
+				"role": "neutral",
+				"displayName": "Divider Line",
+				"canonical": "#807763",
+				"lightVariant": "#9A8C6E",
+				"tonalRamp": ["oklch(24% 0.018 88)", "oklch(33% 0.020 88)", "oklch(43% 0.022 88)", "oklch(53% 0.024 89)", "oklch(62% 0.026 90)", "oklch(73% 0.026 92)", "oklch(84% 0.024 94)", "oklch(95% 0.016 96)"]
+			},
+			"phosphor": {
+				"role": "primary",
+				"displayName": "Amber Phosphor",
+				"canonical": "#FFB454",
+				"lightVariant": "#9A5700",
+				"tonalRamp": ["oklch(28% 0.06 70)", "oklch(38% 0.08 72)", "oklch(48% 0.10 73)", "oklch(58% 0.11 74)", "oklch(68% 0.12 75)", "oklch(76% 0.13 76)", "oklch(83% 0.12 77)", "oklch(93% 0.07 80)"]
+			},
+			"phosphor-bright": {
+				"role": "primary",
+				"displayName": "Phosphor Bloom",
+				"canonical": "#FFD79A",
+				"lightVariant": "#9A5700",
+				"tonalRamp": ["oklch(35% 0.05 75)", "oklch(45% 0.07 76)", "oklch(55% 0.09 77)", "oklch(64% 0.10 78)", "oklch(73% 0.11 79)", "oklch(81% 0.11 80)", "oklch(89% 0.09 82)", "oklch(96% 0.05 85)"]
+			},
+			"debit": {
+				"role": "tertiary",
+				"displayName": "Oxblood Debit",
+				"canonical": "#E5484D",
+				"lightVariant": "#C23B3F",
+				"tonalRamp": ["oklch(22% 0.08 25)", "oklch(31% 0.11 25)", "oklch(40% 0.14 25)", "oklch(49% 0.17 25)", "oklch(57% 0.19 25)", "oklch(66% 0.19 25)", "oklch(76% 0.16 25)", "oklch(90% 0.07 25)"]
+			}
+		},
+		"typographyMeta": {
+			"figures": { "displayName": "Figures", "purpose": "Every displayed number; the VFD display face." },
+			"body": { "displayName": "Body", "purpose": "Prose and descriptions; global tabular numerals." },
+			"label": { "displayName": "Plate", "purpose": "Engraved uppercase micro-labels (.plate)." }
+		},
+		"shadows": [
+			{ "name": "focus-ring", "value": "0 0 0 2px var(--ink), 0 0 0 3px var(--phosphor)", "purpose": "The single shared focus indicator (:focus-visible), quiet double-ring." },
+			{ "name": "fab-halo-dark", "value": "0 0 0 1px rgb(var(--phosphor-rgb) / 0.3), 0 8px 24px -4px rgb(var(--phosphor-rgb) / 0.5)", "purpose": "Phosphor halo under the FAB in dark mode." },
+			{ "name": "fab-halo-light", "value": "0 8px 24px -8px rgb(0 0 0 / 0.3)", "purpose": "Ordinary ink lift for the FAB on paper; no glow in light mode." },
+			{ "name": "vfd-resting-glow", "value": "0 0 4px rgba(255,180,84,0.35), 0 0 11px rgba(255,180,84,0.10)", "purpose": "Resting text-shadow bloom on .figures-glow; dark only." }
+		],
+		"motion": [
+			{ "name": "slide-up", "value": "translateY(16px)→0 + fade, 150ms ease-out", "purpose": "Modals and sheets entering." },
+			{ "name": "scale-in", "value": "scale(0.96)→1 + fade, 150ms ease-out", "purpose": "Popovers and menus." },
+			{ "name": "flash", "value": "text-shadow bright→resting, 250ms ease-out", "purpose": "One-shot keypress flicker when the machine registers a save; settles to resting glow." }
+		],
+		"breakpoints": [
+			{ "name": "sm", "value": "640px" },
+			{ "name": "md", "value": "768px" },
+			{ "name": "lg", "value": "1024px" }
+		]
+	},
+	"components": [
+		{
+			"name": "Primary Button",
+			"kind": "button",
+			"refersTo": "button-primary",
+			"description": "Phosphor fill, casing-ink text; the machine's one loud voice.",
+			"html": "<button class=\"ds-btn-primary\">Save entry</button>",
+			"css": ".ds-btn-primary { background: var(--phosphor); color: var(--ink); font-family: \"IBM Plex Sans\", system-ui, sans-serif; font-weight: 500; font-size: 14px; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; transition: filter 150ms ease-out; } .ds-btn-primary:hover { filter: brightness(1.1); } .ds-btn-primary:focus-visible { box-shadow: 0 0 0 2px var(--ink), 0 0 0 3px var(--phosphor); outline: none; } .ds-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }"
+		},
+		{
+			"name": "Secondary Button",
+			"kind": "button",
+			"refersTo": "button-secondary",
+			"description": "Bordered tape button; border sharpens to ledger on hover.",
+			"html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+			"css": ".ds-btn-secondary { background: var(--tape); color: var(--ledger); font-family: \"IBM Plex Sans\", system-ui, sans-serif; font-weight: 500; font-size: 14px; padding: 8px 16px; border: 1px solid var(--dim); border-radius: 6px; cursor: pointer; transition: border-color 150ms ease-out; } .ds-btn-secondary:hover { border-color: var(--ledger); } .ds-btn-secondary:focus-visible { box-shadow: 0 0 0 2px var(--ink), 0 0 0 3px var(--phosphor); outline: none; }"
+		},
+		{
+			"name": "Danger Button",
+			"kind": "button",
+			"refersTo": "button-danger",
+			"description": "Debit-fill confirm for destructive actions only.",
+			"html": "<button class=\"ds-btn-danger\">Write off</button>",
+			"css": ".ds-btn-danger { background: var(--debit); color: var(--ink); font-family: \"IBM Plex Sans\", system-ui, sans-serif; font-weight: 500; font-size: 14px; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; transition: filter 150ms ease-out; } .ds-btn-danger:hover { filter: brightness(1.1); } .ds-btn-danger:focus-visible { box-shadow: 0 0 0 2px var(--ink), 0 0 0 3px var(--phosphor); outline: none; }"
+		},
+		{
+			"name": "Ghost Button",
+			"kind": "button",
+			"refersTo": null,
+			"description": "Quiet dim action that lifts to ledger with a line wash.",
+			"html": "<button class=\"ds-btn-ghost\">More</button>",
+			"css": ".ds-btn-ghost { background: transparent; color: var(--dim); font-family: \"IBM Plex Sans\", system-ui, sans-serif; font-weight: 500; font-size: 14px; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; transition: color 150ms ease-out, background 150ms ease-out; } .ds-btn-ghost:hover { color: var(--ledger); background: rgb(var(--line-rgb) / 0.4); } .ds-btn-ghost:focus-visible { box-shadow: 0 0 0 2px var(--ink), 0 0 0 3px var(--phosphor); outline: none; }"
+		},
+		{
+			"name": "Input Field",
+			"kind": "input",
+			"refersTo": "input",
+			"description": "Casing-fill field on tape surfaces with plate label and error state.",
+			"html": "<label class=\"ds-field\"><span class=\"ds-plate\">Amount</span><input class=\"ds-input\" placeholder=\"0\" /><span class=\"ds-error\" role=\"alert\">Invalid amount</span></label>",
+			"css": ".ds-field { display: flex; flex-direction: column; gap: 6px; } .ds-plate { font-family: \"IBM Plex Mono\", monospace; text-transform: uppercase; letter-spacing: 0.18em; font-size: 11px; color: var(--dim); } .ds-input { background: var(--ink); color: var(--ledger); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; font-family: \"IBM Plex Mono\", monospace; font-size: 14px; font-variant-numeric: tabular-nums; } .ds-input:focus-visible { box-shadow: 0 0 0 2px var(--ink), 0 0 0 3px var(--phosphor); outline: none; } .ds-input[aria-invalid='true'] { border-color: var(--debit); } .ds-error { color: var(--debit); font-size: 12px; }"
+		},
+		{
+			"name": "Surface Card",
+			"kind": "card",
+			"refersTo": "card",
+			"description": "A segment of paper tape: hairline-bordered, padded, rows divided.",
+			"html": "<div class=\"ds-card\"><div class=\"ds-row\"><span class=\"ds-plate\">Recent</span><span class=\"ds-figure\">+1,250,000</span></div><div class=\"ds-row\"><span class=\"ds-dim\">Groceries</span><span class=\"ds-figure-negative\">−340,000</span></div></div>",
+			"css": ".ds-card { background: var(--tape); border: 1px solid var(--line); border-radius: 8px; padding: 16px; } .ds-row { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 0; } .ds-row + .ds-row { border-top: 1px solid rgb(var(--line-rgb) / 0.5); } .ds-plate { font-family: \"IBM Plex Mono\", monospace; text-transform: uppercase; letter-spacing: 0.18em; font-size: 11px; color: var(--dim); } .ds-dim { color: var(--dim); font-family: \"IBM Plex Sans\", system-ui, sans-serif; font-size: 14px; } .ds-figure { font-family: \"IBM Plex Mono\", monospace; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; color: var(--phosphor); } .ds-figure-negative { font-family: \"IBM Plex Mono\", monospace; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; color: var(--debit); }"
+		},
+		{
+			"name": "VFD Figure",
+			"kind": "custom",
+			"refersTo": null,
+			"description": "The signature: phosphor mono digits with a resting amber bloom (dark only).",
+			"html": "<span class=\"ds-vfd\">2,450,000</span>",
+			"css": ".ds-vfd { font-family: \"IBM Plex Mono\", monospace; font-variant-numeric: tabular-nums lining-nums; letter-spacing: -0.01em; font-size: 32px; color: var(--phosphor-bright); text-shadow: 0 0 4px rgba(255, 180, 84, 0.35), 0 0 11px rgba(255, 180, 84, 0.10); transition: text-shadow 250ms ease-out; } .ds-vfd:hover { text-shadow: 0 0 10px rgba(255, 180, 84, 0.8), 0 0 22px rgba(255, 180, 84, 0.32); }"
+		},
+		{
+			"name": "FAB (The Keypad +)",
+			"kind": "button",
+			"refersTo": null,
+			"description": "The adding machine's only physical key: phosphor circle, dark-only halo, scaling + glyph.",
+			"html": "<button class=\"ds-fab\" aria-label=\"Add transaction\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\"><path d=\"M12 5v14M5 12h14\"/></svg></button>",
+			"css": ".ds-fab { width: 56px; height: 56px; border-radius: 9999px; background: var(--phosphor); color: var(--ink); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 1px rgb(var(--phosphor-rgb) / 0.3), 0 8px 24px -4px rgb(var(--phosphor-rgb) / 0.5); transition: filter 150ms ease-out; } .ds-fab svg { width: 24px; height: 24px; transition: transform 150ms ease-out; } .ds-fab:hover { filter: brightness(1.1); } .ds-fab:hover svg { transform: scale(1.05); } .ds-fab:focus-visible { box-shadow: 0 0 0 2px var(--ink), 0 0 0 3px var(--phosphor); outline: none; } @media (pointer: fine) { .ds-fab:hover svg { transform: scale(1.05); } }"
+		},
+		{
+			"name": "Empty State",
+			"kind": "custom",
+			"refersTo": null,
+			"description": "Machine-glyph motif (▮▯▯▯) in VFD glow over a dim message; aria-hidden decoration.",
+			"html": "<div class=\"ds-empty\"><p class=\"ds-empty-glyph\" aria-hidden=\"true\">▮▯▯▯</p><p class=\"ds-empty-msg\">No transactions yet</p><button class=\"ds-btn-primary\">Add one</button></div>",
+			"css": ".ds-empty { text-align: center; padding: 48px 0; display: flex; flex-direction: column; align-items: center; gap: 8px; } .ds-empty-glyph { font-family: \"IBM Plex Mono\", monospace; font-size: 24px; letter-spacing: -0.01em; color: var(--phosphor-bright); text-shadow: 0 0 4px rgba(255, 180, 84, 0.35), 0 0 11px rgba(255, 180, 84, 0.10); margin: 0 0 2px; } .ds-empty-msg { font-family: \"IBM Plex Sans\", system-ui, sans-serif; font-size: 14px; color: var(--dim); margin: 0; } .ds-btn-primary { background: var(--phosphor); color: var(--ink); font-family: \"IBM Plex Sans\", system-ui, sans-serif; font-weight: 500; font-size: 14px; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; margin-top: 12px; transition: filter 150ms ease-out; } .ds-btn-primary:hover { filter: brightness(1.1); }"
+		},
+		{
+			"name": "Overflow Menu",
+			"kind": "custom",
+			"refersTo": null,
+			"description": "Context menu: tape panel with line border, scale-in entrance, full keyboard navigation.",
+			"html": "<div class=\"ds-menu-wrap\"><button class=\"ds-menu-trigger\" aria-label=\"Actions\" aria-haspopup=\"menu\"><svg viewBox=\"0 0 24 24\" fill=\"currentColor\"><circle cx=\"12\" cy=\"5\" r=\"1.5\"/><circle cx=\"12\" cy=\"12\" r=\"1.5\"/><circle cx=\"12\" cy=\"19\" r=\"1.5\"/></svg></button><div class=\"ds-menu-panel\" role=\"menu\"><button class=\"ds-menuitem\" role=\"menuitem\">Edit entry</button><button class=\"ds-menuitem ds-menuitem-danger\" role=\"menuitem\">Delete</button></div></div>",
+			"css": ".ds-menu-wrap { position: relative; display: inline-block; } .ds-menu-trigger { position: relative; padding: 8px; margin: -4px; background: none; border: none; border-radius: 4px; color: var(--dim); cursor: pointer; transition: color 150ms ease-out, background 150ms ease-out; } .ds-menu-trigger::before { content: ''; position: absolute; inset: -8px; } .ds-menu-trigger:hover { color: var(--ledger); background: rgb(var(--line-rgb) / 0.4); } .ds-menu-trigger svg { width: 16px; height: 16px; display: block; } .ds-menu-panel { position: absolute; right: 0; top: calc(100% + 4px); width: 160px; background: var(--tape); border: 1px solid var(--line); border-radius: 6px; z-index: 20; transform-origin: top right; animation: ds-scale-in 150ms ease-out; overflow: hidden; } .ds-menuitem { display: block; width: 100%; text-align: left; padding: 9px 12px; background: none; border: none; font-family: \"IBM Plex Sans\", system-ui, sans-serif; font-size: 14px; color: var(--ledger); cursor: pointer; } .ds-menuitem:hover, .ds-menuitem:focus-visible { background: rgb(var(--line-rgb) / 0.4); outline: none; } .ds-menuitem-danger { color: var(--debit); } @keyframes ds-scale-in { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }"
+		}
+	],
+	"narrative": {
+		"northStar": "The Adding Machine",
+		"overview": "Notchy is a mechanical adding machine: a warm near-black casing, amber phosphor VFD figures, oxblood debit ink, engraved faceplate labels. Money is not decoration on cards; it is glow on a calculator tape.\n\nThe metaphor is carried hardest where money is displayed (dashboard readouts, Quick Add's tape, account balances) and more quietly in workhorse surfaces (lists, forms). Dark is the native surface; light mode is the paper variant of the same machine — same parts, different material. Glow belongs to the dark casing; paper does not glow.\n\nIf a decision could belong to any fintech app unchanged, it is wrong. Ask what the machine would do.",
+		"keyCharacteristics": [
+			"Eight tokens are the whole palette; every surface is a relationship between casing and paper.",
+			"Every figure is set in mono tabular numerals; numbers are content, not decoration.",
+			"Depth comes from tonal layering and engraved borders, not shadows.",
+			"Motion is three keyframes, 150–250ms, all with a reduced-motion story.",
+			"The icon vocabulary is typographic glyphs with fixed meanings, never emoji chrome."
+		],
+		"rules": [
+			{ "name": "The Eight-Token Rule", "body": "These eight tokens are the whole palette. No new accent hues; if a decision needs a ninth color, the decision is wrong.", "section": "colors" },
+			{ "name": "The Measured Contrast Rule", "body": "--line must clear 3:1 against --tape in both themes, and --dim stays above --line so secondary text reads stronger than a divider.", "section": "colors" },
+			{ "name": "The Figures Rule", "body": "Every monetary value renders through .figures + formatCurrency. Never set a number in the sans face.", "section": "typography" },
+			{ "name": "The No-Glow-On-Paper Rule", "body": "Glow renders in dark mode only; light mode substitutes plain color or ink shadow. No animation without a reduced-motion story.", "section": "elevation" }
+		],
+		"dos": [
+			"Do keep money as integer smallest units through formatCurrency.",
+			"Do pair every color-coded state with a glyph or text.",
+			"Do give hover-revealed controls a keyboard path and keep them visible on coarse pointers.",
+			"Do add locale strings to both messages/en.json and messages/vi.json in the same change.",
+			"Do frame irreversible actions numerically before confirming."
+		],
+		"donts": [
+			"Don't introduce floating-point money, new accent hues, or a second semantic red.",
+			"Don't render glow, flicker, or halos in light mode; don't ship motion without a reduced-motion story.",
+			"Don't use confirm dialogs without consequence framing, or destructive actions without undo or explicit numeric restatement.",
+			"Don't mix arbitrary emoji into chrome; status glyphs stay in the glyph vocabulary.",
+			"Don't let internal identifiers leak into copy."
+		]
+	}
+}
