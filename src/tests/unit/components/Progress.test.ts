@@ -16,4 +16,13 @@ describe('Progress', () => {
 		render(Progress, { value: 40, max: 100, label: 'Groceries' });
 		expect(screen.getByRole('progressbar', { name: 'Groceries' })).toBeInTheDocument();
 	});
+
+	it('renders debit segments when the value exceeds the max', () => {
+		// Regression guard: overBudget used to compare against the clamped
+		// percentage and could never fire.
+		const { container } = render(Progress, { value: 120, max: 100 });
+		const segments = Array.from(container.querySelectorAll('div > div > div'));
+		expect(segments.length).toBeGreaterThan(0);
+		expect(segments.every((s) => s.className.includes('bg-debit'))).toBe(true);
+	});
 });

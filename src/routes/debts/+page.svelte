@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Button from '$lib/components/primitives/Button.svelte';
+	import ContextMenu from '$lib/components/primitives/ContextMenu.svelte';
 	import Modal from '$lib/components/primitives/Modal.svelte';
 	import Input from '$lib/components/primitives/Input.svelte';
 	import Select from '$lib/components/primitives/Select.svelte';
@@ -91,10 +92,10 @@
 		<h2 class="plate mb-2">{m.debts_i_owe()}</h2>
 		{#if debts.i_owe.length === 0}
 			<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
-				<!-- Being debt-free is a real milestone — the celebration gets a
-				     designed lamp (phosphor ring + tint) instead of a trailing
-				     emoji in the sentence. The copy carries the meaning. -->
-				<div class="mx-auto mb-3 w-12 h-12 rounded-full border border-phosphor/40 bg-phosphor/10 flex items-center justify-center text-xl" aria-hidden="true">🎉</div>
+					<!-- Being debt-free is a real milestone — the celebration gets a
+				     designed lamp (phosphor ring + tint) instead of an off-brand
+				     emoji. The copy carries the meaning. -->
+				<div class="mx-auto mb-3 w-12 h-12 rounded-full border border-phosphor/40 bg-phosphor/10 flex items-center justify-center figures text-xl text-phosphor" aria-hidden="true">✓</div>
 				<p class="text-sm">{m.debts_empty_i_owe()}</p>
 			</div>
 		{:else}
@@ -107,10 +108,10 @@
 						</div>
 						<div class="flex items-center gap-2">
 							<span class="figures text-sm text-debit">{formatCurrency(Math.abs(d.balance), settings.currency, settings.locale)}</span>
-							<div class="flex gap-1 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:group-focus-within:opacity-100 transition-opacity">
-								<button onclick={() => openPayment(d)} class="text-xs text-phosphor hover:underline px-2">{m.debts_pay()}</button>
-								<button onclick={() => openWriteoff(d)} class="text-xs text-dim hover:underline px-2">{m.debts_write_off()}</button>
-							</div>
+							<button onclick={() => openPayment(d)} class="text-xs text-phosphor hover:underline px-2 py-1">{m.debts_pay()}</button>
+							<ContextMenu label={m.common_actions_for({ name: d.counterparty })}>
+								<button onclick={() => openWriteoff(d)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.debts_write_off()}</button>
+							</ContextMenu>
 						</div>
 					</div>
 				{/each}
@@ -134,10 +135,10 @@
 						</div>
 						<div class="flex items-center gap-2">
 							<span class="figures text-sm text-phosphor">{formatCurrency(d.balance, settings.currency, settings.locale)}</span>
-							<div class="flex gap-1 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:group-focus-within:opacity-100 transition-opacity">
-								<button onclick={() => openPayment(d)} class="text-xs text-phosphor hover:underline px-2">{m.debts_receive()}</button>
-								<button onclick={() => openWriteoff(d)} class="text-xs text-dim hover:underline px-2">{m.debts_write_off()}</button>
-							</div>
+							<button onclick={() => openPayment(d)} class="text-xs text-phosphor hover:underline px-2 py-1">{m.debts_receive()}</button>
+							<ContextMenu label={m.common_actions_for({ name: d.counterparty })}>
+								<button onclick={() => openWriteoff(d)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.debts_write_off()}</button>
+							</ContextMenu>
 						</div>
 					</div>
 				{/each}

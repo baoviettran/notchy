@@ -141,8 +141,8 @@
 								placeholder="0"
 								class="figures w-32 px-2 py-1 text-xs rounded border border-line bg-ink text-ledger text-right"
 							/>
-							<button onclick={() => saveEdit(bucket.id)} class="text-xs text-phosphor">✓</button>
-							<button onclick={() => editing = null} class="text-xs text-dim">✕</button>
+							<button onclick={() => saveEdit(bucket.id)} aria-label={m.common_save()} class="min-w-7 min-h-7 px-1.5 text-xs text-phosphor rounded hover:bg-line/40">✓</button>
+							<button onclick={() => editing = null} aria-label={m.common_cancel()} class="min-w-7 min-h-7 px-1.5 text-xs text-dim rounded hover:bg-line/40">✕</button>
 						</div>
 					{:else}
 						<button onclick={() => startEdit(bucket.id, allocated)} class="figures text-xs text-dim hover:text-phosphor">

@@ -61,14 +61,18 @@ test.describe('debts — extended', () => {
 		await expect(main.getByText('No debts. You\'re debt-free!')).toBeVisible();
 	});
 
-	test('debt-free celebration: the emoji is a designed badge, not a trailing glyph', async ({ onboardedPage: page }) => {
-		// A fresh app has no i-owe debts. The 🎉 now lives in its own
-		// celebration badge (debts/+page.svelte:76) instead of trailing the
-		// sentence — the message reads clean and the emoji is deliberate.
+	test('debt-free celebration: the badge is a designed phosphor lamp, not an emoji', async ({ onboardedPage: page }) => {
+		// A fresh app has no i-owe debts. The celebration badge is a phosphor
+		// ring with the ✓ glyph (debts/+page.svelte) — on-brand, aria-hidden,
+		// never a trailing emoji in the sentence.
 		await page.getByRole('link', { name: 'Debts', exact: true }).click();
 		const main = page.getByRole('main');
 		await expect(main.getByText('No debts. You\'re debt-free!')).toBeVisible();
-		await expect(main.getByText('🎉', { exact: true })).toBeVisible();
+		const badge = main.locator('div.rounded-full[aria-hidden="true"]');
+		await expect(badge).toBeVisible();
+		await expect(badge).toHaveClass(/border-phosphor/);
+		await expect(badge).toHaveText('✓');
+		await expect(main.getByText('🎉')).toHaveCount(0);
 	});
 
 	test('i-owe: a loan_from_person account surfaces under "I Owe"', async ({ onboardedPage: page }) => {
@@ -124,7 +128,10 @@ test.describe('debts — extended', () => {
 		await page.getByRole('link', { name: 'Debts', exact: true }).click();
 		const main = page.getByRole('main');
 		await expect(main.getByText('500,000')).toBeVisible();
-		await main.locator('div.group', { hasText: 'Alice' }).getByRole('button', { name: 'Write off' }).click();
+		// Write off lives in the row's overflow menu (persistent kebab, no hover-gate).
+		const debtRow = main.locator('div.group', { hasText: 'Alice' });
+		await debtRow.getByRole('button', { name: 'Actions: Alice' }).click();
+		await debtRow.getByRole('menuitem', { name: 'Write off' }).click();
 		const modal = page.getByRole('dialog');
 		await expect(modal.getByRole('heading', { name: 'Write off debt' })).toBeVisible();
 		await modal.getByLabel('Amount').fill('500k');

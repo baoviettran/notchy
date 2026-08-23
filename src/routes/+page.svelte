@@ -19,7 +19,7 @@
 		void Promise.all([accounts.load(), budgets.load(), transactions.load({ limit: 5 }), goals.load(), transactions.loadMonthFlow()]);
 	}
 
-	let recentTxns = $derived(transactions.items.slice(0, 6));
+	let recentTxns = $derived(transactions.items.slice(0, 5));
 	let totalAssets = $derived(accounts.assets.reduce((s, a) => s + a.balance, 0));
 	let totalLiabilities = $derived(accounts.liabilities.reduce((s, a) => s + Math.abs(a.balance), 0));
 	let netPosition = $derived(totalAssets - totalLiabilities);

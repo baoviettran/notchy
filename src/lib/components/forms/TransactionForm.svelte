@@ -191,7 +191,7 @@
 	<Input label={m.common_amount()} bind:value={amount} placeholder={m.forms_amount_placeholder()} error={amountError} autofocus />
 
 	<!-- KIND: secondary toggle with progressive disclosure -->
-	<div class="space-y-2" role="group" aria-label="Transaction kind">
+	<div class="space-y-2" role="group" aria-label={m.forms_kind_group()}>
 		<div class="flex flex-wrap gap-2">
 			{#each primaryKinds as k}
 				<button onclick={() => kind = k.value as TransactionKind} disabled={isEdit}

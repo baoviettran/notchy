@@ -2,8 +2,11 @@
 	let { value = 0, max = 100, size = 'md', segments = 20, label = '' }: {
 		value?: number; max?: number; size?: 'sm' | 'md'; segments?: number; label?: string;
 	} = $props();
+	// Raw percentage drives the over-budget detection; the displayed bar
+	// clamps at full so overflow reads as color, not geometry.
 	const pct = Math.min(100, Math.max(0, (value / max) * 100));
-	const overBudget = pct > 100;
+	const rawPct = max > 0 ? (value / max) * 100 : 0;
+	const overBudget = rawPct > 100;
 	const heights = { sm: 'h-2', md: 'h-3' };
 	const filled = Math.round((Math.min(pct, 100) / 100) * segments);
 </script>

@@ -3,6 +3,7 @@
 	import Button from '$lib/components/primitives/Button.svelte';
 	import Modal from '$lib/components/primitives/Modal.svelte';
 	import ConfirmDialog from '$lib/components/primitives/ConfirmDialog.svelte';
+	import ContextMenu from '$lib/components/primitives/ContextMenu.svelte';
 	import Progress from '$lib/components/primitives/Progress.svelte';
 	import GoalForm from '$lib/components/forms/GoalForm.svelte';
 	import { goals } from '$lib/stores/goals.svelte';
@@ -71,8 +72,10 @@
 							<button onclick={() => openEdit(g)} class="figures text-sm font-medium text-ledger text-left">{g.name}</button>
 							<div class="flex items-center gap-2">
 								<span class="text-xs text-dim">{statusIcons[g.velocity_status] ?? ''} {goalStatusLabel(g.velocity_status)}</span>
-								<button onclick={() => markComplete(g)} class="text-xs text-dim hover:text-phosphor pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:group-focus-within:opacity-100 transition-opacity px-1">{m.goals_mark_complete()}</button>
-								<button onclick={() => confirmDelete = g} class="text-xs text-dim hover:text-debit pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:group-focus-within:opacity-100 transition-opacity px-1">{m.goals_delete()}</button>
+								<ContextMenu label={m.common_actions_for({ name: g.name })}>
+									<button onclick={() => markComplete(g)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-phosphor hover:bg-line/40">{m.goals_mark_complete()}</button>
+									<button onclick={() => confirmDelete = g} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.goals_delete()}</button>
+								</ContextMenu>
 							</div>
 						</div>
 						<Progress value={g.progress_pct} max={100} size="sm" label={g.name} />

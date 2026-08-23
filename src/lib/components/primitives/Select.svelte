@@ -1,6 +1,6 @@
 <script lang="ts">
 	let { label = '', value = $bindable(''), options = [], disabled = false, error = '' }: {
-		label?: string; value?: string; options: { value: string; label: string }[]; disabled?: boolean; error?: string;
+		label?: string; value?: string | number | null; options: { value: string | number | null; label: string }[]; disabled?: boolean; error?: string;
 	} = $props();
 	const selectId = `select-${Math.random().toString(36).slice(2, 9)}`;
 	const errorId = `${selectId}-error`;

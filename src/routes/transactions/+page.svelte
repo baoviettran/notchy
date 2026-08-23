@@ -48,6 +48,24 @@
 	// payee autocomplete; truncating it here corrupts those views.
 	let displayItems = $derived(transactions.items.slice(0, PAGE_SIZE));
 
+	// Any constraint beyond search is active → offer a one-click exit.
+	let hasActiveFilters = $derived(Boolean(filterKind || filterAccount || filterTag || filterMonth));
+
+	function clearFilters() {
+		filterKind = '';
+		filterAccount = '';
+		filterTag = '';
+		filterMonth = '';
+	}
+
+	// Honest match count: the store holds PAGE_SIZE+1 rows, so an exact total
+	// is only knowable when there is no next page — otherwise show "N+".
+	let countLine = $derived.by(() => {
+		if (hasNextPage) return m.transactions_count_more({ count: (pageNum + 1) * PAGE_SIZE });
+		const total = pageNum * PAGE_SIZE + displayItems.length;
+		return total === 0 ? m.transactions_count_none() : m.transactions_count_many({ count: total });
+	});
+
 	async function loadPage() {
 		await transactions.load({
 			query: search || undefined,
@@ -159,10 +177,13 @@
 	{:else if transactions.error}
 		<ErrorState description={transactions.error} onRetry={loadPage} />
 	{:else}
-		{#if displayItems.length > 0}
-			<p class="text-xs text-dim">
-				{displayItems.length === 0 ? m.transactions_count_none() : m.transactions_count_many({ count: displayItems.length })}
-			</p>
+		{#if displayItems.length > 0 || hasActiveFilters}
+			<div class="flex items-center justify-between gap-2">
+				<p class="text-xs text-dim">{countLine}</p>
+				{#if hasActiveFilters}
+					<Button variant="ghost" size="sm" onclick={clearFilters}>{m.transactions_filter_clear()}</Button>
+				{/if}
+			</div>
 		{/if}
 
 		<div class="bg-tape rounded-lg border border-line divide-y divide-line">
@@ -183,7 +204,7 @@
 					<span class="figures text-sm mr-3 {tx.kind === 'expense' ? 'text-debit' : tx.kind === 'income' ? 'text-phosphor' : 'text-dim'}">
 						{tx.kind === 'expense' ? '−' : ''}{formatCurrency(tx.amount, settings.currency, settings.locale)}
 					</span>
-					<ContextMenu label={m.transactions_duplicate() + ' · ' + m.common_delete()}>
+					<ContextMenu label={m.common_actions_for({ name: tx.payee || labelFor(tx.kind) })}>
 						<button onclick={() => doDuplicate(tx)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-ledger hover:bg-line/40">{m.transactions_duplicate()}</button>
 						<button onclick={() => confirmDelete(tx)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.common_delete()}</button>
 					</ContextMenu>

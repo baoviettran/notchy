@@ -147,8 +147,12 @@
 <ConfirmDialog
 	open={confirmLarge}
 	title={m.accounts_large_discrepancy_title()}
-	message={m.accounts_large_discrepancy_body({ amount: formatCurrency(pendingDiscrepancy, settings.currency, settings.locale) })}
+	message={m.accounts_large_discrepancy_body({
+		amount: formatCurrency(pendingDiscrepancy, settings.currency, settings.locale),
+		expected: formatCurrency(account?.balance ?? 0, settings.currency, settings.locale),
+		actual: actualBalance
+	})}
 	confirmLabel={m.accounts_yes_reconcile()}
-	danger={false}
+	danger={true}
 	onconfirm={confirmLargeReconcile}
 />
