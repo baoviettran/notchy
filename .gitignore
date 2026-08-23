@@ -59,3 +59,11 @@ backups/
 *.swp
 *~
 .superpowers/
+
+# Local tooling caches and build outputs
+.codegraph/
+artifacts/
+.claude/settings.local.json
+.claude/worktrees/
+.impeccable/hook.cache.json
+.impeccable/config.local.json
