@@ -129,18 +129,19 @@
   }
 
   type ColumnRole = 'date' | 'amount' | 'debit' | 'credit' | 'payee' | 'notes';
+  type RoleGroup = 'money' | 'detail';
 
-  function roleFields(s: ImportStore): { key: ColumnRole; label: string; col: number | null }[] {
+  function roleFields(s: ImportStore): { key: ColumnRole; label: string; col: number | null; group: RoleGroup }[] {
     return [
-      { key: 'date', label: m.import_tx_mapping_date(), col: s.mapping.date },
+      { key: 'date', label: m.import_tx_mapping_date(), col: s.mapping.date, group: 'money' },
       ...(s.mapping.signConvention === 'signed'
-        ? [{ key: 'amount' as const, label: m.import_tx_mapping_amount(), col: s.mapping.amount }]
+        ? [{ key: 'amount' as const, label: m.import_tx_mapping_amount(), col: s.mapping.amount, group: 'money' as const }]
         : [
-            { key: 'debit' as const, label: m.import_tx_mapping_debit(), col: s.mapping.debit },
-            { key: 'credit' as const, label: m.import_tx_mapping_credit(), col: s.mapping.credit }
+            { key: 'debit' as const, label: m.import_tx_mapping_debit(), col: s.mapping.debit, group: 'money' as const },
+            { key: 'credit' as const, label: m.import_tx_mapping_credit(), col: s.mapping.credit, group: 'money' as const }
           ]),
-      { key: 'payee', label: m.import_tx_mapping_payee(), col: s.mapping.payee },
-      { key: 'notes', label: m.import_tx_mapping_notes(), col: s.mapping.notes }
+      { key: 'payee', label: m.import_tx_mapping_payee(), col: s.mapping.payee, group: 'detail' },
+      { key: 'notes', label: m.import_tx_mapping_notes(), col: s.mapping.notes, group: 'detail' }
     ];
   }
 
@@ -156,7 +157,7 @@
   const dateFormatOptions = dateFormats.map((f) => ({ value: f, label: f }));
 </script>
 
-<Modal bind:open title={m.import_tx_title()}>
+<Modal bind:open title={m.import_tx_title()} locked={loading}>
   {#if !store}
     <!-- Phase: select -->
     <div class="space-y-4">
@@ -185,17 +186,34 @@
   {:else}
     {@const s = store}
     {#if currentPhase === 'mapping'}
-      <!-- Phase: editable mapping. Grouped into two chunked decisions — which
-           columns play which role (each validated against a live sample), then
-           format overrides — so no step is an unchunked wall of dropdowns. -->
+      <!-- Phase: editable mapping. Chunked into three labeled groups — money
+           columns (the ones that decide whether a row is valid), detail
+           columns, then formats. The sign convention sits above the money
+           grid it reshapes, so the mutation reads as cause then effect. -->
       <div class="space-y-5">
         <section class="space-y-3">
-          <h3 class="plate">{m.import_tx_group_columns()}</h3>
-
+          <h3 class="plate">{m.import_tx_group_money()}</h3>
           <Select label={m.import_tx_mapping_sign()} bind:value={s.mapping.signConvention} options={signOptions} />
-
           <div class="grid grid-cols-2 gap-x-4 gap-y-3">
-            {#each roleFields(s) as role (role.key)}
+            {#each roleFields(s).filter((r) => r.group === 'money') as role (role.key)}
+              <div>
+                <Select
+                  label={role.label}
+                  bind:value={s.mapping[role.key]}
+                  options={columnOptions(s)}
+                />
+                {#if sampleFor(role.col)}
+                  <p class="mt-1 text-xs text-dim figures truncate">{m.import_tx_mapping_sample()}: {sampleFor(role.col)}</p>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        </section>
+
+        <section class="space-y-3 border-t border-line pt-4">
+          <h3 class="plate">{m.import_tx_group_detail()}</h3>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-3">
+            {#each roleFields(s).filter((r) => r.group === 'detail') as role (role.key)}
               <div>
                 <Select
                   label={role.label}

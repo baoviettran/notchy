@@ -40,7 +40,7 @@
 <div class="relative">
 	<button
 		onclick={toggle}
-		class="p-1 text-dim hover:text-ledger"
+		class="p-2 -m-1 text-dim hover:text-ledger hover:bg-line/40 rounded transition-colors"
 		aria-label={label}
 		aria-haspopup="menu"
 		aria-expanded={open}

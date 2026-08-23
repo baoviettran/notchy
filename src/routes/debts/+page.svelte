@@ -106,9 +106,9 @@
 							<div class="text-sm font-medium text-ledger">{d.counterparty}</div>
 							<div class="text-xs text-dim">{d.name}</div>
 						</div>
-						<div class="flex items-center gap-2">
+						<div class="flex items-center gap-3">
 							<span class="figures text-sm text-debit">{formatCurrency(Math.abs(d.balance), settings.currency, settings.locale)}</span>
-							<button onclick={() => openPayment(d)} class="text-xs text-phosphor hover:underline px-2 py-1">{m.debts_pay()}</button>
+							<button onclick={() => openPayment(d)} class="min-h-8 px-3 text-xs text-phosphor rounded hover:bg-line/40 transition-colors">{m.debts_pay()}</button>
 							<ContextMenu label={m.common_actions_for({ name: d.counterparty })}>
 								<button onclick={() => openWriteoff(d)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.debts_write_off()}</button>
 							</ContextMenu>
@@ -133,9 +133,9 @@
 							<div class="text-sm font-medium text-ledger">{d.counterparty}</div>
 							<div class="text-xs text-dim">{d.name}</div>
 						</div>
-						<div class="flex items-center gap-2">
+						<div class="flex items-center gap-3">
 							<span class="figures text-sm text-phosphor">{formatCurrency(d.balance, settings.currency, settings.locale)}</span>
-							<button onclick={() => openPayment(d)} class="text-xs text-phosphor hover:underline px-2 py-1">{m.debts_receive()}</button>
+							<button onclick={() => openPayment(d)} class="min-h-8 px-3 text-xs text-phosphor rounded hover:bg-line/40 transition-colors">{m.debts_receive()}</button>
 							<ContextMenu label={m.common_actions_for({ name: d.counterparty })}>
 								<button onclick={() => openWriteoff(d)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.debts_write_off()}</button>
 							</ContextMenu>

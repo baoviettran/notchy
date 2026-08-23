@@ -238,7 +238,6 @@
 	"import_tx_mapping_debit": "Debit column",
 	"import_tx_mapping_heading": "Column mapping",
 	"import_tx_mapping_ignore": "Ignore",
-	"import_tx_group_columns": "Columns",
 	"import_tx_group_formats": "Formats",
 	"import_tx_mapping_sample": "Sample",
 	"import_tx_column_fallback": "Column {number}",
@@ -337,8 +336,8 @@
 	"reports_select_tag": "Select category",
 	"reports_select_year": "Select year",
 	"frequent_repeat_header": "Repeat · last 30 days",
-"frequent_saved_toast": "Saved · {payee} · {amount}",
-"recovery_app_version": "App version",
+	"frequent_saved_toast": "Saved · {payee} · {amount}",
+	"recovery_app_version": "App version",
 	"recovery_backup_path": "Recovery backup",
 	"recovery_code_database_corrupt": "Your database file could not be read. It may be damaged.",
 	"recovery_code_database_schema_invalid": "Your database file has a schema Notchy doesn't recognize.",
@@ -459,5 +458,10 @@
 	"errors_state_retry": "Try again",
 	"transactions_delete_confirm_title": "Delete transaction?",
 	"transactions_delete_confirm_body": "You can undo immediately after.",
-	"accounts_archived_undo": "Undo"
+	"accounts_archived_undo": "Undo",
+	"import_tx_group_money": "Money columns",
+	"import_tx_group_detail": "Detail columns",
+	"common_over_budget": "Over budget",
+	"budgets_previous_month": "Previous month",
+	"budgets_next_month": "Next month"
 }

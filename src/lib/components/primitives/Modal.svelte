@@ -3,19 +3,21 @@
 	import * as m from '$lib/paraglide/messages';
 	import { createFocusTrap } from '$lib/utils/focusTrap';
 
-	let { open = $bindable(false), title = '', children }: {
-		open?: boolean; title?: string; children: Snippet;
+	let { open = $bindable(false), title = '', locked = false, children }: {
+		open?: boolean; title?: string; locked?: boolean; children: Snippet;
 	} = $props();
 
 	let panelEl = $state<HTMLElement>();
 	const titleId = `modal-title-${Math.random().toString(36).slice(2, 9)}`;
 	const focusTrap = createFocusTrap();
 
-	function onBackdrop() { open = false; }
-	// Escape closes; every other key is handed to the Tab trap (svelte-check
-	// flags keydown on role-less elements, so both live on this role="dialog"
-	// wrapper which already carries the a11y svelte-ignore).
-	function onKeydown(e: KeyboardEvent) { if (e.key === 'Escape') open = false; else focusTrap.trap(e, panelEl); }
+	function onBackdrop() { if (!locked) open = false; }
+	// Escape closes (unless locked — e.g. mid-commit); every other key is
+	// handed to the Tab trap.
+	function onKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape') { if (!locked) open = false; }
+		else focusTrap.trap(e, panelEl);
+	}
 
 	// Focus lifecycle: capture the trigger, move focus into the dialog when it
 	// opens, restore it on close. Runs after the {#if open} block paints, so
@@ -33,7 +35,7 @@
 			{#if title}
 				<div class="flex items-center justify-between px-6 py-4 border-b border-line">
 					<h2 id={titleId} class="figures text-ledger tracking-wide">{title}</h2>
-					<button onclick={() => open = false} class="text-dim hover:text-ledger p-1 -mr-1" aria-label={m.common_close()}>
+					<button onclick={() => { if (!locked) open = false; }} disabled={locked} class="text-dim hover:text-ledger p-1 -mr-1 disabled:opacity-40 disabled:cursor-not-allowed" aria-label={m.common_close()}>
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" class="w-5 h-5"><path d="M6 6l12 12M18 6L6 18" /></svg>
 					</button>
 				</div>

@@ -19,10 +19,16 @@ describe('Progress', () => {
 
 	it('renders debit segments when the value exceeds the max', () => {
 		// Regression guard: overBudget used to compare against the clamped
-		// percentage and could never fire.
+		// percentage and could never fire. The overflow must also be named
+		// for screen readers, never color alone.
 		const { container } = render(Progress, { value: 120, max: 100 });
-		const segments = Array.from(container.querySelectorAll('div > div > div'));
+		const bar = screen.getByRole('progressbar');
+		const segments = Array.from(bar.querySelectorAll('div'));
 		expect(segments.length).toBeGreaterThan(0);
 		expect(segments.every((s) => s.className.includes('bg-debit'))).toBe(true);
+		// Named overflow for assistive tech.
+		expect(bar.getAttribute('aria-valuetext')).toContain('Over budget');
+		// Visual tick for colorblind users.
+		expect(container.textContent).toContain('Over budget');
 	});
 });

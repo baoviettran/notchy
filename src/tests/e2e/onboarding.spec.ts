@@ -21,16 +21,17 @@ test('Finish setup is disabled until an account name is entered', async ({ page 
 	await expect(finish).toBeEnabled();
 });
 
-test('currency step: flags render as designed dies, not inline glyphs', async ({ page }) => {
-	// Each flag now lives in its own stamped die (onboarding/+page.svelte:33-34)
-	// rather than a trailing glyph in the row's text. The code + name still form
-	// the button's accessible name, so both selection-by-name paths keep working.
+test('currency step: code plates render as designed dies, not inline glyphs', async ({ page }) => {
+	// Each currency lives in its own stamped die (onboarding/+page.svelte) —
+	// a two-letter plate rather than an emoji flag, which Windows (Tauri's
+	// primary desktop) does not render. The code + name still form the
+	// button's accessible name.
 	await page.goto('/');
 	await page.getByRole('button', { name: /^English/ }).click();
 	await page.getByRole('button', { name: 'Continue →' }).click();
-	// The flag is its own exact-text element inside the row.
-	await expect(page.getByText('🇻🇳', { exact: true })).toBeVisible();
-	await expect(page.getByText('🇺🇸', { exact: true })).toBeVisible();
+	// The code is its own exact-text element inside the row.
+	await expect(page.getByText('VN', { exact: true })).toBeVisible();
+	await expect(page.getByText('US', { exact: true })).toBeVisible();
 	// Accessible names preserved.
 	await expect(page.getByRole('button', { name: /VND — Vietnamese đồng/ })).toBeVisible();
 	await expect(page.getByRole('button', { name: /USD — US Dollar/ })).toBeVisible();

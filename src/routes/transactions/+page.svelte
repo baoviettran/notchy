@@ -202,7 +202,7 @@
 						<div class="text-xs text-dim">{formatDateRelative(tx.date, settings.locale)} · {labelFor(tx.kind)}</div>
 					</button>
 					<span class="figures text-sm mr-3 {tx.kind === 'expense' ? 'text-debit' : tx.kind === 'income' ? 'text-phosphor' : 'text-dim'}">
-						{tx.kind === 'expense' ? '−' : ''}{formatCurrency(tx.amount, settings.currency, settings.locale)}
+						{tx.kind === 'expense' ? '−' : tx.kind === 'income' ? '+' : ''}{formatCurrency(tx.amount, settings.currency, settings.locale)}
 					</span>
 					<ContextMenu label={m.common_actions_for({ name: tx.payee || labelFor(tx.kind) })}>
 						<button onclick={() => doDuplicate(tx)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-ledger hover:bg-line/40">{m.transactions_duplicate()}</button>

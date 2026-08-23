@@ -149,11 +149,12 @@ test.describe('debts — extended', () => {
 		// the debts page reflects it.
 		await createLoanAccount(page, 'Loan from Person', 'Carol', 'Carol Debt');
 		await page.getByRole('link', { name: 'Accounts', exact: true }).click();
-		// Liability rows have a ContextMenu trigger (⋮ button) that opens a dropdown with Edit.
+		// Liability rows have a ContextMenu trigger (⋮) labeled "Actions: {name}"
+		// that opens a dropdown with Edit.
 		const liabilitiesRow = page.getByRole('main').locator('section', { hasText: 'Liabilities' }).locator('div.group', { hasText: 'Carol' });
-		const editButton = liabilitiesRow.getByRole('button', { name: /Edit/ });
-		await editButton.waitFor({ state: 'visible' });
-		await editButton.click();
+		const kebab = liabilitiesRow.getByRole('button', { name: 'Actions: Carol' });
+		await kebab.waitFor({ state: 'visible' });
+		await kebab.click();
 		const editMenuItem = page.getByRole('menuitem', { name: 'Edit' });
 		await editMenuItem.waitFor({ state: 'visible' });
 		await editMenuItem.click();

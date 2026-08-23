@@ -122,6 +122,7 @@ async function changeQuickSelect(page: import('@playwright/test').Page, optionLa
 
 		// Edit: rename + move bucket. The bucket Select (categories/+page.svelte:117)
 		// lists all buckets; move from Essentials to "Saving & Investment".
+		// Tag rows carry their own Edit button on the Categories page.
 		await page.getByRole('button', { name: 'Edit', exact: true }).first().click();
 		modal = page.getByRole('dialog');
 		await expect(modal.getByRole('heading', { name: 'Edit tag' })).toBeVisible();

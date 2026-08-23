@@ -17,7 +17,7 @@
 	let editing = $state<GoalWithProgress | null>(null);
 	let confirmDelete = $state<GoalWithProgress | null>(null);
 
-	const statusIcons: Record<string, string> = { on_track: '✓', behind: '⚠', ahead: '★', overdue: '⏰', insufficient_data: '…' };
+	const statusIcons: Record<string, string> = { on_track: '✓', behind: '⚠', ahead: '★', overdue: '!', insufficient_data: '…' };
 
 	onMount(() => goals.load());
 

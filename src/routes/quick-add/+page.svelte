@@ -97,7 +97,8 @@
 			try {
 				parsed = parseQuickInput(value, settings.locale, settings.currency);
 			} catch (e) {
-				error = e instanceof AppError ? m.quick_add_placeholder() : mapError(e);
+				// A parse failure must say what's wrong, not echo the placeholder.
+				error = e instanceof AppError ? m.validation_invalid_amount() : mapError(e);
 				return;
 			}
 

@@ -98,9 +98,9 @@
 	<div class="flex items-center justify-between">
 		<h1 class="figures text-xl text-ledger tracking-wide">{m.budgets_title()}</h1>
 		<div class="flex items-center gap-2 text-sm">
-			<button onclick={prevMonth} class="p-2 text-dim hover:text-ledger">◀</button>
+			<button onclick={prevMonth} aria-label={m.budgets_previous_month()} class="min-w-8 min-h-8 p-2 text-dim hover:text-ledger rounded hover:bg-line/40">◀</button>
 			<span class="figures font-medium text-ledger">{budgets.month}</span>
-			<button onclick={nextMonth} class="p-2 text-dim hover:text-ledger">▶</button>
+			<button onclick={nextMonth} aria-label={m.budgets_next_month()} class="min-w-8 min-h-8 p-2 text-dim hover:text-ledger rounded hover:bg-line/40">▶</button>
 		</div>
 	</div>
 

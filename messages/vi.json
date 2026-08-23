@@ -238,7 +238,6 @@
 	"import_tx_mapping_debit": "Cột nợ",
 	"import_tx_mapping_heading": "Ánh xạ cột",
 	"import_tx_mapping_ignore": "Bỏ qua",
-	"import_tx_group_columns": "Cột",
 	"import_tx_group_formats": "Định dạng",
 	"import_tx_mapping_sample": "Mẫu",
 	"import_tx_column_fallback": "Cột {number}",
@@ -337,8 +336,8 @@
 	"reports_select_tag": "Chọn danh mục",
 	"reports_select_year": "Chọn năm",
 	"frequent_repeat_header": "Lặp lại · 30 ngày qua",
-"frequent_saved_toast": "Đã lưu · {payee} · {amount}",
-"recovery_app_version": "Phiên bản ứng dụng",
+	"frequent_saved_toast": "Đã lưu · {payee} · {amount}",
+	"recovery_app_version": "Phiên bản ứng dụng",
 	"recovery_backup_path": "Bản sao lưu khôi phục",
 	"recovery_code_database_corrupt": "Không thể đọc tệp cơ sở dữ liệu. Tệp có thể đã bị hỏng.",
 	"recovery_code_database_schema_invalid": "Cơ sở dữ liệu có cấu trúc Notchy không nhận dạng được.",
@@ -459,5 +458,10 @@
 	"errors_state_retry": "Thử lại",
 	"transactions_delete_confirm_title": "Xoá giao dịch?",
 	"transactions_delete_confirm_body": "Bạn có thể hoàn tác ngay sau đó.",
-	"accounts_archived_undo": "Hoàn tác"
+	"accounts_archived_undo": "Hoàn tác",
+	"import_tx_group_money": "Cột tiền",
+	"import_tx_group_detail": "Cột chi tiết",
+	"common_over_budget": "Vượt ngân sách",
+	"budgets_previous_month": "Tháng trước",
+	"budgets_next_month": "Tháng sau"
 }

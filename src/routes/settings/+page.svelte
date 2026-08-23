@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import Select from '$lib/components/primitives/Select.svelte';
+	import Button from '$lib/components/primitives/Button.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { tour } from '$lib/stores/tour.svelte';
 	import { getDb } from '$lib/db';
@@ -135,10 +136,7 @@
 		<div class="bg-tape rounded-lg border border-line p-4">
 			<div class="font-medium text-ledger">{m.tour_replay()}</div>
 			<div class="text-sm text-dim mb-3">{m.tour_replay_desc()}</div>
-			<button
-				onclick={replayTour}
-				class="px-3 py-2.5 text-sm rounded-md bg-phosphor text-ink font-medium hover:bg-phosphor-bright transition-colors"
-			>{m.tour_replay()}</button>
+			<Button size="sm" onclick={replayTour}>{m.tour_replay()}</Button>
 		</div>
 		<div class="bg-tape rounded-lg border border-line p-4">
 			<div class="text-xs text-dim">{m.settings_version()}</div>

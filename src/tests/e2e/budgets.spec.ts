@@ -54,7 +54,7 @@ test.describe('budgets', () => {
 		expect(initialMonth!).toMatch(/^\d{4}-\d{2}$/);
 
 		// Navigate next month — label changes.
-		await page.getByRole('button', { name: '▶' }).click();
+		await page.getByRole('button', { name: 'Next month' }).click();
 		await expect(monthLabel).not.toHaveText(initialMonth!);
 
 		// Allocate in month N+1.
@@ -66,7 +66,7 @@ test.describe('budgets', () => {
 		await expect(page.getByText('Budget updated.')).toBeVisible();
 
 		// Back to the original month — label returns and allocation is isolated.
-		await page.getByRole('button', { name: '◀' }).click();
+		await page.getByRole('button', { name: 'Previous month' }).click();
 		await expect(monthLabel).toHaveText(initialMonth!);
 
 		// The original month's first bucket is genuinely empty: its trigger shows

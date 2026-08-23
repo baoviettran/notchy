@@ -8,10 +8,18 @@
 	import { budgets } from '$lib/stores/budgets.svelte';
 	import { transactions } from '$lib/stores/transactions.svelte';
 	import { goals } from '$lib/stores/goals.svelte';
+	import { categories } from '$lib/stores/categories.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { formatCurrency, formatNumber } from '$lib/utils/currency';
+	import { formatDateRelative } from '$lib/utils/date';
 	import { labelFor } from '$lib/utils/tx-kind';
 	import * as m from '$lib/paraglide/messages';
+
+	// Bucket display names come from the localized catalogue — never the raw
+	// bucket_ slug.
+	function bucketName(typeId: string): string {
+		return categories.buckets.find((b) => b.id === typeId)?.name ?? typeId;
+	}
 
 	let isLoading = $derived(transactions.loading || accounts.loading || budgets.loading || goals.loading);
 	let storeError = $derived(transactions.error || accounts.error || null);
@@ -48,7 +56,7 @@ const sampleBuckets = [
 	// (labelFor / KIND_LABELS live in src/lib/utils/tx-kind.ts.)
 
 	onMount(async () => {
-		await Promise.all([accounts.load(), budgets.load(), transactions.load({ limit: 5 }), goals.load(), transactions.loadMonthFlow()]);
+		await Promise.all([accounts.load(), budgets.load(), categories.load(), transactions.load({ limit: 5 }), goals.load(), transactions.loadMonthFlow()]);
 	});
 </script>
 
@@ -111,7 +119,7 @@ const sampleBuckets = [
 				<div class="mt-4 space-y-1.5">
 					{#each budgets.items.slice(0, 4) as b}
 						<div class="flex items-center justify-between text-xs">
-							<span class="text-dim">{b.type_id.replace('bucket_', '')}</span>
+							<span class="text-dim">{bucketName(b.type_id)}</span>
 							<span class="figures text-ledger">{formatCurrency(b.spent, settings.currency, settings.locale)} <span class="text-dim">/ {formatCurrency(b.allocated, settings.currency, settings.locale)}</span></span>
 						</div>
 					{/each}
@@ -155,7 +163,7 @@ const sampleBuckets = [
 					<li class="px-5 py-3 flex items-center justify-between gap-3">
 						<div class="min-w-0">
 							<p class="text-sm text-ledger truncate">{tx.payee || labelFor(tx.kind)}</p>
-							<p class="plate mt-0.5">{tx.date}</p>
+							<p class="plate mt-0.5">{formatDateRelative(tx.date, settings.locale)}</p>
 						</div>
 						<span class="figures text-sm shrink-0 {tx.kind === 'expense' ? 'text-debit' : tx.kind === 'income' ? 'text-phosphor' : 'text-dim'}">
 							{tx.kind === 'expense' ? '−' : tx.kind === 'income' ? '+' : ''}{formatCurrency(tx.amount, settings.currency, settings.locale)}
