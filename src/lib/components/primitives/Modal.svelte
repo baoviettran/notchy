@@ -30,12 +30,12 @@
 {#if open}
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4" tabindex="-1" onkeydown={onKeydown} role="dialog" aria-modal="true" aria-labelledby={titleId}>
-		<div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick={onBackdrop} role="presentation"></div>
+		<div class="absolute inset-0 bg-[rgb(var(--scrim-rgb)/0.7)] backdrop-blur-sm" onclick={onBackdrop} role="presentation"></div>
 		<div bind:this={panelEl} tabindex="-1" class="relative bg-tape border border-line rounded-lg shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-scale-in">
 			{#if title}
 				<div class="flex items-center justify-between px-6 py-4 border-b border-line">
 					<h2 id={titleId} class="figures text-ledger tracking-wide">{title}</h2>
-					<button onclick={() => { if (!locked) open = false; }} disabled={locked} class="text-dim hover:text-ledger p-1 -mr-1 disabled:opacity-40 disabled:cursor-not-allowed" aria-label={m.common_close()}>
+					<button onclick={() => { if (!locked) open = false; }} disabled={locked} class="w-11 h-11 -mr-3 flex items-center justify-center text-dim hover:text-ledger disabled:opacity-40 disabled:cursor-not-allowed" aria-label={m.common_close()}>
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" class="w-5 h-5"><path d="M6 6l12 12M18 6L6 18" /></svg>
 					</button>
 				</div>

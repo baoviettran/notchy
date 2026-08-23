@@ -6,7 +6,7 @@
 	const errorId = `${selectId}-error`;
 </script>
 
-<div class="space-y-1">
+<div class="space-y-1.5">
 	{#if label}
 		<label for={selectId} class="plate block">{label}</label>
 	{/if}
@@ -15,7 +15,8 @@
 		bind:value {disabled}
 		class="w-full px-3 py-2 text-base rounded-md border transition-colors
 			{error ? 'border-debit' : 'border-line'}
-			bg-ink text-ledger"
+			bg-ink text-ledger
+			disabled:opacity-50 disabled:cursor-not-allowed"
 		aria-invalid={error ? 'true' : undefined}
 		aria-describedby={error ? errorId : undefined}
 	>

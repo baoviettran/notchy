@@ -384,6 +384,25 @@ pub fn update_transaction(
         }
     }
 
+    // Kind changes are the edit-mode repair path. Transfer conversions carry
+    // column consequences (destination, pair id, refund link), so they are
+    // validated and applied here — mirroring the TS repo's applyPatch.
+    let changing_kind = matches!(&patch.kind, Some(new_kind) if *new_kind != existing.kind);
+    let mut dest_handled = false;
+    if changing_kind && patch.kind.as_ref() == Some(&TransactionKind::Transfer) {
+        match patch
+            .transfer_account_id
+            .clone()
+            .or_else(|| existing.transfer_account_id.clone())
+        {
+            Some(dest) if dest != existing.account_id => {
+                validate_account_exists(conn, &dest)?;
+                dest_handled = true;
+            }
+            _ => return Err(DbError::new(ErrorCode::InvalidInput)),
+        }
+    }
+
     #[derive(serde::Serialize, serde::Deserialize)]
     struct Void {}
 
@@ -391,6 +410,32 @@ pub fn update_transaction(
         let now = now_iso_utc();
         let mut sets = vec!["updated_at = ?".to_string()];
         let mut values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(now)];
+
+        if changing_kind {
+            // Validated above; the transfer conversion also carries its
+            // column consequences here.
+            let new_kind = patch.kind.as_ref().expect("changing_kind implies kind");
+            sets.push("kind = ?".to_string());
+            values.push(Box::new(new_kind.as_str().to_string()));
+            if *new_kind == TransactionKind::Transfer {
+                let dest = patch
+                    .transfer_account_id
+                    .clone()
+                    .or_else(|| existing.transfer_account_id.clone())
+                    .expect("transfer destination validated above");
+                sets.push("transfer_account_id = ?".to_string());
+                values.push(Box::new(dest));
+                sets.push("refund_of_id = NULL".to_string());
+                if existing.transfer_pair_id.is_none() {
+                    let pair_id = OperationId::generate().as_str().to_string();
+                    sets.push("transfer_pair_id = ?".to_string());
+                    values.push(Box::new(pair_id));
+                }
+            } else if existing.kind == TransactionKind::Transfer {
+                sets.push("transfer_account_id = NULL".to_string());
+                sets.push("transfer_pair_id = NULL".to_string());
+            }
+        }
 
         if let Some(ref date) = patch.date {
             sets.push("date = ?".to_string());
@@ -401,8 +446,10 @@ pub fn update_transaction(
             values.push(Box::new(amount));
         }
         if let Some(ref dest) = patch.transfer_account_id {
-            sets.push("transfer_account_id = ?".to_string());
-            values.push(Box::new(dest.clone()));
+            if !dest_handled {
+                sets.push("transfer_account_id = ?".to_string());
+                values.push(Box::new(dest.clone()));
+            }
         }
         match &patch.tag_id {
             Patch::Replace { value } => {

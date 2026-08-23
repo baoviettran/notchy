@@ -6,11 +6,13 @@
 	let {
 		data,
 		yFormat,
-		xFormat
+		xFormat,
+		label
 	}: {
 		data: { month: string; yearAIncome: number; yearAExpense: number; yearBIncome: number; yearBExpense: number }[];
 		yFormat: (n: number) => string;
 		xFormat: (month: string) => string;
+		label?: string;
 	} = $props();
 
 	const chartWidth = 400;
@@ -111,7 +113,7 @@
 {#if data.length > 0}
 	<LayerCake data={data} x="month" y="value">
 		<Svg>
-			<svg viewBox="0 0 {chartWidth} {chartHeight}" class="grouped-bar-chart" preserveAspectRatio="xMidYMid meet">
+			<svg viewBox="0 0 {chartWidth} {chartHeight}" class="grouped-bar-chart" preserveAspectRatio="xMidYMid meet" role="img" aria-label={label}>
 				<g transform="translate({margin.left}, {margin.top})">
 					<!-- Bars -->
 					{#each groupedBars() as bar}
@@ -163,6 +165,31 @@
 			</div>
 		{/each}
 	</div>
+
+	<!-- Non-visual readers get the actual data, not just the chart's name. -->
+	{#if label}
+		<table class="sr-only">
+			<caption>{label}</caption>
+			<thead>
+				<tr>
+					<th scope="col">{m.chart_col_period()}</th>
+					{#each series as key}
+						<th scope="col">{labels[key as keyof typeof labels]}</th>
+					{/each}
+				</tr>
+			</thead>
+			<tbody>
+				{#each data as d}
+					<tr>
+						<th scope="row">{xFormat(d.month)}</th>
+						{#each series as key}
+							<td>{yFormat(d[key as keyof typeof d] as number)}</td>
+						{/each}
+					</tr>
+				{/each}
+			</tbody>
+		</table>
+	{/if}
 {/if}
 
 <style>
@@ -183,7 +210,7 @@
 
 	.tick-label {
 		fill: var(--dim);
-		font-size: 10px;
+		font-size: 11px;
 		text-anchor: middle;
 	}
 
@@ -204,7 +231,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.25rem;
-		font-size: 0.875rem;
+		font-size: 11px;
 	}
 
 	.legend-color {

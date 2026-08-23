@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/svelte';
+import { waitFor,  render, screen, fireEvent } from '@testing-library/svelte';
 
 const mockMatchTag = vi.hoisted(() => vi.fn());
 
@@ -30,10 +30,12 @@ vi.mock('$lib/stores/rules.svelte', () => ({
 import TransactionForm from '$lib/components/forms/TransactionForm.svelte';
 
 describe('TransactionForm', () => {
-	it('renders the Amount input with autofocus before the kind toggles', () => {
-		render(TransactionForm, { mode: 'full' });
-		const amountInput = screen.getByLabelText('Amount');
-		expect(amountInput).toHaveAttribute('autofocus');
+	it('renders the Amount input focused before the kind toggles', async () => {
+		const { container } = render(TransactionForm, { mode: 'full' });
+		await waitFor(() => {
+			const amountInput = container.querySelector('input');
+			expect(amountInput).toHaveFocus();
+		});
 		// The kind toggle labels exist (Expense, Income, Transfer, Refund, Adjustment)
 		expect(screen.getByText('Expense')).toBeInTheDocument();
 	});
@@ -91,7 +93,7 @@ describe('TransactionForm', () => {
 		const { container } = render(TransactionForm, { mode: 'full' });
 		const amountInput = screen.getByLabelText('Amount');
 		await fireEvent.input(amountInput, { target: { value: 'not a number' } });
-		await fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+		await fireEvent.submit(container.querySelector('form')!);
 
 		expect(screen.getByText('Invalid amount')).toBeInTheDocument();
 		const alert = screen.getByRole('alert');
@@ -102,11 +104,19 @@ describe('TransactionForm', () => {
 	it('attaches the missing-account error to the account select', async () => {
 		const { container } = render(TransactionForm, { mode: 'full' });
 		await fireEvent.input(screen.getByLabelText('Amount'), { target: { value: '100' } });
-		await fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+		await fireEvent.submit(container.querySelector('form')!);
 
 		expect(screen.getByText('Select an account')).toBeInTheDocument();
 		const alert = screen.getByRole('alert');
 		const accountSelect = screen.getByLabelText('Account');
 		expect(alert.closest('div')!.contains(accountSelect)).toBe(true);
+	});
+
+	it('submits from a real form so Enter saves', () => {
+		const { container } = render(TransactionForm, { mode: 'full' });
+		// The wrapper must be a <form> with a submit button — the n-shortcut
+		// flow ends hands-on-keyboard, so Enter in any field submits.
+		expect(container.querySelector('form')).not.toBeNull();
+		expect(screen.getByRole('button', { name: 'Save' })).toHaveAttribute('type', 'submit');
 	});
 });

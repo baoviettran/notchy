@@ -84,6 +84,27 @@ class TransactionsStore {
 		await this.load();
 		return newId;
 	}
+
+	async deleteMany(ids: string[]): Promise<void> {
+		if (ids.length === 0) return;
+		const db = getDb();
+		await db.transactions.deleteMany(ids);
+		await this.load();
+	}
+
+	async setTagMany(ids: string[], tagId: string | null): Promise<void> {
+		if (ids.length === 0) return;
+		const db = getDb();
+		await db.transactions.setTagMany(ids, tagId);
+		await this.load();
+	}
+
+	async setAccountMany(ids: string[], accountId: string): Promise<void> {
+		if (ids.length === 0) return;
+		const db = getDb();
+		await db.transactions.setAccountMany(ids, accountId);
+		await this.load();
+	}
 }
 
 export const transactions = new TransactionsStore();

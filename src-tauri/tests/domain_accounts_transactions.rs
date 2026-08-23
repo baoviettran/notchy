@@ -424,6 +424,7 @@ fn update_transaction_amount() {
         op(),
         &txn_id,
         TransactionPatch {
+            kind: None,
             amount: Some(200),
             date: None,
             tag_id: Patch::Omitted,
@@ -435,6 +436,74 @@ fn update_transaction_amount() {
     .unwrap();
     let txn = transactions::get_transaction(&db, &txn_id).unwrap().unwrap();
     assert_eq!(txn.amount, 200);
+}
+
+#[test]
+fn update_transaction_kind_change() {
+    let mut db = fresh_db("update_txn_kind");
+    let acct = accounts::create_account(&mut db, op(), default_account("A")).unwrap();
+    let other = accounts::create_account(&mut db, op(), default_account("B")).unwrap();
+    let txn_id = transactions::create_transaction(&mut db, op(), default_expense(&acct, 100)).unwrap();
+
+    // Expense → transfer requires a destination and links the pair.
+    transactions::update_transaction(
+        &mut db,
+        op(),
+        &txn_id,
+        TransactionPatch {
+            kind: Some(TransactionKind::Transfer),
+            transfer_account_id: Some(other.clone()),
+            date: None,
+            amount: None,
+            tag_id: Patch::Omitted,
+            payee: Patch::Omitted,
+            description: Patch::Omitted,
+        },
+    )
+    .unwrap();
+    let txn = transactions::get_transaction(&db, &txn_id).unwrap().unwrap();
+    assert_eq!(txn.kind, TransactionKind::Transfer);
+    assert_eq!(txn.transfer_account_id.as_deref(), Some(other.as_str()));
+    assert!(txn.transfer_pair_id.is_some());
+
+    // Transfer → expense clears the transfer columns.
+    transactions::update_transaction(
+        &mut db,
+        op(),
+        &txn_id,
+        TransactionPatch {
+            kind: Some(TransactionKind::Expense),
+            date: None,
+            amount: None,
+            transfer_account_id: None,
+            tag_id: Patch::Omitted,
+            payee: Patch::Omitted,
+            description: Patch::Omitted,
+        },
+    )
+    .unwrap();
+    let txn = transactions::get_transaction(&db, &txn_id).unwrap().unwrap();
+    assert_eq!(txn.kind, TransactionKind::Expense);
+    assert!(txn.transfer_account_id.is_none());
+    assert!(txn.transfer_pair_id.is_none());
+
+    // Converting to a self-transfer is rejected.
+    let txn2 = transactions::create_transaction(&mut db, op(), default_expense(&acct, 50)).unwrap();
+    assert!(transactions::update_transaction(
+        &mut db,
+        op(),
+        &txn2,
+        TransactionPatch {
+            kind: Some(TransactionKind::Transfer),
+            transfer_account_id: Some(acct.clone()),
+            date: None,
+            amount: None,
+            tag_id: Patch::Omitted,
+            payee: Patch::Omitted,
+            description: Patch::Omitted,
+        },
+    )
+    .is_err());
 }
 
 #[test]

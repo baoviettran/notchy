@@ -39,7 +39,7 @@
 	let amountError = $state('');
 	let accountError = $state('');
 	let transferError = $state('');
-	let showAdvancedKinds = $state(false);
+	let showAdvancedKinds = $state(existing ? !['expense', 'income'].includes(existing.kind) : false);
 
 	// Field-level validation errors clear themselves once the offending field
 	// changes from the value that failed. Snapshots record what each field
@@ -83,16 +83,20 @@
 					const d = JSON.parse(draft);
 					kind = d.kind ?? kind; amount = d.amount ?? ''; tagId = d.tagId ?? '';
 					payee = d.payee ?? ''; description = d.description ?? '';
+					// The date is part of the draft: resuming a capture the next
+					// morning must not silently file yesterday's entry under
+					// today's date.
+					date = d.date ?? session.lastEnteredDate ?? new Date().toISOString().split('T')[0];
 				} catch {}
 			}
 			accountId = session.lastUsedAccountId ?? accounts.items[0]?.id ?? '';
-			date = session.lastEnteredDate ?? new Date().toISOString().split('T')[0];
+			date = date || session.lastEnteredDate || new Date().toISOString().split('T')[0];
 		}
 	});
 
 	$effect(() => {
 		if (!isEdit) {
-			sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ kind, amount, tagId, payee, description }));
+			sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ kind, amount, tagId, payee, description, date }));
 		}
 	});
 
@@ -135,13 +139,17 @@
 		saving = true;
 		try {
 			if (isEdit) {
-				// existing is guaranteed non-null when isEdit is true (isEdit = existing !== null)
+				// existing is guaranteed non-null when isEdit is true (isEdit = existing !== null).
+				// Kind travels with the patch: the repair path lets a misfiled
+				// expense become an income, refund, or transfer in place.
 				await transactions.update(existing!.id, {
+					kind,
 					date,
 					amount: parsedAmount,
 					tag_id: kind !== 'transfer' ? (tagId || null) : null,
 					payee: payee || null,
-					description: description || null
+					description: description || null,
+					...(kind === 'transfer' ? { transfer_account_id: transferAccountId } : {})
 				});
 				toast.show(m.forms_transaction_updated());
 			} else {
@@ -182,7 +190,9 @@
 	}
 </script>
 
-<div class="space-y-4">
+<!-- A real form: Enter submits from any field, so the n-shortcut flow
+     completes hands-on-keyboard. save() keeps its own guards. -->
+<form class="space-y-4" onsubmit={(e) => { e.preventDefault(); save(); }}>
 	{#if error}
 		<p class="text-sm text-debit">{error}</p>
 	{/if}
@@ -194,24 +204,24 @@
 	<div class="space-y-2" role="group" aria-label={m.forms_kind_group()}>
 		<div class="flex flex-wrap gap-2">
 			{#each primaryKinds as k}
-				<button onclick={() => kind = k.value as TransactionKind} disabled={isEdit}
+				<button type="button" onclick={() => kind = k.value as TransactionKind}
 					aria-pressed={kind === k.value}
-					class="px-3 py-1.5 text-sm rounded-md border transition-colors {kind === k.value ? 'border-phosphor bg-phosphor/10 text-phosphor-bright font-medium' : 'border-line text-dim hover:text-ledger'} {isEdit ? 'cursor-not-allowed opacity-60' : ''}"
+					class="inline-flex items-center min-h-9 pointer-coarse:min-h-11 px-3 text-sm rounded-md border transition-colors {kind === k.value ? 'border-phosphor bg-phosphor/10 text-phosphor-bright font-medium' : 'border-line text-dim hover:text-ledger'}"
 				>{k.label}</button>
 			{/each}
 			{#if advancedKinds.some((k) => !showAdvancedKinds || kind !== k.value)}
-				<button onclick={() => showAdvancedKinds = !showAdvancedKinds} disabled={isEdit}
+				<button type="button" onclick={() => showAdvancedKinds = !showAdvancedKinds}
 					aria-expanded={showAdvancedKinds}
-					class="px-3 py-1.5 text-xs text-dim hover:text-ledger transition-colors {isEdit ? 'cursor-not-allowed opacity-60' : ''}"
+					class="inline-flex items-center min-h-9 pointer-coarse:min-h-11 px-3 text-xs text-dim hover:text-ledger transition-colors"
 				>{m.forms_more_kinds()}</button>
 			{/if}
 		</div>
 		{#if showAdvancedKinds}
 			<div class="flex flex-wrap gap-2 pt-1 border-t border-line/50">
 				{#each advancedKinds as k}
-					<button onclick={() => kind = k.value as TransactionKind} disabled={isEdit}
+					<button type="button" onclick={() => kind = k.value as TransactionKind}
 						aria-pressed={kind === k.value}
-						class="px-3 py-1.5 text-sm rounded-md border transition-colors {kind === k.value ? 'border-phosphor bg-phosphor/10 text-phosphor-bright font-medium' : 'border-line text-dim hover:text-ledger'} {isEdit ? 'cursor-not-allowed opacity-60' : ''}"
+						class="inline-flex items-center min-h-9 pointer-coarse:min-h-11 px-3 text-sm rounded-md border transition-colors {kind === k.value ? 'border-phosphor bg-phosphor/10 text-phosphor-bright font-medium' : 'border-line text-dim hover:text-ledger'}"
 					>{k.label}</button>
 				{/each}
 			</div>
@@ -221,7 +231,7 @@
 	<!-- ACCOUNT/TAG -->
 	{#if kind === 'transfer'}
 		<Select label={m.forms_from_account()} bind:value={accountId} options={accountOptions} disabled={isEdit} error={accountError} />
-		<Select label={m.forms_to_account()} bind:value={transferAccountId} options={accountOptions} disabled={isEdit} error={transferError} />
+		<Select label={m.forms_to_account()} bind:value={transferAccountId} options={accountOptions} error={transferError} />
 	{:else}
 		<Select label={m.forms_account()} bind:value={accountId} options={accountOptions} disabled={isEdit} error={accountError} />
 		<Autocomplete label={m.forms_tag()} bind:value={tagId} options={tagOptions} placeholder={m.forms_search_tags_placeholder()} />
@@ -241,6 +251,6 @@
 
 	<div class="flex justify-end gap-2 pt-2">
 		<Button variant="ghost" onclick={onclose}>{m.common_cancel()}</Button>
-		<Button disabled={saving || !amount} onclick={save}>{saving ? m.forms_saving() : (isEdit ? m.forms_save_changes() : m.common_save())}</Button>
+		<Button type="submit" disabled={saving || !amount}>{saving ? m.forms_saving() : (isEdit ? m.forms_save_changes() : m.common_save())}</Button>
 	</div>
-</div>
+</form>

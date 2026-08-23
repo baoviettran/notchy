@@ -10,6 +10,9 @@ export {
 	createTransactions,
 	updateTransaction,
 	deleteTransaction,
+	deleteTransactions,
 	restoreTransaction,
-	duplicateTransaction
+	duplicateTransaction,
+	setTagMany,
+	setAccountMany
 } from '../browser/repos/transactions';

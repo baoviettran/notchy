@@ -112,8 +112,14 @@
 {:else if !dbStore.ready}
 	<StartupProgress stage={dbStore.stage} />
 {:else if isOnboarding}
-	{@render children()}
+	<!-- Keyed on locale: paraglide's setLanguageTag is not reactive, so a
+	     language switch remounts the shell and every m.*() call site
+	     re-evaluates under the new tag. -->
+	{#key settings.locale}
+		{@render children()}
+	{/key}
 {:else}
+	{#key settings.locale}
 	<div class="h-screen flex flex-col bg-ink text-ledger">
 		<TopBar />
 		<div class="flex flex-1 overflow-hidden">
@@ -130,4 +136,5 @@
 		<GlobalToast />
 		<TourOverlay />
 	</div>
+	{/key}
 {/if}

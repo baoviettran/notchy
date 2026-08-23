@@ -136,7 +136,7 @@
 </script>
 
 <div class="space-y-6">
-	<h1 class="figures text-xl text-ledger tracking-wide">{m.settings_backup()}</h1>
+	<h1 class="page-title">{m.settings_backup()}</h1>
 
 	<div class="space-y-4">
 		<div class="bg-tape rounded-lg border border-line p-4 space-y-3">

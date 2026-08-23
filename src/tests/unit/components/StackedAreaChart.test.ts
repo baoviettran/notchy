@@ -74,6 +74,43 @@ describe('StackedAreaChart', () => {
         expect(svg).toBeNull();
     });
 
+    it('exposes an accessible name when a label is provided', () => {
+        const data = [{ month: '01', tags: [{ tagId: 't1', name: 'Food', total: 100 }] }];
+        const { container } = render(StackedAreaChart, {
+            props: {
+                data,
+                colors: { t1: 'var(--phosphor)' },
+                yFormat: (n) => `$${n}`,
+                xFormat: (m) => m,
+                label: 'Category composition over time'
+            }
+        });
+        const svg = container.querySelector('svg[role="img"]');
+        expect(svg).not.toBeNull();
+        expect(svg).toHaveAttribute('aria-label', 'Category composition over time');
+    });
+
+    it('provides an sr-only data table when a label is provided', () => {
+        const data = [
+            { month: '01', tags: [{ tagId: 't1', name: 'Food', total: 100 }] },
+            { month: '02', tags: [{ tagId: 't1', name: 'Food', total: 150 }] }
+        ];
+        const { container } = render(StackedAreaChart, {
+            props: {
+                data,
+                colors: { t1: 'var(--phosphor)' },
+                yFormat: (n) => `$${n}`,
+                xFormat: (m) => m,
+                label: 'Category composition over time'
+            }
+        });
+        const table = container.querySelector('table.sr-only');
+        expect(table).not.toBeNull();
+        expect(table?.querySelector('caption')?.textContent).toBe('Category composition over time');
+        // One row per (month, category) pair.
+        expect(table?.querySelectorAll('tbody tr').length).toBe(2);
+    });
+
     it('renders series fills via style so CSS var() references resolve', () => {
         const data = [{ month: '01', tags: [{ tagId: 't1', name: 'Food', total: 100 }] }];
         const { container } = render(StackedAreaChart, {

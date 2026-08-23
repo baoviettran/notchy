@@ -11,6 +11,7 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
+	import Money from '$lib/components/reports/Money.svelte';
 	import { formatDateRelative } from '$lib/utils/date';
 	import { parseAmount } from '$lib/utils/number_parse';
 	import { labelFor } from '$lib/utils/tx-kind';
@@ -23,6 +24,7 @@
 	let history = $state<Reconciliation[]>([]);
 	let showReconcile = $state(false);
 	let actualBalance = $state('');
+	let reconcileError = $state('');
 	let confirmLarge = $state(false);
 	let pendingDiscrepancy = $state(0);
 	let pendingActual = $state(0);
@@ -42,6 +44,7 @@
 		if (!actualBalance.trim()) return;
 		try {
 			const parsed = parseAmount(actualBalance, settings.locale, settings.currency);
+			reconcileError = '';
 			const expected = account!.balance;
 			const discrepancy = parsed - expected;
 			if (isLargeDiscrepancy(discrepancy)) {
@@ -54,7 +57,8 @@
 			}
 			await doReconcile(parsed);
 		} catch {
-			toast.show(m.accounts_invalid_amount());
+			// Field-level: the problem lives next to the input, not in a toast.
+			reconcileError = m.accounts_invalid_amount();
 		}
 	}
 
@@ -78,10 +82,10 @@
 	{#if account}
 		<div class="flex items-center justify-between">
 			<div>
-				<h1 class="figures text-xl text-ledger tracking-wide">{account.name}</h1>
+				<h1 class="page-title">{account.name}</h1>
 				<p class="text-sm text-dim">{accountTypeLabel(account.type)}{account.counterparty ? ` · ${account.counterparty}` : ''}</p>
 			</div>
-			<Button size="sm" variant="secondary" onclick={() => { showReconcile = true; actualBalance = String(account!.balance); }}>{m.accounts_reconcile()}</Button>
+			<Button size="sm" variant="secondary" onclick={() => { showReconcile = true; actualBalance = ''; reconcileError = ''; }}>{m.accounts_reconcile()}</Button>
 		</div>
 
 		<div class="bg-tape rounded-lg border border-line p-4">
@@ -103,9 +107,7 @@
 								<div class="text-ledger">{tx.payee || labelFor(tx.kind)}</div>
 								<div class="text-xs text-dim">{formatDateRelative(tx.date, settings.locale)}</div>
 							</div>
-							<span class="figures {tx.kind === 'expense' ? 'text-debit' : tx.kind === 'income' ? 'text-phosphor' : 'text-dim'}">
-								{tx.kind === 'expense' ? '−' : tx.kind === 'income' ? '+' : ''}{formatCurrency(tx.amount, settings.currency, settings.locale)}
-							</span>
+							<Money amount={tx.amount} glyph={tx.kind === 'expense' ? '−' : tx.kind === 'income' ? '+' : ''} tone={tx.kind === 'expense' ? 'debit' : tx.kind === 'income' ? 'phosphor' : 'dim'} />
 						</div>
 					{/each}
 				</div>
@@ -140,12 +142,12 @@
 <Modal bind:open={showReconcile} title={m.accounts_reconcile_modal()}>
 	<div class="space-y-4">
 		<p class="text-sm text-dim">{m.accounts_reconcile_body()}</p>
-		<Input label={m.accounts_actual_balance_label()} bind:value={actualBalance} placeholder={m.accounts_amount_placeholder()} />
+		<Input label={m.accounts_actual_balance_label()} bind:value={actualBalance} placeholder={m.accounts_amount_placeholder()} error={reconcileError} />
 		{#if account}
 			<p class="text-xs text-dim">{m.accounts_currently_shown({ balance: formatCurrency(account.balance, settings.currency, settings.locale) })}</p>
 		{/if}
 		<div class="flex justify-end gap-2 pt-2">
-			<Button variant="ghost" onclick={() => showReconcile = false}>{m.common_cancel()}</Button>
+			<Button variant="ghost" onclick={() => { showReconcile = false; reconcileError = ''; }}>{m.common_cancel()}</Button>
 			<Button onclick={startReconcile}>{m.accounts_reconcile()}</Button>
 		</div>
 	</div>

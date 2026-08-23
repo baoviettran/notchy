@@ -11,7 +11,8 @@
 	import { goals } from '$lib/stores/goals.svelte';
 	import { categories } from '$lib/stores/categories.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
-	import { formatCurrency, formatNumber } from '$lib/utils/currency';
+	import Money from '$lib/components/reports/Money.svelte';
+	import { formatCurrency, formatCurrencyCompact, formatNumber, formatNumberCompact, isLongCurrency } from '$lib/utils/currency';
 	import { formatDateRelative } from '$lib/utils/date';
 	import { labelFor } from '$lib/utils/tx-kind';
 	import * as m from '$lib/paraglide/messages';
@@ -49,6 +50,12 @@ const sampleBuckets = [
 
 	let monthFlow = $derived(transactions.monthFlow);
 
+	// Vietnamese billions ("₫12.345.678.900") wrap mid-digit at display size.
+	// The hero shows the compact form by default; pressing it reads the full
+	// precision — the machine prints the whole figure on demand, never hides it.
+	let netExact = $state(false);
+	const netIsLong = $derived(isLongCurrency(netPosition, settings.currency, settings.locale));
+
 	// The net figure stands alone — a single VFD readout. A ladder of
 	// magnitude ticks only crowded it without encoding anything the number
 	// doesn't already say.
@@ -70,7 +77,7 @@ const sampleBuckets = [
 		<ErrorState description={storeError} onRetry={reloadDashboard} />
 	{:else}
 	<header class="flex items-center justify-between">
-		<h1 class="figures text-xl text-ledger tracking-wide">{m.nav_dashboard()}</h1>
+		<h1 class="page-title">{m.nav_dashboard()}</h1>
 		<span class="plate">{budgets.month}</span>
 	</header>
 
@@ -82,12 +89,27 @@ const sampleBuckets = [
 		</div>
 
 		<div class="min-w-0">
-			<div class="figures-glow text-4xl md:text-5xl leading-none break-all">
-				{formatCurrency(netPosition, settings.currency, settings.locale)}
-			</div>
+			<!-- The readout wears the ledger's own semantics: positive figures
+			     glow amber, negative figures print in debit ink with a literal
+			     minus — owing money never glows like a win. -->
+			<button
+				type="button"
+				onclick={() => { if (netIsLong) netExact = !netExact; }}
+				title={formatCurrency(netPosition, settings.currency, settings.locale)}
+				aria-label="{m.dashboard_net_position()}: {formatCurrency(netPosition, settings.currency, settings.locale)}"
+				class="text-4xl md:text-5xl leading-none text-left {netPosition < 0 ? 'figures text-debit' : 'figures-glow'} {netIsLong && !netExact
+					? 'truncate block max-w-full cursor-pointer border-b border-dotted border-line/70'
+					: netIsLong ? 'break-all cursor-pointer' : 'cursor-default'}"
+			>
+				{netPosition < 0 ? '−' : ''}{netIsLong && !netExact
+					? formatCurrencyCompact(Math.abs(netPosition), settings.currency, settings.locale)
+					: formatCurrency(Math.abs(netPosition), settings.currency, settings.locale)}
+			</button>
 			<div class="mt-3 flex items-center gap-2 text-sm">
 				<span class="figures {monthFlow >= 0 ? 'text-phosphor' : 'text-debit'}">
-					{monthFlow >= 0 ? '▲' : '▼'} {formatNumber(Math.abs(monthFlow), settings.locale)}
+					{monthFlow >= 0 ? '▲' : '▼'} {isLongCurrency(monthFlow, settings.currency, settings.locale)
+						? formatNumberCompact(Math.abs(monthFlow), settings.locale)
+						: formatNumber(Math.abs(monthFlow), settings.locale)}
 				</span>
 				<span class="text-dim">{m.dashboard_month_flow()}</span>
 			</div>
@@ -121,9 +143,12 @@ const sampleBuckets = [
 				<Progress value={budgetPct} max={100} label={m.layout_budget()} />
 				<div class="mt-4 space-y-1.5">
 					{#each budgets.items.slice(0, 4) as b}
-						<div class="flex items-center justify-between text-xs">
-							<span class="text-dim">{bucketName(b.type_id)}</span>
-							<span class="figures text-ledger">{formatCurrency(b.spent, settings.currency, settings.locale)} <span class="text-dim">/ {formatCurrency(b.allocated, settings.currency, settings.locale)}</span></span>
+						<div class="flex items-center justify-between text-xs gap-2">
+							<span class="text-dim truncate">{bucketName(b.type_id)}</span>
+							<span class="figures text-ledger shrink-0" title="{formatCurrency(b.spent, settings.currency, settings.locale)} / {formatCurrency(b.allocated, settings.currency, settings.locale)}">
+								{isLongCurrency(b.spent, settings.currency, settings.locale) ? formatCurrencyCompact(b.spent, settings.currency, settings.locale) : formatCurrency(b.spent, settings.currency, settings.locale)}
+								<span class="text-dim">/ {isLongCurrency(b.allocated, settings.currency, settings.locale) ? formatCurrencyCompact(b.allocated, settings.currency, settings.locale) : formatCurrency(b.allocated, settings.currency, settings.locale)}</span>
+							</span>
 						</div>
 					{/each}
 				</div>
@@ -168,9 +193,7 @@ const sampleBuckets = [
 							<p class="text-sm text-ledger truncate">{tx.payee || labelFor(tx.kind)}</p>
 							<p class="plate mt-0.5">{formatDateRelative(tx.date, settings.locale)}</p>
 						</div>
-						<span class="figures text-sm shrink-0 {tx.kind === 'expense' ? 'text-debit' : tx.kind === 'income' ? 'text-phosphor' : 'text-dim'}">
-							{tx.kind === 'expense' ? '−' : tx.kind === 'income' ? '+' : ''}{formatCurrency(tx.amount, settings.currency, settings.locale)}
-						</span>
+						<Money amount={tx.amount} glyph={tx.kind === 'expense' ? '−' : tx.kind === 'income' ? '+' : ''} tone={tx.kind === 'expense' ? 'debit' : tx.kind === 'income' ? 'phosphor' : 'dim'} />
 					</li>
 				{/each}
 			</ul>

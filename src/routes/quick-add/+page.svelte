@@ -199,6 +199,7 @@
 		justify-content: space-between;
 		color: var(--dim);
 		font-size: 11px;
+		letter-spacing: 0.18em; /* engraved-faceplate tracking, matching .plate */
 	}
 	.mark {
 		color: var(--phosphor);
@@ -210,6 +211,7 @@
 		color: var(--phosphor-bright);
 		font-family: 'IBM Plex Mono', monospace;
 		font-size: 30px;
+		letter-spacing: -0.01em; /* same VFD digit spacing as .figures */
 		margin-top: 0.4rem;
 		width: 100%;
 	}
@@ -238,15 +240,16 @@
 		font-family: 'IBM Plex Mono', monospace;
 		font-size: 11px;
 		text-transform: uppercase;
+		letter-spacing: 0.18em; /* engraved-faceplate tracking, matching .plate */
 	}
 	.error {
 		color: var(--debit);
-		font-size: 13px;
+		font-size: 11px;
 		margin-top: 0.25rem;
 	}
 	.hint {
 		color: var(--dim);
-		font-size: 13px;
+		font-size: 11px;
 		margin-top: 0.25rem;
 	}
 </style>

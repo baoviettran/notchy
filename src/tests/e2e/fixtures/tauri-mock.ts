@@ -1168,7 +1168,11 @@ export async function lastOpenedPath(page: Page): Promise<string | null> {
  * Fixture: injects the mock before navigation. Configure via test.use:
  *   test.use({ tauriMockOptions: { seedMeta: {...} } })
  */
-export const test = base.extend<{ tauriMockPage: Page; tauriMockOptions: TauriMockOptions }>({
+export const test = base.extend<{
+	tauriMockPage: Page;
+	// Optional: tests without tauriMockOptions run the browser fallback.
+	tauriMockOptions?: TauriMockOptions;
+}>({
 	// Undefined by default: the mock is only injected when a test explicitly
 	// opts in via test.use({ tauriMockOptions }). UI-flow specs run the browser
 	// fallback (real repos, documented E2E path); DB-lifecycle specs opt in.

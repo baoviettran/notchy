@@ -349,6 +349,7 @@ pub struct TransactionFilter {
 /// Partial update for an existing transaction.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct TransactionPatch {
+    pub kind: Option<TransactionKind>,
     pub date: Option<String>,
     pub amount: Option<i64>,
     pub transfer_account_id: Option<String>,

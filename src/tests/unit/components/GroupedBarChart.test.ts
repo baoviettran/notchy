@@ -69,6 +69,51 @@ describe('GroupedBarChart', () => {
 		expect(svg).toBeNull();
 	});
 
+	it('exposes an accessible name when a label is provided', () => {
+		const { container } = render(GroupedBarChart, {
+			props: {
+				data: [
+					{
+						month: '01',
+						yearAIncome: 5000,
+						yearAExpense: 3000,
+						yearBIncome: 5500,
+						yearBExpense: 3200
+					}
+				],
+				yFormat: (n) => `$${n}`,
+				xFormat: (m) => m,
+				label: 'Spending by month'
+			}
+		});
+		const svg = container.querySelector('svg[role="img"]');
+		expect(svg).not.toBeNull();
+		expect(svg).toHaveAttribute('aria-label', 'Spending by month');
+	});
+
+	it('provides an sr-only data table when a label is provided', () => {
+		const { container } = render(GroupedBarChart, {
+			props: {
+				data: [
+					{
+						month: '01',
+						yearAIncome: 5000,
+						yearAExpense: 3000,
+						yearBIncome: 5500,
+						yearBExpense: 3200
+					}
+				],
+				yFormat: (n) => `$${n}`,
+				xFormat: (m) => m,
+				label: 'Spending by month'
+			}
+		});
+		const table = container.querySelector('table.sr-only');
+		expect(table).not.toBeNull();
+		expect(table?.querySelector('caption')?.textContent).toBe('Spending by month');
+		expect(table?.querySelectorAll('tbody th').length).toBe(1);
+	});
+
 	it('uses the two-ink palette and fades year B to half strength', () => {
 		const data = [
 			{

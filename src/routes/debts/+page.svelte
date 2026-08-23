@@ -12,6 +12,7 @@
 	import { toast } from '$lib/stores/toast.svelte';
 	import { getDb } from '$lib/db';
 	import { formatCurrency } from '$lib/utils/currency';
+import Money from '$lib/components/reports/Money.svelte';
 	import { parseAmount } from '$lib/utils/number_parse';
 	import type { DebtAccount } from '$lib/db/client';
 	import * as m from '$lib/paraglide/messages';
@@ -26,11 +27,13 @@
 
 	onMount(async () => { await debts.load(); await accounts.load(); });
 
+	let actionError = $state('');
+
 	function openPayment(d: DebtAccount) {
-		activeDebt = d; actionType = 'payment'; amount = ''; fromAccount = ''; showAction = true;
+		activeDebt = d; actionType = 'payment'; amount = ''; fromAccount = ''; actionError = ''; showAction = true;
 	}
 	function openWriteoff(d: DebtAccount) {
-		activeDebt = d; actionType = 'writeoff'; amount = ''; showAction = true;
+		activeDebt = d; actionType = 'writeoff'; amount = ''; actionError = ''; showAction = true;
 	}
 
 	async function doAction() {
@@ -39,7 +42,9 @@
 		try {
 			const parsed = parseAmount(amount, settings.locale, settings.currency);
 			if (actionType === 'payment') {
-				if (!fromAccount) { toast.show(m.debts_select_account()); saving = false; return; }
+				// Field-level: the missing account lives next to the Select,
+				// not in a toast that vanishes over the form.
+				if (!fromAccount) { actionError = m.debts_select_account(); saving = false; return; }
 				// Payment is a transfer from fromAccount to the debt account
 				await transactions.create({
 					kind: 'transfer',
@@ -66,6 +71,11 @@
 
 	const assetAccounts = $derived(accounts.assets.map((a) => ({ value: a.id, label: a.name })));
 
+	// Picking an account retires the field error immediately.
+	$effect(() => {
+		if (fromAccount) actionError = '';
+	});
+
 	// Write-off is irreversible — the modal restates the number being
 	// extinguished and previews what remains so a full forgiveness never
 	// looks like an ordinary payment.
@@ -86,7 +96,7 @@
 </script>
 
 <div class="space-y-6">
-	<h1 class="figures text-xl text-ledger tracking-wide">{m.debts_title()}</h1>
+	<h1 class="page-title">{m.debts_title()}</h1>
 
 	<section>
 		<h2 class="plate mb-2">{m.debts_i_owe()}</h2>
@@ -107,8 +117,14 @@
 							<div class="text-xs text-dim">{d.name}</div>
 						</div>
 						<div class="flex items-center gap-3">
-							<span class="figures text-sm text-debit">{formatCurrency(Math.abs(d.balance), settings.currency, settings.locale)}</span>
-							<button onclick={() => openPayment(d)} class="min-h-8 px-3 text-xs text-phosphor rounded hover:bg-line/40 transition-colors">{m.debts_pay()}</button>
+							{#if d.balance > 0}
+								<Money amount={d.balance} glyph="−" tone="debit" />
+							{:else}
+								<!-- Overpaid/settled: print the truth (a credit in your
+								     favor), never a masked oxblood "you still owe". -->
+								<Money amount={Math.abs(d.balance)} glyph="+" tone="phosphor" />
+							{/if}
+							<button onclick={() => openPayment(d)} class="min-h-11 px-3 text-xs text-phosphor rounded hover:bg-line/40 transition-colors">{m.debts_pay()}</button>
 							<ContextMenu label={m.common_actions_for({ name: d.counterparty })}>
 								<button onclick={() => openWriteoff(d)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.debts_write_off()}</button>
 							</ContextMenu>
@@ -134,8 +150,13 @@
 							<div class="text-xs text-dim">{d.name}</div>
 						</div>
 						<div class="flex items-center gap-3">
-							<span class="figures text-sm text-phosphor">{formatCurrency(d.balance, settings.currency, settings.locale)}</span>
-							<button onclick={() => openPayment(d)} class="min-h-8 px-3 text-xs text-phosphor rounded hover:bg-line/40 transition-colors">{m.debts_receive()}</button>
+							{#if d.balance >= 0}
+								<Money amount={d.balance} glyph="+" tone="phosphor" />
+							{:else}
+								<!-- They paid back more than owed: the ledger prints the flip. -->
+								<Money amount={Math.abs(d.balance)} glyph="−" tone="debit" />
+							{/if}
+							<button onclick={() => openPayment(d)} class="min-h-11 px-3 text-xs text-phosphor rounded hover:bg-line/40 transition-colors">{m.debts_receive()}</button>
 							<ContextMenu label={m.common_actions_for({ name: d.counterparty })}>
 								<button onclick={() => openWriteoff(d)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.debts_write_off()}</button>
 							</ContextMenu>
@@ -165,7 +186,7 @@
 		{/if}
 		<Input label={m.common_amount()} bind:value={amount} placeholder={m.forms_amount_placeholder()} />
 		{#if actionType === 'payment'}
-			<Select label={activeDebt?.type === 'loan_from_person' ? m.debts_from_account() : m.debts_to_account()} bind:value={fromAccount} options={assetAccounts} />
+			<Select label={activeDebt?.type === 'loan_from_person' ? m.debts_from_account() : m.debts_to_account()} bind:value={fromAccount} options={assetAccounts} error={actionError} />
 		{/if}
 		<div class="flex justify-end gap-2 pt-2">
 			<Button variant="ghost" onclick={() => showAction = false}>{m.common_cancel()}</Button>

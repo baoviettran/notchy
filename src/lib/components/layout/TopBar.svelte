@@ -6,10 +6,8 @@
 
 	let search = $state('');
 
-	// Bridge: track settings.locale in a local $state so Svelte re-renders
-	// the template (and re-evaluates m.*() calls) when the language changes.
-	let _locale = $state(settings.locale);
-	$effect(() => { _locale = settings.locale; });
+	// Locale reactivity comes from the layout shell being {#key}ed on
+	// settings.locale — no local bridge needed.
 
 	function onSearchKeydown(event: KeyboardEvent) {
 		if (event.key === 'Enter') {
@@ -31,10 +29,10 @@
 		/>
 	</label>
 	<button
-		onclick={() => settings.setLocale(_locale === 'en' ? 'vi' : 'en')}
-		aria-label={_locale === 'en' ? m.layout_lang_toggle_en() : m.layout_lang_toggle_vi()}
+		onclick={() => settings.setLocale(settings.locale === 'en' ? 'vi' : 'en')}
+		aria-label={settings.locale === 'en' ? m.layout_lang_toggle_en() : m.layout_lang_toggle_vi()}
 		class="plate px-2 py-2 rounded border border-line text-dim hover:text-ledger"
 	>
-		{_locale === 'en' ? m.layout_lang_label_vi() : m.layout_lang_label_en()}
+		{settings.locale === 'en' ? m.layout_lang_label_vi() : m.layout_lang_label_en()}
 	</button>
 </header>

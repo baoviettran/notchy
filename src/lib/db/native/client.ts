@@ -147,6 +147,18 @@ class NativeTransactionOps implements TransactionOps {
 		return invoke<string>('transaction_duplicate', { id });
 	}
 
+	deleteMany(ids: string[]): Promise<void> {
+		return invoke<void>('transaction_delete_many', { ids });
+	}
+
+	setTagMany(ids: string[], tagId: string | null): Promise<void> {
+		return invoke<void>('transaction_set_tag_many', { ids, tagId });
+	}
+
+	setAccountMany(ids: string[], accountId: string): Promise<void> {
+		return invoke<void>('transaction_set_account_many', { ids, accountId });
+	}
+
 	getFrequent(_sinceDate: string): Promise<import('../client').FrequentTx[]> {
 		return invoke<import('../client').FrequentTx[]>('transaction_frequent', { sinceDate: _sinceDate });
 	}

@@ -2,17 +2,20 @@
 	import { LayerCake, Svg } from 'layercake';
 	import { scaleTime, scaleLinear } from 'd3-scale';
 	import { line, area } from 'd3-shape';
+	import * as m from '$lib/paraglide/messages';
 
 	let {
 		data,
 		yFormat,
 		xFormat,
-		showArea = true
+		showArea = true,
+		label
 	}: {
 		data: { x: Date; y: number }[];
 		yFormat: (n: number) => string;
 		xFormat: (d: Date) => string;
 		showArea?: boolean;
+		label?: string;
 	} = $props();
 
 	const chartWidth = 400;
@@ -64,7 +67,7 @@
 {#if data.length > 0}
 	<LayerCake data={data} x="x" y="y">
 		<Svg>
-			<svg viewBox="0 0 {chartWidth} {chartHeight}" class="line-chart" preserveAspectRatio="xMidYMid meet">
+			<svg viewBox="0 0 {chartWidth} {chartHeight}" class="line-chart" preserveAspectRatio="xMidYMid meet" role="img" aria-label={label}>
 				<g transform="translate({margin.left}, {margin.top})">
 					<!-- Area fill -->
 					{#if showArea && areaPath}
@@ -101,6 +104,27 @@
 			</svg>
 		</Svg>
 	</LayerCake>
+
+	<!-- Non-visual readers get the actual data, not just the chart's name. -->
+	{#if label}
+		<table class="sr-only">
+			<caption>{label}</caption>
+			<thead>
+				<tr>
+					<th scope="col">{m.chart_col_period()}</th>
+					<th scope="col">{m.chart_col_amount()}</th>
+				</tr>
+			</thead>
+			<tbody>
+				{#each data as p}
+					<tr>
+						<th scope="row">{xFormat(p.x)}</th>
+						<td>{yFormat(p.y)}</td>
+					</tr>
+				{/each}
+			</tbody>
+		</table>
+	{/if}
 {/if}
 
 <style>
@@ -132,7 +156,7 @@
 
 	.tick-label {
 		fill: var(--dim);
-		font-size: 10px;
+		font-size: 11px;
 		text-anchor: middle;
 	}
 

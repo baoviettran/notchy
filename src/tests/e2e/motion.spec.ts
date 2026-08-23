@@ -19,7 +19,9 @@ test.describe('More sheet (mobile)', () => {
 		// Close via the backdrop — the sheet has an out transition and must disappear.
 		// (The More toggle is unreachable while open: the z-40 backdrop covers the
 		// z-30 nav, so a second tap lands on the backdrop instead.)
-		await page.locator('.bg-black\\/50').click();
+		// Addressed structurally (fullscreen overlay), not by background color,
+		// so restyling the scrim doesn't break this test.
+		await page.locator('div.fixed.inset-0.z-40').click();
 		await expect(sheetAccounts).toBeHidden();
 
 		// Reopen, then close via Escape (BottomNav's keydown path).
