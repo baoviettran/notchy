@@ -5,7 +5,7 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
-	import { formatNumber } from '$lib/utils/currency';
+	import Money from '$lib/components/reports/Money.svelte';
 	import type { FrequentTx } from '$lib/db/client';
 	import * as m from '$lib/paraglide/messages';
 
@@ -46,7 +46,14 @@
 					class="shrink-0 w-28 p-2.5 rounded-md border border-line bg-ink hover:border-phosphor/60 transition-colors text-left"
 				>
 					<div class="text-xs text-ledger truncate">{item.payee}</div>
-					<div class="figures text-xs text-phosphor mt-1">{formatCurrency(item.amount, settings.currency, settings.locale)}</div>
+					<div class="mt-1">
+						<Money
+							amount={item.amount}
+							glyph={item.kind === 'expense' ? '−' : item.kind === 'income' ? '+' : ''}
+							tone={item.kind === 'expense' ? 'debit' : item.kind === 'income' ? 'phosphor' : 'dim'}
+							size="text-xs"
+						/>
+					</div>
 				</button>
 			{/each}
 		</div>

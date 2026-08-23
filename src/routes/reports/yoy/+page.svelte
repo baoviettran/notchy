@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { reportsStore } from '$lib/stores/reports.svelte';
+	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import GroupedBarChart from '$lib/components/charts/GroupedBarChart.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
 	import { settings } from '$lib/stores/settings.svelte';
@@ -11,12 +11,10 @@
 	let yearA = $state(currentYear - 1);
 	let yearB = $state(currentYear);
 
-	onMount(() => {
-		reportsStore.loadYearOverYear(yearA, yearB);
-	});
+	let loaded = $state(false);
 
 	$effect(() => {
-		reportsStore.loadYearOverYear(yearA, yearB);
+		void reportsStore.loadYearOverYear(yearA, yearB).then(() => (loaded = true));
 	});
 
 	const chartData = $derived(reportsStore.yearOverYear);
@@ -60,6 +58,11 @@
 		</div>
 	</div>
 
+	{#if !loaded}
+		<div class="surface rounded-lg p-5">
+			<Skeleton lines={5} />
+		</div>
+	{:else}
 	{#if hasYearOverYearData}
 		<div class="bg-tape rounded-lg border border-line p-4">
 			<GroupedBarChart data={chartData} {yFormat} {xFormat} />
@@ -68,5 +71,6 @@
 		<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim min-h-[200px] flex items-center justify-center">
 			<p class="text-sm">{m.reports_empty_yoy()}</p>
 		</div>
+	{/if}
 	{/if}
 </div>

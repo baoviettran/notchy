@@ -108,7 +108,13 @@ import Money from '$lib/components/reports/Money.svelte';
 							<div class="text-xs text-dim">{d.name}</div>
 						</div>
 						<div class="flex items-center gap-3">
-							<Money amount={Math.abs(d.balance)} tone="debit" />
+							{#if d.balance > 0}
+								<Money amount={d.balance} glyph="−" tone="debit" />
+							{:else}
+								<!-- Overpaid/settled: print the truth (a credit in your
+								     favor), never a masked oxblood "you still owe". -->
+								<Money amount={Math.abs(d.balance)} glyph="+" tone="phosphor" />
+							{/if}
 							<button onclick={() => openPayment(d)} class="min-h-8 px-3 text-xs text-phosphor rounded hover:bg-line/40 transition-colors">{m.debts_pay()}</button>
 							<ContextMenu label={m.common_actions_for({ name: d.counterparty })}>
 								<button onclick={() => openWriteoff(d)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.debts_write_off()}</button>
@@ -135,7 +141,12 @@ import Money from '$lib/components/reports/Money.svelte';
 							<div class="text-xs text-dim">{d.name}</div>
 						</div>
 						<div class="flex items-center gap-3">
-							<Money amount={d.balance} tone="phosphor" />
+							{#if d.balance >= 0}
+								<Money amount={d.balance} glyph="+" tone="phosphor" />
+							{:else}
+								<!-- They paid back more than owed: the ledger prints the flip. -->
+								<Money amount={Math.abs(d.balance)} glyph="−" tone="debit" />
+							{/if}
 							<button onclick={() => openPayment(d)} class="min-h-8 px-3 text-xs text-phosphor rounded hover:bg-line/40 transition-colors">{m.debts_receive()}</button>
 							<ContextMenu label={m.common_actions_for({ name: d.counterparty })}>
 								<button onclick={() => openWriteoff(d)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.debts_write_off()}</button>

@@ -180,7 +180,8 @@
 			{ "name": "The Eight-Token Rule", "body": "These eight tokens are the whole palette. No new accent hues; if a decision needs a ninth color, the decision is wrong.", "section": "colors" },
 			{ "name": "The Measured Contrast Rule", "body": "--line must clear 3:1 against --tape in both themes, and --dim stays above --line so secondary text reads stronger than a divider.", "section": "colors" },
 			{ "name": "The Figures Rule", "body": "Every monetary value renders through .figures + formatCurrency. Never set a number in the sans face.", "section": "typography" },
-			{ "name": "The No-Glow-On-Paper Rule", "body": "Glow renders in dark mode only; light mode substitutes plain color or ink shadow. No animation without a reduced-motion story.", "section": "elevation" }
+			{ "name": "The No-Glow-On-Paper Rule", "body": "Glow renders in dark mode only; light mode substitutes plain color or ink shadow. No animation without a reduced-motion story.", "section": "elevation" },
+			{ "name": "The Decorative-Meter Rule", "body": "A chart meter is decorative (aria-hidden, role=presentation) whenever ruled lines beside it carry the same data. The meter paints; the tape speaks.", "section": "colors" }
 		],
 		"dos": [
 			"Do keep money as integer smallest units through formatCurrency.",

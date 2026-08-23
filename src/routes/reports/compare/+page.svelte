@@ -12,10 +12,14 @@
 	let loaded = $state(false);
 	let includeAdjustments = $state(false);
 
+	// The ledger's own minus (−), never Intl's hyphen: sign is a glyph in
+	// this system, paired with tone so color never carries it alone.
 	function fmt(amount: number): string {
-		return isLongCurrency(amount, settings.currency, settings.locale)
-			? formatCurrencyCompact(amount, settings.currency, settings.locale)
-			: formatCurrency(amount, settings.currency, settings.locale);
+		const magnitude = Math.abs(amount);
+		const figure = isLongCurrency(magnitude, settings.currency, settings.locale)
+			? formatCurrencyCompact(magnitude, settings.currency, settings.locale)
+			: formatCurrency(magnitude, settings.currency, settings.locale);
+		return (amount < 0 ? '−' : '') + figure;
 	}
 
 	function currentMonth() {

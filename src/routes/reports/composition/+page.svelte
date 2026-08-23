@@ -1,21 +1,20 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { reportsStore } from '$lib/stores/reports.svelte';
+	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import StackedAreaChart from '$lib/components/charts/StackedAreaChart.svelte';
-	import { formatCurrency } from '$lib/utils/currency';
+	import TapeLine from '$lib/components/reports/TapeLine.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
-	import * as m from '$lib/paraglide/messages';
+	import { formatCurrency, formatCurrencyCompact, isLongCurrency } from '$lib/utils/currency';
 	import { seriesColor } from '$lib/utils/palette';
+	import * as m from '$lib/paraglide/messages';
 	import ReportsNav from '$lib/components/layout/ReportsNav.svelte';
 
-	onMount(() => {
-		reportsStore.loadStackedComposition();
-	});
+	let loaded = $state(false);
 
 	$effect(() => {
 		reportsStore.window;
 		reportsStore.includeAdjustments;
-		reportsStore.loadStackedComposition();
+		void reportsStore.loadStackedComposition().then(() => (loaded = true));
 	});
 
 	const chartData = $derived(reportsStore.stackedComposition);
@@ -32,9 +31,36 @@
 		return colorMap;
 	});
 
-	const yFormat = (n: number) => formatCurrency(n, settings.currency, settings.locale);
+	function fmt(amount: number): string {
+		return isLongCurrency(amount, settings.currency, settings.locale)
+			? formatCurrencyCompact(amount, settings.currency, settings.locale)
+			: formatCurrency(amount, settings.currency, settings.locale);
+	}
+
+	const yFormat = (n: number) => fmt(n);
 	const windowOptions = [6, 12, 24] as const;
 	const xFormat = (month: string) => month;
+
+	// Per-tag totals across the window: the ruled lines that make the chart
+	// decorative under the Decorative-Meter Rule. The meter paints; this
+	// tape speaks.
+	const tagTotals = $derived.by(() => {
+		const totals = new Map<string, { name: string; total: number }>();
+		chartData.forEach((point) => {
+			point.tags.forEach((tag) => {
+				if (tag.tagId === null) return;
+				const entry = totals.get(tag.tagId) ?? { name: tag.name, total: 0 };
+				entry.total += tag.total;
+				totals.set(tag.tagId, entry);
+			});
+		});
+		return [...totals.entries()].sort((a, b) => b[1].total - a[1].total);
+	});
+	const grandTotal = $derived(tagTotals.reduce((s, [, t]) => s + t.total, 0));
+
+	let chartSummary = $derived(
+		m.reports_spending_by_bucket() + ' — ' + m.reports_months({ count: reportsStore.window })
+	);
 </script>
 
 <div class="space-y-6">
@@ -61,10 +87,32 @@
 		</label>
 	</div>
 
-	{#if chartData.length > 0 && chartData.some((point) => point.tags.length > 0)}
-		<div class="bg-tape rounded-lg border border-line p-4">
-			<StackedAreaChart data={chartData} {yFormat} {xFormat} {colors} />
+	{#if !loaded}
+		<div class="surface rounded-lg p-5">
+			<Skeleton lines={5} />
 		</div>
+	{:else if chartData.length > 0 && chartData.some((point) => point.tags.length > 0)}
+		<section class="surface rounded-lg border border-line p-4">
+			<div role="img" aria-label={chartSummary}>
+				<StackedAreaChart data={chartData} {yFormat} {xFormat} {colors} />
+			</div>
+		</section>
+
+		<!-- The data, printed: per-tag ruled totals so the meter above stays
+		     decorative under the Decorative-Meter Rule. -->
+		<section class="surface rounded-lg px-4 py-3">
+			<h2 class="plate mb-2">{m.reports_spending_by_bucket()}</h2>
+			{#each tagTotals as [tagId, tag] (tagId)}
+				<TapeLine
+					label={tag.name}
+					amount={fmt(tag.total)}
+					note={grandTotal > 0 ? Math.round((tag.total / grandTotal) * 100) + '%' : '0%'}
+					tone="dim"
+					title={formatCurrency(tag.total, settings.currency, settings.locale)}
+				/>
+			{/each}
+			<TapeLine label={m.reports_subtotal()} amount={fmt(grandTotal)} tone="ledger" variant="subtotal" />
+		</section>
 	{:else}
 		<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim min-h-[200px] flex items-center justify-center">
 			<p class="text-sm">{m.reports_empty_composition()}</p>

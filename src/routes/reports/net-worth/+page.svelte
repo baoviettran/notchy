@@ -1,20 +1,21 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { reportsStore } from '$lib/stores/reports.svelte';
+	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import LineChart from '$lib/components/charts/LineChart.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
 	import { settings } from '$lib/stores/settings.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import ReportsNav from '$lib/components/layout/ReportsNav.svelte';
 
-	onMount(() => {
-		reportsStore.loadNetWorth();
-	});
+	let loaded = $state(false);
 
+	// Single tracked effect: fires once on mount and re-runs when the window
+	// or adjustments toggle. No onMount double-fetch, no empty-state flash
+	// before first resolution.
 	$effect(() => {
 		reportsStore.window;
 		reportsStore.includeAdjustments;
-		reportsStore.loadNetWorth();
+		void reportsStore.loadNetWorth().then(() => (loaded = true));
 	});
 
 	const chartData = $derived(
@@ -57,6 +58,11 @@
 		</label>
 	</div>
 
+	{#if !loaded}
+		<div class="surface rounded-lg p-5">
+			<Skeleton lines={5} />
+		</div>
+	{:else}
 	{#if hasNetWorthData}
 		<div class="bg-tape rounded-lg border border-line p-4">
 			<LineChart data={chartData} {yFormat} {xFormat} showArea={true} />
@@ -65,5 +71,6 @@
 		<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim min-h-[200px] flex items-center justify-center">
 			<p class="text-sm">{m.reports_empty_net_worth()}</p>
 		</div>
+	{/if}
 	{/if}
 </div>
