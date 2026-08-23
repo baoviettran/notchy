@@ -14,7 +14,7 @@
 	const variants = {
 		primary: 'bg-phosphor text-ink hover:brightness-110',
 		secondary: 'border border-dim bg-tape text-ledger hover:border-ledger',
-		danger: 'bg-debit text-ledger hover:brightness-110',
+		danger: 'bg-debit text-ink hover:brightness-110',
 		ghost: 'text-dim hover:text-ledger hover:bg-line/40'
 	};
 </script>

@@ -170,3 +170,18 @@
 		text-shadow: none;
 	}
 }
+
+/* The keypress flash is phosphor glow — paper doesn't glow. Light mode keeps
+   the toast's slide-up entrance but skips the flicker. */
+html.light .animate-flash {
+	animation: none;
+}
+
+/* The FAB's phosphor halo follows the same rule: bloom belongs to the dark
+   casing; paper gets an ordinary ink shadow for lift. */
+:root:not(.light) .fab-halo {
+	box-shadow: 0 0 0 1px rgb(var(--phosphor-rgb) / 0.3), 0 8px 24px -4px rgb(var(--phosphor-rgb) / 0.5);
+}
+html.light .fab-halo {
+	box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.3);
+}

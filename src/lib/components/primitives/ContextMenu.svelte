@@ -38,9 +38,11 @@
 </script>
 
 <div class="relative">
+	<!-- The pseudo-element widens the hit target to ~44px on touch without
+	     changing the visual footprint in dense rows. -->
 	<button
 		onclick={toggle}
-		class="p-2 -m-1 text-dim hover:text-ledger hover:bg-line/40 rounded transition-colors"
+		class="relative p-2 -m-1 text-dim hover:text-ledger hover:bg-line/40 rounded transition-colors before:content-[''] before:absolute before:-inset-2"
 		aria-label={label}
 		aria-haspopup="menu"
 		aria-expanded={open}

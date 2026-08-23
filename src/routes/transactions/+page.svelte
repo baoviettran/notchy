@@ -18,6 +18,7 @@
 	import ImportTransactionsModal from '$lib/components/modals/ImportTransactionsModal.svelte';
 	import Select from '$lib/components/primitives/Select.svelte';
 	import Input from '$lib/components/primitives/Input.svelte';
+	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import { accounts } from '$lib/stores/accounts.svelte';
 	import { categories } from '$lib/stores/categories.svelte';
 	import type { Transaction, TransactionKind } from '$lib/db/repos/transactions';
@@ -34,6 +35,7 @@
 	let editing = $state<Transaction | null>(null);
 	let showEditModal = $state(false);
 	let showImport = $state(false);
+	let showFilters = $state(false);
 	let showDeleteConfirm = $state(false);
 	let pendingDeleteId = $state<string | null>(null);
 	let pageNum = $state(0);
@@ -50,6 +52,7 @@
 
 	// Any constraint beyond search is active → offer a one-click exit.
 	let hasActiveFilters = $derived(Boolean(filterKind || filterAccount || filterTag || filterMonth));
+	let activeFilterCount = $derived([filterKind, filterAccount, filterTag, filterMonth].filter(Boolean).length);
 
 	function clearFilters() {
 		filterKind = '';
@@ -134,46 +137,62 @@
 <div class="space-y-4">
 	<h1 class="figures text-xl text-ledger tracking-wide">{m.transactions_title()}</h1>
 
-	<div class="flex gap-2">
+	<!-- One action row: filters stay behind a toggle (with an active count)
+	     until they matter, and Import stops floating in its own region. -->
+	<div class="flex items-center gap-2">
+		<Button
+			size="sm"
+			variant={activeFilterCount > 0 ? 'primary' : 'secondary'}
+			onclick={() => showFilters = !showFilters}
+		>
+			{m.transactions_filters()}
+			{#if activeFilterCount > 0}
+				<span class="figures ml-1.5 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full text-[11px] bg-ink/20">{activeFilterCount}</span>
+			{/if}
+		</Button>
 		<Button size="sm" variant="secondary" onclick={() => showImport = true}>{m.import_tx_title()}</Button>
 	</div>
 
-	<div class="flex flex-wrap gap-3">
-		<div class="w-44">
-			<Select
-				label={m.transactions_filter_kind()}
-				bind:value={filterKind}
-				options={[
-					{ value: '', label: m.transactions_filter_all_kinds() },
-					{ value: 'expense', label: m.forms_expense() },
-					{ value: 'income', label: m.forms_income() },
-					{ value: 'transfer', label: m.forms_transfer() },
-					{ value: 'refund', label: m.forms_refund() },
-					{ value: 'adjustment', label: m.forms_adjustment() }
-				]}
-			/>
+	{#if showFilters || activeFilterCount > 0}
+		<div class="flex flex-wrap gap-3">
+			<div class="w-44">
+				<Select
+					label={m.transactions_filter_kind()}
+					bind:value={filterKind}
+					options={[
+						{ value: '', label: m.transactions_filter_all_kinds() },
+						{ value: 'expense', label: m.forms_expense() },
+						{ value: 'income', label: m.forms_income() },
+						{ value: 'transfer', label: m.forms_transfer() },
+						{ value: 'refund', label: m.forms_refund() },
+						{ value: 'adjustment', label: m.forms_adjustment() }
+					]}
+				/>
+			</div>
+			<div class="w-44">
+				<Select
+					label={m.transactions_filter_account()}
+					bind:value={filterAccount}
+					options={[{ value: '', label: m.transactions_filter_all_accounts() }, ...accounts.items.map((a) => ({ value: a.id, label: a.name }))]}
+				/>
+			</div>
+			<div class="w-44">
+				<Select
+					label={m.transactions_filter_tag()}
+					bind:value={filterTag}
+					options={[{ value: '', label: m.transactions_filter_all_tags() }, ...categories.tags.map((t) => ({ value: t.id, label: t.name }))]}
+				/>
+			</div>
+			<div class="w-44">
+				<Input type="month" label={m.transactions_filter_month()} bind:value={filterMonth} />
+			</div>
 		</div>
-		<div class="w-44">
-			<Select
-				label={m.transactions_filter_account()}
-				bind:value={filterAccount}
-				options={[{ value: '', label: m.transactions_filter_all_accounts() }, ...accounts.items.map((a) => ({ value: a.id, label: a.name }))]}
-			/>
-		</div>
-		<div class="w-44">
-			<Select
-				label={m.transactions_filter_tag()}
-				bind:value={filterTag}
-				options={[{ value: '', label: m.transactions_filter_all_tags() }, ...categories.tags.map((t) => ({ value: t.id, label: t.name }))]}
-			/>
-		</div>
-		<div class="w-44">
-			<Input type="month" label={m.transactions_filter_month()} bind:value={filterMonth} />
-		</div>
-	</div>
+	{/if}
 
 	{#if transactions.loading}
-		<p class="text-dim text-sm py-8 text-center">{m.common_loading()}</p>
+		<div class="bg-tape rounded-lg border border-line p-4">
+			<Skeleton lines={6} />
+		</div>
 	{:else if transactions.error}
 		<ErrorState description={transactions.error} onRetry={loadPage} />
 	{:else}
@@ -234,5 +253,6 @@
 	title={m.transactions_delete_confirm_title()}
 	message={m.transactions_delete_confirm_body()}
 	confirmLabel={m.common_delete()}
+	danger={true}
 	onconfirm={doDelete}
 />

@@ -32,8 +32,9 @@ describe('ErrorState', () => {
 		expect(onRetry).toHaveBeenCalledOnce();
 	});
 
-	it('renders the error icon', () => {
+	it('renders the ⚠ glyph from the vocabulary, not an off-table icon', () => {
 		const { container } = render(ErrorState, { description: 'Error' });
-		expect(container.querySelector('svg')).toBeInTheDocument();
+		expect(container.textContent).toContain('⚠');
+		expect(container.querySelector('svg')).toBeNull();
 	});
 });

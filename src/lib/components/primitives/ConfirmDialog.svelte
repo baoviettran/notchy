@@ -3,7 +3,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import { createFocusTrap } from '$lib/utils/focusTrap';
 
-	let { open = $bindable(false), title = '', message = '', confirmLabel = '', danger = true, onconfirm = () => {} }: {
+	let { open = $bindable(false), title = '', message = '', confirmLabel = '', danger = false, onconfirm = () => {} }: {
 		open?: boolean; title?: string; message?: string; confirmLabel?: string; danger?: boolean; onconfirm?: () => void;
 	} = $props();
 

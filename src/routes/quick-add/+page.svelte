@@ -14,6 +14,7 @@
 	let activeAccount = $state<{ id: string; name: string } | null>(null);
 	let ready = $state(false);
 	let submitting = $state(false);
+	let justSaved = $state(false);
 	let unlistenFocus: (() => void) | undefined;
 
 	const accountName = $derived(activeAccount?.name ?? '');
@@ -120,6 +121,11 @@
 			}
 
 			value = '';
+			// The machine registers the keypress: one phosphor flicker before the
+			// window hides, so a save never vanishes unacknowledged.
+			justSaved = true;
+			await new Promise((r) => setTimeout(r, 250));
+			justSaved = false;
 			await hideWindow();
 		} finally {
 			submitting = false;
@@ -140,7 +146,7 @@
 
 <div class="tape">
 	<header class="top">
-		<span class="mark">▮</span>
+		<span class="mark" class:animate-flash={justSaved}>▮</span>
 		<span class="esc">ESC</span>
 	</header>
 
@@ -169,7 +175,7 @@
 
 	<footer class="status">
 		<span>{accountName} · {m.quick_add_today()}</span>
-		<span>{m.quick_add_save()} ⏎</span>
+		<span class:animate-flash={justSaved}>{m.quick_add_save()} ⏎</span>
 	</footer>
 
 	{#if error}
@@ -218,7 +224,7 @@
 	}
 	.payee {
 		color: var(--ledger);
-		font-size: 15px;
+		font-size: 16px;
 		min-height: 1.2em;
 	}
 	.payee.empty {
@@ -235,12 +241,12 @@
 	}
 	.error {
 		color: var(--debit);
-		font-size: 11px;
+		font-size: 13px;
 		margin-top: 0.25rem;
 	}
 	.hint {
 		color: var(--dim);
-		font-size: 11px;
+		font-size: 13px;
 		margin-top: 0.25rem;
 	}
 </style>

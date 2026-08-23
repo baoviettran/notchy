@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import Progress from '$lib/components/primitives/Progress.svelte';
 	import Button from '$lib/components/primitives/Button.svelte';
+	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import { budgets } from '$lib/stores/budgets.svelte';
 	import { categories } from '$lib/stores/categories.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
@@ -13,8 +14,10 @@
 
 	let editing = $state<string | null>(null);
 	let editValue = $state('');
+	let editError = $state('');
 	let monthIncome = $state(0);
 	let hasPrevAllocations = $state(false);
+	let editInputEl = $state<HTMLInputElement>();
 
 	async function loadMonthIncome() {
 		// Soft over-allocation ceiling: this month's income (kind='income') plus
@@ -61,6 +64,7 @@
 	function startEdit(typeId: string, current: number) {
 		editing = typeId;
 		editValue = current > 0 ? String(current) : '';
+		editError = '';
 	}
 
 	async function saveEdit(typeId: string) {
@@ -69,8 +73,10 @@
 			await budgets.setAllocation(typeId, parsed);
 			toast.show(m.budgets_updated());
 			editing = null;
+			editError = '';
 		} catch {
-			toast.show(m.validation_invalid_amount());
+			// Field-level: the problem lives next to the input, not in a toast.
+			editError = m.validation_invalid_amount();
 		}
 	}
 
@@ -92,6 +98,9 @@
 	function getBudget(typeId: string) {
 		return budgets.items.find((b) => b.type_id === typeId);
 	}
+
+	// Focus lands in the field the moment inline edit opens.
+	$effect(() => { if (editing) queueMicrotask(() => editInputEl?.focus()); });
 </script>
 
 <div class="space-y-6">
@@ -105,7 +114,9 @@
 	</div>
 
 	{#if budgets.loading}
-		<p class="text-dim text-sm py-8 text-center">{m.common_loading()}</p>
+		<div class="surface rounded-lg p-4">
+			<Skeleton lines={5} />
+		</div>
 	{:else}
 	{#if !budgets.hasAllocations}
 		<div class="bg-phosphor/10 border border-phosphor/30 rounded-lg p-4 flex items-center justify-between">
@@ -133,23 +144,29 @@
 			<div class="bg-tape rounded-lg border border-line p-4 space-y-2">
 				<div class="flex items-center justify-between">
 					<h3 class="text-sm font-medium text-ledger">{bucket.name}</h3>
-					{#if editing === bucket.id}
-						<div class="flex gap-2 items-center">
-							<input
-								bind:value={editValue}
-								onkeydown={(e) => { if (e.key === 'Enter') saveEdit(bucket.id); if (e.key === 'Escape') editing = null; }}
-								placeholder="0"
-								class="figures w-32 px-2 py-1 text-xs rounded border border-line bg-ink text-ledger text-right"
-							/>
-							<button onclick={() => saveEdit(bucket.id)} aria-label={m.common_save()} class="min-w-7 min-h-7 px-1.5 text-xs text-phosphor rounded hover:bg-line/40">✓</button>
-							<button onclick={() => editing = null} aria-label={m.common_cancel()} class="min-w-7 min-h-7 px-1.5 text-xs text-dim rounded hover:bg-line/40">✕</button>
-						</div>
-					{:else}
+				{#if editing === bucket.id}
+					<div class="flex gap-2 items-center">
+						<input
+							bind:value={editValue}
+							bind:this={editInputEl}
+							onkeydown={(e) => { if (e.key === 'Enter') saveEdit(bucket.id); if (e.key === 'Escape') editing = null; }}
+							placeholder="0"
+							aria-label={bucket.name}
+							aria-invalid={editError ? 'true' : undefined}
+							class="figures w-32 px-2 py-1 text-xs rounded border bg-ink text-ledger text-right {editError ? 'border-debit' : 'border-line'}"
+						/>
+						<button onclick={() => saveEdit(bucket.id)} aria-label={m.common_save()} class="min-w-7 min-h-7 px-1.5 text-xs text-phosphor rounded hover:bg-line/40">✓</button>
+						<button onclick={() => editing = null} aria-label={m.common_cancel()} class="min-w-7 min-h-7 px-1.5 text-xs text-dim rounded hover:bg-line/40">✕</button>
+					</div>
+				{:else}
 						<button onclick={() => startEdit(bucket.id, allocated)} class="figures text-xs text-dim hover:text-phosphor">
 							{formatCurrency(spent, settings.currency, settings.locale)} / {formatCurrency(allocated, settings.currency, settings.locale)}
 						</button>
 					{/if}
 				</div>
+				{#if editing === bucket.id && editError}
+					<p role="alert" class="text-xs text-debit">{editError}</p>
+				{/if}
 				<Progress value={pct} max={100} size="sm" label={bucket.name} />
 				{#if rolledOver !== 0}
 					<div class="text-xs text-dim">

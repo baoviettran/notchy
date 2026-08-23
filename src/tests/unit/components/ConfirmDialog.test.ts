@@ -28,14 +28,16 @@ describe('ConfirmDialog', () => {
 		expect(screen.queryByText('Delete?')).not.toBeInTheDocument();
 	});
 
-	it('shows danger variant button by default', () => {
+	it('shows primary variant by default (danger is opt-in)', () => {
 		render(ConfirmDialog, { open: true, title: 'Delete?', message: 'Sure?' });
-		expect(screen.getByText('Delete').className).toContain('bg-debit');
+		expect(screen.getByText('Delete').className).toContain('bg-phosphor');
 	});
 
-	it('shows primary variant when danger=false', () => {
-		render(ConfirmDialog, { open: true, title: 'Confirm?', message: 'Sure?', danger: false, confirmLabel: 'OK' });
-		expect(screen.getByText('OK').className).toContain('bg-phosphor');
+	it('shows the danger variant when danger=true, with ink text for AA contrast', () => {
+		render(ConfirmDialog, { open: true, title: 'Delete?', message: 'Sure?', danger: true });
+		const className = screen.getByText('Delete').className;
+		expect(className).toContain('bg-debit');
+		expect(className).toContain('text-ink');
 	});
 
 	it('uses custom confirmLabel', () => {

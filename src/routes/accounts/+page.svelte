@@ -16,6 +16,7 @@
 	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
 	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import ContextMenu from '$lib/components/primitives/ContextMenu.svelte';
+	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 
 	let showForm = $state(false);
 	let editing = $state<AccountWithBalance | null>(null);
@@ -74,7 +75,9 @@
 	</div>
 
 	{#if accounts.loading}
-		<p class="text-dim text-sm py-8 text-center">{m.common_loading()}</p>
+		<div class="surface rounded-lg p-4">
+			<Skeleton lines={4} />
+		</div>
 	{:else if accounts.error}
 		<ErrorState description={accounts.error} onRetry={() => accounts.load()} />
 	{:else}
@@ -156,5 +159,6 @@
 	title={m.accounts_delete_confirm_title()}
 	message={deleteTxCount === 1 ? m.accounts_delete_confirm_body_one() : deleteTxCount > 1 ? m.accounts_delete_confirm_body_many({ count: deleteTxCount }) : m.accounts_delete_confirm_body()}
 	confirmLabel={m.common_delete()}
+	danger={true}
 	onconfirm={doDelete}
 />

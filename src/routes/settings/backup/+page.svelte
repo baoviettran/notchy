@@ -217,5 +217,6 @@
 	title={m.settings_backup_confirm_title()}
 	message={m.settings_backup_confirm_message()}
 	confirmLabel={m.settings_backup_confirm_label()}
+	danger={true}
 	onconfirm={importDb}
 />

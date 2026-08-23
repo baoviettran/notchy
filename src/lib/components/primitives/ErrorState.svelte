@@ -9,11 +9,8 @@
 </script>
 
 <div class="surface rounded-lg p-6 text-center space-y-3" role="alert" aria-live="assertive">
-	<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-10 h-10 mx-auto text-debit" aria-hidden="true">
-		<circle cx="12" cy="12" r="10" />
-		<line x1="12" y1="8" x2="12" y2="12" />
-		<line x1="12" y1="16" x2="12.01" y2="16" />
-	</svg>
+	<!-- ⚠ is the vocabulary's alarm glyph (DESIGN.md §6) — no off-table icons. -->
+	<p class="figures text-2xl text-debit" aria-hidden="true">⚠</p>
 	<h2 class="text-lg font-semibold text-ledger">{m.errors_state_title()}</h2>
 	<p class="text-sm text-dim">{description}</p>
 	{#if onRetry}

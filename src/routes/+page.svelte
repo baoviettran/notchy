@@ -3,6 +3,7 @@
 	import Progress from '$lib/components/primitives/Progress.svelte';
 	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
 	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
+	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import FrequentTransactions from '$lib/components/sections/FrequentTransactions.svelte';
 	import { accounts } from '$lib/stores/accounts.svelte';
 	import { budgets } from '$lib/stores/budgets.svelte';
@@ -62,7 +63,9 @@ const sampleBuckets = [
 
 <div class="space-y-5">
 	{#if isLoading && !storeError}
-		<p class="text-dim text-sm py-8 text-center">{m.common_loading()}</p>
+		<div class="surface rounded-lg p-5">
+			<Skeleton lines={4} />
+		</div>
 	{:else if storeError}
 		<ErrorState description={storeError} onRetry={reloadDashboard} />
 	{:else}
