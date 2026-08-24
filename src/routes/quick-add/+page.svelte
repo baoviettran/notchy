@@ -192,7 +192,7 @@
 		flex-direction: column;
 		padding: 0.75rem 1rem;
 		box-sizing: border-box;
-		font-family: 'IBM Plex Mono', monospace;
+		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 	}
 	.top {
 		display: flex;
@@ -209,7 +209,7 @@
 		border: none;
 		outline: none;
 		color: var(--phosphor-bright);
-		font-family: 'IBM Plex Mono', monospace;
+		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 		font-size: 30px;
 		letter-spacing: -0.01em; /* same VFD digit spacing as .figures */
 		margin-top: 0.4rem;
@@ -237,10 +237,17 @@
 		display: flex;
 		justify-content: space-between;
 		color: var(--dim);
-		font-family: 'IBM Plex Mono', monospace;
+		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 		font-size: 11px;
 		text-transform: uppercase;
 		letter-spacing: 0.18em; /* engraved-faceplate tracking, matching .plate */
+	}
+	/* Vietnamese: sentence-case the status bar and tighten tracking —
+	   stacked diacritics smear under uppercase at 11px, and the wider
+	   characters need less separation. */
+	:global(html[lang='vi']) .status {
+		text-transform: none;
+		letter-spacing: 0.08em;
 	}
 	.error {
 		color: var(--debit);

@@ -150,9 +150,13 @@
 
 	/* Vietnamese never uppercases plates: uppercase is typographically foreign
 	   to Vietnamese and stacked diacritics (Ặ, Ự, Ữ) smear at 11px — the
-	   accent is the semantic carrier. html[lang] mirrors settings.locale. */
+	   accent is the semantic carrier. html[lang] mirrors settings.locale.
+	   Sentence-case Vietnamese characters are naturally wider than uppercase
+	   Latin, so the 0.18em tracking that suits engraved uppercase feels
+	   scattered; tighten to 0.08em for even rhythm. */
 	html[lang='vi'] .plate {
 		text-transform: none;
+		letter-spacing: 0.08em;
 	}
 
 	::selection {
@@ -182,6 +186,13 @@
 		letter-spacing: 0.025em;
 		color: var(--ledger);
 		font-variant-numeric: tabular-nums lining-nums;
+	}
+	/* Vietnamese stacked diacritics (TestFixture, Ờ, Ữ) are taller than
+	   Latin cap-height; the default 1.4 ratio leaves ~4px clearance at 20px
+	   which is enough for most but tight for the tallest stacks. Bump to
+	   1.5 for a visible but not wasteful cushion. */
+	html[lang='vi'] .page-title {
+		line-height: 1.5;
 	}
 }
 
@@ -228,6 +239,20 @@
    the toast's slide-up entrance but skips the flicker. */
 html.light .animate-flash {
 	animation: none;
+}
+
+/* Vietnamese BottomNav and inline tracking-wide labels: the 0.05em tracking
+   suits short English tab names but makes wider Vietnamese characters feel
+   disconnected at 11px. Tighten to match the plate rhythm. */
+html[lang='vi'] .tracking-wide {
+	letter-spacing: 0.03em;
+}
+/* Vietnamese never uppercases: stacked diacritics (TestFixture, Ờ, Ữ) smear at
+   small sizes and uppercase is typographically foreign. The baked-in catalog
+   values are already sentence-case; suppress the CSS override that defeats them.
+   Covers Tailwind .uppercase, Toast action buttons, and Future badges. */
+html[lang='vi'] .uppercase {
+	text-transform: none;
 }
 
 /* The FAB's phosphor halo follows the same rule: bloom belongs to the dark
