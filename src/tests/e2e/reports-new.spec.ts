@@ -43,7 +43,7 @@ test.describe('new reports - time series', () => {
 
 		// Navigate to category trend - use .first() to avoid ambiguity
 		await page.getByRole('link', { name: 'Reports', exact: true }).click();
-		await page.getByRole('link', { name: 'Category Trend', exact: true }).first().click();
+		await page.getByRole('link', { name: 'Tag Trend', exact: true }).first().click();
 
 		const main = page.getByRole('main');
 

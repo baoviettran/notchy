@@ -90,7 +90,7 @@ test.describe('reports — extended', () => {
 		// Two month inputs + a table with Category / monthA / monthB / Change.
 		await expect(main.getByText('vs')).toBeVisible();
 		await expect(main.getByText('Change')).toBeVisible();
-		await expect(main.locator('thead').getByText('Category', { exact: true })).toBeVisible();
+		await expect(main.locator('thead').getByText('Tag', { exact: true })).toBeVisible();
 	});
 
 	test('compare with months in reverse order renders without crashing', async ({ onboardedPage: page }) => {

@@ -51,7 +51,7 @@ test.describe('budgets', () => {
 		const monthLabel = page.locator('span.figures.font-medium');
 		const initialMonth = await monthLabel.textContent();
 		expect(initialMonth).toBeTruthy();
-		expect(initialMonth!).toMatch(/^\d{4}-\d{2}$/);
+		expect(initialMonth!).toMatch(/\d{4}/); // localized month label now carries the year
 
 		// Navigate next month — label changes.
 		await page.getByRole('button', { name: 'Next month' }).click();

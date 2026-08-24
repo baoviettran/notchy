@@ -12,7 +12,7 @@ test.describe('reports navigation — all 7 reports', () => {
 
 		// The 4 new report navigation cards should be visible in the main content
 		await expect(main.getByRole('link', { name: 'Net Worth' }).first()).toBeVisible();
-		await expect(main.getByRole('link', { name: 'Category Trend' }).first()).toBeVisible();
+		await expect(main.getByRole('link', { name: 'Tag Trend' }).first()).toBeVisible();
 		await expect(main.getByRole('link', { name: 'Composition' }).first()).toBeVisible();
 		await expect(main.getByRole('link', { name: 'Year Over Year' }).first()).toBeVisible();
 	});
@@ -26,7 +26,7 @@ test.describe('reports navigation — all 7 reports', () => {
 		await expect(page).toHaveURL(/\/reports\/net-worth$/);
 
 		await page.goBack();
-		await main.getByRole('link', { name: 'Category Trend' }).first().click();
+		await main.getByRole('link', { name: 'Tag Trend' }).first().click();
 		await expect(page).toHaveURL(/\/reports\/category$/);
 
 		await page.goBack();
@@ -46,7 +46,7 @@ test.describe('reports navigation — all 7 reports', () => {
 		await expect(page.getByRole('link', { name: 'Trend', exact: true }).first()).toBeVisible();
 		await expect(page.getByRole('link', { name: 'Compare', exact: true }).first()).toBeVisible();
 		await expect(page.getByRole('link', { name: 'Net Worth' }).first()).toBeVisible();
-		await expect(page.getByRole('link', { name: 'Category Trend' }).first()).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Tag Trend' }).first()).toBeVisible();
 		await expect(page.getByRole('link', { name: 'Composition' }).first()).toBeVisible();
 		await expect(page.getByRole('link', { name: 'Year Over Year' }).first()).toBeVisible();
 	});
@@ -61,7 +61,7 @@ test.describe('reports navigation — all 7 reports', () => {
 		await expect(main.getByRole('link', { name: 'Trend', exact: true }).first()).toBeVisible();
 		await expect(main.getByRole('link', { name: 'Compare', exact: true }).first()).toBeVisible();
 		await expect(main.getByRole('link', { name: 'Net Worth' }).first()).toBeVisible();
-		await expect(main.getByRole('link', { name: 'Category Trend' }).first()).toBeVisible();
+		await expect(main.getByRole('link', { name: 'Tag Trend' }).first()).toBeVisible();
 		await expect(main.getByRole('link', { name: 'Composition' }).first()).toBeVisible();
 		await expect(main.getByRole('link', { name: 'Year Over Year' }).first()).toBeVisible();
 	});
@@ -76,7 +76,7 @@ test.describe('reports navigation — all 7 reports', () => {
 		await expect(main.getByRole('link', { name: 'Trend', exact: true }).first()).toBeVisible();
 		await expect(main.getByRole('link', { name: 'Compare', exact: true }).first()).toBeVisible();
 		await expect(main.getByRole('link', { name: 'Net Worth' }).first()).toBeVisible();
-		await expect(main.getByRole('link', { name: 'Category Trend' }).first()).toBeVisible();
+		await expect(main.getByRole('link', { name: 'Tag Trend' }).first()).toBeVisible();
 		await expect(main.getByRole('link', { name: 'Composition' }).first()).toBeVisible();
 		await expect(main.getByRole('link', { name: 'Year Over Year' }).first()).toBeVisible();
 	});
@@ -91,7 +91,7 @@ test.describe('reports navigation — all 7 reports', () => {
 		await expect(page).toHaveURL(/\/reports\/net-worth$/);
 
 		await page.goBack();
-		await main.getByRole('link', { name: 'Category Trend' }).first().click();
+		await main.getByRole('link', { name: 'Tag Trend' }).first().click();
 		await expect(page).toHaveURL(/\/reports\/category$/);
 
 		await page.goBack();
@@ -113,7 +113,7 @@ test.describe('reports navigation — all 7 reports', () => {
 		await expect(page).toHaveURL(/\/reports\/net-worth$/);
 
 		await page.goBack();
-		await main.getByRole('link', { name: 'Category Trend' }).first().click();
+		await main.getByRole('link', { name: 'Tag Trend' }).first().click();
 		await expect(page).toHaveURL(/\/reports\/category$/);
 
 		await page.goBack();

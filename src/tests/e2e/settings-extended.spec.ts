@@ -169,7 +169,7 @@ async function changeQuickSelect(page: import('@playwright/test').Page, optionLa
 		const delModal = page.getByRole('dialog');
 		// The action Select defaults to "Uncategorise (mark as deleted)".
 		const actionSelect = delModal.locator('select').first();
-		await actionSelect.selectOption({ label: 'Uncategorise (mark as deleted)' });
+		await actionSelect.selectOption({ label: 'Uncategorise transactions' });
 		// The confirm button label inside the delete modal.
 		await delModal.getByRole('button', { name: 'Delete', exact: true }).click();
 		await expect(page.getByRole('dialog')).toBeHidden();

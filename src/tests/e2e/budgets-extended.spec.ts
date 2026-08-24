@@ -152,7 +152,7 @@ test.describe('budgets — extended', () => {
 		await allocateFirstBucket(page, '500000');
 		const firstBucket = page.locator('main .bg-tape.rounded-lg.border.border-line').first();
 		await expect(firstBucket.getByText(/rolled over/i)).toBeVisible();
-		await expect(firstBucket.getByText(/rolled over ₫500,000/)).toBeVisible();
+		await expect(firstBucket.getByText(/₫500,000 rolled over/)).toBeVisible();
 		// Available figure (₫1,000,000) is shown with the "available" label.
 		await expect(firstBucket.getByText(/1,000,000/)).toBeVisible();
 	});

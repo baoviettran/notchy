@@ -220,7 +220,7 @@ describe('wave 6 messages', () => {
 		setLanguageTag('en');
 		expect(m.settings_backup()).toBe('Backup & Data');
 		expect(m.settings_backup_export_csv()).toBe('Export CSV');
-		expect(m.reports_category()).toBe('Category');
+		expect(m.reports_category()).toBe('Tag');
 		expect(m.reports_change()).toBe('Change');
 		setLanguageTag('en');
 	});
@@ -284,13 +284,13 @@ describe('backend error mapping', () => {
 	});
 	it('maps restore rejection codes to localized strings', () => {
 		setLanguageTag('en');
-		expect(mapError(new AppError('backup_schema_newer'))).toBe('Backup uses a newer schema');
+		expect(mapError(new AppError('backup_schema_newer'))).toBe('Backup was made by a newer version of Notchy. Update the app first');
 		expect(mapError(new AppError('backup_corrupt'))).toBe('Database file is corrupt');
 		expect(mapError(new AppError('backup_missing_schema_version'))).toBe('Not a Notchy database (missing schema version)');
-		expect(mapError(new AppError('backup_schema_too_old'))).toBe('Schema is too old');
+		expect(mapError(new AppError('backup_schema_too_old'))).toBe('Backup schema is too old to import');
 		expect(mapError(new AppError('backup_missing_table'))).toBe('Missing required table');
 		setLanguageTag('vi');
-		expect(mapError(new AppError('backup_schema_newer'))).toBe('Bản sao lưu dùng phiên bản lược đồ mới hơn');
+		expect(mapError(new AppError('backup_schema_newer'))).toBe('Bản sao lưu được tạo bởi phiên bản Notchy mới hơn. Hãy cập nhật ứng dụng trước');
 		setLanguageTag('en');
 	});
 	it('falls back to errors_unknown for non-AppError', () => {
