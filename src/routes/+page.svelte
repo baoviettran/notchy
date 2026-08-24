@@ -24,7 +24,7 @@
 	}
 
 	let isLoading = $derived(transactions.loading || accounts.loading || budgets.loading || goals.loading);
-	let storeError = $derived(transactions.error || accounts.error || null);
+	let storeError = $derived(transactions.error || accounts.error || budgets.error || null);
 	function reloadDashboard() {
 		void Promise.all([accounts.load(), budgets.load(), transactions.load({ limit: 5 }), goals.load(), transactions.loadMonthFlow()]);
 	}
@@ -95,16 +95,19 @@ const sampleBuckets = [
 			<button
 				type="button"
 				onclick={() => { if (netIsLong) netExact = !netExact; }}
-				title={formatCurrency(netPosition, settings.currency, settings.locale)}
+				title={netIsLong ? formatCurrency(netPosition, settings.currency, settings.locale) : undefined}
 				aria-label="{m.dashboard_net_position()}: {formatCurrency(netPosition, settings.currency, settings.locale)}"
 				class="text-4xl md:text-5xl leading-none text-left {netPosition < 0 ? 'figures text-debit' : 'figures-glow'} {netIsLong && !netExact
-					? 'truncate block max-w-full cursor-pointer border-b border-dotted border-line/70'
-					: netIsLong ? 'break-all cursor-pointer' : 'cursor-default'}"
+					? 'truncate block max-w-full cursor-pointer border-b border-dotted border-line/70 hover:bg-line/10 transition-colors'
+					: netIsLong ? 'break-all cursor-pointer hover:bg-line/10 transition-colors' : 'cursor-default'}"
 			>
 				{netPosition < 0 ? '−' : ''}{netIsLong && !netExact
 					? formatCurrencyCompact(Math.abs(netPosition), settings.currency, settings.locale)
 					: formatCurrency(Math.abs(netPosition), settings.currency, settings.locale)}
 			</button>
+			{#if netIsLong}
+				<p class="mt-1 text-xs text-dim">{m.dashboard_tap_to_expand()}</p>
+			{/if}
 			<div class="mt-3 flex items-center gap-2 text-sm">
 				<span class="figures {monthFlow >= 0 ? 'text-phosphor' : 'text-debit'}">
 					{monthFlow >= 0 ? '▲' : '▼'} {isLongCurrency(monthFlow, settings.currency, settings.locale)
@@ -204,7 +207,7 @@ const sampleBuckets = [
 	{#if goals.dashboard.length > 0}
 		<section class="surface rounded-lg p-5">
 			<div class="flex items-center justify-between mb-3">
-				<h2 class="plate">{m.nav_goals()}</h2>
+				<h2 class="plate">{m.nav_goals()} ★</h2>
 				<a href="/goals" class="plate hover:text-ledger transition-colors">{m.dashboard_view_all()}</a>
 			</div>
 			<div class="space-y-3">

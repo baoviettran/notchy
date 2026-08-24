@@ -62,30 +62,33 @@
 {#if items.length >= 3}
 	<section class="surface rounded-lg p-5">
 		<h2 class="plate mb-3">{m.frequent_repeat_header()}</h2>
-		<div class="flex gap-2 overflow-x-auto pb-1">
-			{#each items as item (itemKey(item))}
-				<button
-					onclick={() => armOrRepeat(item)}
-					aria-pressed={armedKey === itemKey(item)}
-					class="shrink-0 w-28 p-2.5 rounded-md border transition-colors text-left
-						{armedKey === itemKey(item)
-							? 'border-phosphor bg-phosphor/10'
-							: 'border-line bg-ink hover:border-phosphor/60'}"
-				>
-					<div class="text-xs text-ledger truncate">{item.payee}</div>
-					<div class="mt-1">
-						<Money
-							amount={item.amount}
-							glyph={item.kind === 'expense' ? '−' : item.kind === 'income' ? '+' : ''}
-							tone={item.kind === 'expense' ? 'debit' : item.kind === 'income' ? 'phosphor' : 'dim'}
-							size="text-xs"
-						/>
-					</div>
-					{#if armedKey === itemKey(item)}
-						<div class="mt-1.5 text-[11px] text-phosphor">{m.frequent_confirm_hint()}</div>
-					{/if}
-				</button>
-			{/each}
+		<div class="relative">
+			<div class="flex gap-2 overflow-x-auto pb-1" style="scrollbar-width: thin;">
+				{#each items as item (itemKey(item))}
+					<button
+						onclick={() => armOrRepeat(item)}
+						aria-pressed={armedKey === itemKey(item)}
+						class="shrink-0 w-28 p-2.5 rounded-md border transition-colors text-left
+							{armedKey === itemKey(item)
+								? 'border-phosphor bg-phosphor/10'
+								: 'border-line bg-ink hover:border-phosphor/60'}"
+					>
+						<div class="text-xs text-ledger truncate">{item.payee}</div>
+						<div class="mt-1">
+							<Money
+								amount={item.amount}
+								glyph={item.kind === 'expense' ? '−' : item.kind === 'income' ? '+' : ''}
+								tone={item.kind === 'expense' ? 'debit' : item.kind === 'income' ? 'phosphor' : 'dim'}
+								size="text-xs"
+							/>
+						</div>
+						{#if armedKey === itemKey(item)}
+							<div class="mt-1.5 text-[11px] text-phosphor">{m.frequent_confirm_hint()}</div>
+						{/if}
+					</button>
+				{/each}
+			</div>
+			<div class="pointer-events-none absolute top-0 right-0 bottom-1 w-8 bg-gradient-to-l from-tape to-transparent"></div>
 		</div>
 	</section>
 {/if}
