@@ -156,6 +156,9 @@
 
 	.tick-label {
 		fill: var(--dim);
+		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-variant-numeric: tabular-nums lining-nums;
+		letter-spacing: -0.01em;
 		font-size: 11px;
 		text-anchor: middle;
 	}

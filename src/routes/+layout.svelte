@@ -5,7 +5,6 @@
 	// through node_modules; a CSS @import makes Tailwind's resolver fail.
 	import '@fontsource/ibm-plex-mono/400.css';
 	import '@fontsource/ibm-plex-mono/500.css';
-	import '@fontsource/ibm-plex-mono/600.css';
 	// IBM Plex Sans — the body/UI face.
 	import '@fontsource/ibm-plex-sans/400.css';
 	import '@fontsource/ibm-plex-sans/500.css';
