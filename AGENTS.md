@@ -28,3 +28,12 @@ Write a failing test before implementing a feature or bug fix. Put unit tests in
 ## Commit & Pull Request Guidelines
 
 Use concise imperative Conventional Commit messages, for example `feat: add budget rollover` or `fix(forms): validate amount input`. Common types are `feat`, `fix`, `docs`, `refactor`, `test`, and `chore`; keep the subject under 72 characters. Keep code commits out of the `docs/` submodule. Pull requests should explain the user-visible change, link the related issue or spec when available, list verification commands, and include screenshots for UI changes. Never force-push `main`.
+
+## Locale Switch Boundary
+
+Paraglide's `setLanguageTag` mutates module state Svelte cannot track. The app re-renders language via `{#key settings.locale}` around the shell in `src/routes/+layout.svelte`. The boundary rule:
+
+- **Stateful surfaces stay OUTSIDE the key** — anything holding user input or transient state (e.g. the transaction Modal, GlobalToast). Remounting them on a language switch destroys drafts.
+- **Labels outside the key must be tracked** — wrap them in `label(() => m.key())` from `$lib/utils/i18n.svelte`, or route them through a `$derived.by` that reads `settings.locale` (see TransactionForm's `L` bundle). A bare `{m.x()}` outside the key freezes in the language it first rendered with.
+- **Never move a stateful component back inside `{#key settings.locale}`** to fix stale labels — that reintroduces draft-wipe. Fix staleness with tracking instead.
+- Boot-time locale comes from `src/routes/+layout.ts` (sniffed synchronously); `settings.load()` remains authoritative once a locale is stored.
