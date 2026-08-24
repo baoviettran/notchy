@@ -6,10 +6,14 @@
 	import { toast } from '$lib/stores/toast.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
 	import Money from '$lib/components/reports/Money.svelte';
+	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import type { FrequentTx } from '$lib/db/client';
 	import * as m from '$lib/paraglide/messages';
 
 	let items = $state<FrequentTx[]>([]);
+	// The strip loads outside the dashboard's store skeleton; without a
+	// resolved gate the hint flashes before rows arrive, then jumps.
+	let resolved = $state(false);
 	// A failed frequent-load degrades to the same quiet section as an empty
 	// one — the strip is an accelerator, never a required surface — but the
 	// rejection must be observed, not swallowed.
@@ -32,7 +36,8 @@
 		const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString().split('T')[0];
 		db.transactions.getFrequent(thirtyDaysAgo)
 			.then((rows) => (items = rows))
-			.catch(() => (loadFailed = true));
+			.catch(() => (loadFailed = true))
+			.finally(() => (resolved = true));
 		return () => clearTimeout(disarmTimer);
 	});
 
@@ -82,7 +87,9 @@
 {#if !loadFailed}
 	<section class="surface rounded-lg p-5">
 		<h2 class="plate mb-3">{m.frequent_repeat_header()}</h2>
-		{#if items.length >= 3}
+		{#if !resolved}
+			<Skeleton lines={1} />
+		{:else if items.length >= 3}
 			<div class="relative">
 				<div class="flex gap-2 overflow-x-auto pb-1" style="scrollbar-width: thin;">
 					{#each items as item (itemKey(item))}

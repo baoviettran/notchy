@@ -20,7 +20,9 @@
 	// Bucket display names come from the localized catalogue — never the raw
 	// bucket_ slug.
 	function bucketName(typeId: string): string {
-		return categories.buckets.find((b) => b.id === typeId)?.name ?? typeId;
+		// Never print the raw bucket_ slug (DESIGN.md's Don't list) — an
+		// unknown id falls back to a localized label.
+		return categories.buckets.find((b) => b.id === typeId)?.name ?? m.dashboard_uncategorized_bucket();
 	}
 
 	// Goals print how far is left in currency, not just a percentage — the only
@@ -68,6 +70,7 @@ const sampleBuckets = [
 	// precision — the machine prints the whole figure on demand, never hides it.
 	let netExact = $state(false);
 	const netIsLong = $derived(isLongCurrency(netPosition, settings.currency, settings.locale));
+	const netFigure = $derived(formatCurrency(Math.abs(netPosition), settings.currency, settings.locale));
 
 	// The net figure stands alone — a single VFD readout. A ladder of
 	// magnitude ticks only crowded it without encoding anything the number
@@ -109,22 +112,28 @@ const sampleBuckets = [
 			<!-- The readout wears the ledger's own semantics: positive figures
 			     glow amber, negative figures print in debit ink with a literal
 			     minus — owing money never glows like a win. -->
-			<button
-				type="button"
-				onclick={() => { if (netIsLong) netExact = !netExact; }}
-				title={netIsLong ? formatCurrency(netPosition, settings.currency, settings.locale) : undefined}
-				aria-label="{m.dashboard_net_position()}: {formatCurrency(netPosition, settings.currency, settings.locale)}"
-				aria-describedby={netIsLong ? 'net-expand-hint' : undefined}
-				class="text-4xl md:text-5xl leading-none text-left {netPosition < 0 ? 'figures text-debit' : 'figures-glow'} {netIsLong && !netExact
-					? 'truncate block max-w-full cursor-pointer border-b border-dotted border-line/70 hover:bg-line/10 transition-colors'
-					: netIsLong ? 'break-all cursor-pointer hover:bg-line/10 transition-colors' : 'cursor-default'}"
-			>
-				{netPosition < 0 ? '−' : ''}{netIsLong && !netExact
-					? formatCurrencyCompact(Math.abs(netPosition), settings.currency, settings.locale)
-					: formatCurrency(Math.abs(netPosition), settings.currency, settings.locale)}
-			</button>
 			{#if netIsLong}
+				<button
+					type="button"
+					onclick={() => (netExact = !netExact)}
+					title={netFigure}
+					aria-label="{m.dashboard_net_position()}: {netFigure}"
+					aria-describedby="net-expand-hint"
+					class="text-4xl md:text-5xl leading-none text-left {netPosition < 0 ? 'figures text-debit' : 'figures-glow'} {netIsLong && !netExact
+						? 'truncate block max-w-full cursor-pointer border-b border-dotted border-line/70 hover:bg-line/10 transition-colors'
+						: 'break-all cursor-pointer hover:bg-line/10 transition-colors'}"
+				>
+					{netPosition < 0 ? '−' : ''}{!netExact
+						? formatCurrencyCompact(Math.abs(netPosition), settings.currency, settings.locale)
+						: netFigure}
+				</button>
 				<p id="net-expand-hint" class="mt-1 text-xs text-dim">{m.dashboard_tap_to_expand()}</p>
+			{:else}
+				<!-- A short figure has nothing to expand — printing it as a button
+				     would announce a control that does nothing. -->
+				<span class="block text-4xl md:text-5xl leading-none {netPosition < 0 ? 'figures text-debit' : 'figures-glow'}">
+					{netPosition < 0 ? '−' : ''}{netFigure}
+				</span>
 			{/if}
 			{#if monthFlow !== null}
 				{@const flowFigure = isLongCurrency(monthFlow, settings.currency, settings.locale)
@@ -167,17 +176,20 @@ const sampleBuckets = [
 				</div>
 				<Progress value={budgetPct} max={100} label={m.layout_budget()} />
 				<div class="mt-4 space-y-1.5">
-					{#each budgets.items.slice(0, 4) as b}
+					{#each budgets.items.slice(0, 4) as b (b.type_id)}
 						{@const bPct = b.allocated > 0 ? Math.round((b.spent / b.allocated) * 100) : 0}
+						{@const spentFig = isLongCurrency(b.spent, settings.currency, settings.locale) ? formatCurrencyCompact(b.spent, settings.currency, settings.locale) : formatCurrency(b.spent, settings.currency, settings.locale)}
+						{@const allocFig = isLongCurrency(b.allocated, settings.currency, settings.locale) ? formatCurrencyCompact(b.allocated, settings.currency, settings.locale) : formatCurrency(b.allocated, settings.currency, settings.locale)}
+						{@const anyLong = isLongCurrency(b.spent, settings.currency, settings.locale) || isLongCurrency(b.allocated, settings.currency, settings.locale)}
 						<div class="flex items-center justify-between text-xs gap-2">
 							<span class="text-dim truncate">{bucketName(b.type_id)}</span>
 							<div class="flex items-center gap-2 shrink-0">
 								<div class="w-12 h-1 rounded-full bg-line/40 overflow-hidden">
 									<div class="h-full rounded-full {bPct > 100 ? 'bg-debit' : 'bg-phosphor/70'}" style="width: {Math.min(bPct, 100)}%"></div>
 								</div>
-							<span class="figures text-ledger" title="{formatCurrency(b.spent, settings.currency, settings.locale)} / {formatCurrency(b.allocated, settings.currency, settings.locale)}">
-								{#if bPct > 100}<span class="text-debit" aria-hidden="true">▲ </span>{/if}{isLongCurrency(b.spent, settings.currency, settings.locale) ? formatCurrencyCompact(b.spent, settings.currency, settings.locale) : formatCurrency(b.spent, settings.currency, settings.locale)}
-									<span class="text-dim">/ {isLongCurrency(b.allocated, settings.currency, settings.locale) ? formatCurrencyCompact(b.allocated, settings.currency, settings.locale) : formatCurrency(b.allocated, settings.currency, settings.locale)}</span>
+								<span class="figures text-ledger" title="{formatCurrency(b.spent, settings.currency, settings.locale)} / {formatCurrency(b.allocated, settings.currency, settings.locale)}">
+									{#if bPct > 100}<span class="text-debit" aria-hidden="true">⚠ </span>{/if}<span aria-hidden={anyLong ? 'true' : undefined}>{spentFig} <span class="text-dim">/ {allocFig}</span></span>
+									{#if anyLong}<span class="sr-only">{formatCurrency(b.spent, settings.currency, settings.locale)} / {formatCurrency(b.allocated, settings.currency, settings.locale)}</span>{/if}
 								</span>
 							</div>
 						</div>
@@ -187,7 +199,8 @@ const sampleBuckets = [
 				<p class="text-sm text-dim">{m.dashboard_no_budget({ month: formatMonth(budgets.month, settings.locale) })}</p>
 				<p class="mt-1 text-sm text-dim">{m.dashboard_budget_teach()}</p>
 				<div class="mt-4 space-y-3">
-					{#each sampleBuckets as s}
+					<p class="plate">{m.dashboard_sample_tag()}</p>
+					{#each sampleBuckets as s (s.name)}
 						<div>
 							<div class="flex items-center justify-between text-xs mb-1">
 								<span class="text-ledger">{s.name}</span>
@@ -218,7 +231,7 @@ const sampleBuckets = [
 			</div>
 		{:else}
 			<ul class="divide-y divide-line border-t border-line">
-				{#each recentTxns as tx}
+				{#each recentTxns as tx (tx.id)}
 					<li class="px-5 py-3 flex items-center justify-between gap-3">
 						<div class="min-w-0">
 							<p class="text-sm text-ledger truncate">{tx.payee || labelFor(tx.kind)}</p>
@@ -239,7 +252,7 @@ const sampleBuckets = [
 				<a href="/goals" class="plate hover:text-ledger transition-colors hit">{m.dashboard_view_all()}</a>
 			</div>
 			<div class="space-y-3">
-				{#each goals.dashboard.slice(0, 3) as g}
+				{#each goals.dashboard.slice(0, 3) as g (g.id)}
 					<div>
 						<div class="flex items-center justify-between text-sm mb-1">
 							<span class="text-ledger">{g.name}</span>
