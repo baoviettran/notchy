@@ -1,5 +1,6 @@
 import { getDb } from '$lib/db';
 import type { Locale } from '$lib/utils/number_parse';
+import { detectInitialLocale } from '$lib/utils/locale';
 import { setLanguageTag } from '$lib/paraglide/runtime';
 
 class SettingsStore {
@@ -10,7 +11,8 @@ class SettingsStore {
 
 	async load(): Promise<void> {
 		const db = getDb();
-		this.locale = (await db.meta.getLocale()) as Locale;
+		const storedLocale = await db.meta.get('locale');
+		this.locale = (storedLocale as Locale | null) ?? detectInitialLocale(typeof navigator !== 'undefined' ? navigator.language : undefined);
 		setLanguageTag(this.locale);
 		this.currency = await db.meta.getCurrency();
 		this.firstRunComplete = await db.meta.isFirstRunComplete();

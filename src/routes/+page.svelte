@@ -13,7 +13,7 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import Money from '$lib/components/reports/Money.svelte';
 	import { formatCurrency, formatCurrencyCompact, formatNumber, formatNumberCompact, isLongCurrency } from '$lib/utils/currency';
-	import { formatDateRelative } from '$lib/utils/date';
+	import { formatDateRelative, formatMonth } from '$lib/utils/date';
 	import { labelFor } from '$lib/utils/tx-kind';
 	import * as m from '$lib/paraglide/messages';
 
@@ -78,7 +78,7 @@ const sampleBuckets = [
 	{:else}
 	<header class="flex items-center justify-between">
 		<h1 class="page-title">{m.nav_dashboard()}</h1>
-		<span class="plate">{budgets.month}</span>
+		<span class="plate">{formatMonth(budgets.month, settings.locale)}</span>
 	</header>
 
 	<!-- SIGNATURE: net position as a VFD readout. -->
@@ -153,7 +153,7 @@ const sampleBuckets = [
 					{/each}
 				</div>
 			{:else}
-				<p class="text-sm text-dim">{m.dashboard_no_budget({ month: budgets.month })}</p>
+				<p class="text-sm text-dim">{m.dashboard_no_budget({ month: formatMonth(budgets.month, settings.locale) })}</p>
 				<p class="mt-1 text-sm text-dim">{m.dashboard_budget_teach()}</p>
 				<div class="mt-4 space-y-3">
 					{#each sampleBuckets as s}

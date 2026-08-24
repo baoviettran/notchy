@@ -4,6 +4,7 @@
 	import GroupedBarChart from '$lib/components/charts/GroupedBarChart.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
 	import { settings } from '$lib/stores/settings.svelte';
+	import { formatMonthShort } from '$lib/utils/date';
 	import * as m from '$lib/paraglide/messages';
 	import ReportsNav from '$lib/components/layout/ReportsNav.svelte';
 
@@ -29,7 +30,7 @@
 	);
 
 	const yFormat = (n: number) => formatCurrency(n, settings.currency, settings.locale);
-	const xFormat = (month: string) => month;
+	const xFormat = (month: string) => formatMonthShort(month, settings.locale);
 </script>
 
 <div class="space-y-6">

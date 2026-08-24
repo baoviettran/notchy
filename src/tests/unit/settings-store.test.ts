@@ -18,10 +18,11 @@ describe('SettingsStore locale', () => {
 		document.documentElement.lang = '';
 	});
 
-	function mockDb(locale: string) {
+	function mockDb(locale: string | null) {
 		(getDb as ReturnType<typeof vi.fn>).mockReturnValue({
 			meta: {
-				getLocale: vi.fn().mockResolvedValue(locale),
+				get: vi.fn().mockResolvedValue(locale),
+				getLocale: vi.fn().mockResolvedValue(locale ?? 'en'),
 				getCurrency: vi.fn().mockResolvedValue('VND'),
 				isFirstRunComplete: vi.fn().mockResolvedValue(true),
 				set: vi.fn().mockResolvedValue(undefined)
@@ -33,6 +34,28 @@ describe('SettingsStore locale', () => {
 		mockDb('vi');
 		await settings.load();
 		expect(document.documentElement.lang).toBe('vi');
+	});
+
+	it('sniffs navigator.language when no locale is stored (first run)', async () => {
+		Object.defineProperty(window, 'navigator', {
+			value: { language: 'vi-VN' },
+			configurable: true,
+			writable: true
+		});
+		mockDb(null);
+		await settings.load();
+		expect(document.documentElement.lang).toBe('vi');
+	});
+
+	it('falls back to en when nothing is stored and the OS is not Vietnamese', async () => {
+		Object.defineProperty(window, 'navigator', {
+			value: { language: 'fr-FR' },
+			configurable: true,
+			writable: true
+		});
+		mockDb(null);
+		await settings.load();
+		expect(document.documentElement.lang).toBe('en');
 	});
 
 	it('updates <html lang> when the locale changes', async () => {

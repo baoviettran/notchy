@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { formatDate, formatDateRelative } from '$lib/utils/date';
+import { formatDate, formatDateRelative, formatMonth } from '$lib/utils/date';
 import { setLanguageTag } from '$lib/paraglide/runtime';
 
 afterEach(() => setLanguageTag('en'));
@@ -67,5 +67,15 @@ describe('formatDateRelative', () => {
 		const oldDate = localKey(d);
 		const result = formatDateRelative(oldDate, 'vi');
 		expect(result).toBe(formatDate(oldDate, 'vi'));
+	});
+});
+
+describe('formatMonth', () => {
+	it('localizes a YYYY-MM key to a long month + year in en', () => {
+		expect(formatMonth('2026-08', 'en')).toBe('August 2026');
+	});
+
+	it('localizes a YYYY-MM key to a long month + year in vi', () => {
+		expect(formatMonth('2026-08', 'vi')).toBe('tháng 8 năm 2026');
 	});
 });

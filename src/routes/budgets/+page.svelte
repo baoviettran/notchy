@@ -11,6 +11,7 @@
 	import { getDb } from '$lib/db';
 	import { formatCurrency, formatCurrencyCompact, isLongCurrency } from '$lib/utils/currency';
 	import { parseAmount } from '$lib/utils/number_parse';
+	import { formatMonth } from '$lib/utils/date';
 	import * as m from '$lib/paraglide/messages';
 
 	let editing = $state<string | null>(null);
@@ -123,7 +124,7 @@
 		<h1 class="page-title">{m.budgets_title()}</h1>
 		<div class="flex items-center gap-2 text-sm">
 			<button onclick={prevMonth} aria-label={m.budgets_previous_month()} class="min-w-11 min-h-11 inline-flex items-center justify-center text-dim hover:text-ledger rounded hover:bg-line/40">◀</button>
-			<span class="figures font-medium text-ledger">{budgets.month}</span>
+			<span class="figures font-medium text-ledger">{formatMonth(budgets.month, settings.locale)}</span>
 			<button onclick={nextMonth} aria-label={m.budgets_next_month()} class="min-w-11 min-h-11 inline-flex items-center justify-center text-dim hover:text-ledger rounded hover:bg-line/40">▶</button>
 		</div>
 	</div>

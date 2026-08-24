@@ -82,7 +82,7 @@
           }
         } catch { /* non-fatal: list refresh still runs below */ }
         await transactions.load();
-        toast.show(m.import_tx_commit_success({ count }));
+        toast.show(count === 1 ? m.import_tx_commit_success_one({ count }) : m.import_tx_commit_success({ count }));
       } else {
         toast.show(m.import_tx_commit_none());
       }

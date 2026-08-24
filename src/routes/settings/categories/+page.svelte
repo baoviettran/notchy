@@ -126,7 +126,9 @@
 		<div class="space-y-4">
 			<p class="text-sm text-dim">
 				{#if affectedCount > 0}
-					{m.categories_delete_referenced({ count: affectedCount })}
+					{affectedCount === 1
+						? m.categories_delete_referenced_one({ count: affectedCount })
+						: m.categories_delete_referenced({ count: affectedCount })}
 				{:else}
 					{m.categories_delete_confirm_body()}
 				{/if}

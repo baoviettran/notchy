@@ -16,6 +16,31 @@ export function formatDate(isoDate: string, locale: Locale): string {
 }
 
 /**
+ * Formats a `YYYY-MM` month key for display as "August 2026" / "tháng 8 2026".
+ * Month keys come from budgets and dashboard state; never render them raw.
+ */
+export function formatMonth(ym: string, locale: Locale): string {
+	const localeTag = locale === 'vi' ? 'vi-VN' : 'en-US';
+	const [year, month] = ym.split('-').map(Number);
+	return new Intl.DateTimeFormat(localeTag, {
+		month: 'long',
+		year: 'numeric'
+	}).format(new Date(Date.UTC(year, month - 1, 1)));
+}
+
+/**
+ * Compact variant for chart axes and dense meters ("Aug 2026" / "thg 8 2026").
+ */
+export function formatMonthShort(ym: string, locale: Locale): string {
+	const localeTag = locale === 'vi' ? 'vi-VN' : 'en-US';
+	const [year, month] = ym.split('-').map(Number);
+	return new Intl.DateTimeFormat(localeTag, {
+		month: 'short',
+		year: 'numeric'
+	}).format(new Date(Date.UTC(year, month - 1, 1)));
+}
+
+/**
  * Returns the local calendar date as a `YYYY-MM-DD` string. Date-only values
  * must be compared by local calendar day (not UTC) so a user viewing a
  * transaction "today" sees "Today" regardless of timezone.

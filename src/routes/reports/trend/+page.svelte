@@ -5,6 +5,7 @@
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { formatCurrency, formatCurrencyCompact, isLongCurrency } from '$lib/utils/currency';
+	import { formatMonth, formatMonthShort } from '$lib/utils/date';
 	import * as m from '$lib/paraglide/messages';
 	import ReportsNav from '$lib/components/layout/ReportsNav.svelte';
 
@@ -70,7 +71,7 @@
 			<h2 class="plate mb-3">{m.reports_trend()}</h2>
 			<div class="flex items-end gap-1 h-48">
 				{#each points as point (point.month)}
-					{@const label = point.month + ': ' + m.reports_income() + ' ' + formatCurrency(point.income, settings.currency, settings.locale) + ', ' + m.reports_expense() + ' ' + formatCurrency(point.expense, settings.currency, settings.locale)}
+					{@const label = formatMonth(point.month, settings.locale) + ': ' + m.reports_income() + ' ' + formatCurrency(point.income, settings.currency, settings.locale) + ', ' + m.reports_expense() + ' ' + formatCurrency(point.expense, settings.currency, settings.locale)}
 					<button
 						type="button"
 						aria-label={label}
@@ -81,7 +82,7 @@
 							<div class="flex-1 bg-phosphor rounded-t" style="height: {(point.income / maxValue) * 100}%"></div>
 							<div class="flex-1 bg-debit rounded-t" style="height: {(point.expense / maxValue) * 100}%"></div>
 						</div>
-						<span class="text-[11px] text-dim">{point.month.slice(5)}</span>
+						<span class="text-[11px] text-dim">{formatMonthShort(point.month, settings.locale)}</span>
 					</button>
 				{/each}
 			</div>

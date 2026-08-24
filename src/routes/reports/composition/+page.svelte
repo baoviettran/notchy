@@ -6,6 +6,7 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import { formatCurrency, formatCurrencyCompact, isLongCurrency } from '$lib/utils/currency';
 	import { seriesColor } from '$lib/utils/palette';
+	import { formatMonthShort } from '$lib/utils/date';
 	import * as m from '$lib/paraglide/messages';
 	import ReportsNav from '$lib/components/layout/ReportsNav.svelte';
 
@@ -39,7 +40,7 @@
 
 	const yFormat = (n: number) => fmt(n);
 	const windowOptions = [6, 12, 24] as const;
-	const xFormat = (month: string) => month;
+	const xFormat = (month: string) => formatMonthShort(month, settings.locale);
 
 	// Per-tag totals across the window: the ruled lines that make the chart
 	// decorative under the Decorative-Meter Rule. The meter paints; this

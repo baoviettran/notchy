@@ -1,3 +1,9 @@
+<script module lang="ts">
+	// Survives the {#key settings.locale} remount that setLocale triggers on
+	// step 1 — without this, choosing a language bounces the user back here.
+	let persistedStep = 1;
+</script>
+
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import Button from '$lib/components/primitives/Button.svelte';
@@ -9,9 +15,9 @@
 	import type { Locale } from '$lib/utils/number_parse';
 	import * as m from '$lib/paraglide/messages';
 
-	let step = $state(1);
-	let locale = $state<Locale>('en');
-	let currency = $state('VND');
+	let step = $state(persistedStep);
+	let locale = $state<Locale>(settings.locale);
+	let currency = $state(settings.currency);
 	let accountName = $state('');
 	let accountType = $state<'checking' | 'savings' | 'cash' | 'credit_card'>('checking');
 	let initialBalance = $state('');
@@ -37,10 +43,10 @@
 	async function nextStep() {
 		if (step === 1) {
 			await settings.setLocale(locale);
-			step = 2;
+			persistedStep = step = 2;
 		} else if (step === 2) {
 			await settings.setCurrency(currency);
-			step = 3;
+			persistedStep = step = 3;
 		}
 	}
 
@@ -68,6 +74,7 @@
 			});
 			await settings.completeOnboarding();
 			dbStore.firstRunComplete = true;
+			persistedStep = 1;
 			goto('/');
 		} finally {
 			saving = false;
@@ -127,7 +134,7 @@
 				<div class="flex items-center justify-between pt-2">
 					<div class="flex gap-1.5"><span class="w-2 h-2 rounded-full bg-phosphor"></span><span class="w-2 h-2 rounded-full bg-phosphor"></span><span class="w-2 h-2 rounded-full bg-line"></span></div>
 					<div class="flex gap-2">
-						<Button variant="ghost" onclick={() => step = 1}>{m.onboarding_back()}</Button>
+						<Button variant="ghost" onclick={() => { persistedStep = step = 1; }}>{m.onboarding_back()}</Button>
 						<Button onclick={nextStep}>{m.onboarding_continue_arrow()}</Button>
 					</div>
 				</div>
@@ -155,7 +162,7 @@
 				<div class="flex items-center justify-between pt-2">
 					<div class="flex gap-1.5"><span class="w-2 h-2 rounded-full bg-phosphor"></span><span class="w-2 h-2 rounded-full bg-phosphor"></span><span class="w-2 h-2 rounded-full bg-phosphor"></span></div>
 					<div class="flex gap-2">
-						<Button variant="ghost" onclick={() => step = 2}>{m.onboarding_back()}</Button>
+						<Button variant="ghost" onclick={() => { persistedStep = step = 2; }}>{m.onboarding_back()}</Button>
 						<Button onclick={finish} disabled={!accountName.trim() || saving}>{m.onboarding_finish()}</Button>
 					</div>
 				</div>

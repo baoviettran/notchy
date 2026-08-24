@@ -129,11 +129,14 @@
 		</div>
 		<BottomNav />
 		<FAB onclick={() => showTxModal = true} />
-		<Modal bind:open={showTxModal} title={m.layout_add_transaction()}>
-			<TransactionForm onclose={() => showTxModal = false} />
-		</Modal>
-		<GlobalToast />
 		<TourOverlay />
 	</div>
 	{/key}
+	<!-- Outside the keyed shell: a mid-flow language switch remounts the chrome
+	     but must not close this modal or wipe the draft being typed into it.
+	     m.* labels inside catch up on the next render of each component. -->
+	<Modal bind:open={showTxModal} title={m.layout_add_transaction()}>
+		<TransactionForm onclose={() => showTxModal = false} />
+	</Modal>
+	<GlobalToast />
 {/if}

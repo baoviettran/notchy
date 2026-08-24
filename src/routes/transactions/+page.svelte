@@ -76,7 +76,11 @@
 	let countLine = $derived.by(() => {
 		if (hasNextPage) return m.transactions_count_more({ count: (pageNum + 1) * PAGE_SIZE });
 		const total = pageNum * PAGE_SIZE + displayItems.length;
-		return total === 0 ? m.transactions_count_none() : m.transactions_count_many({ count: total });
+		return total === 0
+			? m.transactions_count_none()
+			: total === 1
+				? m.transactions_count_one({ count: total })
+				: m.transactions_count_many({ count: total });
 	});
 
 	async function loadPage() {
