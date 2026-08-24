@@ -21,7 +21,7 @@ export const FRACTION_DIGITS: Record<string, number> = {
  * to VND to preserve existing callers.
  */
 export function parseAmount(input: string, locale: Locale, currency: string = 'VND'): number {
-	const cleaned = input.replace(/[\s,]/g, '');
+	const cleaned = normalizeSeparators(input, locale);
 	if (cleaned === '') throw new AppError('invalid_amount');
 
 	// Expand locale-aware shortcuts
@@ -49,6 +49,26 @@ export function parseAmount(input: string, locale: Locale, currency: string = 'V
 	// Scale to smallest currency unit (VND: ×1, USD: ×100) and round to integer.
 	const fractionDigits = FRACTION_DIGITS[currency] ?? 0;
 	return Math.round(result * Math.pow(10, fractionDigits));
+}
+
+/**
+ * Locale-aware separator normalization.
+ *
+ * en: ',' is thousands grouping, '.' is the decimal mark — strip commas.
+ *
+ * vi (vi-VN display format): '.' groups thousands and ',' is the decimal
+ * mark, so displayed figures ("1.500.000") must round-trip as input and a
+ * decimal comma ("1,5tr" = 1,5 triệu) must not become 15 triệu. A separator
+ * followed by exactly three digits reads as grouping; anything else as a
+ * decimal — which keeps legacy comma-grouped input ("50,000") working.
+ */
+function normalizeSeparators(input: string, locale: Locale): string {
+	if (locale !== 'vi') return input.replace(/[\s,]/g, '');
+	return input
+		.replace(/,(\d{3})(?=\D|$)/g, '$1') // thousands comma
+		.replace(/,/g, '.') // remaining commas are decimal marks
+		.replace(/\.(\d{3})(?=\D|$)/g, '$1') // thousands dots
+		.replace(/\s/g, '');
 }
 
 function evalExpr(input: string): number {

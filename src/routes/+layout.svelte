@@ -29,6 +29,7 @@
 	import RecoveryScreen from '$lib/components/system/RecoveryScreen.svelte';
 	import StartupProgress from '$lib/components/system/StartupProgress.svelte';
 	import * as m from '$lib/paraglide/messages';
+	import { label } from '$lib/utils/i18n.svelte';
 
 	let { children } = $props();
 	let showTxModal = $state(false);
@@ -134,8 +135,9 @@
 	{/key}
 	<!-- Outside the keyed shell: a mid-flow language switch remounts the chrome
 	     but must not close this modal or wipe the draft being typed into it.
-	     m.* labels inside catch up on the next render of each component. -->
-	<Modal bind:open={showTxModal} title={m.layout_add_transaction()}>
+	     The title re-evaluates through label(); TransactionForm tracks the
+	     locale through its own derived labels. -->
+	<Modal bind:open={showTxModal} title={label(() => m.layout_add_transaction())}>
 		<TransactionForm onclose={() => showTxModal = false} />
 	</Modal>
 	<GlobalToast />

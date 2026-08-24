@@ -170,7 +170,11 @@
 		await transactions.deleteMany(ids);
 		setSelectMode(false);
 		await loadPage();
-		toast.show(m.transactions_bulk_deleted({ count: ids.length }), {
+		toast.show(
+			ids.length === 1
+				? m.transactions_bulk_deleted_one({ count: ids.length })
+				: m.transactions_bulk_deleted({ count: ids.length }),
+			{
 			action: m.transactions_undo(),
 			duration: 5000,
 			onaction: async () => {
@@ -193,10 +197,18 @@
 		if (ids.length === 0 || !batchValue) return;
 		if (batchMode === 'tag') {
 			await transactions.setTagMany(ids, batchValue);
-			toast.show(m.transactions_bulk_retagged({ count: ids.length }));
+			toast.show(
+				ids.length === 1
+					? m.transactions_bulk_retagged_one({ count: ids.length })
+					: m.transactions_bulk_retagged({ count: ids.length })
+			);
 		} else {
 			await transactions.setAccountMany(ids, batchValue);
-			toast.show(m.transactions_bulk_moved({ count: ids.length }));
+			toast.show(
+				ids.length === 1
+					? m.transactions_bulk_moved_one({ count: ids.length })
+					: m.transactions_bulk_moved({ count: ids.length })
+			);
 		}
 		batchOpen = false;
 		setSelectMode(false);

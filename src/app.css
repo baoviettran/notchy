@@ -148,6 +148,13 @@
 		color: var(--dim);
 	}
 
+	/* Vietnamese never uppercases plates: uppercase is typographically foreign
+	   to Vietnamese and stacked diacritics (Ặ, Ự, Ữ) smear at 11px — the
+	   accent is the semantic carrier. html[lang] mirrors settings.locale. */
+	html[lang='vi'] .plate {
+		text-transform: none;
+	}
+
 	::selection {
 		background: rgba(255, 180, 84, 0.28);
 		color: var(--phosphor-bright);

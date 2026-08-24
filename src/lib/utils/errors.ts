@@ -34,11 +34,12 @@ export function mapError(e: unknown): string {
 				return m.errors_account_type_asset_liability();
 			case 'account_type_loan':
 				return m.errors_account_type_loan();
-			case 'account_delete_linked_goals':
-				return m.errors_account_delete_linked_goals({
-					count: Number(p.count),
-					names: String(p.names)
-				});
+			case 'account_delete_linked_goals': {
+				const count = Number(p.count);
+				return count === 1
+					? m.errors_account_delete_linked_goals_one({ count, names: String(p.names) })
+					: m.errors_account_delete_linked_goals({ count, names: String(p.names) });
+			}
 			case 'counterparty_required':
 				return m.errors_counterparty_required();
 			case 'bucket_has_tags':

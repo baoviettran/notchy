@@ -120,3 +120,25 @@ describe('parseAmount', () => {
 		});
 	});
 });
+
+describe('vi separator conventions', () => {
+	it('reads decimal comma under a shortcut — "1,5tr" → 1.5 triệu (not 15)', () => {
+		expect(parseAmount('1,5tr', 'vi')).toBe(1_500_000);
+	});
+
+	it('round-trips displayed grouping — "1.500.000" parses back', () => {
+		expect(parseAmount('1.500.000', 'vi')).toBe(1_500_000);
+	});
+
+	it('strips dotted grouping with a decimal comma — "1.234,56"', () => {
+		expect(parseAmount('1.234,56', 'vi', 'USD')).toBe(123_456);
+	});
+
+	it("keeps comma-grouped input working — \"50,000\"", () => {
+		expect(parseAmount('50,000', 'vi')).toBe(50_000);
+	});
+
+	it('keeps short dot-decimals — "100.7" rounds to 101', () => {
+		expect(parseAmount('100.7', 'vi')).toBe(101);
+	});
+});

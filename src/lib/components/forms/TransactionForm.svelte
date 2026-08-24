@@ -26,6 +26,47 @@
 
 	const isEdit = $derived(existing !== null);
 
+	// All template labels, recomputed whenever the locale changes. This form
+	// lives outside {#key settings.locale} in +layout.svelte so a live
+	// language switch doesn't destroy the draft — paraglide's setLanguageTag
+	// mutates module state Svelte can't track, so the labels need this one
+	// tracked dependency to refresh in place.
+	const L = $derived.by(() => {
+		void settings.locale;
+		return {
+			amount: m.common_amount(),
+			amountPlaceholder: m.forms_amount_placeholder(),
+			kindGroup: m.forms_kind_group(),
+			moreKinds: m.forms_more_kinds(),
+			fromAccount: m.forms_from_account(),
+			toAccount: m.forms_to_account(),
+			account: m.forms_account(),
+			tag: m.forms_tag(),
+			tagSearch: m.forms_search_tags_placeholder(),
+			tagAuto: m.forms_tag_auto(),
+			payee: m.forms_payee(),
+			whoPaid: m.forms_who_paid(),
+			date: m.common_date(),
+			description: m.common_description(),
+			optional: m.common_optional(),
+			cancel: m.common_cancel(),
+			saving: m.forms_saving(),
+			saveChanges: m.forms_save_changes(),
+			save: m.common_save()
+		};
+	});
+
+	const kinds = $derived.by(() => {
+		void settings.locale;
+		return [
+			{ value: 'expense', label: m.forms_expense() },
+			{ value: 'income', label: m.forms_income() },
+			{ value: 'transfer', label: m.forms_transfer() },
+			{ value: 'refund', label: m.forms_refund() },
+			{ value: 'adjustment', label: m.forms_adjustment() }
+		];
+	});
+
 	let kind = $state<TransactionKind>(existing?.kind ?? 'expense');
 	let amount = $state(existing ? String(existing.amount) : '');
 	let tagId = $state(existing?.tag_id ?? '');
@@ -100,16 +141,8 @@
 		}
 	});
 
-	const kinds = [
-		{ value: 'expense', label: m.forms_expense() },
-		{ value: 'income', label: m.forms_income() },
-		{ value: 'transfer', label: m.forms_transfer() },
-		{ value: 'refund', label: m.forms_refund() },
-		{ value: 'adjustment', label: m.forms_adjustment() }
-	];
-
-	const primaryKinds = kinds.filter((k) => k.value === 'expense' || k.value === 'income');
-	const advancedKinds = kinds.filter((k) => k.value !== 'expense' && k.value !== 'income');
+	const primaryKinds = $derived(kinds.filter((k) => k.value === 'expense' || k.value === 'income'));
+	const advancedKinds = $derived(kinds.filter((k) => k.value !== 'expense' && k.value !== 'income'));
 
 	let accountOptions = $derived(accounts.items.map((a) => ({ value: a.id, label: a.name })));
 	let tagOptions = $derived(categories.tags.map((t) => ({ value: t.id, label: t.name })));
@@ -198,10 +231,10 @@
 	{/if}
 
 		<!-- AMOUNT: primary input, autofocus -->
-	<Input label={m.common_amount()} bind:value={amount} placeholder={m.forms_amount_placeholder()} error={amountError} autofocus />
+	<Input label={L.amount} bind:value={amount} placeholder={L.amountPlaceholder} error={amountError} autofocus />
 
 	<!-- KIND: secondary toggle with progressive disclosure -->
-	<div class="space-y-2" role="group" aria-label={m.forms_kind_group()}>
+	<div class="space-y-2" role="group" aria-label={L.kindGroup}>
 		<div class="flex flex-wrap gap-2">
 			{#each primaryKinds as k}
 				<button type="button" onclick={() => kind = k.value as TransactionKind}
@@ -213,7 +246,7 @@
 				<button type="button" onclick={() => showAdvancedKinds = !showAdvancedKinds}
 					aria-expanded={showAdvancedKinds}
 					class="inline-flex items-center min-h-9 pointer-coarse:min-h-11 px-3 text-xs text-dim hover:text-ledger transition-colors"
-				>{m.forms_more_kinds()}</button>
+				>{L.moreKinds}</button>
 			{/if}
 		</div>
 		{#if showAdvancedKinds}
@@ -230,27 +263,27 @@
 
 	<!-- ACCOUNT/TAG -->
 	{#if kind === 'transfer'}
-		<Select label={m.forms_from_account()} bind:value={accountId} options={accountOptions} disabled={isEdit} error={accountError} />
-		<Select label={m.forms_to_account()} bind:value={transferAccountId} options={accountOptions} error={transferError} />
+		<Select label={L.fromAccount} bind:value={accountId} options={accountOptions} disabled={isEdit} error={accountError} />
+		<Select label={L.toAccount} bind:value={transferAccountId} options={accountOptions} error={transferError} />
 	{:else}
-		<Select label={m.forms_account()} bind:value={accountId} options={accountOptions} disabled={isEdit} error={accountError} />
-		<Autocomplete label={m.forms_tag()} bind:value={tagId} options={tagOptions} placeholder={m.forms_search_tags_placeholder()} />
+		<Select label={L.account} bind:value={accountId} options={accountOptions} disabled={isEdit} error={accountError} />
+		<Autocomplete label={L.tag} bind:value={tagId} options={tagOptions} placeholder={L.tagSearch} />
 		{#if suggestedTag && tagId === suggestedTag}
-			<span class="text-xs text-dim mt-1">{m.forms_tag_auto()}</span>
+			<span class="text-xs text-dim mt-1">{L.tagAuto}</span>
 		{/if}
 	{/if}
 
 	<!-- PAYEE + DATE/DESCRIPTION (full mode only) -->
 	{#if mode === 'full'}
-		<Autocomplete label={m.forms_payee()} bind:value={payee} options={payeeOptions} allowFreeText={true} placeholder={m.forms_who_paid()} />
+		<Autocomplete label={L.payee} bind:value={payee} options={payeeOptions} allowFreeText={true} placeholder={L.whoPaid} />
 		<div class="grid grid-cols-2 gap-3">
-			<Input label={m.common_date()} type="date" bind:value={date} />
-			<Input label={m.common_description()} bind:value={description} placeholder={m.common_optional()} maxlength={1024} />
+			<Input label={L.date} type="date" bind:value={date} />
+			<Input label={L.description} bind:value={description} placeholder={L.optional} maxlength={1024} />
 		</div>
 	{/if}
 
 	<div class="flex justify-end gap-2 pt-2">
-		<Button variant="ghost" onclick={onclose}>{m.common_cancel()}</Button>
-		<Button type="submit" disabled={saving || !amount}>{saving ? m.forms_saving() : (isEdit ? m.forms_save_changes() : m.common_save())}</Button>
+		<Button variant="ghost" onclick={onclose}>{L.cancel}</Button>
+		<Button type="submit" disabled={saving || !amount}>{saving ? L.saving : (isEdit ? L.saveChanges : L.save)}</Button>
 	</div>
 </form>
