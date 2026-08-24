@@ -97,6 +97,7 @@ const sampleBuckets = [
 				onclick={() => { if (netIsLong) netExact = !netExact; }}
 				title={netIsLong ? formatCurrency(netPosition, settings.currency, settings.locale) : undefined}
 				aria-label="{m.dashboard_net_position()}: {formatCurrency(netPosition, settings.currency, settings.locale)}"
+				aria-describedby={netIsLong ? 'net-expand-hint' : undefined}
 				class="text-4xl md:text-5xl leading-none text-left {netPosition < 0 ? 'figures text-debit' : 'figures-glow'} {netIsLong && !netExact
 					? 'truncate block max-w-full cursor-pointer border-b border-dotted border-line/70 hover:bg-line/10 transition-colors'
 					: netIsLong ? 'break-all cursor-pointer hover:bg-line/10 transition-colors' : 'cursor-default'}"
@@ -106,7 +107,7 @@ const sampleBuckets = [
 					: formatCurrency(Math.abs(netPosition), settings.currency, settings.locale)}
 			</button>
 			{#if netIsLong}
-				<p class="mt-1 text-xs text-dim">{m.dashboard_tap_to_expand()}</p>
+				<p id="net-expand-hint" class="mt-1 text-xs text-dim">{m.dashboard_tap_to_expand()}</p>
 			{/if}
 			<div class="mt-3 flex items-center gap-2 text-sm">
 				<span class="figures {monthFlow >= 0 ? 'text-phosphor' : 'text-debit'}">
@@ -146,12 +147,18 @@ const sampleBuckets = [
 				<Progress value={budgetPct} max={100} label={m.layout_budget()} />
 				<div class="mt-4 space-y-1.5">
 					{#each budgets.items.slice(0, 4) as b}
+						{@const bPct = b.allocated > 0 ? Math.round((b.spent / b.allocated) * 100) : 0}
 						<div class="flex items-center justify-between text-xs gap-2">
 							<span class="text-dim truncate">{bucketName(b.type_id)}</span>
-							<span class="figures text-ledger shrink-0" title="{formatCurrency(b.spent, settings.currency, settings.locale)} / {formatCurrency(b.allocated, settings.currency, settings.locale)}">
-								{isLongCurrency(b.spent, settings.currency, settings.locale) ? formatCurrencyCompact(b.spent, settings.currency, settings.locale) : formatCurrency(b.spent, settings.currency, settings.locale)}
-								<span class="text-dim">/ {isLongCurrency(b.allocated, settings.currency, settings.locale) ? formatCurrencyCompact(b.allocated, settings.currency, settings.locale) : formatCurrency(b.allocated, settings.currency, settings.locale)}</span>
-							</span>
+							<div class="flex items-center gap-2 shrink-0">
+								<div class="w-12 h-1 rounded-full bg-line/40 overflow-hidden">
+									<div class="h-full rounded-full {bPct > 100 ? 'bg-debit' : 'bg-phosphor/70'}" style="width: {Math.min(bPct, 100)}%"></div>
+								</div>
+								<span class="figures text-ledger" title="{formatCurrency(b.spent, settings.currency, settings.locale)} / {formatCurrency(b.allocated, settings.currency, settings.locale)}">
+									{isLongCurrency(b.spent, settings.currency, settings.locale) ? formatCurrencyCompact(b.spent, settings.currency, settings.locale) : formatCurrency(b.spent, settings.currency, settings.locale)}
+									<span class="text-dim">/ {isLongCurrency(b.allocated, settings.currency, settings.locale) ? formatCurrencyCompact(b.allocated, settings.currency, settings.locale) : formatCurrency(b.allocated, settings.currency, settings.locale)}</span>
+								</span>
+							</div>
 						</div>
 					{/each}
 				</div>
@@ -207,7 +214,7 @@ const sampleBuckets = [
 	{#if goals.dashboard.length > 0}
 		<section class="surface rounded-lg p-5">
 			<div class="flex items-center justify-between mb-3">
-				<h2 class="plate">{m.nav_goals()} ★</h2>
+				<h2 class="plate">{m.dashboard_goals_header()}</h2>
 				<a href="/goals" class="plate hover:text-ledger transition-colors">{m.dashboard_view_all()}</a>
 			</div>
 			<div class="space-y-3">
