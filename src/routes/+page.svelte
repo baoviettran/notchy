@@ -34,6 +34,10 @@
 
 	let isLoading = $derived(transactions.loading || accounts.loading || budgets.loading || goals.loading);
 	let storeError = $derived(transactions.error || accounts.error || budgets.error || goals.error || categories.error || null);
+	// The skeleton is for the first paint only. Background refreshes (a repeat
+	// save, an undo) re-run the stores' loads — collapsing a fully-populated
+	// machine to four gray lines mid-celebration punishes the user's win.
+	let initialLoadDone = $state(false);
 	function reloadDashboard() {
 		void Promise.all([accounts.load(), budgets.load(), transactions.load({ limit: 5 }), goals.load(), transactions.loadMonthFlow()]);
 	}
@@ -73,12 +77,16 @@ const sampleBuckets = [
 	// (labelFor / KIND_LABELS live in src/lib/utils/tx-kind.ts.)
 
 	onMount(async () => {
-		await Promise.all([accounts.load(), budgets.load(), categories.load(), transactions.load({ limit: 5 }), goals.load(), transactions.loadMonthFlow()]);
+		try {
+			await Promise.all([accounts.load(), budgets.load(), categories.load(), transactions.load({ limit: 5 }), goals.load(), transactions.loadMonthFlow()]);
+		} finally {
+			initialLoadDone = true;
+		}
 	});
 </script>
 
 <div class="space-y-5">
-	{#if isLoading && !storeError}
+	{#if isLoading && !initialLoadDone && !storeError}
 		<div class="surface rounded-lg p-5">
 			<Skeleton lines={4} />
 		</div>
@@ -118,14 +126,18 @@ const sampleBuckets = [
 			{#if netIsLong}
 				<p id="net-expand-hint" class="mt-1 text-xs text-dim">{m.dashboard_tap_to_expand()}</p>
 			{/if}
-			<div class="mt-3 flex items-center gap-2 text-sm">
-			<span class="figures {monthFlow >= 0 ? 'text-phosphor' : 'text-debit'}">
-				{monthFlow >= 0 ? '▲' : '▼'} {isLongCurrency(monthFlow, settings.currency, settings.locale)
+			{#if monthFlow !== null}
+				{@const flowFigure = isLongCurrency(monthFlow, settings.currency, settings.locale)
 					? formatCurrencyCompact(Math.abs(monthFlow), settings.currency, settings.locale)
 					: formatCurrency(Math.abs(monthFlow), settings.currency, settings.locale)}
-			</span>
-				<span class="text-dim">{m.dashboard_month_flow()}</span>
-			</div>
+				<div class="mt-3 flex items-center gap-2 text-sm">
+					<span class="figures {monthFlow >= 0 ? 'text-phosphor' : 'text-debit'}">
+						<span aria-hidden="true">{monthFlow >= 0 ? '▲' : '▼'} {flowFigure}</span>
+						<span class="sr-only">{monthFlow >= 0 ? m.dashboard_flow_up() : m.dashboard_flow_down()}, {flowFigure}</span>
+					</span>
+					<span class="text-dim">{m.dashboard_month_flow()}</span>
+				</div>
+			{/if}
 		</div>
 
 		<div class="mt-5 pt-4 border-t border-line grid grid-cols-2 gap-4 text-sm">

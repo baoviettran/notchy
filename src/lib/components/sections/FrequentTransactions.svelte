@@ -22,6 +22,9 @@
 	}
 
 	let armedKey = $state<string | null>(null);
+	// The card the user last armed but whose window lapsed. A late second tap
+	// must not read as a silent failure — the re-armed card says so.
+	let expiredKey = $state<string | null>(null);
 	let disarmTimer: ReturnType<typeof setTimeout> | undefined;
 
 	onMount(() => {
@@ -37,12 +40,19 @@
 		const key = itemKey(item);
 		if (armedKey !== key) {
 			armedKey = key;
+			// Keep the expiry mark when re-arming the lapsed card itself —
+			// its hint must say the window closed, not pretend nothing happened.
+			if (expiredKey !== key) expiredKey = null;
 			clearTimeout(disarmTimer);
-			disarmTimer = setTimeout(() => (armedKey = null), 4000);
+			disarmTimer = setTimeout(() => {
+				expiredKey = armedKey;
+				armedKey = null;
+			}, 4000);
 			return;
 		}
 		clearTimeout(disarmTimer);
 		armedKey = null;
+		expiredKey = null;
 		void repeat(item);
 	}
 
@@ -94,7 +104,9 @@
 								/>
 							</div>
 							{#if armedKey === itemKey(item)}
-								<div class="mt-1.5 text-[11px] text-phosphor">{m.frequent_confirm_hint()}</div>
+								<div class="mt-1.5 text-[11px] text-phosphor">
+									{expiredKey === itemKey(item) ? m.frequent_expired_hint() : m.frequent_confirm_hint()}
+								</div>
 							{/if}
 						</button>
 					{/each}
@@ -104,5 +116,11 @@
 		{:else}
 			<p class="text-xs text-dim">{m.frequent_hint()}</p>
 		{/if}
+		<!-- Arm/expire are visual-only state flips otherwise; announce them. -->
+		<div class="sr-only" aria-live="polite">
+			{#if armedKey !== null}
+				{expiredKey === armedKey ? m.frequent_expired_hint() : m.frequent_confirm_hint()}
+			{/if}
+		</div>
 	</section>
 {/if}

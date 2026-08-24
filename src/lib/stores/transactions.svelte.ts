@@ -8,7 +8,9 @@ class TransactionsStore {
 	items = $state<Transaction[]>([]);
 	loading = $state(false);
 	error = $state<string | null>(null);
-	monthFlow = $state(0);
+	// null means "unknown" — a failed load must never print as ▲ 0, the
+	// dashboard's most trusted instrument cannot tell a confident lie.
+	monthFlow = $state<number | null>(null);
 	private lastFilter: TransactionFilter = {};
 
 	async load(filter?: TransactionFilter): Promise<void> {
@@ -40,7 +42,7 @@ class TransactionsStore {
 				.filter((t) => t.kind === 'income' || t.kind === 'expense')
 				.reduce((s, t) => s + (t.kind === 'income' ? t.amount : -t.amount), 0);
 		} catch {
-			this.monthFlow = 0;
+			this.monthFlow = null;
 		}
 	}
 
