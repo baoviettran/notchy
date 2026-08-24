@@ -164,9 +164,11 @@ const sampleBuckets = [
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 		<!-- THIS MONTH: segmented budget meter. -->
 		<section class="surface rounded-lg p-5">
-			<div class="flex items-center justify-between mb-3">
+			<!-- flex-wrap: the Vietnamese plate runs long and wraps on compact
+			     widths; the link must wrap as a whole (arrow never orphans). -->
+			<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
 				<h2 class="plate">{m.dashboard_this_month()}</h2>
-				<a href="/budgets" class="plate hover:text-ledger transition-colors hit">{m.dashboard_budgets_link()}</a>
+				<a href="/budgets" class="plate hover:text-ledger transition-colors hit whitespace-nowrap">{m.dashboard_budgets_link()}</a>
 			</div>
 			{#if budgets.hasAllocations && totalAllocated > 0}
 				<div class="flex items-baseline gap-3 mb-3">

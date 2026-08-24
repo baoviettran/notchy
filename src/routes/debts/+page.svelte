@@ -138,8 +138,13 @@ import Money from '$lib/components/reports/Money.svelte';
 	<section>
 		<h2 class="plate mb-2">{m.debts_owed_to_me()}</h2>
 		{#if debts.owed_to_me.length === 0}
+			<!-- Same machine-glyph treatment as the debt-free lamp: an empty
+			     section is a designed moment, and the path that creates a debt
+			     (an account of loan type) is one tap away. -->
 			<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
+				<p class="figures-glow text-2xl mb-2" aria-hidden="true">▮▯▯▯</p>
 				<p class="text-sm">{m.debts_empty_owed_to_me()}</p>
+				<a href="/accounts" class="inline-block mt-3 text-sm text-phosphor hover:underline">{m.debts_empty_add_hint()}</a>
 			</div>
 		{:else}
 			<div class="bg-tape rounded-lg border border-line divide-y divide-line">

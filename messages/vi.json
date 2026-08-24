@@ -114,6 +114,7 @@
   "dashboard_sample_tag": "Mẫu",
   "debts_empty_i_owe": "Không có khoản nợ nào. Bạn đã hết nợ!",
   "debts_empty_owed_to_me": "Chưa ai nợ tiền bạn.",
+  "debts_empty_add_hint": "Theo dõi khoản vay cá nhân trong Tài khoản",
   "debts_from_account": "Từ tài khoản",
   "debts_i_owe": "Tôi nợ",
   "debts_make_payment": "Thực hiện thanh toán",
