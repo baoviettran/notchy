@@ -131,9 +131,9 @@ fn overview_with_income_and_expense() {
     make_tx(&mut db, "expense", 3_000_000, "2026-07-10", &acc, Some(&tag));
 
     let report = reports::get_overview(&db, "2026-07", false).unwrap();
-    assert_eq!(report.income, 10_000_000);
-    assert_eq!(report.expense, 3_000_000);
-    assert_eq!(report.net, 7_000_000);
+    assert_eq!(report.total_income, 10_000_000);
+    assert_eq!(report.total_expense, 3_000_000);
+    assert_eq!(report.net_cash_flow, 7_000_000);
     assert_eq!(report.spending_by_bucket.len(), 1);
     assert_eq!(report.spending_by_bucket[0].total, 3_000_000);
 }
@@ -142,9 +142,9 @@ fn overview_with_income_and_expense() {
 fn overview_empty_month_returns_zeros() {
     let db = fresh_db("overview_empty");
     let report = reports::get_overview(&db, "2026-07", false).unwrap();
-    assert_eq!(report.income, 0);
-    assert_eq!(report.expense, 0);
-    assert_eq!(report.net, 0);
+    assert_eq!(report.total_income, 0);
+    assert_eq!(report.total_expense, 0);
+    assert_eq!(report.net_cash_flow, 0);
     assert!(report.spending_by_bucket.is_empty());
 }
 
@@ -158,10 +158,10 @@ fn overview_excludes_adjustments_by_default() {
     make_tx(&mut db, "adjustment", 1_000_000, "2026-07-05", &acc, Some(&tag));
 
     let without = reports::get_overview(&db, "2026-07", false).unwrap();
-    assert_eq!(without.income, 5_000_000);
+    assert_eq!(without.total_income, 5_000_000);
 
     let with_adj = reports::get_overview(&db, "2026-07", true).unwrap();
-    assert_eq!(with_adj.income, 6_000_000);
+    assert_eq!(with_adj.total_income, 6_000_000);
 }
 
 #[test]
@@ -174,7 +174,47 @@ fn overview_refund_reduces_expense() {
     make_tx(&mut db, "refund", 1_000_000, "2026-07-10", &acc, Some(&tag));
 
     let report = reports::get_overview(&db, "2026-07", false).unwrap();
-    assert_eq!(report.expense, 2_000_000);
+    assert_eq!(report.total_expense, 2_000_000);
+}
+
+#[test]
+fn overview_excludes_adjustments_bucket_tags() {
+    let mut db = fresh_db("overview_adj_bucket");
+    let acc = make_account(&mut db, "Main", "checking");
+
+    // A real expense tagged with a catalog tag from the Adjustments bucket
+    // (tag_reconciliation ships with that bucket in the migrations).
+    make_tx(&mut db, "expense", 400_000, "2026-07-05", &acc, Some("tag_reconciliation"));
+    make_tx(&mut db, "expense", 1_000_000, "2026-07-06", &acc, None);
+
+    let without = reports::get_overview(&db, "2026-07", false).unwrap();
+    assert_eq!(without.total_expense, 1_000_000);
+
+    let with_adj = reports::get_overview(&db, "2026-07", true).unwrap();
+    assert_eq!(with_adj.total_expense, 1_400_000);
+}
+
+#[test]
+fn overview_top_categories_and_transactions() {
+    let mut db = fresh_db("overview_top");
+    let acc = make_account(&mut db, "Main", "checking");
+    let (_, tag) = make_category(&mut db, "Food", "Lunch");
+
+    make_tx(&mut db, "expense", 700_000, "2026-07-05", &acc, None);
+    make_tx(&mut db, "expense", 2_500_000, "2026-07-06", &acc, Some(&tag));
+    make_tx(&mut db, "expense", 1_000_000, "2026-07-07", &acc, Some(&tag));
+    make_tx(&mut db, "income", 9_000_000, "2026-07-08", &acc, None); // never a top expense
+
+    let report = reports::get_overview(&db, "2026-07", false).unwrap();
+    assert_eq!(report.top_categories.len(), 1);
+    assert_eq!(report.top_categories[0].tag_id, tag);
+    assert_eq!(report.top_categories[0].name, "Lunch");
+    assert_eq!(report.top_categories[0].total, 3_500_000);
+
+    assert_eq!(report.top_transactions.len(), 3);
+    assert_eq!(report.top_transactions[0].amount, 2_500_000);
+    assert_eq!(report.top_transactions[0].payee, None);
+    assert_eq!(report.top_transactions[0].date, "2026-07-06");
 }
 
 // ---------------------------------------------------------------------------
@@ -229,10 +269,12 @@ fn comparison_two_months() {
 
     let rows = reports::get_comparison(&db, "2026-06", "2026-07", false).unwrap();
     assert!(!rows.is_empty());
-    let food = rows.iter().find(|r| r.category == "Lunch").unwrap();
+    let food = rows.iter().find(|r| r.name == "Lunch").unwrap();
     assert_eq!(food.month_a, 2_000_000);
     assert_eq!(food.month_b, 2_500_000);
-    assert_eq!(food.delta, 500_000);
+    assert_eq!(food.change, 500_000);
+    assert_eq!(food.change_pct, Some(25.0));
+    assert_eq!(food.tag_id, Some(tag1.clone()));
 }
 
 #[test]
@@ -261,9 +303,9 @@ fn category_trend_for_tag() {
     let points = reports::get_category_trend(&db, 2, &tag, false).unwrap();
     assert_eq!(points.len(), 2);
     assert_eq!(points[0].month, m1);
-    assert_eq!(points[0].total, 1_000_000);
+    assert_eq!(points[0].spent, 1_000_000);
     assert_eq!(points[1].month, m0);
-    assert_eq!(points[1].total, 2_000_000);
+    assert_eq!(points[1].spent, 2_000_000);
 }
 
 #[test]
@@ -271,7 +313,7 @@ fn category_trend_empty_returns_zeros() {
     let db = fresh_db("cat_trend_empty");
     let points = reports::get_category_trend(&db, 2, "nonexistent", false).unwrap();
     assert_eq!(points.len(), 2);
-    assert!(points.iter().all(|p| p.total == 0));
+    assert!(points.iter().all(|p| p.spent == 0));
 }
 
 // ---------------------------------------------------------------------------
@@ -293,7 +335,10 @@ fn stacked_category_series() {
     let points = reports::get_stacked_category_series(&db, 1, false).unwrap();
     assert_eq!(points.len(), 1);
     assert_eq!(points[0].month, m0);
-    assert_eq!(points[0].categories.len(), 2);
+    assert_eq!(points[0].tags.len(), 2);
+    let lunch = points[0].tags.iter().find(|t| t.tag_id == Some(tag1.clone())).unwrap();
+    assert_eq!(lunch.name, "Lunch");
+    assert_eq!(lunch.total, 1_000_000);
 }
 
 // ---------------------------------------------------------------------------
@@ -310,20 +355,27 @@ fn year_over_year() {
     make_tx(&mut db, "income", 6_000_000, "2026-06-05", &acc, None);
     make_tx(&mut db, "expense", 3_000_000, "2026-06-10", &acc, None);
 
-    let points = reports::get_year_over_year(&db, 2025, false).unwrap();
+    let points = reports::get_year_over_year(&db, 2025, 2026, false).unwrap();
     assert_eq!(points.len(), 12);
     let jun = &points[5]; // index 5 = June
     assert_eq!(jun.month, "06");
-    assert_eq!(jun.income, 5_000_000);
-    assert_eq!(jun.expense, 2_000_000);
+    assert_eq!(jun.year_a_income, 5_000_000);
+    assert_eq!(jun.year_a_expense, 2_000_000);
+    assert_eq!(jun.year_b_income, 6_000_000);
+    assert_eq!(jun.year_b_expense, 3_000_000);
 }
 
 #[test]
 fn year_over_year_empty_year() {
     let db = fresh_db("yoy_empty");
-    let points = reports::get_year_over_year(&db, 2030, false).unwrap();
+    let points = reports::get_year_over_year(&db, 2030, 2031, false).unwrap();
     assert_eq!(points.len(), 12);
-    assert!(points.iter().all(|p| p.income == 0 && p.expense == 0));
+    assert!(points
+        .iter()
+        .all(|p| p.year_a_income == 0
+            && p.year_a_expense == 0
+            && p.year_b_income == 0
+            && p.year_b_expense == 0));
 }
 
 // ---------------------------------------------------------------------------

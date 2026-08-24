@@ -48,7 +48,7 @@ pub use types::{
     Goal, GoalStatus, GoalType, GoalWithProgress,
     IsoDate, LifecycleState, MatchMode, NetWorthPoint, NewAccount, NewTransaction,
     OperationId, OverviewReport, Page, Patch, ReconcileResult, Reconciliation,
-    RecoveryContext, RuleSource, StackedCategoryPoint, StartupStage, Tag, TagDeleteInfo,
-    Transaction, TransactionFilter, TransactionKind,
-    TransactionPatch, TrendPoint, TypeTotal, VelocityStatus, YearOverYearPoint,
+    RecoveryContext, RuleSource, StackedCategoryPoint, StackedTag, StartupStage, Tag, TagDeleteInfo,
+    TagSpending, TopTransaction, Transaction, TransactionFilter, TransactionKind,
+    TransactionPatch, TrendPoint, VelocityStatus, YearOverYearPoint,
 };

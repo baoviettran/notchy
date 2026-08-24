@@ -297,6 +297,44 @@ function select(db, query, values) {
 	}
 }
 
+// --- report helpers: faithful ports of src-tauri/src/database/domains/reports.rs ---
+function repMonthStart(m) {
+	return m + '-01';
+}
+function repNextMonthStart(m) {
+	const parts = m.split('-').map(Number);
+	return parts[1] === 12 ? (parts[0] + 1) + '-01-01' : parts[0] + '-' + String(parts[1] + 1).padStart(2, '0') + '-01';
+}
+function repMonthEnd(m) {
+	const parts = m.split('-').map(Number);
+	const leap = parts[0] % 4 === 0 && (parts[0] % 100 !== 0 || parts[0] % 400 === 0);
+	const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][parts[1] - 1];
+	return parts[0] + '-' + String(parts[1]).padStart(2, '0') + '-' + String(days).padStart(2, '0');
+}
+function repKindFilter(inc) {
+	return inc
+		? "t.kind IN ('expense', 'income', 'refund', 'adjustment')"
+		: "t.kind IN ('expense', 'income', 'refund')";
+}
+function repAggregate(rows, inc) {
+	let income = 0, expense = 0;
+	for (const r of rows) {
+		if (r.kind === 'income') income += r.total || 0;
+		else if (r.kind === 'expense') expense += r.total || 0;
+		else if (r.kind === 'refund') expense -= r.total || 0;
+		else if (r.kind === 'adjustment' && inc) income += r.total || 0;
+	}
+	return [income, expense];
+}
+function repKindTotals(db, kf, params) {
+	return select(
+		db,
+		'SELECT t.kind, SUM(t.amount) AS total FROM transactions t WHERE ' + kf +
+			' AND t.date >= ? AND t.date < ? AND t.deleted_at IS NULL GROUP BY t.kind',
+		params
+	);
+}
+
 // Path helpers
 const join = (...parts) => parts.join('/').replace(/\\\\/g, '/').replace(/\\/+/g, '/').replace(/\\/+/g, '/').replace(/\\/+/g, '/');
 
@@ -993,29 +1031,225 @@ window.__TAURI_INTERNALS__ = {
 		}
 		if (cmd === 'report_get_overview') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
-			const start = args.month + '-01';
-			const end = args.month + '-31';
-			const income = select(db, 'SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE kind=\\'income\\' AND date >= ? AND date <= ? AND deleted_at IS NULL', [start, end]);
-			const expense = select(db, 'SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE kind=\\'expense\\' AND date >= ? AND date <= ? AND deleted_at IS NULL', [start, end]);
-			return { month: args.month, income: income[0]?.total || 0, expense: expense[0]?.total || 0, net: (income[0]?.total || 0) - (expense[0]?.total || 0), by_category: [] };
+			const inc = !!args.includeAdjustments;
+			const start = repMonthStart(args.month);
+			const end = repNextMonthStart(args.month);
+			const kf = repKindFilter(inc);
+			// Adjustments-bucket tags stay out of the aggregates unless asked for
+			// (mirrors the Rust adjustment_tag_filter / browser adjustmentTagFilter).
+			const adjFilter = inc
+				? ''
+				: "AND (t.tag_id IS NULL OR t.tag_id NOT IN (SELECT id FROM category_tags WHERE type_id = 'bucket_adjustments'))";
+			const totals = select(
+				db,
+				'SELECT t.kind, SUM(t.amount) AS total FROM transactions t WHERE ' + kf +
+					' AND t.date >= ? AND t.date < ? AND t.deleted_at IS NULL ' + adjFilter + ' GROUP BY t.kind',
+				[start, end]
+			);
+			const [income, expense] = repAggregate(totals, inc);
+			const spending_by_bucket = select(
+				db,
+				'SELECT ct.type_id, cty.name, SUM(t.amount) AS total FROM transactions t ' +
+					'JOIN category_tags ct ON t.tag_id = ct.id JOIN category_types cty ON ct.type_id = cty.id ' +
+					"WHERE t.kind = 'expense' AND t.date >= ? AND t.date < ? AND t.deleted_at IS NULL " +
+					'GROUP BY ct.type_id ORDER BY total DESC',
+				[start, end]
+			);
+			const top_categories = select(
+				db,
+				'SELECT t.tag_id, ct.name, SUM(t.amount) AS total FROM transactions t ' +
+					'JOIN category_tags ct ON t.tag_id = ct.id ' +
+					"WHERE t.kind = 'expense' AND t.date >= ? AND t.date < ? AND t.deleted_at IS NULL " +
+					'GROUP BY t.tag_id ORDER BY total DESC LIMIT 5',
+				[start, end]
+			);
+			const top_transactions = select(
+				db,
+				'SELECT id, payee, amount, date FROM transactions ' +
+					"WHERE kind = 'expense' AND date >= ? AND date < ? AND deleted_at IS NULL " +
+					'ORDER BY amount DESC LIMIT 5',
+				[start, end]
+			);
+			return {
+				total_income: income,
+				total_expense: expense,
+				net_cash_flow: income - expense,
+				spending_by_bucket,
+				top_categories,
+				top_transactions
+			};
 		}
 		if (cmd === 'report_get_trend') {
-			return [];
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const inc = !!args.includeAdjustments;
+			const kf = repKindFilter(inc);
+			const points = [];
+			const now = new Date();
+			let y = now.getFullYear();
+			let mIdx = now.getMonth() + 1;
+			for (let i = 0; i < args.months; i++) {
+				const month = y + '-' + String(mIdx).padStart(2, '0');
+				const rows = repKindTotals(db, kf, [repMonthStart(month), repNextMonthStart(month)]);
+				const [income, expense] = repAggregate(rows, inc);
+				points.push({ month, income, expense, net: income - expense });
+				mIdx--;
+				if (mIdx === 0) {
+					mIdx = 12;
+					y--;
+				}
+			}
+			points.reverse();
+			return points;
 		}
 		if (cmd === 'report_get_comparison') {
-			return [];
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const inc = !!args.includeAdjustments;
+			const kf = repKindFilter(inc);
+			const q =
+				"SELECT t.tag_id, COALESCE(ct.name, 'Uncategorised') AS name, SUM(t.amount) AS total " +
+				'FROM transactions t LEFT JOIN category_tags ct ON t.tag_id = ct.id WHERE ' + kf +
+				" AND t.kind = 'expense' AND t.date >= ? AND t.date < ? AND t.deleted_at IS NULL GROUP BY t.tag_id";
+			const dataA = select(db, q, [repMonthStart(args.monthA), repNextMonthStart(args.monthA)]);
+			const dataB = select(db, q, [repMonthStart(args.monthB), repNextMonthStart(args.monthB)]);
+			const mapA = new Map(dataA.map((r) => [r.tag_id, r]));
+			const mapB = new Map(dataB.map((r) => [r.tag_id, r]));
+			const keys = new Set([...mapA.keys(), ...mapB.keys()]);
+			const rows = [];
+			for (const key of keys) {
+				const a = mapA.get(key);
+				const b = mapB.get(key);
+				const ma = a ? a.total : 0;
+				const mb = b ? b.total : 0;
+				const change = mb - ma;
+				rows.push({
+					tag_id: key,
+					name: a ? a.name : b ? b.name : 'Uncategorised',
+					month_a: ma,
+					month_b: mb,
+					change,
+					change_pct: ma > 0 ? (change / ma) * 100 : null
+				});
+			}
+			rows.sort((x, y2) => y2.month_b - x.month_b);
+			return rows;
 		}
 		if (cmd === 'report_get_category_trend') {
-			return [];
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const inc = !!args.includeAdjustments;
+			const kf = inc ? "t.kind IN ('expense', 'refund', 'adjustment')" : "t.kind IN ('expense', 'refund')";
+			const points = [];
+			const now = new Date();
+			let y = now.getFullYear();
+			let mIdx = now.getMonth() + 1;
+			for (let i = 0; i < args.months; i++) {
+				const month = y + '-' + String(mIdx).padStart(2, '0');
+				const rows = select(
+					db,
+					'SELECT t.kind, SUM(t.amount) AS total FROM transactions t WHERE ' + kf +
+						' AND t.tag_id = ? AND t.date >= ? AND t.date < ? AND t.deleted_at IS NULL GROUP BY t.kind',
+					[args.tagId, repMonthStart(month), repNextMonthStart(month)]
+				);
+				let spent = 0;
+				for (const r of rows) {
+					if (r.kind === 'expense') spent += r.total || 0;
+					else if (r.kind === 'refund') spent -= r.total || 0;
+					else if (r.kind === 'adjustment' && inc) spent += r.total || 0;
+				}
+				points.push({ month, spent });
+				mIdx--;
+				if (mIdx === 0) {
+					mIdx = 12;
+					y--;
+				}
+			}
+			points.reverse();
+			return points;
 		}
 		if (cmd === 'report_get_stacked_category_series') {
-			return [];
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const inc = !!args.includeAdjustments;
+			const kf = inc ? "t.kind IN ('expense', 'refund', 'adjustment')" : "t.kind IN ('expense', 'refund')";
+			const points = [];
+			const now = new Date();
+			let y = now.getFullYear();
+			let mIdx = now.getMonth() + 1;
+			for (let i = 0; i < args.months; i++) {
+				const month = y + '-' + String(mIdx).padStart(2, '0');
+				const rows = select(
+					db,
+					"SELECT t.tag_id, COALESCE(ct.name, 'Uncategorised') AS name, t.kind, SUM(t.amount) AS total " +
+						'FROM transactions t LEFT JOIN category_tags ct ON t.tag_id = ct.id WHERE ' + kf +
+						' AND t.date >= ? AND t.date < ? AND t.deleted_at IS NULL GROUP BY t.tag_id, t.kind',
+					[repMonthStart(month), repNextMonthStart(month)]
+				);
+				const tagMap = new Map();
+				for (const r of rows) {
+					const key = r.tag_id === null ? '__null__' : r.tag_id;
+					if (!tagMap.has(key)) tagMap.set(key, { tagId: r.tag_id, name: r.name, total: 0 });
+					const entry = tagMap.get(key);
+					if (r.kind === 'expense') entry.total += r.total || 0;
+					else if (r.kind === 'refund') entry.total -= r.total || 0;
+					else if (r.kind === 'adjustment' && inc) entry.total += r.total || 0;
+				}
+				const tags = Array.from(tagMap.values()).sort((a, b) => b.total - a.total);
+				points.push({ month, tags });
+				mIdx--;
+				if (mIdx === 0) {
+					mIdx = 12;
+					y--;
+				}
+			}
+			points.reverse();
+			return points;
 		}
 		if (cmd === 'report_get_year_over_year') {
-			return [];
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const inc = !!args.includeAdjustments;
+			const kf = repKindFilter(inc);
+			const points = [];
+			for (let mnum = 1; mnum <= 12; mnum++) {
+				const mm = String(mnum).padStart(2, '0');
+				const rowsA = repKindTotals(db, kf, [repMonthStart(args.yearA + '-' + mm), repNextMonthStart(args.yearA + '-' + mm)]);
+				const rowsB = repKindTotals(db, kf, [repMonthStart(args.yearB + '-' + mm), repNextMonthStart(args.yearB + '-' + mm)]);
+				const [ai, ae] = repAggregate(rowsA, inc);
+				const [bi, be] = repAggregate(rowsB, inc);
+				points.push({ month: mm, yearAIncome: ai, yearAExpense: ae, yearBIncome: bi, yearBExpense: be });
+			}
+			return points;
 		}
 		if (cmd === 'report_get_net_worth_series') {
-			return [];
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const accounts = select(db, 'SELECT id FROM accounts WHERE deleted_at IS NULL', []);
+			const now = new Date();
+			let y = now.getFullYear();
+			let mIdx = now.getMonth() + 1;
+			const points = [];
+			for (let i = 0; i < args.months; i++) {
+				const month = y + '-' + String(mIdx).padStart(2, '0');
+				const end = repMonthEnd(month);
+				let netWorth = 0;
+				for (const acc of accounts) {
+					const r = select(
+						db,
+						"SELECT COALESCE(SUM(CASE WHEN kind = 'income' THEN amount WHEN kind = 'adjustment' THEN amount " +
+							"WHEN kind = 'refund' THEN amount WHEN kind = 'expense' THEN -amount " +
+							"WHEN kind = 'transfer' AND account_id = ? THEN -amount " +
+							"WHEN kind = 'transfer' AND transfer_account_id = ? THEN amount ELSE 0 END), 0) AS bal " +
+							"FROM transactions WHERE (account_id = ? OR (kind = 'transfer' AND transfer_account_id = ?)) " +
+							'AND deleted_at IS NULL AND date <= ?',
+						[acc.id, acc.id, acc.id, acc.id, end]
+					);
+					netWorth += r[0].bal || 0;
+				}
+				points.push({ month, netWorth });
+				mIdx--;
+				if (mIdx === 0) {
+					mIdx = 12;
+					y--;
+				}
+			}
+			points.reverse();
+			return points;
 		}
 		if (cmd === 'quit_app') {
 			return {};

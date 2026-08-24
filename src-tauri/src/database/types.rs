@@ -712,10 +712,12 @@ pub struct BackupSummary {
 /// Overview report for a single month.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct OverviewReport {
-    pub income: i64,
-    pub expense: i64,
-    pub net: i64,
+    pub total_income: i64,
+    pub total_expense: i64,
+    pub net_cash_flow: i64,
     pub spending_by_bucket: Vec<BucketSpending>,
+    pub top_categories: Vec<TagSpending>,
+    pub top_transactions: Vec<TopTransaction>,
 }
 
 /// A bucket's total spending in the overview report.
@@ -724,6 +726,23 @@ pub struct BucketSpending {
     pub type_id: String,
     pub name: String,
     pub total: i64,
+}
+
+/// A tag's total spending in the overview report.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct TagSpending {
+    pub tag_id: String,
+    pub name: String,
+    pub total: i64,
+}
+
+/// One of the month's largest expense transactions.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct TopTransaction {
+    pub id: String,
+    pub payee: Option<String>,
+    pub amount: i64,
+    pub date: String,
 }
 
 /// A single point in a trend series.
@@ -738,16 +757,27 @@ pub struct TrendPoint {
 /// A row in the comparison between two months.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct CompareRow {
-    pub category: String,
+    pub tag_id: Option<String>,
+    pub name: String,
     pub month_a: i64,
     pub month_b: i64,
-    pub delta: i64,
+    pub change: i64,
+    pub change_pct: Option<f64>,
 }
 
 /// A single point in a category trend series.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct CategoryTrendPoint {
     pub month: String,
+    pub spent: i64,
+}
+
+/// One tag's slice of a stacked category series month.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct StackedTag {
+    #[serde(rename = "tagId")]
+    pub tag_id: Option<String>,
+    pub name: String,
     pub total: i64,
 }
 
@@ -755,28 +785,28 @@ pub struct CategoryTrendPoint {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct StackedCategoryPoint {
     pub month: String,
-    pub categories: Vec<TypeTotal>,
-}
-
-/// A type_id and total pair for stacked categories.
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-pub struct TypeTotal {
-    pub type_id: String,
-    pub total: i64,
+    pub tags: Vec<StackedTag>,
 }
 
 /// A single point in a year-over-year comparison.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct YearOverYearPoint {
     pub month: String,
-    pub income: i64,
-    pub expense: i64,
+    #[serde(rename = "yearAIncome")]
+    pub year_a_income: i64,
+    #[serde(rename = "yearAExpense")]
+    pub year_a_expense: i64,
+    #[serde(rename = "yearBIncome")]
+    pub year_b_income: i64,
+    #[serde(rename = "yearBExpense")]
+    pub year_b_expense: i64,
 }
 
 /// A single point in a net-worth series.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct NetWorthPoint {
     pub month: String,
+    #[serde(rename = "netWorth")]
     pub net_worth: i64,
 }
 

@@ -38,3 +38,22 @@ test('reports sub-pages load with no console errors', async ({ onboardedPage: pa
 
 	expect(errors).toEqual([]);
 });
+
+// Regression: the overview statement must render actual figures once the
+// report resolves. The native/frontend OverviewReport contract once drifted
+// (Rust returned income/net; the UI read total_income/net_cash_flow), which
+// left this page on its skeleton forever — visibility assertions alone passed
+// while the page was dead. Assert the numbers, not just the chrome.
+test('overview statement renders real figures after the report loads', async ({ onboardedPage: page }) => {
+	await addTransaction(page, { kind: 'income', amount: '25tr' });
+	await addTransaction(page, { kind: 'expense', amount: '50k' });
+
+	await page.getByRole('link', { name: 'Reports', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'Reports', exact: true })).toBeVisible();
+
+	// Net = 25,000,000 − 50,000 = 24,950,000. If the contract drifts again,
+	// this figure never appears (the page sticks on its skeleton).
+	const statement = page.getByLabel(/net cash flow/i);
+	await expect(statement).toBeVisible();
+	await expect(statement.getByText('24,950,000')).toHaveCount(1);
+});
