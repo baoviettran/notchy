@@ -695,57 +695,63 @@ window.__TAURI_INTERNALS__ = {
 		}
 		if (cmd === 'category_list_buckets') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
-			return select(db, 'SELECT id, name, budgetable, rollover_enabled, created_at, updated_at FROM categories WHERE deleted_at IS NULL ORDER BY created_at', []);
+			// Schema mirrors the real migration 002/003 tables (category_types),
+			// NOT the legacy categories/tags names.
+			return select(db, 'SELECT id, name, is_system, budgetable, rollover_enabled, sort_order, created_at, updated_at FROM category_types WHERE deleted_at IS NULL ORDER BY sort_order', []);
 		}
 		if (cmd === 'category_create_bucket') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
 			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
 			const now = new Date().toISOString();
-			db.run('INSERT INTO categories (id, name, budgetable, rollover_enabled, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?)',
-				[id, args.name, args.budgetable ?? 1, now, now]);
+			const maxSort = select(db, 'SELECT MAX(sort_order) as m FROM category_types WHERE deleted_at IS NULL', []);
+			const sort = (maxSort[0]?.m ?? -1) + 1;
+			db.run('INSERT INTO category_types (id, name, budgetable, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+				[id, args.name, args.budgetable ?? 1, sort, now, now]);
 			return id;
 		}
 		if (cmd === 'category_rename_bucket') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
-			db.run('UPDATE categories SET name = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [args.name, new Date().toISOString(), args.id]);
+			db.run('UPDATE category_types SET name = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [args.name, new Date().toISOString(), args.id]);
 			return {};
 		}
 		if (cmd === 'category_set_rollover_enabled') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
-			db.run('UPDATE categories SET rollover_enabled = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [args.enabled ? 1 : 0, new Date().toISOString(), args.id]);
+			db.run('UPDATE category_types SET rollover_enabled = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [args.enabled ? 1 : 0, new Date().toISOString(), args.id]);
 			return {};
 		}
 		if (cmd === 'category_delete_bucket') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
 			const now = new Date().toISOString();
-			db.run('UPDATE categories SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [now, now, args.id]);
+			db.run('UPDATE category_types SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [now, now, args.id]);
 			return {};
 		}
 		if (cmd === 'category_list_tags') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
-			let q = 'SELECT id, name, category_id, created_at, updated_at FROM tags WHERE deleted_at IS NULL';
+			let q = 'SELECT id, type_id, name, is_system, sort_order, created_at, updated_at FROM category_tags WHERE deleted_at IS NULL';
 			const vals = [];
-			if (args.bucketId) { q += ' AND category_id = ?'; vals.push(args.bucketId); }
-			q += ' ORDER BY created_at';
+			if (args.bucketId) { q += ' AND type_id = ?'; vals.push(args.bucketId); }
+			q += ' ORDER BY sort_order';
 			return select(db, q, vals);
 		}
 		if (cmd === 'category_create_tag') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
 			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
 			const now = new Date().toISOString();
-			db.run('INSERT INTO tags (id, name, category_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
-				[id, args.name, args.bucketId, now, now]);
+			const maxSort = select(db, 'SELECT MAX(sort_order) as m FROM category_tags WHERE type_id = ? AND deleted_at IS NULL', [args.bucketId]);
+			const sort = (maxSort[0]?.m ?? -1) + 1;
+			db.run('INSERT INTO category_tags (id, type_id, name, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+				[id, args.bucketId, args.name, sort, now, now]);
 			return id;
 		}
 		if (cmd === 'category_rename_tag') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
-			db.run('UPDATE tags SET name = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [args.name, new Date().toISOString(), args.id]);
+			db.run('UPDATE category_tags SET name = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [args.name, new Date().toISOString(), args.id]);
 			return {};
 		}
 		if (cmd === 'category_move_tag') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
-			db.run('UPDATE tags SET category_id = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [args.newBucketId, new Date().toISOString(), args.tagId]);
-			return { tag_id: args.tagId, old_category_id: null, new_category_id: args.newBucketId };
+			db.run('UPDATE category_tags SET type_id = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [args.newBucketId, new Date().toISOString(), args.tagId]);
+			return { tag_id: args.tagId, affected_count: 0, affected_total: 0 };
 		}
 		if (cmd === 'category_get_tag_transaction_info') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
@@ -764,18 +770,27 @@ window.__TAURI_INTERNALS__ = {
 					db.run('UPDATE transactions SET tag_id = ?, updated_at = ? WHERE tag_id = ? AND deleted_at IS NULL', [parsed.merge_into, now, args.id]);
 				}
 			}
-			db.run('UPDATE tags SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [now, now, args.id]);
+			db.run('UPDATE category_tags SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [now, now, args.id]);
 			return {};
 		}
 		if (cmd === 'budget_get_for_month') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
-			return select(db, 'SELECT b.id, b.category_id, b.month, b.allocated, b.created_at, b.updated_at FROM budgets b WHERE b.month = ? AND b.deleted_at IS NULL', [args.month]);
+			// Mirror the Rust BudgetSummary contract: type_id + spent/remaining.
+			// Spent counts expenses positive and refunds negative (mirrors
+			// browser/repos/budgets.ts getSpentForBucket).
+			const rows = select(db, 'SELECT b.type_id, b.month, b.allocated FROM budgets b WHERE b.month = ? AND b.deleted_at IS NULL', [args.month]);
+			return rows.map((b) => {
+				const s = select(db, "SELECT COALESCE(SUM(CASE WHEN t.kind = 'expense' THEN t.amount WHEN t.kind = 'refund' THEN -t.amount ELSE 0 END), 0) AS spent FROM transactions t JOIN category_tags ct ON t.tag_id = ct.id WHERE ct.type_id = ? AND t.date >= ? AND t.date < ? AND t.kind IN ('expense', 'refund') AND t.deleted_at IS NULL",
+					[b.type_id, args.month + '-01', args.month + '-32']);
+				const spent = s[0]?.spent || 0;
+				return { type_id: b.type_id, month: b.month, allocated: b.allocated, spent, remaining: b.allocated - spent, rolled_over: 0, available: b.allocated - spent };
+			});
 		}
 		if (cmd === 'budget_get_spent_for_bucket') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
 			const start = args.month + '-01';
-			const end = args.month + '-31';
-			const r = select(db, 'SELECT COALESCE(SUM(amount), 0) as spent FROM transactions WHERE tag_id IN (SELECT id FROM tags WHERE category_id = ? AND deleted_at IS NULL) AND kind = \\'expense\\' AND date >= ? AND date <= ? AND deleted_at IS NULL', [args.typeId, start, end]);
+			const end = args.month + '-32';
+			const r = select(db, "SELECT COALESCE(SUM(CASE WHEN t.kind = 'expense' THEN t.amount WHEN t.kind = 'refund' THEN -t.amount ELSE 0 END), 0) as spent FROM transactions t JOIN category_tags ct ON t.tag_id = ct.id WHERE ct.type_id = ? AND t.date >= ? AND t.date < ? AND t.kind IN ('expense', 'refund') AND t.deleted_at IS NULL", [args.typeId, start, end]);
 			return r[0]?.spent || 0;
 		}
 		if (cmd === 'budget_get_rolled_over') {
@@ -784,8 +799,13 @@ window.__TAURI_INTERNALS__ = {
 		if (cmd === 'budget_set_allocation') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
 			const now = new Date().toISOString();
-			db.run('INSERT OR REPLACE INTO budgets (id, category_id, month, allocated, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-				[crypto.randomUUID().replace(/-/g, '').slice(0, 26), args.typeId, args.month, args.allocated, now, now]);
+			const existing = select(db, 'SELECT id FROM budgets WHERE type_id = ? AND month = ? AND deleted_at IS NULL', [args.typeId, args.month]);
+			if (existing.length > 0) {
+				db.run('UPDATE budgets SET allocated = ?, updated_at = ? WHERE id = ?', [args.allocated, now, existing[0].id]);
+			} else {
+				db.run('INSERT INTO budgets (id, type_id, month, allocated, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+					[crypto.randomUUID().replace(/-/g, '').slice(0, 26), args.typeId, args.month, args.allocated, now, now]);
+			}
 			return {};
 		}
 		if (cmd === 'budget_copy_from_previous_month') {
