@@ -10,6 +10,10 @@
 	import * as m from '$lib/paraglide/messages';
 
 	let items = $state<FrequentTx[]>([]);
+	// A failed frequent-load degrades to the same quiet section as an empty
+	// one — the strip is an accelerator, never a required surface — but the
+	// rejection must be observed, not swallowed.
+	let loadFailed = $state(false);
 	// Two-stage stamp: first tap arms the card (preview), second tap commits.
 	// A stray thumb can no longer write a real transaction — the worst case
 	// is an armed preview that disarms itself after 4 seconds.
@@ -23,7 +27,9 @@
 	onMount(() => {
 		const db = getDb();
 		const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString().split('T')[0];
-		void db.transactions.getFrequent(thirtyDaysAgo).then((rows) => (items = rows));
+		db.transactions.getFrequent(thirtyDaysAgo)
+			.then((rows) => (items = rows))
+			.catch(() => (loadFailed = true));
 		return () => clearTimeout(disarmTimer);
 	});
 
@@ -63,7 +69,7 @@
 	}
 </script>
 
-{#if items.length > 0}
+{#if !loadFailed}
 	<section class="surface rounded-lg p-5">
 		<h2 class="plate mb-3">{m.frequent_repeat_header()}</h2>
 		{#if items.length >= 3}

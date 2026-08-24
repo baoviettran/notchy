@@ -12,7 +12,7 @@
 	import { categories } from '$lib/stores/categories.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import Money from '$lib/components/reports/Money.svelte';
-	import { formatCurrency, formatCurrencyCompact, formatNumber, formatNumberCompact, isLongCurrency } from '$lib/utils/currency';
+	import { formatCurrency, formatCurrencyCompact, isLongCurrency } from '$lib/utils/currency';
 	import { formatDateRelative, formatMonth } from '$lib/utils/date';
 	import { labelFor } from '$lib/utils/tx-kind';
 	import * as m from '$lib/paraglide/messages';
@@ -23,8 +23,17 @@
 		return categories.buckets.find((b) => b.id === typeId)?.name ?? typeId;
 	}
 
+	// Goals print how far is left in currency, not just a percentage — the only
+	// progress on the page where "how far's left" otherwise demands mental math.
+	function goalRemaining(target: number, current: number): string {
+		const left = Math.max(0, target - current);
+		return isLongCurrency(left, settings.currency, settings.locale)
+			? formatCurrencyCompact(left, settings.currency, settings.locale)
+			: formatCurrency(left, settings.currency, settings.locale);
+	}
+
 	let isLoading = $derived(transactions.loading || accounts.loading || budgets.loading || goals.loading);
-	let storeError = $derived(transactions.error || accounts.error || budgets.error || null);
+	let storeError = $derived(transactions.error || accounts.error || budgets.error || goals.error || categories.error || null);
 	function reloadDashboard() {
 		void Promise.all([accounts.load(), budgets.load(), transactions.load({ limit: 5 }), goals.load(), transactions.loadMonthFlow()]);
 	}
@@ -85,7 +94,7 @@ const sampleBuckets = [
 	<section class="surface rounded-lg p-5 md:p-6 relative overflow-hidden" data-tour="net">
 		<div class="flex items-center justify-between mb-4">
 			<h2 class="plate">{m.dashboard_net_position()}</h2>
-			<a href="/accounts" class="plate hover:text-ledger transition-colors">{m.dashboard_accounts_link()}</a>
+			<a href="/accounts" class="plate hover:text-ledger transition-colors hit">{m.dashboard_accounts_link()}</a>
 		</div>
 
 		<div class="min-w-0">
@@ -110,11 +119,11 @@ const sampleBuckets = [
 				<p id="net-expand-hint" class="mt-1 text-xs text-dim">{m.dashboard_tap_to_expand()}</p>
 			{/if}
 			<div class="mt-3 flex items-center gap-2 text-sm">
-				<span class="figures {monthFlow >= 0 ? 'text-phosphor' : 'text-debit'}">
-					{monthFlow >= 0 ? '▲' : '▼'} {isLongCurrency(monthFlow, settings.currency, settings.locale)
-						? formatNumberCompact(Math.abs(monthFlow), settings.locale)
-						: formatNumber(Math.abs(monthFlow), settings.locale)}
-				</span>
+			<span class="figures {monthFlow >= 0 ? 'text-phosphor' : 'text-debit'}">
+				{monthFlow >= 0 ? '▲' : '▼'} {isLongCurrency(monthFlow, settings.currency, settings.locale)
+					? formatCurrencyCompact(Math.abs(monthFlow), settings.currency, settings.locale)
+					: formatCurrency(Math.abs(monthFlow), settings.currency, settings.locale)}
+			</span>
 				<span class="text-dim">{m.dashboard_month_flow()}</span>
 			</div>
 		</div>
@@ -136,11 +145,11 @@ const sampleBuckets = [
 		<section class="surface rounded-lg p-5">
 			<div class="flex items-center justify-between mb-3">
 				<h2 class="plate">{m.dashboard_this_month()}</h2>
-				<a href="/budgets" class="plate hover:text-ledger transition-colors">{m.dashboard_budgets_link()}</a>
+				<a href="/budgets" class="plate hover:text-ledger transition-colors hit">{m.dashboard_budgets_link()}</a>
 			</div>
-			{#if budgets.hasAllocations}
+			{#if budgets.hasAllocations && totalAllocated > 0}
 				<div class="flex items-baseline gap-3 mb-3">
-					<span class="figures-glow text-2xl leading-none">{formatCurrency(totalSpent, settings.currency, settings.locale)}</span>
+					<span class="figures text-2xl leading-none">{formatCurrency(totalSpent, settings.currency, settings.locale)}</span>
 					<span class="text-sm text-dim figures">/ {formatCurrency(totalAllocated, settings.currency, settings.locale)}</span>
 					<span class="ml-auto plate">{budgetPct}%</span>
 				</div>
@@ -154,8 +163,8 @@ const sampleBuckets = [
 								<div class="w-12 h-1 rounded-full bg-line/40 overflow-hidden">
 									<div class="h-full rounded-full {bPct > 100 ? 'bg-debit' : 'bg-phosphor/70'}" style="width: {Math.min(bPct, 100)}%"></div>
 								</div>
-								<span class="figures text-ledger" title="{formatCurrency(b.spent, settings.currency, settings.locale)} / {formatCurrency(b.allocated, settings.currency, settings.locale)}">
-									{isLongCurrency(b.spent, settings.currency, settings.locale) ? formatCurrencyCompact(b.spent, settings.currency, settings.locale) : formatCurrency(b.spent, settings.currency, settings.locale)}
+							<span class="figures text-ledger" title="{formatCurrency(b.spent, settings.currency, settings.locale)} / {formatCurrency(b.allocated, settings.currency, settings.locale)}">
+								{#if bPct > 100}<span class="text-debit" aria-hidden="true">▲ </span>{/if}{isLongCurrency(b.spent, settings.currency, settings.locale) ? formatCurrencyCompact(b.spent, settings.currency, settings.locale) : formatCurrency(b.spent, settings.currency, settings.locale)}
 									<span class="text-dim">/ {isLongCurrency(b.allocated, settings.currency, settings.locale) ? formatCurrencyCompact(b.allocated, settings.currency, settings.locale) : formatCurrency(b.allocated, settings.currency, settings.locale)}</span>
 								</span>
 							</div>
@@ -189,7 +198,7 @@ const sampleBuckets = [
 	<section class="surface rounded-lg overflow-hidden">
 		<div class="flex items-center justify-between px-5 pt-4 pb-3">
 			<h2 class="plate">{m.dashboard_recent()}</h2>
-			<a href="/transactions" class="plate hover:text-ledger transition-colors">{m.dashboard_view_all()}</a>
+			<a href="/transactions" class="plate hover:text-ledger transition-colors hit">{m.dashboard_view_all()}</a>
 		</div>
 		{#if recentTxns.length === 0}
 			<div class="px-5 pb-2">
@@ -215,14 +224,14 @@ const sampleBuckets = [
 		<section class="surface rounded-lg p-5">
 			<div class="flex items-center justify-between mb-3">
 				<h2 class="plate">{m.dashboard_goals_header()}</h2>
-				<a href="/goals" class="plate hover:text-ledger transition-colors">{m.dashboard_view_all()}</a>
+				<a href="/goals" class="plate hover:text-ledger transition-colors hit">{m.dashboard_view_all()}</a>
 			</div>
 			<div class="space-y-3">
 				{#each goals.dashboard.slice(0, 3) as g}
 					<div>
 						<div class="flex items-center justify-between text-sm mb-1">
 							<span class="text-ledger">{g.name}</span>
-							<span class="figures text-dim">{g.progress_pct}%</span>
+							<span class="figures text-dim">{g.progress_pct}% · {m.dashboard_goals_left({ amount: goalRemaining(g.target_amount, g.current_amount) })}</span>
 						</div>
 						<Progress value={g.progress_pct} max={100} size="sm" segments={16} label={g.name} />
 					</div>

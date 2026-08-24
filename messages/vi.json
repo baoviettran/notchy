@@ -107,6 +107,7 @@
   "dashboard_view_all": "Xem tất cả →",
   "dashboard_tap_to_expand": "Nhấn để xem đầy đủ",
   "dashboard_goals_header": "Mục tiêu ★",
+  "dashboard_goals_left": "còn {amount}",
   "debts_empty_i_owe": "Không có khoản nợ nào. Bạn đã hết nợ!",
   "debts_empty_owed_to_me": "Chưa ai nợ tiền bạn.",
   "debts_from_account": "Từ tài khoản",

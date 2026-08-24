@@ -1,9 +1,11 @@
 import { getDb } from '$lib/db';
+import { mapError } from '$lib/utils/errors';
 import type { GoalWithProgress, NewGoal, GoalStatus } from '$lib/db/client';
 
 class GoalsStore {
 	items = $state<GoalWithProgress[]>([]);
 	loading = $state(false);
+	error = $state<string | null>(null);
 
 	get active() { return this.items.filter((g) => g.status === 'active'); }
 	get completed() { return this.items.filter((g) => g.status === 'completed'); }
@@ -11,9 +13,12 @@ class GoalsStore {
 
 	async load(): Promise<void> {
 		this.loading = true;
+		this.error = null;
 		try {
 			const db = getDb();
 			this.items = await db.goals.list();
+		} catch (e) {
+			this.error = mapError(e);
 		} finally {
 			this.loading = false;
 		}

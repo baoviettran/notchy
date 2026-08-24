@@ -114,7 +114,7 @@ test.describe('dashboard — extended (§2)', () => {
 		// shape of a budgeted month (+page.svelte:101-108): warm lead copy, three
 		// sample buckets rendered with real progress meters, and the setup CTA.
 		const main = page.getByRole('main');
-		await expect(main.getByText(/A budget gives your money a job/)).toBeVisible();
+		await expect(main.getByText(/A budget gives every coin a job/)).toBeVisible();
 		await expect(main.getByText('Rent', { exact: true })).toBeVisible();
 		await expect(main.getByText('Groceries', { exact: true })).toBeVisible();
 		await expect(main.getByText('Savings', { exact: true })).toBeVisible();
