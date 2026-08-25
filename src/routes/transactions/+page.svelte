@@ -2,7 +2,6 @@
 	import { onMount } from 'svelte';
 	import Button from '$lib/components/primitives/Button.svelte';
 	import { page } from '$app/stores';
-	import { goto } from '$app/navigation';
 	import { transactions } from '$lib/stores/transactions.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
@@ -315,7 +314,9 @@
 							</span>
 						</button>
 					{:else}
-						<button onclick={() => goto(`/transactions/${tx.id}`)} class="flex-1 text-left">
+						<!-- A real link, like the account rows: native semantics, middle-click,
+						     focus ring for free. -->
+						<a href={`/transactions/${tx.id}`} class="flex-1 text-left">
 							<div class="text-sm text-ledger flex items-center gap-2">
 								{tx.payee || labelFor(tx.kind)}
 								{#if tx.date > today}
@@ -323,7 +324,7 @@
 								{/if}
 							</div>
 							<div class="text-xs text-dim">{formatDateRelative(tx.date, settings.locale)} · {labelFor(tx.kind)}</div>
-						</button>
+						</a>
 					{/if}
 					<Money amount={tx.amount} glyph={tx.kind === 'expense' ? '−' : tx.kind === 'income' ? '+' : ''} tone={tx.kind === 'expense' ? 'debit' : tx.kind === 'income' ? 'phosphor' : 'dim'} class="mr-2 shrink-0" />
 					{#if !selectMode}
@@ -349,9 +350,12 @@
 		</div>
 	{/if}
 
-	<ImportTransactionsModal bind:open={showImport} />
 	{/if}
 </div>
+
+<!-- Lives outside the data branch: Import must work while the list is
+     loading or errored, not only when rows are on screen. -->
+<ImportTransactionsModal bind:open={showImport} />
 
 <!-- Batch bar: a floating tape segment above the bottom nav. Appears only
      while rows are selected. -->

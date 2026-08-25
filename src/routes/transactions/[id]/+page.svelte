@@ -5,9 +5,11 @@
 	import Modal from '$lib/components/primitives/Modal.svelte';
 	import ConfirmDialog from '$lib/components/primitives/ConfirmDialog.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
+	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import TransactionForm from '$lib/components/forms/TransactionForm.svelte';
 	import Money from '$lib/components/reports/Money.svelte';
 	import { getDb } from '$lib/db';
+	import { mapError } from '$lib/utils/errors';
 	import { transactions as txStore } from '$lib/stores/transactions.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
@@ -22,6 +24,8 @@
 	let transferName = $state<string | null>(null);
 	let tagName = $state<string | null>(null);
 	let notFound = $state(false);
+	// A failed load must surface as a retryable error, never an endless skeleton.
+	let errorMsg = $state<string | null>(null);
 	let showEdit = $state(false);
 	let showDeleteConfirm = $state(false);
 
@@ -29,19 +33,25 @@
 	const today = new Date().toISOString().split('T')[0];
 
 	async function load() {
-		const db = getDb();
-		const row = await db.transactions.get(txId);
-		if (!row) {
-			notFound = true;
-			return;
-		}
-		tx = row;
-		accountName = (await db.accounts.get(row.account_id))?.name ?? '';
-		if (row.transfer_account_id) {
-			transferName = (await db.accounts.get(row.transfer_account_id))?.name ?? null;
-		}
-		if (row.tag_id) {
-			tagName = (await db.categories.listTags()).find((t) => t.id === row.tag_id)?.name ?? null;
+		errorMsg = null;
+		notFound = false;
+		try {
+			const db = getDb();
+			const row = await db.transactions.get(txId);
+			if (!row) {
+				notFound = true;
+				return;
+			}
+			tx = row;
+			accountName = (await db.accounts.get(row.account_id))?.name ?? '';
+			if (row.transfer_account_id) {
+				transferName = (await db.accounts.get(row.transfer_account_id))?.name ?? null;
+			}
+			if (row.tag_id) {
+				tagName = (await db.categories.listTags()).find((t) => t.id === row.tag_id)?.name ?? null;
+			}
+		} catch (e) {
+			errorMsg = mapError(e);
 		}
 	}
 
@@ -53,9 +63,11 @@
 
 	async function doDuplicate() {
 		if (!tx) return;
-		await txStore.duplicate(tx.id);
+		// Land on the copy, like the list's flash-on-duplicate: the toast alone
+		// leaves the user wondering where the duplicate went.
+		const newId = await txStore.duplicate(tx.id);
 		toast.show(m.transactions_duplicated());
-		goto(`/transactions/${tx.id}`);
+		goto(`/transactions/${newId}`);
 	}
 
 	function confirmDelete() {
@@ -80,7 +92,9 @@
 <div class="space-y-6">
 	<a href="/transactions" class="inline-flex items-center gap-1 text-xs text-dim hover:text-phosphor transition-colors">← {m.common_back()}</a>
 
-	{#if notFound}
+	{#if errorMsg}
+		<ErrorState description={errorMsg} onRetry={load} />
+	{:else if notFound}
 		<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
 			<p class="text-sm">{m.tx_detail_not_found()}</p>
 		</div>
