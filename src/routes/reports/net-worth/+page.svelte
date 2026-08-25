@@ -47,7 +47,7 @@
 			{#each windowOptions as n}
 				<button
 					onclick={() => (reportsStore.window = n)}
-					class="px-2 min-h-9 pointer-coarse:min-h-11 rounded {reportsStore.window === n ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim'}"
+					class="px-2 min-h-9 pointer-coarse:min-h-11 rounded transition-colors {reportsStore.window === n ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim hover:text-ledger'}"
 				>
 					{m.reports_months({ count: n })}
 				</button>

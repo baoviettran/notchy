@@ -68,7 +68,7 @@
 			{#each windowOptions as n}
 				<button
 					onclick={() => (reportsStore.window = n)}
-					class="px-2 min-h-9 pointer-coarse:min-h-11 rounded {reportsStore.window === n ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim'}"
+					class="px-2 min-h-9 pointer-coarse:min-h-11 rounded transition-colors {reportsStore.window === n ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim hover:text-ledger'}"
 				>
 					{m.reports_months({ count: n })}
 				</button>
@@ -86,7 +86,7 @@
 			<Skeleton lines={5} />
 		</div>
 	{:else}
-	{#if loaded && chartData.length > 0 && chartData.some((d) => d.y !== 0)}
+	{#if chartData.length > 0 && chartData.some((d) => d.y !== 0)}
 		<div class="bg-tape rounded-lg border border-line p-4">
 			<LineChart data={chartData} {yFormat} {xFormat} showArea={false} />
 		</div>

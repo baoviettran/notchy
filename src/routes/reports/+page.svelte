@@ -138,7 +138,7 @@
 		{/if}
 
 		{#if report.spending_by_bucket.length === 0 && report.top_transactions.length === 0}
-			<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
+			<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim min-h-[200px] flex items-center justify-center">
 				<p class="text-sm">{m.reports_empty()}</p>
 			</div>
 		{/if}

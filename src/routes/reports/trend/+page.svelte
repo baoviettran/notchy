@@ -48,7 +48,7 @@
 		<div class="flex gap-1 text-sm">
 			{#each [6, 12, 24] as n}
 				<button type="button" onclick={() => months = n}
-					class="px-2 min-h-9 pointer-coarse:min-h-11 rounded {months === n ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim'}"
+					class="px-2 min-h-9 pointer-coarse:min-h-11 rounded transition-colors {months === n ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim hover:text-ledger'}"
 				>{m.reports_months({ count: n })}</button>
 			{/each}
 		</div>
@@ -99,7 +99,7 @@
 				<span class="plate text-right">Δ</span>
 			</div>
 			{#each points as point (point.month)}
-				<div class="grid grid-cols-[auto_1fr_1fr_1fr] gap-x-2 sm:gap-x-4 py-2 border-b border-line/40 text-[13px] sm:text-sm min-w-0">
+				<div class="grid grid-cols-[auto_1fr_1fr_1fr] gap-x-2 sm:gap-x-4 py-2 border-b border-line/40 text-xs sm:text-sm min-w-0">
 					<span class="figures text-dim shrink-0">{point.month}</span>
 					<span class="figures text-phosphor text-right" title={formatCurrency(point.income, settings.currency, settings.locale)}>{fmt(point.income)}</span>
 					<span class="figures text-debit text-right" title={formatCurrency(point.expense, settings.currency, settings.locale)}>{fmt(point.expense)}</span>
