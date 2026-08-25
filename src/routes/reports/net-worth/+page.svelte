@@ -42,12 +42,12 @@
 	     every reports header into a ragged block. -->
 	<ReportsNav />
 
-	<div class="flex items-center gap-4">
+	<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
 		<div class="flex gap-1 text-sm">
 			{#each windowOptions as n}
 				<button
 					onclick={() => (reportsStore.window = n)}
-					class="px-2 py-1 rounded {reportsStore.window === n ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim'}"
+					class="px-2 min-h-9 pointer-coarse:min-h-11 rounded {reportsStore.window === n ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim'}"
 				>
 					{m.reports_months({ count: n })}
 				</button>
@@ -60,7 +60,7 @@
 			role="switch"
 			aria-checked={reportsStore.includeAdjustments}
 			onclick={() => (reportsStore.includeAdjustments = !reportsStore.includeAdjustments)}
-			class="flex items-center gap-2 text-sm text-dim hover:text-ledger transition-colors min-h-11 pointer-coarse:min-h-9"
+			class="flex items-center gap-2 text-sm text-dim hover:text-ledger transition-colors min-h-9 pointer-coarse:min-h-11"
 		>
 			<span aria-hidden="true" class="w-8 h-4.5 rounded-full border border-line relative transition-colors {reportsStore.includeAdjustments ? 'bg-phosphor/20' : 'bg-ink'}">
 				<span class="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full transition-all {reportsStore.includeAdjustments ? 'left-4 bg-phosphor' : 'left-0.5 bg-dim'}"></span>

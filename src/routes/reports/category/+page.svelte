@@ -56,7 +56,7 @@
 	     every reports header into a ragged block. -->
 	<ReportsNav />
 
-	<div class="flex items-center gap-4">
+	<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
 		<select bind:value={selectedTagId} class="bg-tape border border-line rounded-md px-3 py-1.5 text-sm text-ledger">
 			<option value="">{m.reports_select_tag()}</option>
 			{#each tags as tag}
@@ -68,7 +68,7 @@
 			{#each windowOptions as n}
 				<button
 					onclick={() => (reportsStore.window = n)}
-					class="px-2 py-1 rounded {reportsStore.window === n ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim'}"
+					class="px-2 min-h-9 pointer-coarse:min-h-11 rounded {reportsStore.window === n ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim'}"
 				>
 					{m.reports_months({ count: n })}
 				</button>

@@ -13,9 +13,6 @@
 	let loaded = $state(false);
 	let includeAdjustments = $state(false);
 
-	// Stable per-bucket ordering so a bucket keeps one ink across months.
-	const bucketRank = ['Essentials', 'Learning & Entertainment', 'Saving & Investment', 'Adjustments'];
-
 	// The ledger's own minus (−), never Intl's hyphen: sign is a glyph in
 	// this system, paired with tone so color never carries it alone.
 	function fmt(amount: number): string {
@@ -100,9 +97,12 @@
 					role="presentation"
 					aria-hidden="true"
 				>
-					{#each report.spending_by_bucket as b (b.name)}
-						<div style="width: {bucketPct(b.total)}%; background: {seriesColor(bucketRank.indexOf(b.name))}"></div>
-					{/each}
+				{#each report.spending_by_bucket as b, i (b.name)}
+					<!-- Ramp keyed off the row's position in the API result, not a
+					     name list: an unknown or renamed bucket still gets its own
+					     distinct ink instead of collapsing into the fallback. -->
+					<div style="width: {bucketPct(b.total)}%; background: {seriesColor(i)}"></div>
+				{/each}
 				</div>
 				{#each report.spending_by_bucket as b (b.name)}
 					<TapeLine
@@ -130,7 +130,9 @@
 			<section class="surface rounded-lg p-4">
 				<h2 class="plate mb-3">{m.reports_top_transactions()}</h2>
 				{#each report.top_transactions as tx}
-					<TapeLine label={tx.payee || m.reports_no_payee()} amount={'−' + fmt(tx.amount)} tone="debit" title={formatCurrency(tx.amount, settings.currency, settings.locale)} />
+					<!-- Negative sign owned here, not by the caller's data: a refund
+					     surfacing as a top transaction can't produce "−−". -->
+					<TapeLine label={tx.payee || m.reports_no_payee()} amount={fmt(-Math.abs(tx.amount))} tone="debit" title={formatCurrency(tx.amount, settings.currency, settings.locale)} />
 				{/each}
 			</section>
 		{/if}

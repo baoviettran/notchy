@@ -40,7 +40,7 @@
 	     every reports header into a ragged block. -->
 	<ReportsNav />
 
-	<div class="flex items-center gap-4">
+	<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
 		<div class="flex items-center gap-2">
 			<label for="yoy-year-a" class="text-sm text-dim">{m.reports_select_year()} A:</label>
 			<input

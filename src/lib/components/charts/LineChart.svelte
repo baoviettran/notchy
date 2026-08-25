@@ -18,10 +18,15 @@
 		label?: string;
 	} = $props();
 
-	const chartWidth = 400;
+	// Measured container width keeps viewBox units equal to CSS pixels, so
+	// tick labels render at their authored 11px instead of stretching with
+	// the card (a fixed 400-unit viewBox scaled type up ~2x on wide screens).
+	let chartWidth = $state(400);
 	const chartHeight = 200;
 	const margin = { top: 10, right: 10, bottom: 30, left: 50 };
-	const innerWidth = chartWidth - margin.left - margin.right;
+	const minPlotWidth = 280;
+	const safeWidth = $derived(Math.max(chartWidth, minPlotWidth));
+	const innerWidth = $derived(safeWidth - margin.left - margin.right);
 	const innerHeight = chartHeight - margin.top - margin.bottom;
 
 	const xScale = $derived(
@@ -65,9 +70,10 @@
 </script>
 
 {#if data.length > 0}
-	<LayerCake data={data} x="x" y="y">
-		<Svg>
-			<svg viewBox="0 0 {chartWidth} {chartHeight}" class="line-chart" preserveAspectRatio="xMidYMid meet" role="img" aria-label={label}>
+	<div bind:clientWidth={chartWidth}>
+		<LayerCake data={data} x="x" y="y">
+			<Svg>
+				<svg viewBox="0 0 {safeWidth} {chartHeight}" class="line-chart" role="img" aria-label={label}>
 				<g transform="translate({margin.left}, {margin.top})">
 					<!-- Area fill -->
 					{#if showArea && areaPath}
@@ -104,6 +110,7 @@
 			</svg>
 		</Svg>
 	</LayerCake>
+	</div>
 
 	<!-- Non-visual readers get the actual data, not just the chart's name. -->
 	{#if label}
@@ -129,8 +136,9 @@
 
 <style>
 	.line-chart {
+		display: block;
 		width: 100%;
-		height: 100%;
+		height: auto;
 	}
 
 	.area-fill {

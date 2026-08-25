@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { getDb } from '$lib/db';
 	import type { CompareRow } from '$lib/db/client';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
@@ -41,7 +40,6 @@
 		loaded = true;
 	}
 
-	onMount(load);
 	$effect(() => { monthA; monthB; includeAdjustments; load(); });
 
 	let totalA = $derived(rows.reduce((s, r) => s + r.month_a, 0));
@@ -56,10 +54,10 @@
 	     every reports header into a ragged block. -->
 	<ReportsNav />
 
-	<div class="flex items-center gap-4">
-		<input type="month" bind:value={monthA} aria-label={monthA} class="px-2 py-1 text-sm rounded border border-line bg-ink text-ledger" />
+	<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+		<input type="month" bind:value={monthA} aria-label={m.reports_month_from()} class="px-2 py-1 text-sm rounded border border-line bg-ink text-ledger" />
 		<span class="text-dim">{m.reports_vs()}</span>
-		<input type="month" bind:value={monthB} aria-label={monthB} class="px-2 py-1 text-sm rounded border border-line bg-ink text-ledger" />
+		<input type="month" bind:value={monthB} aria-label={m.reports_month_to()} class="px-2 py-1 text-sm rounded border border-line bg-ink text-ledger" />
 		<label class="flex items-center gap-2 text-sm text-dim">
 			<input type="checkbox" bind:checked={includeAdjustments} class="rounded" />
 			{m.reports_include_adjustments()}
