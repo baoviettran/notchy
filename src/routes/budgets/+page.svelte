@@ -25,11 +25,16 @@
 		// Soft over-allocation ceiling: this month's income (kind='income') plus
 		// cumulative rolled-over surpluses. A non-blocking warning fires when
 		// total allocated exceeds it.
-		const db = getDb();
-		const overview = await db.reports.getOverview(budgets.month);
-		monthIncome = overview.total_income;
-		const rolled = budgets.items.reduce((s, b) => s + (b.rolled_over > 0 ? b.rolled_over : 0), 0);
-		monthIncome += rolled;
+		try {
+			const db = getDb();
+			const overview = await db.reports.getOverview(budgets.month);
+			monthIncome = overview.total_income;
+			const rolled = budgets.items.reduce((s, b) => s + (b.rolled_over > 0 ? b.rolled_over : 0), 0);
+			monthIncome += rolled;
+		} catch {
+			// The ceiling warning is advisory — keep the last known value rather
+			// than throwing out of onMount/effect contexts.
+		}
 	}
 
 	onMount(async () => {
@@ -48,7 +53,9 @@
 	let overAmount = $derived(Math.max(0, totalAllocated - monthIncome));
 
 	function bucketName(typeId: string): string {
-		return categories.buckets.find((b) => b.id === typeId)?.name ?? typeId;
+		// Never print the raw bucket_ slug (DESIGN.md's Don't list) — an
+		// unknown id falls back to a localized label.
+		return categories.buckets.find((b) => b.id === typeId)?.name ?? m.dashboard_uncategorized_bucket();
 	}
 
 	function prevMonth() {
@@ -120,7 +127,7 @@
 </script>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
+	<div class="flex flex-wrap items-center justify-between gap-y-2">
 		<h1 class="page-title">{m.budgets_title()}</h1>
 		<div class="flex items-center gap-2 text-sm">
 			<button onclick={prevMonth} aria-label={m.budgets_previous_month()} class="min-w-11 min-h-11 inline-flex items-center justify-center text-dim hover:text-ledger rounded hover:bg-line/40">◀</button>
@@ -133,8 +140,8 @@
 		<div class="surface rounded-lg p-4">
 			<Skeleton lines={5} />
 		</div>
-	{:else if budgets.error}
-		<ErrorState description={budgets.error} onRetry={() => budgets.load()} />
+	{:else if budgets.error || categories.error}
+		<ErrorState description={(budgets.error || categories.error) ?? ''} onRetry={() => { void categories.load(); void budgets.load(); }} />
 	{:else}
 	{#if !budgets.hasAllocations}
 		<div class="bg-phosphor/10 border border-phosphor/30 rounded-lg p-4 flex items-center justify-between">
@@ -172,6 +179,7 @@
 							placeholder="0"
 							aria-label={bucket.name}
 							aria-invalid={editError ? 'true' : undefined}
+							aria-describedby={editError ? `budget-edit-error-${bucket.id}` : undefined}
 							class="figures w-32 px-2 py-1 text-xs rounded border bg-ink text-ledger text-right {editError ? 'border-debit' : 'border-line'}"
 						/>
 						<button onmousedown={(e) => e.preventDefault()} onclick={() => saveEdit(bucket.id)} aria-label={m.common_save()} class="min-w-11 min-h-11 inline-flex items-center justify-center text-sm text-phosphor rounded hover:bg-line/40">✓</button>
@@ -187,7 +195,7 @@
 					{/if}
 				</div>
 				{#if editing === bucket.id && editError}
-					<p role="alert" class="text-xs text-debit">{editError}</p>
+					<p id={`budget-edit-error-${bucket.id}`} role="alert" class="text-xs text-debit">{editError}</p>
 				{/if}
 				<Progress value={pct} max={100} size="sm" label={bucket.name} />
 				{#if rolledOver !== 0}
@@ -197,7 +205,9 @@
 				{/if}
 				<div class="flex justify-between text-xs text-dim">
 					<span>{pct}% {m.budgets_used()}</span>
-					<span>{formatCurrency(available, settings.currency, settings.locale)} {m.budgets_available()}</span>
+					<!-- A negative balance is a warning, not a footnote: debit ink
+					     while the figure itself carries the number. -->
+					<span class={available < 0 ? 'text-debit' : ''}>{formatCurrency(available, settings.currency, settings.locale)} {m.budgets_available()}</span>
 				</div>
 			</div>
 		{/each}
