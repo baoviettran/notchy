@@ -234,12 +234,16 @@ const sampleBuckets = [
 		{:else}
 			<ul class="divide-y divide-line border-t border-line">
 				{#each recentTxns as tx (tx.id)}
-					<li class="px-5 py-3 flex items-center justify-between gap-3">
-						<div class="min-w-0">
-							<p class="text-sm text-ledger truncate">{tx.payee || labelFor(tx.kind)}</p>
-							<p class="plate mt-0.5">{formatDateRelative(tx.date, settings.locale)}</p>
-						</div>
-						<Money amount={tx.amount} glyph={tx.kind === 'expense' ? '−' : tx.kind === 'income' ? '+' : ''} tone={tx.kind === 'expense' ? 'debit' : tx.kind === 'income' ? 'phosphor' : 'dim'} />
+					<!-- Same contract as every other transaction row in the app:
+					     tapping it opens the record. -->
+					<li class="px-5 py-3">
+						<a href={`/transactions/${tx.id}`} class="flex items-center justify-between gap-3">
+							<div class="min-w-0">
+								<p class="text-sm text-ledger truncate">{tx.payee || labelFor(tx.kind)}</p>
+								<p class="plate mt-0.5">{formatDateRelative(tx.date, settings.locale)}</p>
+							</div>
+							<Money amount={tx.amount} glyph={tx.kind === 'expense' ? '−' : tx.kind === 'income' ? '+' : ''} tone={tx.kind === 'expense' ? 'debit' : tx.kind === 'income' ? 'phosphor' : 'dim'} />
+						</a>
 					</li>
 				{/each}
 			</ul>
