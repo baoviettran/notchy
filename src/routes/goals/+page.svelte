@@ -12,6 +12,7 @@
 	import { toast } from '$lib/stores/toast.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
 import Money from '$lib/components/reports/Money.svelte';
+	import { mapError } from '$lib/utils/errors';
 	import type { GoalWithProgress } from '$lib/db/repos/goals';
 	import * as m from '$lib/paraglide/messages';
 
@@ -38,21 +39,33 @@ import Money from '$lib/components/reports/Money.svelte';
 	function openEdit(g: GoalWithProgress) { editing = g; showForm = true; }
 
 	async function markComplete(g: GoalWithProgress) {
-		await goals.update(g.id, { status: 'completed' });
-		// A milestone earns more than the default beat — hold it long enough
-		// for the phosphor flicker to register.
-		toast.show(m.goals_marked_complete(), { duration: 5000 });
+		try {
+			await goals.update(g.id, { status: 'completed' });
+			// A milestone earns more than the default beat — hold it long enough
+			// for the phosphor flicker to register.
+			toast.show(m.goals_marked_complete(), { duration: 5000 });
+		} catch (e) {
+			toast.show(mapError(e));
+		}
 	}
 	async function markAbandoned(g: GoalWithProgress) {
-		await goals.update(g.id, { status: 'abandoned' });
-		toast.show(m.goals_abandoned());
+		try {
+			await goals.update(g.id, { status: 'abandoned' });
+			toast.show(m.goals_abandoned());
+		} catch (e) {
+			toast.show(mapError(e));
+		}
 	}
 
 	async function doDelete() {
 		if (!confirmDelete) return;
-		await goals.delete(confirmDelete.id);
-		toast.show(m.goals_deleted_toast());
-		confirmDelete = null;
+		try {
+			await goals.delete(confirmDelete.id);
+			toast.show(m.goals_deleted_toast());
+			confirmDelete = null;
+		} catch (e) {
+			toast.show(mapError(e));
+		}
 	}
 
 	// Numeric restatement: the confirm names what is being destroyed.
@@ -67,7 +80,7 @@ import Money from '$lib/components/reports/Money.svelte';
 </script>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
+	<div class="flex flex-wrap items-center justify-between gap-y-2">
 		<h1 class="page-title">{m.goals_title()}</h1>
 		<Button size="sm" onclick={openCreate}>{m.goals_add()}</Button>
 	</div>
@@ -87,7 +100,9 @@ import Money from '$lib/components/reports/Money.svelte';
 				{#each goals.active as g}
 					<div class="bg-tape rounded-lg border border-line p-4 space-y-2 group">
 						<div class="flex items-center justify-between">
-							<button onclick={() => openEdit(g)} class="figures text-sm font-medium text-ledger text-left">{g.name}</button>
+							<!-- Name is text, not a figure: body face, like every other
+							     record name in the app. -->
+							<button onclick={() => openEdit(g)} class="text-sm font-medium text-ledger text-left">{g.name}</button>
 							<div class="flex items-center gap-2">
 								<span class="text-xs text-dim">{statusIcons[g.velocity_status] ?? ''} {goalStatusLabel(g.velocity_status)}</span>
 								<ContextMenu label={m.common_actions_for({ name: g.name })}>
