@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { reportsStore } from '$lib/stores/reports.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
+	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import LineChart from '$lib/components/charts/LineChart.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
 	import { settings } from '$lib/stores/settings.svelte';
@@ -32,6 +33,12 @@
 			void reportsStore.loadCategoryTrend(selectedTagId).then(() => (loaded = true));
 		}
 	});
+
+	function retry() {
+		if (!selectedTagId) return;
+		loaded = false;
+		void reportsStore.loadCategoryTrend(selectedTagId).then(() => (loaded = true));
+	}
 
 	const chartData = $derived(
 		reportsStore.categoryTrend.map((point) => ({
@@ -81,7 +88,9 @@
 		</label>
 	</div>
 
-	{#if !loaded}
+	{#if reportsStore.error}
+		<ErrorState description={reportsStore.error} onRetry={retry} />
+	{:else if !loaded}
 		<div class="surface rounded-lg p-5">
 			<Skeleton lines={5} />
 		</div>

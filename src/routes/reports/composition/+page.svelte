@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { reportsStore } from '$lib/stores/reports.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
+	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import StackedAreaChart from '$lib/components/charts/StackedAreaChart.svelte';
 	import TapeLine from '$lib/components/reports/TapeLine.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
@@ -17,6 +18,11 @@
 		reportsStore.includeAdjustments;
 		void reportsStore.loadStackedComposition().then(() => (loaded = true));
 	});
+
+	function retry() {
+		loaded = false;
+		void reportsStore.loadStackedComposition().then(() => (loaded = true));
+	}
 
 	const chartData = $derived(reportsStore.stackedComposition);
 
@@ -85,7 +91,9 @@
 		</label>
 	</div>
 
-	{#if !loaded}
+	{#if reportsStore.error}
+		<ErrorState description={reportsStore.error} onRetry={retry} />
+	{:else if !loaded}
 		<div class="surface rounded-lg p-5">
 			<Skeleton lines={5} />
 		</div>

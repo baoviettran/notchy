@@ -32,6 +32,7 @@ export default {
 		// instead of assuming hover exists wherever there is no `touch`.
 		function ({ addVariant }: { addVariant: (name: string, definition: string) => void }) {
 			addVariant('pointer-fine', '@media (pointer: fine)');
+			addVariant('pointer-coarse', '@media (pointer: coarse)');
 		}
 	]
 } satisfies Config;

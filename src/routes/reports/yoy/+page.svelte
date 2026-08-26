@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { reportsStore } from '$lib/stores/reports.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
+	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import GroupedBarChart from '$lib/components/charts/GroupedBarChart.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
 	import { settings } from '$lib/stores/settings.svelte';
@@ -17,6 +18,11 @@
 	$effect(() => {
 		void reportsStore.loadYearOverYear(yearA, yearB).then(() => (loaded = true));
 	});
+
+	function retry() {
+		loaded = false;
+		void reportsStore.loadYearOverYear(yearA, yearB).then(() => (loaded = true));
+	}
 
 	const chartData = $derived(reportsStore.yearOverYear);
 	const hasYearOverYearData = $derived(
@@ -62,7 +68,9 @@
 		</div>
 	</div>
 
-	{#if !loaded}
+	{#if reportsStore.error}
+		<ErrorState description={reportsStore.error} onRetry={retry} />
+	{:else if !loaded}
 		<div class="surface rounded-lg p-5">
 			<Skeleton lines={5} />
 		</div>

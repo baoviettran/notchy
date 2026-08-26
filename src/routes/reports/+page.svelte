@@ -2,15 +2,18 @@
 	import { getDb } from '$lib/db';
 	import type { OverviewReport } from '$lib/db/client';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
+	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import TapeLine from '$lib/components/reports/TapeLine.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { formatCurrency, formatCurrencyCompact, isLongCurrency } from '$lib/utils/currency';
 	import { seriesColor } from '$lib/utils/palette';
+	import { mapError } from '$lib/utils/errors';
 	import * as m from '$lib/paraglide/messages';
 	import ReportsNav from '$lib/components/layout/ReportsNav.svelte';
 
 	let report = $state<OverviewReport | null>(null);
 	let loaded = $state(false);
+	let error = $state<string | null>(null);
 	let includeAdjustments = $state(false);
 
 	// The ledger's own minus (−), never Intl's hyphen: sign is a glyph in
@@ -35,9 +38,14 @@
 	}
 
 	async function load() {
-		const db = getDb();
-		report = await db.reports.getOverview(currentMonth(), includeAdjustments);
-		loaded = true;
+		error = null;
+		try {
+			const db = getDb();
+			report = await db.reports.getOverview(currentMonth(), includeAdjustments);
+			loaded = true;
+		} catch (e) {
+			error = mapError(e);
+		}
 	}
 
 	$effect(() => { includeAdjustments; load(); });
@@ -55,7 +63,9 @@
 		{m.reports_include_adjustments()}
 	</label>
 
-	{#if !loaded}
+	{#if error}
+		<ErrorState description={error} onRetry={load} />
+	{:else if !loaded}
 		<div class="surface rounded-lg p-5">
 			<Skeleton lines={6} />
 		</div>

@@ -2,14 +2,17 @@
 	import { getDb } from '$lib/db';
 	import type { TrendPoint } from '$lib/db/client';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
+	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { formatCurrency, formatCurrencyCompact, isLongCurrency } from '$lib/utils/currency';
 	import { formatMonth, formatMonthShort } from '$lib/utils/date';
+	import { mapError } from '$lib/utils/errors';
 	import * as m from '$lib/paraglide/messages';
 	import ReportsNav from '$lib/components/layout/ReportsNav.svelte';
 
 	let points = $state<TrendPoint[]>([]);
 	let loaded = $state(false);
+	let error = $state<string | null>(null);
 	let months = $state(6);
 	let includeAdjustments = $state(false);
 
@@ -24,9 +27,14 @@
 	}
 
 	async function load() {
-		const db = getDb();
-		points = await db.reports.getTrend(months, includeAdjustments);
-		loaded = true;
+		error = null;
+		try {
+			const db = getDb();
+			points = await db.reports.getTrend(months, includeAdjustments);
+			loaded = true;
+		} catch (e) {
+			error = mapError(e);
+		}
 	}
 
 	$effect(() => { months; includeAdjustments; load(); });
@@ -58,7 +66,9 @@
 		</label>
 	</div>
 
-	{#if !loaded}
+	{#if error}
+		<ErrorState description={error} onRetry={load} />
+	{:else if !loaded}
 		<div class="surface rounded-lg p-5">
 			<Skeleton lines={5} />
 		</div>
