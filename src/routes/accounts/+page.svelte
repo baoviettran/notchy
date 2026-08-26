@@ -30,10 +30,14 @@
 	// before showing the confirm so the user knows what they're about to remove
 	// from their net worth (the transactions themselves stay in history).
 	async function openDeleteConfirm(a: AccountWithBalance) {
-		const db = getDb();
-		const txs = await db.transactions.list({ account_id: a.id, limit: 100000 });
-		deleteTxCount = txs.length;
-		confirmDelete = a;
+		try {
+			const db = getDb();
+			const txs = await db.transactions.list({ account_id: a.id, limit: 100000 });
+			deleteTxCount = txs.length;
+			confirmDelete = a;
+		} catch (e) {
+			toast.show(mapError(e));
+		}
 	}
 
 	onMount(() => accounts.load());
@@ -69,7 +73,7 @@
 </script>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
+	<div class="flex flex-wrap items-center justify-between gap-y-2">
 		<h1 class="page-title">{m.accounts_title()}</h1>
 		<Button size="sm" onclick={openCreate}>{m.accounts_add()}</Button>
 	</div>
