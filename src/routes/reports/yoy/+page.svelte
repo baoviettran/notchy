@@ -2,6 +2,7 @@
 	import { reportsStore } from '$lib/stores/reports.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
+	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
 	import GroupedBarChart from '$lib/components/charts/GroupedBarChart.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
 	import { settings } from '$lib/stores/settings.svelte';
@@ -16,6 +17,8 @@
 	let loaded = $state(false);
 
 	$effect(() => {
+		yearA;
+		yearB;
 		void reportsStore.loadYearOverYear(yearA, yearB).then(() => (loaded = true));
 	});
 
@@ -52,6 +55,8 @@
 			<input
 				id="yoy-year-a"
 				type="number"
+				min="2000"
+				max={currentYear}
 				bind:value={yearA}
 				class="bg-tape border border-line rounded-md px-3 py-1.5 text-sm text-ledger w-24"
 			/>
@@ -62,6 +67,8 @@
 			<input
 				id="yoy-year-b"
 				type="number"
+				min="2000"
+				max={currentYear}
 				bind:value={yearB}
 				class="bg-tape border border-line rounded-md px-3 py-1.5 text-sm text-ledger w-24"
 			/>
@@ -75,14 +82,12 @@
 			<Skeleton lines={5} />
 		</div>
 	{:else}
-	{#if hasYearOverYearData}
-		<div class="surface rounded-lg p-4">
-			<GroupedBarChart data={chartData} {yFormat} {xFormat} label={m.reports_yoy_chart_label()} />
-		</div>
-	{:else}
-		<div class="surface rounded-lg p-6 text-center text-dim min-h-[200px] flex items-center justify-center">
-			<p class="text-sm">{m.reports_empty_yoy()}</p>
-		</div>
-	{/if}
+		{#if hasYearOverYearData}
+			<div class="surface rounded-lg p-4">
+				<GroupedBarChart data={chartData} {yFormat} {xFormat} label={m.reports_yoy_chart_label()} />
+			</div>
+		{:else}
+			<EmptyState message={m.reports_empty_yoy()} icon="▮▯▯▯" />
+		{/if}
 	{/if}
 </div>

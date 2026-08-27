@@ -108,6 +108,15 @@
 		background: transparent;
 	}
 
+	/* Hide scrollbar but keep scroll — for tab strips that scroll on narrow
+	   viewports without showing a chrome scrollbar. */
+	.scrollbar-none {
+		scrollbar-width: none;
+	}
+	.scrollbar-none::-webkit-scrollbar {
+		display: none;
+	}
+
 	body {
 		font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 		font-variant-numeric: tabular-nums lining-nums;

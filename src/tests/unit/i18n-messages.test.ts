@@ -22,6 +22,7 @@ const DEAD_KEYS = [
 	'reports_window_12m',
 	'reports_window_24m',
 	'reports_window_6m',
+	'reports_title',
 ];
 
 describe('i18n messages', () => {

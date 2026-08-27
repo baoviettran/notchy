@@ -17,7 +17,7 @@
 	}
 </script>
 
-<nav class="flex flex-wrap gap-2 text-sm">
+<nav class="flex gap-2 text-sm overflow-x-auto scrollbar-none">
 	{#each items as item}
 		<a
 			href={item.href}

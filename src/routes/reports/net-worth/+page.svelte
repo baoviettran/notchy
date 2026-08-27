@@ -2,7 +2,9 @@
 	import { reportsStore } from '$lib/stores/reports.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
+	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
 	import LineChart from '$lib/components/charts/LineChart.svelte';
+	import AdjustmentsToggle from '$lib/components/reports/AdjustmentsToggle.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
 	import { settings } from '$lib/stores/settings.svelte';
 	import * as m from '$lib/paraglide/messages';
@@ -59,20 +61,7 @@
 				</button>
 			{/each}
 		</div>
-		<!-- Same switch vocabulary as the rest of the app — a raw native
-		     checkbox would break the control language of the ledger. -->
-		<button
-			type="button"
-			role="switch"
-			aria-checked={reportsStore.includeAdjustments}
-			onclick={() => (reportsStore.includeAdjustments = !reportsStore.includeAdjustments)}
-			class="flex items-center gap-2 text-sm text-dim hover:text-ledger transition-colors min-h-9 pointer-coarse:min-h-11"
-		>
-			<span aria-hidden="true" class="w-8 h-4.5 rounded-full border border-line relative transition-colors {reportsStore.includeAdjustments ? 'bg-phosphor/20' : 'bg-ink'}">
-				<span class="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full transition-all {reportsStore.includeAdjustments ? 'left-4 bg-phosphor' : 'left-0.5 bg-dim'}"></span>
-			</span>
-			{m.reports_include_adjustments()}
-		</button>
+		<AdjustmentsToggle bind:checked={reportsStore.includeAdjustments} />
 	</div>
 
 	{#if reportsStore.error}
@@ -82,14 +71,12 @@
 			<Skeleton lines={5} />
 		</div>
 	{:else}
-	{#if hasNetWorthData}
-		<div class="surface rounded-lg p-4">
-			<LineChart data={chartData} {yFormat} {xFormat} showArea={true} label={m.reports_net_worth_chart_label()} />
-		</div>
-	{:else}
-		<div class="surface rounded-lg p-6 text-center text-dim min-h-[200px] flex items-center justify-center">
-			<p class="text-sm">{m.reports_empty_net_worth()}</p>
-		</div>
-	{/if}
+		{#if hasNetWorthData}
+			<div class="surface rounded-lg p-4">
+				<LineChart data={chartData} {yFormat} {xFormat} showArea={true} label={m.reports_net_worth_chart_label()} />
+			</div>
+		{:else}
+			<EmptyState message={m.reports_empty_net_worth()} icon="▮▯▯▯" />
+		{/if}
 	{/if}
 </div>
