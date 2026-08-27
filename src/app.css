@@ -141,11 +141,14 @@
 		color: var(--phosphor-bright);
 		text-shadow: 0 0 4px rgba(255, 180, 84, 0.35), 0 0 11px rgba(255, 180, 84, 0.10);
 	}
+	/* Light mode: deboss — shadow below + highlight above suggests digits
+	   pressed into paper, preserving the adding-machine metaphor without
+	   emitting light (which paper cannot do). */
 	html.light .figures-glow {
 		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 		font-variant-numeric: tabular-nums lining-nums;
 		color: var(--phosphor);
-		text-shadow: none;
+		text-shadow: 0 1px 0 rgb(var(--tape-rgb) / 0.8), 0 -1px 0 rgba(255, 255, 255, 0.3);
 	}
 
 	/* Engraved faceplate micro-label. */
@@ -291,4 +294,10 @@ html[lang='vi'] .uppercase {
 }
 html.light .fab-halo {
 	box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.3);
+}
+
+/* Light-mode VFD readout: faint warm tint suggests a display window set
+   into the paper surface, reinforcing the adding-machine metaphor. */
+html.light [data-tour="net"] {
+	background-color: rgb(var(--phosphor-rgb) / 0.04);
 }

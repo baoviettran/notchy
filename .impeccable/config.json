@@ -20,6 +20,11 @@
         "rule": "design-system-font-size",
         "value": "18px quick-add preview kind glyph — raw css page, intentionally between 16px payee and 30px input",
         "createdAt": "2026-08-27T13:37:01.637Z"
+      },
+      {
+        "rule": "rgba(255, 255, 255, 0.3)",
+        "value": "deboss highlight for light-mode figures-glow — one-off paper edge effect",
+        "createdAt": "2026-08-27T16:14:13.657Z"
       }
     ]
   }
