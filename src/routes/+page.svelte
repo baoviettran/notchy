@@ -161,7 +161,7 @@
 		</div>
 	</section>
 
-	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+	<div class="space-y-4">
 		<!-- THIS MONTH: segmented budget meter. -->
 		<section class="surface rounded-lg p-5">
 			<!-- flex-wrap: the Vietnamese plate runs long and wraps on compact
