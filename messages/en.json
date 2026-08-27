@@ -332,6 +332,7 @@
   "onboarding_step_of": "Step {current} of {total}",
   "quick_add_no_account": "No account available",
   "quick_add_no_account_hint": "No accounts yet. Create one in the main window.",
+  "quick_add_no_account_hint_web": "No accounts yet. Create one to start tracking.",
   "quick_add_payee_hint": "Payee appears here",
   "quick_add_placeholder": "e.g. -35 lunch · +1200 salary",
   "quick_add_save": "SAVE",

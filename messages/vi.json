@@ -332,6 +332,7 @@
   "onboarding_step_of": "Bước {current} trên {total}",
   "quick_add_no_account": "Chưa có tài khoản",
   "quick_add_no_account_hint": "Chưa có tài khoản nào. Hãy tạo tài khoản ở cửa sổ chính.",
+  "quick_add_no_account_hint_web": "Chưa có tài khoản nào. Hãy tạo tài khoản để bắt đầu theo dõi.",
   "quick_add_payee_hint": "người nhận sẽ hiện ở đây",
   "quick_add_placeholder": "vd. -35 cơm trưa · +1200 lương",
   "quick_add_save": "Lưu",

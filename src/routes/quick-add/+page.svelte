@@ -6,6 +6,7 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import { getDb, initDb, isTauri } from '$lib/db';
 	import { parseQuickInput } from '$lib/utils/quick_parse';
+	import { formatCurrency } from '$lib/utils/currency';
 	import { AppError } from '$lib/errors';
 	import { mapError } from '$lib/utils/errors';
 
@@ -28,7 +29,24 @@
 	// Only claim "no account" once the window is genuinely ready — during the
 	// initial load, or after a db/locale error, it would contradict reality
 	// (and, on a database_update_required rejection, stack against the error).
-	const noAccountHint = $derived(ready && !activeAccount ? m.quick_add_no_account_hint() : null);
+	// In web mode there is no tray window — show a softer hint instead.
+	const noAccountHint = $derived.by(() => {
+		if (!ready || activeAccount) return null;
+		return isTauri() ? m.quick_add_no_account_hint() : m.quick_add_no_account_hint_web();
+	});
+
+	// Live parsed preview: show kind·amount·payee as the user types.
+	const preview = $derived.by(() => {
+		if (!value.trim()) return null;
+		try {
+			const parsed = parseQuickInput(value, settings.locale, settings.currency);
+			const amount = formatCurrency(parsed.amount, settings.currency, settings.locale);
+			const kind = parsed.kind === 'income' ? '+' : '−';
+			return { kind, amount, payee: parsed.payee ?? '' };
+		} catch {
+			return null;
+		}
+	});
 
 	async function loadDefaultAccount(): Promise<void> {
 		const db = getDb();
@@ -132,7 +150,7 @@
 			// The machine registers the keypress: one phosphor flicker before the
 			// window hides, so a save never vanishes unacknowledged.
 			justSaved = true;
-			await new Promise((r) => setTimeout(r, 250));
+			await new Promise((r) => setTimeout(r, 400));
 			justSaved = false;
 			await hideWindow();
 		} finally {
@@ -152,22 +170,25 @@
 	}
 </script>
 
-<div class="tape">
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<svelte:window onkeydown={onKeydown} />
+
+<div class="tape" class:disabled={!ready || !activeAccount}>
 	<header class="top">
 		<span class="mark" class:animate-flash={justSaved} aria-hidden="true">▮</span>
-		<span class="esc">ESC</span>
+		<span class="esc" role="img" aria-label="Escape key">ESC</span>
 	</header>
 
 	<input
 		id="qa-input"
 		class="amount"
 		type="text"
+		inputmode="decimal"
 		autocomplete="off"
 		spellcheck="false"
 		placeholder={m.quick_add_placeholder()}
 		aria-label={m.quick_add_placeholder()}
 		bind:value
-		onkeydown={onKeydown}
 		disabled={!ready || !activeAccount}
 	/>
 
@@ -177,8 +198,16 @@
 
 	<div class="rule"></div>
 
-	<div class="payee" class:empty={!value}>
-		{value ? value : m.quick_add_payee_hint()}
+	<div class="payee" class:empty={!value && !preview}>
+		{#if preview}
+			<span class="preview-kind" class:income={preview.kind === '+'}>{preview.kind}</span>
+			<span class="preview-amount">{preview.amount}</span>
+			{#if preview.payee}
+				<span class="preview-payee">{preview.payee}</span>
+			{/if}
+		{:else}
+			{m.quick_add_payee_hint()}
+		{/if}
 	</div>
 
 	<footer class="status">
@@ -201,6 +230,11 @@
 		padding: 0.75rem 1rem;
 		box-sizing: border-box;
 		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		transition: opacity 150ms ease-out;
+	}
+	.tape.disabled {
+		opacity: 0.5;
+		pointer-events: none;
 	}
 	.top {
 		display: flex;
@@ -236,8 +270,27 @@
 		color: var(--ledger);
 		font-size: 16px;
 		min-height: 1.2em;
+		display: flex;
+		align-items: baseline;
+		gap: 0.35em;
 	}
 	.payee.empty {
+		color: var(--dim);
+	}
+	.preview-kind {
+		color: var(--debit);
+		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-weight: 600;
+		font-size: 18px;
+	}
+	.preview-kind.income {
+		color: var(--phosphor);
+	}
+	.preview-amount {
+		color: var(--ledger);
+		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	}
+	.preview-payee {
 		color: var(--dim);
 	}
 	.status {
