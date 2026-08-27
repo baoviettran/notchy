@@ -11,7 +11,6 @@ const placeholders = (s: string) => (s.match(/\{[a-zA-Z_]+\}/g) ?? []).sort();
 
 // Keys confirmed unreferenced across src/, src/tests/, e2e/, scripts/ on 2026-08-18.
 const DEAD_KEYS = [
-	'budgets_remaining',
 	'dashboard_quick_entry',
 	'import_tx_preview_heading',
 	'layout_menu',
