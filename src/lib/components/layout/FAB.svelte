@@ -1,10 +1,12 @@
 <script lang="ts">
 	import * as m from '$lib/paraglide/messages';
+	import { uiHints } from '$lib/stores/ui-hint.svelte';
 
 	let { onclick = () => {} }: { onclick?: () => void } = $props();
 </script>
 
 <!-- The keypad "+" — the adding machine's only physical key. -->
+{#if !uiHints.hideFab}
 <button
 	{onclick}
 	data-tour="add"
@@ -16,3 +18,4 @@
 		<path d="M12 5v14M5 12h14" />
 	</svg>
 </button>
+{/if}

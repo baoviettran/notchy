@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import Button from '$lib/components/primitives/Button.svelte';
 	import { page } from '$app/stores';
 	import { transactions } from '$lib/stores/transactions.svelte';
@@ -22,6 +22,7 @@
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import { accounts } from '$lib/stores/accounts.svelte';
 	import { categories } from '$lib/stores/categories.svelte';
+	import { uiHints } from '$lib/stores/ui-hint.svelte';
 	import type { Transaction, TransactionKind } from '$lib/db/repos/transactions';
 
 	let search = $state($page.url.searchParams.get('q') ?? '');
@@ -120,6 +121,16 @@
 		void loadPage();
 	});
 
+	// Hide the FAB while the batch-action bar is visible to prevent
+	// the two from overlapping on narrow screens.
+	$effect(() => {
+		uiHints.hideFab = selectMode && selected.length > 0;
+	});
+
+	onDestroy(() => {
+		uiHints.hideFab = false;
+	});
+
 	function confirmDelete(tx: Transaction) {
 		pendingDeleteTx = tx;
 		showDeleteConfirm = true;
@@ -127,10 +138,21 @@
 
 	async function doDelete() {
 		if (!pendingDeleteTx) return;
-		await transactions.delete(pendingDeleteTx.id);
-		selected = selected.filter((id) => id !== pendingDeleteTx!.id);
-		await loadPage();
+		const id = pendingDeleteTx.id;
 		pendingDeleteTx = null;
+		await transactions.delete(id);
+		selected = selected.filter((sid) => sid !== id);
+		await loadPage();
+		toast.show(m.transactions_deleted_toast(), {
+			action: m.transactions_undo(),
+			duration: 5000,
+			onaction: async () => {
+				const db = getDb();
+				await db.transactions.restore(id);
+				await loadPage();
+				toast.show(m.transactions_restored_toast());
+			}
+		});
 	}
 
 	async function doDuplicate(tx: Transaction) {
