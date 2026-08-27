@@ -183,7 +183,7 @@
 						{@const spentFig = isLongCurrency(b.spent, settings.currency, settings.locale) ? formatCurrencyCompact(b.spent, settings.currency, settings.locale) : formatCurrency(b.spent, settings.currency, settings.locale)}
 						{@const allocFig = isLongCurrency(b.allocated, settings.currency, settings.locale) ? formatCurrencyCompact(b.allocated, settings.currency, settings.locale) : formatCurrency(b.allocated, settings.currency, settings.locale)}
 						{@const anyLong = isLongCurrency(b.spent, settings.currency, settings.locale) || isLongCurrency(b.allocated, settings.currency, settings.locale)}
-						<div class="flex items-center justify-between text-xs gap-2">
+						<div class="flex items-center justify-between text-xs gap-2" aria-label="{bucketName(b.type_id)}: {formatCurrency(b.spent, settings.currency, settings.locale)} of {formatCurrency(b.allocated, settings.currency, settings.locale)} ({bPct}%)">
 							<span class="text-dim truncate">{bucketName(b.type_id)}</span>
 							<div class="flex items-center gap-2 shrink-0">
 								<div class="w-12 h-1 rounded-full bg-line/40 overflow-hidden">
