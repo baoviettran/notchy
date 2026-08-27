@@ -20,6 +20,7 @@
 	import Select from '$lib/components/primitives/Select.svelte';
 	import Input from '$lib/components/primitives/Input.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
+	import FilterSheet from '$lib/components/primitives/FilterSheet.svelte';
 	import { accounts } from '$lib/stores/accounts.svelte';
 	import { categories } from '$lib/stores/categories.svelte';
 	import { uiHints } from '$lib/stores/ui-hint.svelte';
@@ -129,6 +130,7 @@
 
 	onDestroy(() => {
 		uiHints.hideFab = false;
+		showFilters = false;
 	});
 
 	function confirmDelete(tx: Transaction) {
@@ -262,8 +264,9 @@
 		>{selectMode ? m.transactions_done() : m.transactions_select()}</Button>
 	</div>
 
+	<!-- Desktop: inline filters. -->
 	{#if showFilters || activeFilterCount > 0}
-		<div class="flex flex-wrap gap-3">
+		<div class="hidden md:flex flex-wrap gap-3">
 			<div class="w-44">
 				<Select
 					label={m.transactions_filter_kind()}
@@ -297,6 +300,35 @@
 			</div>
 		</div>
 	{/if}
+
+	<!-- Mobile: slide-up filter sheet. -->
+	<FilterSheet open={showFilters} onclose={() => showFilters = false}>
+		<div class="flex flex-col gap-4">
+			<Select
+				label={m.transactions_filter_kind()}
+				bind:value={filterKind}
+				options={[
+					{ value: '', label: m.transactions_filter_all_kinds() },
+					{ value: 'expense', label: m.forms_expense() },
+					{ value: 'income', label: m.forms_income() },
+					{ value: 'transfer', label: m.forms_transfer() },
+					{ value: 'refund', label: m.forms_refund() },
+					{ value: 'adjustment', label: m.forms_adjustment() }
+				]}
+			/>
+			<Select
+				label={m.transactions_filter_account()}
+				bind:value={filterAccount}
+				options={[{ value: '', label: m.transactions_filter_all_accounts() }, ...accounts.items.map((a) => ({ value: a.id, label: a.name }))]}
+			/>
+			<Select
+				label={m.transactions_filter_tag()}
+				bind:value={filterTag}
+				options={[{ value: '', label: m.transactions_filter_all_tags() }, ...categories.tags.map((t) => ({ value: t.id, label: t.name }))]}
+			/>
+			<Input type="month" label={m.transactions_filter_month()} bind:value={filterMonth} />
+		</div>
+	</FilterSheet>
 
 	{#if transactions.loading}
 		<div class="surface rounded-lg p-4">
