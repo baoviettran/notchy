@@ -58,8 +58,11 @@
 	] as const;
 
 	const currencies = [
-		{ value: 'VND', code: 'VND', plate: 'VN' },
-		{ value: 'USD', code: 'USD', plate: 'US' }
+		{ value: 'VND', code: 'VND', plate: 'VN', desc: () => m.onboarding_currency_desc_vnd() },
+		{ value: 'USD', code: 'USD', plate: 'US', desc: () => m.onboarding_currency_desc_usd() },
+		{ value: 'EUR', code: 'EUR', plate: 'EU', desc: () => m.onboarding_currency_desc_eur() },
+		{ value: 'JPY', code: 'JPY', plate: 'JP', desc: () => m.onboarding_currency_desc_jpy() },
+		{ value: 'THB', code: 'THB', plate: 'TH', desc: () => m.onboarding_currency_desc_thb() }
 	];
 
 	function goStep1() { persistedStep = step = 1; }
@@ -190,7 +193,7 @@
 								<span class="w-10 h-10 shrink-0 rounded-md border border-line bg-ink flex items-center justify-center figures text-sm text-phosphor" aria-hidden="true">{c.plate}</span>
 								<span class="min-w-0">
 									<span class="block font-medium text-ledger">{c.code}{#if currency === c.value}<span class="figures text-phosphor ml-2" aria-hidden="true">✓</span>{/if}</span>
-									<span class="block text-sm text-dim">— {c.value === 'VND' ? m.onboarding_currency_desc_vnd() : m.onboarding_currency_desc_usd()}</span>
+									<span class="block text-sm text-dim">— {c.desc()}</span>
 								</span>
 							</span>
 						</button>

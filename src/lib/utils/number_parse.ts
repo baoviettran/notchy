@@ -5,7 +5,10 @@ export type Locale = 'en' | 'vi';
 /** Fraction digits per currency (smallest-unit storage). Mirrors currency.ts. */
 export const FRACTION_DIGITS: Record<string, number> = {
 	VND: 0,
-	USD: 2
+	USD: 2,
+	EUR: 2,
+	JPY: 0,
+	THB: 2
 };
 
 /**

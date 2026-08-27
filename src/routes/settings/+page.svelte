@@ -25,6 +25,10 @@
 		await settings.setLocale(locale);
 	}
 
+	async function setCurrency(currency: string) {
+		await settings.setCurrency(currency);
+	}
+
 	let quickAccountId = $state<string>('');
 	let accounts = $state<AccountWithBalance[]>([]);
 	let quickAccountLoaded = $state(false);
@@ -130,6 +134,20 @@
 					class="px-3 py-2.5 text-sm rounded-md border transition-colors {settings.locale === 'vi' ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
 				>{m.lang_vietnamese()}</button>
 			</div>
+		</div>
+		<div class="surface rounded-lg p-4">
+			<div class="plate mb-2">{m.settings_currency()}</div>
+			<div class="flex flex-wrap gap-2" role="radiogroup" aria-label={m.settings_currency()}>
+				{#each ['VND', 'USD', 'EUR', 'JPY', 'THB'] as cur}
+					<button
+						onclick={() => setCurrency(cur)}
+						role="radio"
+						aria-checked={settings.currency === cur}
+						class="px-3 py-2.5 text-sm rounded-md border transition-colors {settings.currency === cur ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
+					>{cur}</button>
+				{/each}
+			</div>
+			<p class="text-xs text-dim mt-2">{m.settings_currency_warning()}</p>
 		</div>
 		<div class="surface rounded-lg p-4">
 			<div class="plate mb-1">{m.settings_quick_account()}</div>

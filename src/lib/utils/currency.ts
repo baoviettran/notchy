@@ -2,7 +2,10 @@ import type { Locale } from './number_parse';
 
 const CURRENCY_CONFIG: Record<string, { fractionDigits: number }> = {
 	VND: { fractionDigits: 0 },
-	USD: { fractionDigits: 2 }
+	USD: { fractionDigits: 2 },
+	EUR: { fractionDigits: 2 },
+	JPY: { fractionDigits: 0 },
+	THB: { fractionDigits: 2 }
 };
 
 /**
