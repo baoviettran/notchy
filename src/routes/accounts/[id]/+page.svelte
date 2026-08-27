@@ -109,7 +109,7 @@
 	{#if errorMsg}
 		<ErrorState description={errorMsg} onRetry={load} />
 	{:else if notFound}
-		<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
+		<div class="surface rounded-lg p-6 text-center text-dim">
 			<p class="text-sm">{m.errors_account_not_found()}</p>
 		</div>
 	{:else if account}
@@ -129,11 +129,11 @@
 		<section>
 			<h2 class="plate mb-2">{m.accounts_transactions()}</h2>
 			{#if txns.length === 0}
-				<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
+				<div class="surface rounded-lg p-6 text-center text-dim">
 					<p class="text-sm">{m.accounts_no_transactions()}</p>
 				</div>
 			{:else}
-				<div class="bg-tape rounded-lg border border-line divide-y divide-line">
+				<div class="surface rounded-lg divide-y divide-line">
 					{#each txns as tx}
 						<!-- Same contract as every other transaction row: tap opens
 						     the record. -->
@@ -154,7 +154,7 @@
 		{#if history.length > 0}
 			<section>
 				<h2 class="plate mb-2">{m.accounts_reconciliation_history()}</h2>
-				<div class="bg-tape rounded-lg border border-line divide-y divide-line">
+				<div class="surface rounded-lg divide-y divide-line">
 					{#each history as h}
 						<div class="p-3 flex items-center justify-between text-sm">
 							<div>

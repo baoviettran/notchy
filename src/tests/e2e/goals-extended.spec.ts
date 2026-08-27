@@ -52,7 +52,7 @@ test.describe('goals — extended', () => {
 		await createGoal(page, 'Emergency Fund', '1m', '2027-12-31');
 		// Newly-created goal: 0% (the linked account has ~0 balance) and
 		// velocity_status 'insufficient_data' (no months elapsed).
-		const card = page.getByRole('main').locator('div.bg-tape.rounded-lg', { hasText: 'Emergency Fund' });
+		const card = page.getByRole('main').locator('.goal-item', { hasText: 'Emergency Fund' });
 		await expect(card).toBeVisible();
 		await expect(card.getByText('Insufficient data')).toBeVisible();
 		// current / target shows ₫0 / ₫1,000,000.
@@ -64,7 +64,7 @@ test.describe('goals — extended', () => {
 		// There is no contribute button; progress tracks the linked account's
 		// balance (repos/goals.ts:114). Add income → balance up → progress up.
 		await createGoal(page, 'New Bike', '500k', '2027-12-31');
-		let card = page.getByRole('main').locator('div.bg-tape.rounded-lg', { hasText: 'New Bike' });
+		let card = page.getByRole('main').locator('.goal-item', { hasText: 'New Bike' });
 		// Initially 0% (₫0 / ₫500,000).
 		await expect(card.getByText(/₫0.*500,000|500,000/)).toBeVisible();
 
@@ -79,7 +79,7 @@ test.describe('goals — extended', () => {
 
 		// Return to goals — current_amount now reflects the 200k balance.
 		await page.getByRole('link', { name: 'Goals', exact: true }).click();
-		card = page.getByRole('main').locator('div.bg-tape.rounded-lg', { hasText: 'New Bike' });
+		card = page.getByRole('main').locator('.goal-item', { hasText: 'New Bike' });
 		await expect(card.getByText(/200,000/)).toBeVisible();
 	});
 
@@ -95,7 +95,7 @@ test.describe('goals — extended', () => {
 		await editModal.getByRole('button', { name: 'Save' }).click();
 		await expect(page.getByRole('dialog')).toBeHidden();
 		// The card now shows ₫2,000,000 as the target.
-		const card = page.getByRole('main').locator('div.bg-tape.rounded-lg', { hasText: 'Edit Me' });
+		const card = page.getByRole('main').locator('.goal-item', { hasText: 'Edit Me' });
 		await expect(card.getByText(/2,000,000/)).toBeVisible();
 	});
 
@@ -105,7 +105,7 @@ test.describe('goals — extended', () => {
 		// (goals/+page.svelte:70-76). No auto-complete exists, so this is the
 		// only user-driven completion path.
 		await createGoal(page, 'Late Goal', '10m', '2020-01-01');
-		const card = page.getByRole('main').locator('div.bg-tape.rounded-lg', { hasText: 'Late Goal' });
+		const card = page.getByRole('main').locator('.goal-item', { hasText: 'Late Goal' });
 		await expect(card.getByText('Overdue')).toBeVisible();
 		// Actions live in the row's overflow menu (persistent kebab).
 		await card.getByRole('button', { name: 'Actions: Late Goal' }).click();

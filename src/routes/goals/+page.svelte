@@ -112,7 +112,7 @@
 	<section>
 		<h2 class="plate mb-2">{m.goals_active()}</h2>
 		{#if goals.active.length === 0}
-			<div class="bg-tape rounded-lg border border-line">
+			<div class="surface rounded-lg">
 				<EmptyState message={m.goals_no_active()} icon="▮▯▯▯">
 					{#snippet action()}
 						<button onclick={openCreate} class="text-phosphor hover:underline text-sm">{m.goals_empty_state()}</button>
@@ -120,7 +120,7 @@
 				</EmptyState>
 			</div>
 		{:else}
-			<div class="bg-tape rounded-lg border border-line divide-y divide-line">
+			<div class="surface rounded-lg divide-y divide-line">
 				{#each goals.active as g}
 					{@const vs = velocityStatus[g.velocity_status] ?? { icon: '', color: 'text-dim' }}
 					<div class="goal-item p-4 space-y-2">
@@ -155,7 +155,7 @@
 	{#if goals.completed.length > 0}
 		<section>
 			<h2 class="plate mb-2">{m.goals_completed()}</h2>
-			<div class="bg-tape rounded-lg border border-line divide-y divide-line">
+			<div class="surface rounded-lg divide-y divide-line">
 				{#each goals.completed as g}
 					<div class="px-4 py-3 flex items-center justify-between text-sm">
 						<div>

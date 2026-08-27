@@ -88,11 +88,11 @@
 	<section>
 		<h2 class="plate mb-2">{m.accounts_assets()}</h2>
 		{#if accounts.assets.length === 0}
-			<div class="bg-tape rounded-lg border border-line">
+			<div class="surface rounded-lg">
 				<EmptyState message={m.accounts_empty_assets()} icon="▮▯▯▯" />
 			</div>
 		{:else}
-			<div class="bg-tape rounded-lg border border-line divide-y divide-line">
+			<div class="surface rounded-lg divide-y divide-line">
 				{#each accounts.assets as acc}
 					<div class="flex items-center justify-between p-4 group">
 						<a href="/accounts/{acc.id}" class="flex-1">
@@ -114,11 +114,11 @@
 	<section>
 		<h2 class="plate mb-2">{m.accounts_liabilities()}</h2>
 		{#if accounts.liabilities.length === 0}
-			<div class="bg-tape rounded-lg border border-line">
+			<div class="surface rounded-lg">
 				<EmptyState message={m.accounts_empty_liabilities()} icon="▮▯▯▯" />
 			</div>
 		{:else}
-			<div class="bg-tape rounded-lg border border-line divide-y divide-line">
+			<div class="surface rounded-lg divide-y divide-line">
 				{#each accounts.liabilities as acc}
 					<div class="flex items-center justify-between p-4 group">
 						<a href="/accounts/{acc.id}" class="flex-1">
@@ -139,7 +139,7 @@
 	{#if accounts.archived.length > 0}
 		<section>
 			<h2 class="plate mb-2">{m.accounts_archived()}</h2>
-			<div class="bg-tape rounded-lg border border-line divide-y divide-line">
+			<div class="surface rounded-lg divide-y divide-line">
 				{#each accounts.archived as acc}
 					<div class="flex items-center justify-between p-4">
 						<div class="flex-1">

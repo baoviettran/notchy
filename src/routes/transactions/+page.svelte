@@ -292,7 +292,7 @@
 			</div>
 		{/if}
 
-		<div class="bg-tape rounded-lg border border-line divide-y divide-line">
+		<div class="surface rounded-lg divide-y divide-line">
 			{#if displayItems.length === 0}
 				<EmptyState message={m.transactions_empty_state()} icon="▮▯▯▯" />
 		{:else}
