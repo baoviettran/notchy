@@ -12,7 +12,7 @@
 	data-tour="add"
 		class="group fab-halo fixed bottom-20 right-5 md:bottom-8 md:right-8 w-14 h-14 rounded-full flex items-center justify-center z-40
 		bg-phosphor text-ink hover:brightness-110 transition-[filter,background-color]"
-	aria-label={m.layout_add_transaction()}
+	aria-label="{m.layout_add_transaction()} (N)"
 >
 	<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" class="w-6 h-6 pointer-fine:group-hover:scale-105 transition-transform">
 		<path d="M12 5v14M5 12h14" />
