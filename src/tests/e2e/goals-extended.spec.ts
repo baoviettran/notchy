@@ -142,7 +142,7 @@ test.describe('goals — extended', () => {
 		// (goals/+page.svelte) gated by ConfirmDialog — previously the only way
 		// to remove a goal was the store API (no UI).
 		await createGoal(page, 'Delete Me', '1m', '2027-12-31');
-		const card = page.getByRole('main').locator('div.group', { hasText: 'Delete Me' });
+		const card = page.getByRole('main').locator('.goal-item', { hasText: 'Delete Me' });
 		// Delete lives in the row's overflow menu (persistent kebab).
 		await card.getByRole('button', { name: 'Actions: Delete Me' }).click();
 		await page.getByRole('menuitem', { name: 'Delete', exact: true }).click();
@@ -160,7 +160,7 @@ test.describe('goals — extended', () => {
 		// (hover-revealed), not just in the overdue panel — so an on-track goal
 		// can be completed manually. No auto-complete at 100% by design.
 		await createGoal(page, 'Finishable', '1m', '2027-12-31');
-		const card = page.getByRole('main').locator('div.group', { hasText: 'Finishable' });
+		const card = page.getByRole('main').locator('.goal-item', { hasText: 'Finishable' });
 		await card.getByRole('button', { name: 'Actions: Finishable' }).click();
 		await page.getByRole('menuitem', { name: 'Mark complete' }).click();
 		await expect(page.getByText('Goal marked complete.')).toBeVisible();

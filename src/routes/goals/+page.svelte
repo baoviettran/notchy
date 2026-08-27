@@ -122,7 +122,7 @@ import Money from '$lib/components/reports/Money.svelte';
 		{:else}
 			<div class="bg-tape rounded-lg border border-line divide-y divide-line">
 				{#each goals.active as g}
-					<div class="p-4 space-y-2">
+					<div class="goal-item p-4 space-y-2">
 						<div class="flex items-center justify-between">
 							<button onclick={() => openEdit(g)} class="text-sm font-medium text-ledger text-left">{g.name}</button>
 							<div class="flex items-center gap-2">
