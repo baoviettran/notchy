@@ -100,7 +100,7 @@
 		{@const bucketTags = categories.tagsForBucket(bucket.id)}
 		<section>
 			<h2 class="plate mb-2">{bucket.name}</h2>
-			<div class="bg-tape rounded-lg border border-line divide-y divide-line">
+			<div class="surface rounded-lg divide-y divide-line">
 				{#if bucketTags.length === 0}
 					<p class="p-4 text-sm text-dim">{m.categories_no_tags()}</p>
 				{:else}

@@ -215,7 +215,7 @@
 	}
 </script>
 
-<div class="space-y-4">
+<div class="space-y-6">
 	<h1 class="page-title">{m.transactions_title()}</h1>
 
 	<!-- One action row: filters stay behind a toggle (with an active count)
@@ -277,7 +277,7 @@
 	{/if}
 
 	{#if transactions.loading}
-		<div class="bg-tape rounded-lg border border-line p-4">
+		<div class="surface rounded-lg p-4">
 			<Skeleton lines={6} />
 		</div>
 	{:else if transactions.error}

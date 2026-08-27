@@ -92,15 +92,15 @@
 	<h1 class="page-title">{m.settings_title()}</h1>
 
 	<div class="space-y-3">
-		<a href="/settings/categories" class="block bg-tape rounded-lg border border-line p-4 hover:bg-line/30 transition-colors">
+		<a href="/settings/categories" class="block surface rounded-lg p-4 hover:bg-line/30 transition-colors">
 			<div class="font-medium text-ledger">{m.settings_categories()}</div>
 			<div class="text-sm text-dim">{m.settings_categories_desc()}</div>
 		</a>
-		<a href="/settings/backup" class="block bg-tape rounded-lg border border-line p-4 hover:bg-line/30 transition-colors">
+		<a href="/settings/backup" class="block surface rounded-lg p-4 hover:bg-line/30 transition-colors">
 			<div class="font-medium text-ledger">{m.settings_backup()}</div>
 			<div class="text-sm text-dim">{m.settings_backup_desc()}</div>
 		</a>
-		<div class="bg-tape rounded-lg border border-line p-4">
+		<div class="surface rounded-lg p-4">
 			<div class="plate mb-2">{m.settings_theme()}</div>
 			<div class="flex gap-2" role="group" aria-label={m.settings_theme()}>
 				{#each ['auto', 'light', 'dark'] as theme}
@@ -112,7 +112,7 @@
 				{/each}
 			</div>
 		</div>
-		<div class="bg-tape rounded-lg border border-line p-4">
+		<div class="surface rounded-lg p-4">
 			<div class="plate mb-2">{m.settings_language()}</div>
 			<div class="flex gap-2" role="group" aria-label={m.settings_language()}>
 				<button
@@ -127,10 +127,11 @@
 				>{m.lang_vietnamese()}</button>
 			</div>
 		</div>
-		<div class="bg-tape rounded-lg border border-line p-4">
+		<div class="surface rounded-lg p-4">
 			<div class="plate mb-1">{m.settings_quick_account()}</div>
 			<div class="text-sm text-dim mb-3">{m.settings_quick_account_desc()}</div>
 			<Select
+				label={m.settings_quick_account()}
 				bind:value={quickAccountId}
 				options={quickAccountOptions}
 				disabled={!quickAccountLoaded}
@@ -142,12 +143,12 @@
 				</div>
 			{/if}
 		</div>
-		<div class="bg-tape rounded-lg border border-line p-4">
+		<div class="surface rounded-lg p-4">
 			<div class="font-medium text-ledger">{m.tour_replay()}</div>
 			<div class="text-sm text-dim mb-3">{m.tour_replay_desc()}</div>
 			<Button size="sm" onclick={replayTour}>{m.tour_replay()}</Button>
 		</div>
-		<div class="bg-tape rounded-lg border border-line p-4">
+		<div class="surface rounded-lg p-4">
 			<div class="text-xs text-dim">{m.settings_version()}</div>
 		</div>
 	</div>

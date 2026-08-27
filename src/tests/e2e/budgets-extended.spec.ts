@@ -150,7 +150,7 @@ test.describe('budgets — extended', () => {
 		// in, so available = 500k (allocated) + 500k (rolled) − 0 (spent) = 1,000k,
 		// and a "rolled over ₫500,000" line appears under the bar.
 		await allocateFirstBucket(page, '500000');
-		const firstBucket = page.locator('main .bg-tape.rounded-lg.border.border-line').first();
+		const firstBucket = page.locator('main .surface.rounded-lg').first();
 		await expect(firstBucket.getByText(/rolled over/i)).toBeVisible();
 		await expect(firstBucket.getByText(/₫500,000 rolled over/)).toBeVisible();
 		// Available figure (₫1,000,000) is shown with the "available" label.

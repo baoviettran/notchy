@@ -122,11 +122,11 @@
 		{:else}
 			<div class="bg-tape rounded-lg border border-line divide-y divide-line">
 				{#each goals.active as g}
+					{@const vs = velocityStatus[g.velocity_status] ?? { icon: '', color: 'text-dim' }}
 					<div class="goal-item p-4 space-y-2">
 						<div class="flex items-center justify-between">
 							<button onclick={() => openEdit(g)} class="text-sm font-medium text-ledger text-left">{g.name}</button>
 							<div class="flex items-center gap-2">
-								{@const vs = velocityStatus[g.velocity_status] ?? { icon: '', color: 'text-dim' }}
 								<span class="text-xs {vs.color}">{vs.icon} {goalStatusLabel(g.velocity_status)}</span>
 								<ContextMenu label={m.common_actions_for({ name: g.name })}>
 									<button onclick={() => markComplete(g)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-phosphor hover:bg-line/40">{m.goals_mark_complete()}</button>

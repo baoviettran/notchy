@@ -96,11 +96,11 @@
 		</div>
 	{:else}
 	{#if chartData.length > 0 && chartData.some((d) => d.y !== 0)}
-		<div class="bg-tape rounded-lg border border-line p-4">
+		<div class="surface rounded-lg p-4">
 			<LineChart data={chartData} {yFormat} {xFormat} showArea={false} />
 		</div>
 	{:else}
-		<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim min-h-[200px] flex items-center justify-center">
+		<div class="surface rounded-lg p-6 text-center text-dim min-h-[200px] flex items-center justify-center">
 			<p class="text-sm">{m.reports_empty_category()}</p>
 		</div>
 	{/if}

@@ -120,7 +120,7 @@
 			<TapeLine label={m.reports_subtotal()} amount={fmt(grandTotal)} tone="ledger" variant="subtotal" />
 		</section>
 	{:else}
-		<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim min-h-[200px] flex items-center justify-center">
+		<div class="surface rounded-lg p-6 text-center text-dim min-h-[200px] flex items-center justify-center">
 			<p class="text-sm">{m.reports_empty_composition()}</p>
 		</div>
 	{/if}

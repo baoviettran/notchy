@@ -93,7 +93,7 @@ test.describe('debts — extended', () => {
 		await expect(main.getByText('500,000')).toBeVisible();
 		// The hover-revealed Pay button (debts/+page.svelte:90) — scope to the
 		// i-owe row by anchoring on the counterparty text.
-		const payBtn = main.locator('div.group', { hasText: 'Alice' }).getByRole('button', { name: 'Pay' });
+		const payBtn = main.locator('.debt-item', { hasText: 'Alice' }).getByRole('button', { name: 'Pay' });
 		await payBtn.click();
 		const modal = page.getByRole('dialog');
 		await expect(modal.getByRole('heading', { name: 'Make payment' })).toBeVisible();
@@ -110,7 +110,7 @@ test.describe('debts — extended', () => {
 	test('payment without selecting an account is blocked', async ({ onboardedPage: page }) => {
 		await createLoanAccount(page, 'Loan from Person', 'Alice', 'Alice Debt');
 		await page.getByRole('link', { name: 'Debts', exact: true }).click();
-		await page.getByRole('main').locator('div.group', { hasText: 'Alice' }).getByRole('button', { name: 'Pay' }).click();
+		await page.getByRole('main').locator('.debt-item', { hasText: 'Alice' }).getByRole('button', { name: 'Pay' }).click();
 		const modal = page.getByRole('dialog');
 		await modal.getByLabel('Amount').fill('100k');
 		// Leave "From account" empty.
@@ -129,7 +129,7 @@ test.describe('debts — extended', () => {
 		const main = page.getByRole('main');
 		await expect(main.getByText('500,000')).toBeVisible();
 		// Write off lives in the row's overflow menu (persistent kebab, no hover-gate).
-		const debtRow = main.locator('div.group', { hasText: 'Alice' });
+		const debtRow = main.locator('.debt-item', { hasText: 'Alice' });
 		await debtRow.getByRole('button', { name: 'Actions: Alice' }).click();
 		await debtRow.getByRole('menuitem', { name: 'Write off' }).click();
 		const modal = page.getByRole('dialog');
@@ -179,7 +179,7 @@ test.describe('debts — extended', () => {
 	test('invalid payment amount is rejected', async ({ onboardedPage: page }) => {
 		await createLoanAccount(page, 'Loan from Person', 'Alice', 'Alice Debt');
 		await page.getByRole('link', { name: 'Debts', exact: true }).click();
-		const iOweRow = page.getByRole('main').locator('div.group', { hasText: 'Alice' });
+		const iOweRow = page.getByRole('main').locator('.debt-item', { hasText: 'Alice' });
 		await iOweRow.getByRole('button', { name: 'Pay' }).click();
 		const modal = page.getByRole('dialog');
 		// Non-numeric amount → parseAmount throws → mapError toast.

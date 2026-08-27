@@ -76,11 +76,11 @@
 		</div>
 	{:else}
 	{#if hasYearOverYearData}
-		<div class="bg-tape rounded-lg border border-line p-4">
+		<div class="surface rounded-lg p-4">
 			<GroupedBarChart data={chartData} {yFormat} {xFormat} label={m.reports_yoy_chart_label()} />
 		</div>
 	{:else}
-		<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim min-h-[200px] flex items-center justify-center">
+		<div class="surface rounded-lg p-6 text-center text-dim min-h-[200px] flex items-center justify-center">
 			<p class="text-sm">{m.reports_empty_yoy()}</p>
 		</div>
 	{/if}

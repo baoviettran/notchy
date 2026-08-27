@@ -4,6 +4,7 @@
 	import Button from '$lib/components/primitives/Button.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
+	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
 	import { budgets } from '$lib/stores/budgets.svelte';
 	import { categories } from '$lib/stores/categories.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
@@ -159,6 +160,11 @@
 	{/if}
 
 	<div class="space-y-4">
+		{#if budgetableBuckets.length === 0}
+			<div class="surface rounded-lg">
+				<EmptyState message={m.budgets_no_budget_for_month()} icon="▮▯▯▯" />
+			</div>
+		{:else}
 		{#each budgetableBuckets as bucket}
 			{@const b = getBudget(bucket.id)}
 			{@const allocated = b?.allocated ?? 0}
@@ -166,7 +172,7 @@
 			{@const rolledOver = b?.rolled_over ?? 0}
 			{@const available = b?.available ?? allocated - spent}
 			{@const pct = allocated > 0 ? Math.round((spent / allocated) * 100) : 0}
-			<div class="bg-tape rounded-lg border border-line p-4 space-y-2">
+			<div class="surface rounded-lg p-4 space-y-2">
 				<div class="flex items-center justify-between">
 					<h3 class="text-sm font-medium text-ledger">{bucket.name}</h3>
 				{#if editing === bucket.id}
@@ -211,6 +217,7 @@
 				</div>
 			</div>
 		{/each}
+		{/if}
 	</div>
 	{/if}
 </div>

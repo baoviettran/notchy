@@ -124,7 +124,7 @@
 			</div>
 		</section>
 	{:else}
-		<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim min-h-[200px] flex items-center justify-center">
+		<div class="surface rounded-lg p-6 text-center text-dim min-h-[200px] flex items-center justify-center">
 			<p class="text-sm">{m.reports_trend_empty()}</p>
 		</div>
 	{/if}

@@ -52,16 +52,16 @@
 	let totalSpent = $derived(budgets.items.reduce((s, b) => s + b.spent, 0));
 	let budgetPct = $derived(totalAllocated > 0 ? Math.round((totalSpent / totalAllocated) * 100) : 0);
 
-// Empty-budget teaching state: a sample month that shows the shape of a
-// budget before the user has made one. The amounts are illustrative, scaled
-// to a believable magnitude for the user's currency so the example reads in
-// their money rather than an abstract unit.
-const sampleScale = settings.currency === 'VND' ? 1_000_000 : 100;
-const sampleBuckets = [
-	{ name: m.dashboard_sample_rent(), spent: 6 * sampleScale, allocated: 6 * sampleScale },
-	{ name: m.dashboard_sample_groceries(), spent: 4 * sampleScale, allocated: 6 * sampleScale },
-	{ name: m.dashboard_sample_savings(), spent: 3 * sampleScale, allocated: 6 * sampleScale }
-];
+	// Empty-budget teaching state: a sample month that shows the shape of a
+	// budget before the user has made one. The amounts are illustrative, scaled
+	// to a believable magnitude for the user's currency so the example reads in
+	// their money rather than an abstract unit.
+	const sampleScale = settings.currency === 'VND' ? 1_000_000 : 100;
+	const sampleBuckets = [
+		{ name: m.dashboard_sample_rent(), spent: 6 * sampleScale, allocated: 6 * sampleScale },
+		{ name: m.dashboard_sample_groceries(), spent: 4 * sampleScale, allocated: 6 * sampleScale },
+		{ name: m.dashboard_sample_savings(), spent: 3 * sampleScale, allocated: 6 * sampleScale }
+	];
 
 	let monthFlow = $derived(transactions.monthFlow);
 
@@ -88,7 +88,7 @@ const sampleBuckets = [
 	});
 </script>
 
-<div class="space-y-5">
+<div class="space-y-6">
 	{#if isLoading && !initialLoadDone && !storeError}
 		<div class="surface rounded-lg p-5">
 			<Skeleton lines={4} />

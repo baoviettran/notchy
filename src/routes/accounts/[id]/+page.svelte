@@ -121,7 +121,7 @@
 			<Button size="sm" variant="secondary" onclick={() => { showReconcile = true; actualBalance = ''; reconcileError = ''; }}>{m.accounts_reconcile()}</Button>
 		</div>
 
-		<div class="bg-tape rounded-lg border border-line p-4">
+		<div class="surface rounded-lg p-4">
 			<p class="figures text-2xl text-ledger">{formatCurrency(account.balance, settings.currency, settings.locale)}</p>
 			<p class="plate mt-1">{m.accounts_current_balance()}</p>
 		</div>

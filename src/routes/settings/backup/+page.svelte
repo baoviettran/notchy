@@ -139,7 +139,7 @@
 	<h1 class="page-title">{m.settings_backup()}</h1>
 
 	<div class="space-y-4">
-		<div class="bg-tape rounded-lg border border-line p-4 space-y-3">
+		<div class="surface rounded-lg p-4 space-y-3">
 			<div class="flex flex-wrap items-center justify-between gap-2 gap-y-2">
 				<h2 class="font-medium text-ledger">{m.settings_backup_health()}</h2>
 				<div class="flex gap-2">
@@ -189,7 +189,7 @@
 			{/if}
 		</div>
 
-		<div class="bg-tape rounded-lg border border-line p-4 space-y-2">
+		<div class="surface rounded-lg p-4 space-y-2">
 			<h2 class="font-medium text-ledger">{m.settings_backup_export()}</h2>
 			<p class="text-sm text-dim">{m.settings_backup_export_desc()}</p>
 			<div class="flex gap-2">
@@ -198,13 +198,13 @@
 			</div>
 		</div>
 
-		<div class="bg-tape rounded-lg border border-line p-4 space-y-2">
+		<div class="surface rounded-lg p-4 space-y-2">
 			<h2 class="font-medium text-ledger">{m.settings_backup_import()}</h2>
 			<p class="text-sm text-dim">{m.settings_backup_import_desc()}</p>
 			<Button size="sm" variant="danger" onclick={() => confirmImport = true}>{m.settings_backup_import_button()}</Button>
 		</div>
 
-		<div class="bg-tape rounded-lg border border-line p-4 space-y-2">
+		<div class="surface rounded-lg p-4 space-y-2">
 			<h2 class="font-medium text-ledger">{m.settings_backup_auto()}</h2>
 			<p class="text-sm text-dim">{m.settings_backup_auto_desc()}</p>
 			<p class="text-xs text-dim">{m.settings_backup_auto_location()}</p>
