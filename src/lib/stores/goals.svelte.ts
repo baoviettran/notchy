@@ -9,6 +9,7 @@ class GoalsStore {
 
 	get active() { return this.items.filter((g) => g.status === 'active'); }
 	get completed() { return this.items.filter((g) => g.status === 'completed'); }
+	get abandoned() { return this.items.filter((g) => g.status === 'abandoned'); }
 	get dashboard() { return this.active.filter((g) => g.show_on_dashboard).slice(0, 3); }
 
 	async load(): Promise<void> {

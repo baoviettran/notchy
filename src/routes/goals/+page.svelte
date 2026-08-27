@@ -21,6 +21,8 @@
 	let showForm = $state(false);
 	let editing = $state<GoalWithProgress | null>(null);
 	let confirmDelete = $state<GoalWithProgress | null>(null);
+	let confirmComplete = $state<GoalWithProgress | null>(null);
+	let confirmAbandon = $state<GoalWithProgress | null>(null);
 
 	const velocityStatus: Record<string, { icon: string; color: string }> = {
 		on_track: { icon: '✓', color: 'text-phosphor' },
@@ -60,7 +62,14 @@
 			await goals.update(g.id, { status: 'completed' });
 			// A milestone earns more than the default beat — hold it long enough
 			// for the phosphor flicker to register.
-			toast.show(m.goals_marked_complete(), { duration: 5000 });
+			toast.show(m.goals_marked_complete(), {
+				action: m.common_undo(),
+				duration: 5000,
+				onaction: async () => {
+					await goals.update(g.id, { status: 'active' });
+					toast.show(m.goals_restored_toast());
+				}
+			});
 		} catch (e) {
 			toast.show(mapError(e));
 		}
@@ -68,7 +77,14 @@
 	async function markAbandoned(g: GoalWithProgress) {
 		try {
 			await goals.update(g.id, { status: 'abandoned' });
-			toast.show(m.goals_abandoned());
+			toast.show(m.goals_abandoned(), {
+				action: m.common_undo(),
+				duration: 5000,
+				onaction: async () => {
+					await goals.update(g.id, { status: 'active' });
+					toast.show(m.goals_restored_toast());
+				}
+			});
 		} catch (e) {
 			toast.show(mapError(e));
 		}
@@ -94,6 +110,11 @@
 				})
 			: ''
 	);
+
+	// Summary: aggregate across active goals.
+	const totalSaved = $derived(goals.active.reduce((s, g) => s + g.current_amount, 0));
+	const totalTarget = $derived(goals.active.reduce((s, g) => s + g.target_amount, 0));
+	const onTrackCount = $derived(goals.active.filter((g) => g.velocity_status === 'on_track' || g.velocity_status === 'ahead').length);
 </script>
 
 <div class="space-y-6">
@@ -109,13 +130,37 @@
 	{:else if goals.error}
 		<ErrorState description={goals.error} onRetry={() => goals.load()} />
 	{:else}
+	{#if goals.active.length > 0}
+	<!-- Summary surface — the tape's total line. -->
+	<div class="surface rounded-lg p-4">
+		<div class="grid grid-cols-3 gap-4 text-center">
+			<div>
+				<p class="text-xs text-dim">{m.goals_active()}</p>
+				<p class="figures text-lg text-ledger">{goals.active.length}</p>
+			</div>
+			<div>
+				<p class="text-xs text-dim">{m.goals_summary_saved()}</p>
+				<p class="figures text-lg text-ledger">{formatCurrency(totalSaved, settings.currency, settings.locale)}</p>
+			</div>
+			<div>
+				<p class="text-xs text-dim">{m.goals_summary_target()}</p>
+				<p class="figures-glow text-lg text-ledger">{formatCurrency(totalTarget, settings.currency, settings.locale)}</p>
+			</div>
+		</div>
+		<div class="mt-2 pt-2 border-t border-line flex justify-between text-xs text-dim">
+			<span>{m.goals_summary_on_track({ count: onTrackCount, total: goals.active.length })}</span>
+			<span>{m.goals_summary_progress({ pct: totalTarget > 0 ? Math.round((totalSaved / totalTarget) * 100) : 0 })}</span>
+		</div>
+	</div>
+	{/if}
+
 	<section>
 		<h2 class="plate mb-2">{m.goals_active()}</h2>
 		{#if goals.active.length === 0}
 			<div class="surface rounded-lg">
 				<EmptyState message={m.goals_no_active()} icon="▮▯▯▯">
 					{#snippet action()}
-						<button onclick={openCreate} class="text-phosphor hover:underline text-sm">{m.goals_empty_state()}</button>
+						<Button size="sm" variant="ghost" onclick={openCreate}>{m.goals_empty_state()}</Button>
 					{/snippet}
 				</EmptyState>
 			</div>
@@ -125,11 +170,11 @@
 					{@const vs = velocityStatus[g.velocity_status] ?? { icon: '', color: 'text-dim' }}
 					<div class="goal-item p-4 space-y-2">
 						<div class="flex items-center justify-between">
-							<button onclick={() => openEdit(g)} class="text-sm font-medium text-ledger text-left">{g.name}</button>
+							<button onclick={() => openEdit(g)} title={g.name} class="text-sm font-medium text-ledger text-left truncate max-w-[60%]">{g.name}</button>
 							<div class="flex items-center gap-2">
 								<span class="text-xs {vs.color}">{vs.icon} {goalStatusLabel(g.velocity_status)}</span>
 								<ContextMenu label={m.common_actions_for({ name: g.name })}>
-									<button onclick={() => markComplete(g)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-phosphor hover:bg-line/40">{m.goals_mark_complete()}</button>
+									<button onclick={() => confirmComplete = g} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-phosphor hover:bg-line/40">{m.goals_mark_complete()}</button>
 									<button onclick={() => confirmDelete = g} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.goals_delete()}</button>
 								</ContextMenu>
 							</div>
@@ -138,12 +183,12 @@
 						<Progress value={g.progress_pct} max={100} size="sm" label={g.name} />
 						<div class="flex justify-between text-xs text-dim">
 							<span class="figures"><Money amount={g.current_amount} tone="dim" size="text-xs" /> / <Money amount={g.target_amount} tone="dim" size="text-xs" /></span>
-							<span>{g.progress_pct}% · {m.goals_due_date({ date: g.target_date })}</span>
+							<span class="figures">{g.progress_pct}%</span> · {m.goals_due_date({ date: g.target_date })}
 						</div>
 						{#if g.velocity_status === 'overdue'}
 							<div class="flex gap-2 pt-2 border-t border-line">
-								<button onclick={() => openEdit(g)} class="text-xs text-phosphor hover:underline">{m.goals_extend_date()}</button>
-								<button onclick={() => markAbandoned(g)} class="text-xs text-dim hover:underline">{m.goals_mark_abandoned()}</button>
+								<button onclick={() => openEdit(g)} class="min-h-11 inline-flex items-center text-xs text-phosphor hover:underline">{m.goals_extend_date()}</button>
+								<button onclick={() => confirmAbandon = g} class="min-h-11 inline-flex items-center text-xs text-dim hover:underline">{m.goals_mark_abandoned()}</button>
 							</div>
 						{/if}
 					</div>
@@ -171,6 +216,23 @@
 			</div>
 		</section>
 	{/if}
+
+	{#if goals.abandoned.length > 0}
+		<section>
+			<h2 class="plate mb-2">{m.goals_abandoned_section()}</h2>
+			<div class="surface rounded-lg divide-y divide-line">
+				{#each goals.abandoned as g}
+					<div class="px-4 py-3 flex items-center justify-between text-sm">
+						<div>
+							<span class="text-dim">{g.name}</span>
+							<span class="text-xs text-dim ml-2">{goalTypeLabel(g.type)}</span>
+						</div>
+						<span class="figures text-xs text-dim">{formatCurrency(g.current_amount, settings.currency, settings.locale)} / {formatCurrency(g.target_amount, settings.currency, settings.locale)}</span>
+					</div>
+				{/each}
+			</div>
+		</section>
+	{/if}
 	{/if}
 </div>
 
@@ -185,4 +247,22 @@
 	confirmLabel={m.common_delete()}
 	danger={true}
 	onconfirm={doDelete}
+/>
+
+<ConfirmDialog
+	open={confirmComplete !== null}
+	title={m.goals_complete_confirm_title()}
+	message={confirmComplete ? m.goals_complete_confirm_body({ name: confirmComplete.name }) : ''}
+	confirmLabel={m.goals_mark_complete()}
+	danger={false}
+	onconfirm={() => { if (confirmComplete) { void markComplete(confirmComplete); confirmComplete = null; } }}
+/>
+
+<ConfirmDialog
+	open={confirmAbandon !== null}
+	title={m.goals_abandon_confirm_title()}
+	message={confirmAbandon ? m.goals_abandon_confirm_body({ name: confirmAbandon.name }) : ''}
+	confirmLabel={m.goals_mark_abandoned()}
+	danger={true}
+	onconfirm={() => { if (confirmAbandon) { void markAbandoned(confirmAbandon); confirmAbandon = null; } }}
 />
