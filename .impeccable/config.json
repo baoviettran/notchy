@@ -5,5 +5,17 @@
       "maxFindings": 5,
       "maxChars": 8000
     }
+  },
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font-size",
+        "value": "1.25rem",
+        "createdAt": "2026-08-27T07:15:01.500Z",
+        "reason": "Page title uses text-xl (1.25rem) per DESIGN.md: 'Page titles set in the display face like a printed total line'"
+      }
+    ]
   }
 }

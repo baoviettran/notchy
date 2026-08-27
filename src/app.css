@@ -236,12 +236,23 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.animate-slide-up, .animate-scale-in, .animate-flash {
+	.animate-slide-up, .animate-scale-in, .animate-flash, .animate-arm-countdown {
 		animation: none;
 	}
 	.figures-glow {
 		text-shadow: none;
 	}
+}
+
+/* FrequentTransactions arm countdown: a subtle border glow that pulses over
+   the 4-second confirm window, giving the user temporal feedback. */
+@keyframes arm-countdown {
+	0%   { box-shadow: 0 0 0 2px rgba(255, 180, 84, 0.5); }
+	50%  { box-shadow: 0 0 0 1px rgba(255, 180, 84, 0.2); }
+	100% { box-shadow: 0 0 0 2px rgba(255, 180, 84, 0.5); }
+}
+.animate-arm-countdown {
+	animation: arm-countdown 1s ease-in-out infinite;
 }
 
 /* The keypress flash is phosphor glow — paper doesn't glow. Light mode keeps
