@@ -12,7 +12,7 @@
 	import { toast } from '$lib/stores/toast.svelte';
 	import { getDb } from '$lib/db';
 	import { formatCurrency } from '$lib/utils/currency';
-import Money from '$lib/components/reports/Money.svelte';
+	import Money from '$lib/components/reports/Money.svelte';
 	import { parseAmount } from '$lib/utils/number_parse';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
@@ -31,12 +31,23 @@ import Money from '$lib/components/reports/Money.svelte';
 
 	let actionError = $state('');
 
+	// Aggregate totals for each section.
+	const iOweTotal = $derived(debts.i_owe.reduce((sum, d) => sum + Math.abs(d.balance), 0));
+	const owedToMeTotal = $derived(debts.owed_to_me.reduce((sum, d) => sum + Math.abs(d.balance), 0));
+
 	function openPayment(d: DebtAccount) {
 		activeDebt = d; actionType = 'payment'; amount = ''; fromAccount = ''; actionError = ''; showAction = true;
 	}
 	function openWriteoff(d: DebtAccount) {
-		activeDebt = d; actionType = 'writeoff'; amount = ''; actionError = ''; showAction = true;
+		activeDebt = d; actionType = 'writeoff'; amount = ''; actionError = ''; writeoffConfirmed = ''; showAction = true;
 	}
+
+	// Write-off confirmation: user must re-type the amount to confirm.
+	let writeoffConfirmed = $state('');
+	const writeoffMatch = $derived(
+		actionType === 'writeoff' && activeDebt && amount.trim() !== '' &&
+		writeoffConfirmed.trim() === amount.trim()
+	);
 
 	async function doAction() {
 		if (!activeDebt || !amount) return;
@@ -110,7 +121,14 @@ import Money from '$lib/components/reports/Money.svelte';
 	{:else}
 
 	<section>
-		<h2 class="plate mb-2">{m.debts_i_owe()}</h2>
+		<div class="flex items-baseline justify-between mb-2">
+			<h2 class="plate">{m.debts_i_owe()}</h2>
+			{#if debts.i_owe.length > 0}
+				<span class="figures text-sm text-dim">
+					{m.debts_count_total({ count: String(debts.i_owe.length), total: formatCurrency(iOweTotal, settings.currency, settings.locale) })}
+				</span>
+			{/if}
+		</div>
 		{#if debts.i_owe.length === 0}
 			<div class="surface rounded-lg p-6 text-center text-dim">
 					<!-- Being debt-free is a real milestone — the celebration gets a
@@ -147,7 +165,14 @@ import Money from '$lib/components/reports/Money.svelte';
 	</section>
 
 	<section>
-		<h2 class="plate mb-2">{m.debts_owed_to_me()}</h2>
+		<div class="flex items-baseline justify-between mb-2">
+			<h2 class="plate">{m.debts_owed_to_me()}</h2>
+			{#if debts.owed_to_me.length > 0}
+				<span class="figures text-sm text-dim">
+					{m.debts_count_total({ count: String(debts.owed_to_me.length), total: formatCurrency(owedToMeTotal, settings.currency, settings.locale) })}
+				</span>
+			{/if}
+		</div>
 		{#if debts.owed_to_me.length === 0}
 			<!-- Same machine-glyph treatment as the debt-free lamp: an empty
 			     section is a designed moment, and the path that creates a debt
@@ -203,11 +228,23 @@ import Money from '$lib/components/reports/Money.svelte';
 		{/if}
 		<Input label={m.common_amount()} bind:value={amount} placeholder={m.forms_amount_placeholder()} />
 		{#if actionType === 'payment'}
-			<Select label={activeDebt?.type === 'loan_from_person' ? m.debts_from_account() : m.debts_to_account()} bind:value={fromAccount} options={assetAccounts} error={actionError} />
+			<Select
+				label={activeDebt?.type === 'loan_from_person' ? m.debts_from_account() : m.debts_deposit_to_account()}
+				bind:value={fromAccount}
+				options={assetAccounts}
+				error={actionError}
+			/>
+		{/if}
+		{#if actionType === 'writeoff' && amount.trim() !== ''}
+			<Input label={m.debts_write_off_confirm()} bind:value={writeoffConfirmed} placeholder={amount} />
 		{/if}
 		<div class="flex justify-end gap-2 pt-2">
 			<Button variant="ghost" onclick={() => showAction = false}>{m.common_cancel()}</Button>
-			<Button disabled={saving} variant={actionType === 'writeoff' ? 'danger' : 'primary'} onclick={doAction}>{actionType === 'payment' ? m.debts_record() : m.debts_write_off()}</Button>
+			<Button
+				disabled={saving || (actionType === 'writeoff' && !writeoffMatch)}
+				variant={actionType === 'writeoff' ? 'danger' : 'primary'}
+				onclick={doAction}
+			>{actionType === 'payment' ? m.debts_record() : m.debts_write_off()}</Button>
 		</div>
 	</div>
 </Modal>
