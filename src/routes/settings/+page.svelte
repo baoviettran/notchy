@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation';
 	import Select from '$lib/components/primitives/Select.svelte';
 	import Button from '$lib/components/primitives/Button.svelte';
+	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { tour } from '$lib/stores/tour.svelte';
 	import { getDb } from '$lib/db';
@@ -102,11 +103,12 @@
 		</a>
 		<div class="surface rounded-lg p-4">
 			<div class="plate mb-2">{m.settings_theme()}</div>
-			<div class="flex gap-2" role="group" aria-label={m.settings_theme()}>
+			<div class="flex gap-2" role="radiogroup" aria-label={m.settings_theme()}>
 				{#each ['auto', 'light', 'dark'] as theme}
 					<button
 						onclick={() => setTheme(theme as 'auto' | 'light' | 'dark')}
-						aria-pressed={settings.theme === theme}
+						role="radio"
+						aria-checked={settings.theme === theme}
 						class="px-3 py-2.5 text-sm rounded-md border transition-colors {settings.theme === theme ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
 					>{themeLabels[theme as keyof typeof themeLabels]()}</button>
 				{/each}
@@ -114,15 +116,17 @@
 		</div>
 		<div class="surface rounded-lg p-4">
 			<div class="plate mb-2">{m.settings_language()}</div>
-			<div class="flex gap-2" role="group" aria-label={m.settings_language()}>
+			<div class="flex gap-2" role="radiogroup" aria-label={m.settings_language()}>
 				<button
 					onclick={() => setLocale('en')}
-					aria-pressed={settings.locale === 'en'}
+					role="radio"
+					aria-checked={settings.locale === 'en'}
 					class="px-3 py-2.5 text-sm rounded-md border transition-colors {settings.locale === 'en' ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
 				>{m.lang_english()}</button>
 				<button
 					onclick={() => setLocale('vi')}
-					aria-pressed={settings.locale === 'vi'}
+					role="radio"
+					aria-checked={settings.locale === 'vi'}
 					class="px-3 py-2.5 text-sm rounded-md border transition-colors {settings.locale === 'vi' ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
 				>{m.lang_vietnamese()}</button>
 			</div>
@@ -130,12 +134,16 @@
 		<div class="surface rounded-lg p-4">
 			<div class="plate mb-1">{m.settings_quick_account()}</div>
 			<div class="text-sm text-dim mb-3">{m.settings_quick_account_desc()}</div>
-			<Select
-				label={m.settings_quick_account()}
-				bind:value={quickAccountId}
-				options={quickAccountOptions}
-				disabled={!quickAccountLoaded}
-			/>
+			{#if !quickAccountLoaded && !quickAccountError}
+				<Skeleton lines={1} />
+			{:else}
+				<Select
+					label={m.settings_quick_account()}
+					bind:value={quickAccountId}
+					options={quickAccountOptions}
+					disabled={!quickAccountLoaded}
+				/>
+			{/if}
 			{#if quickAccountError}
 				<div class="flex items-center gap-2 text-xs text-debit mt-2">
 					<span>{quickAccountError}</span>
