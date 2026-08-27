@@ -15,6 +15,11 @@
         "value": "1.25rem",
         "createdAt": "2026-08-27T07:15:01.500Z",
         "reason": "Page title uses text-xl (1.25rem) per DESIGN.md: 'Page titles set in the display face like a printed total line'"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "18px quick-add preview kind glyph — raw css page, intentionally between 16px payee and 30px input",
+        "createdAt": "2026-08-27T13:37:01.637Z"
       }
     ]
   }

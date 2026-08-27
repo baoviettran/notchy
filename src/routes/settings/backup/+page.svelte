@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import Button from '$lib/components/primitives/Button.svelte';
 	import ConfirmDialog from '$lib/components/primitives/ConfirmDialog.svelte';
+	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import { save, open } from '@tauri-apps/plugin-dialog';
 	import { writeTextFile } from '@tauri-apps/plugin-fs';
 	import { getDb } from '$lib/db';
@@ -185,7 +186,7 @@
 				{/if}
 			</dl>
 		{:else}
-			<p class="text-sm text-dim">{m.layout_warming_up()}</p>
+			<Skeleton lines={4} />
 		{/if}
 	</div>
 

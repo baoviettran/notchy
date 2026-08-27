@@ -10,7 +10,7 @@
 		[key: string]: unknown;
 	} = $props();
 
-	const base = 'inline-flex items-center justify-center font-medium rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed';
+	const base = 'inline-flex items-center justify-center font-medium rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-phosphor disabled:opacity-40 disabled:cursor-not-allowed';
 	const sizes = {
 		sm: 'min-h-9 pointer-coarse:min-h-11 px-3 text-sm',
 		md: 'min-h-10 pointer-coarse:min-h-11 px-4 py-2 text-sm'
