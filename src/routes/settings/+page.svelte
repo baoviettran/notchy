@@ -10,6 +10,7 @@
 	import { getDb } from '$lib/db';
 	import type { AccountWithBalance } from '$lib/db/client';
 	import * as m from '$lib/paraglide/messages';
+	import { CURRENCY_CODES } from '$lib/utils/currency-config';
 
 	const themeLabels = {
 		auto: () => m.settings_theme_auto(),
@@ -138,7 +139,7 @@
 		<div class="surface rounded-lg p-4">
 			<div class="plate mb-2">{m.settings_currency()}</div>
 			<div class="flex flex-wrap gap-2" role="radiogroup" aria-label={m.settings_currency()}>
-				{#each ['VND', 'USD', 'EUR', 'JPY', 'THB'] as cur}
+				{#each CURRENCY_CODES as cur}
 					<button
 						onclick={() => setCurrency(cur)}
 						role="radio"

@@ -21,6 +21,7 @@
 	import Input from '$lib/components/primitives/Input.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import FilterSheet from '$lib/components/primitives/FilterSheet.svelte';
+	import FilterControls from '$lib/components/primitives/FilterControls.svelte';
 	import { accounts } from '$lib/stores/accounts.svelte';
 	import { categories } from '$lib/stores/categories.svelte';
 	import { uiHints } from '$lib/stores/ui-hint.svelte';
@@ -266,67 +267,15 @@
 
 	<!-- Desktop: inline filters. -->
 	{#if showFilters || activeFilterCount > 0}
-		<div class="hidden md:flex flex-wrap gap-3">
-			<div class="w-44">
-				<Select
-					label={m.transactions_filter_kind()}
-					bind:value={filterKind}
-					options={[
-						{ value: '', label: m.transactions_filter_all_kinds() },
-						{ value: 'expense', label: m.forms_expense() },
-						{ value: 'income', label: m.forms_income() },
-						{ value: 'transfer', label: m.forms_transfer() },
-						{ value: 'refund', label: m.forms_refund() },
-						{ value: 'adjustment', label: m.forms_adjustment() }
-					]}
-				/>
-			</div>
-			<div class="w-44">
-				<Select
-					label={m.transactions_filter_account()}
-					bind:value={filterAccount}
-					options={[{ value: '', label: m.transactions_filter_all_accounts() }, ...accounts.items.map((a) => ({ value: a.id, label: a.name }))]}
-				/>
-			</div>
-			<div class="w-44">
-				<Select
-					label={m.transactions_filter_tag()}
-					bind:value={filterTag}
-					options={[{ value: '', label: m.transactions_filter_all_tags() }, ...categories.tags.map((t) => ({ value: t.id, label: t.name }))]}
-				/>
-			</div>
-			<div class="w-44">
-				<Input type="month" label={m.transactions_filter_month()} bind:value={filterMonth} />
-			</div>
+		<div class="hidden md:block">
+			<FilterControls bind:filterKind bind:filterAccount bind:filterTag bind:filterMonth />
 		</div>
 	{/if}
 
 	<!-- Mobile: slide-up filter sheet. -->
 	<FilterSheet open={showFilters} onclose={() => showFilters = false}>
 		<div class="flex flex-col gap-4">
-			<Select
-				label={m.transactions_filter_kind()}
-				bind:value={filterKind}
-				options={[
-					{ value: '', label: m.transactions_filter_all_kinds() },
-					{ value: 'expense', label: m.forms_expense() },
-					{ value: 'income', label: m.forms_income() },
-					{ value: 'transfer', label: m.forms_transfer() },
-					{ value: 'refund', label: m.forms_refund() },
-					{ value: 'adjustment', label: m.forms_adjustment() }
-				]}
-			/>
-			<Select
-				label={m.transactions_filter_account()}
-				bind:value={filterAccount}
-				options={[{ value: '', label: m.transactions_filter_all_accounts() }, ...accounts.items.map((a) => ({ value: a.id, label: a.name }))]}
-			/>
-			<Select
-				label={m.transactions_filter_tag()}
-				bind:value={filterTag}
-				options={[{ value: '', label: m.transactions_filter_all_tags() }, ...categories.tags.map((t) => ({ value: t.id, label: t.name }))]}
-			/>
-			<Input type="month" label={m.transactions_filter_month()} bind:value={filterMonth} />
+			<FilterControls bind:filterKind bind:filterAccount bind:filterTag bind:filterMonth />
 		</div>
 	</FilterSheet>
 
