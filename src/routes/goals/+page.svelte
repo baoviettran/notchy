@@ -22,6 +22,7 @@ import Money from '$lib/components/reports/Money.svelte';
 	let editing = $state<GoalWithProgress | null>(null);
 	let confirmDelete = $state<GoalWithProgress | null>(null);
 
+	const statusIcons: Record<string, string> = { on_track: '✓', behind: '⚠', ahead: '★', overdue: '⏰', insufficient_data: '…' };
 	const statusColors: Record<string, string> = {
 		on_track: 'text-phosphor',
 		behind: 'text-debit',
@@ -126,7 +127,7 @@ import Money from '$lib/components/reports/Money.svelte';
 						<div class="flex items-center justify-between">
 							<button onclick={() => openEdit(g)} class="text-sm font-medium text-ledger text-left">{g.name}</button>
 							<div class="flex items-center gap-2">
-								<span class="text-xs {statusColors[g.velocity_status] ?? 'text-dim'}">{goalStatusLabel(g.velocity_status)}</span>
+								<span class="text-xs {statusColors[g.velocity_status] ?? 'text-dim'}">{statusIcons[g.velocity_status] ?? ''} {goalStatusLabel(g.velocity_status)}</span>
 								<ContextMenu label={m.common_actions_for({ name: g.name })}>
 									<button onclick={() => markComplete(g)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-phosphor hover:bg-line/40">{m.goals_mark_complete()}</button>
 									<button onclick={() => confirmDelete = g} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.goals_delete()}</button>
