@@ -9,8 +9,10 @@
 </script>
 
 <div class="surface rounded-lg p-6 text-center space-y-3" role="alert" aria-live="assertive">
-	<!-- ⚠ is the vocabulary's alarm glyph (DESIGN.md §6) — no off-table icons. -->
-	<p class="figures text-2xl text-debit" aria-hidden="true">⚠</p>
+	<!-- ⚠︎ is the vocabulary's alarm glyph (DESIGN.md §6) — no off-table icons.
+	     U+FE0E forces text presentation so the glyph renders as a typographic
+	     character, not a platform emoji. -->
+	<p class="figures text-2xl text-debit" aria-hidden="true">⚠︎</p>
 	<h2 class="text-lg font-semibold text-ledger">{m.errors_state_title()}</h2>
 	<p class="text-sm text-dim">{description}</p>
 	{#if onRetry}

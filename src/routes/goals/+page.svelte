@@ -24,7 +24,7 @@
 
 	const velocityStatus: Record<string, { icon: string; color: string }> = {
 		on_track: { icon: '✓', color: 'text-phosphor' },
-		behind: { icon: '⚠', color: 'text-debit' },
+		behind: { icon: '⚠︎', color: 'text-debit' },
 		ahead: { icon: '★', color: 'text-phosphor' },
 		overdue: { icon: '⏰', color: 'text-debit' },
 		insufficient_data: { icon: '…', color: 'text-dim' }

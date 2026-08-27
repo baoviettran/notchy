@@ -190,7 +190,7 @@
 									<div class="h-full rounded-full {bPct > 100 ? 'bg-debit' : 'bg-phosphor/70'}" style="width: {Math.min(bPct, 100)}%"></div>
 								</div>
 								<span class="figures text-ledger" title="{formatCurrency(b.spent, settings.currency, settings.locale)} / {formatCurrency(b.allocated, settings.currency, settings.locale)}">
-									{#if bPct > 100}<span class="text-debit" aria-hidden="true">⚠ </span>{/if}<span aria-hidden={anyLong ? 'true' : undefined}>{spentFig} <span class="text-dim">/ {allocFig}</span></span>
+									{#if bPct > 100}<span class="text-debit" aria-hidden="true">⚠︎ </span>{/if}<span aria-hidden={anyLong ? 'true' : undefined}>{spentFig} <span class="text-dim">/ {allocFig}</span></span>
 									{#if anyLong}<span class="sr-only">{formatCurrency(b.spent, settings.currency, settings.locale)} / {formatCurrency(b.allocated, settings.currency, settings.locale)}</span>{/if}
 								</span>
 							</div>
