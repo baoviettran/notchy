@@ -13,7 +13,7 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
-import Money from '$lib/components/reports/Money.svelte';
+	import Money from '$lib/components/reports/Money.svelte';
 	import { mapError } from '$lib/utils/errors';
 	import type { GoalWithProgress, GoalType } from '$lib/db/repos/goals';
 	import * as m from '$lib/paraglide/messages';
@@ -22,13 +22,12 @@ import Money from '$lib/components/reports/Money.svelte';
 	let editing = $state<GoalWithProgress | null>(null);
 	let confirmDelete = $state<GoalWithProgress | null>(null);
 
-	const statusIcons: Record<string, string> = { on_track: '✓', behind: '⚠', ahead: '★', overdue: '⏰', insufficient_data: '…' };
-	const statusColors: Record<string, string> = {
-		on_track: 'text-phosphor',
-		behind: 'text-debit',
-		ahead: 'text-phosphor',
-		overdue: 'text-debit',
-		insufficient_data: 'text-dim'
+	const velocityStatus: Record<string, { icon: string; color: string }> = {
+		on_track: { icon: '✓', color: 'text-phosphor' },
+		behind: { icon: '⚠', color: 'text-debit' },
+		ahead: { icon: '★', color: 'text-phosphor' },
+		overdue: { icon: '⏰', color: 'text-debit' },
+		insufficient_data: { icon: '…', color: 'text-dim' }
 	};
 
 	function goalTypeLabel(type: GoalType): string {
@@ -127,7 +126,8 @@ import Money from '$lib/components/reports/Money.svelte';
 						<div class="flex items-center justify-between">
 							<button onclick={() => openEdit(g)} class="text-sm font-medium text-ledger text-left">{g.name}</button>
 							<div class="flex items-center gap-2">
-								<span class="text-xs {statusColors[g.velocity_status] ?? 'text-dim'}">{statusIcons[g.velocity_status] ?? ''} {goalStatusLabel(g.velocity_status)}</span>
+								{@const vs = velocityStatus[g.velocity_status] ?? { icon: '', color: 'text-dim' }}
+								<span class="text-xs {vs.color}">{vs.icon} {goalStatusLabel(g.velocity_status)}</span>
 								<ContextMenu label={m.common_actions_for({ name: g.name })}>
 									<button onclick={() => markComplete(g)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-phosphor hover:bg-line/40">{m.goals_mark_complete()}</button>
 									<button onclick={() => confirmDelete = g} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.goals_delete()}</button>
@@ -162,7 +162,10 @@ import Money from '$lib/components/reports/Money.svelte';
 							<span class="text-dim">{g.name}</span>
 							<span class="text-xs text-dim ml-2">{goalTypeLabel(g.type)}</span>
 						</div>
-						<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-phosphor/40 bg-phosphor/10 figures text-xs text-phosphor">✓ {m.goals_complete()}</span>
+						<div class="flex items-center gap-3">
+							<span class="figures text-xs text-dim"><Money amount={g.target_amount} tone="dim" size="text-xs" /></span>
+							<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-phosphor/40 bg-phosphor/10 figures text-xs text-phosphor">✓ {m.goals_complete()}</span>
+						</div>
 					</div>
 				{/each}
 			</div>
