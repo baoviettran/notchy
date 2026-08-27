@@ -145,6 +145,7 @@
 						<div class="flex-1">
 							<div class="text-sm text-dim">{acc.name}</div>
 						</div>
+						<span class="figures text-sm text-dim mr-3">{formatCurrency(acc.balance, settings.currency, settings.locale)}</span>
 						<button onclick={() => archiveAccount(acc)} class="text-xs text-phosphor hover:underline">{m.accounts_unarchive()}</button>
 					</div>
 				{/each}
