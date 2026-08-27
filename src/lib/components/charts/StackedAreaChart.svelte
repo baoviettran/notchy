@@ -35,7 +35,7 @@
 	const innerHeight = chartHeight - margin.top - margin.bottom;
 
 	// Extract all unique tags across all months
-	const allTags = $derived(() => {
+	const allTags = $derived.by(() => {
 		const tagMap = new Map<string, string>();
 		data.forEach((d) => {
 			d.tags.forEach((t) => {
@@ -48,7 +48,7 @@
 	});
 
 	// Transform data for d3 stack: each month becomes an object with tag totals
-	const stackData = $derived(() => {
+	const stackData = $derived.by(() => {
 		return data.map((d) => {
 			const obj: StackDatum = { month: d.month };
 			d.tags.forEach((t) => {
@@ -69,7 +69,7 @@
 			: scaleBand().range([0, innerWidth])
 	);
 
-	const yScale = $derived(() => {
+	const yScale = $derived.by(() => {
 		if (data.length === 0) return scaleLinear().range([innerHeight, 0]);
 
 		// Find max stacked value
@@ -84,10 +84,10 @@
 			.range([innerHeight, 0]);
 	});
 
-	const stackedPaths = $derived(() => {
+	const stackedPaths = $derived.by(() => {
 		if (data.length === 0) return [];
 
-		const tags = allTags();
+		const tags = allTags;
 		if (tags.length === 0) return [];
 
 		const stackGen = stack<StackDatum>()
@@ -96,8 +96,8 @@
 			.order(null)
 			.offset(null);
 
-		const stacked = stackGen(stackData());
-		const yScl = yScale();
+		const stacked = stackGen(stackData);
+		const yScl = yScale;
 		const xScl = xScale;
 
 		const areaGen = area<SeriesPoint<StackDatum>>()
@@ -112,9 +112,9 @@
 		}));
 	});
 
-	const yTicks = $derived(() => {
+	const yTicks = $derived.by(() => {
 		if (data.length === 0) return [];
-		return yScale().ticks(5);
+		return yScale.ticks(5);
 	});
 </script>
 
@@ -125,7 +125,7 @@
 				<svg viewBox="0 0 {safeWidth} {chartHeight}" class="stacked-area-chart" role="img" aria-label={label}>
 				<g transform="translate({margin.left}, {margin.top})">
 					<!-- Stacked areas -->
-					{#each stackedPaths() as stackItem}
+					{#each stackedPaths as stackItem}
 						<path
 							d={stackItem.path}
 							style="fill: {colors[stackItem.tagId] ?? 'var(--dim)'}"
@@ -150,8 +150,8 @@
 					<!-- Y Axis -->
 					<g class="axis y-axis">
 						<line x1={0} y1={0} x2={0} y2={innerHeight} class="axis-line" />
-						{#each yTicks() as tick}
-							<g transform="translate(0, {yScale()(tick)})">
+						{#each yTicks as tick}
+							<g transform="translate(0, {yScale(tick)})">
 								<line x2="-6" class="tick-line" />
 								<text x="-10" class="tick-label">{yFormat(tick)}</text>
 							</g>
@@ -165,7 +165,7 @@
 
 	<!-- Legend -->
 	<div class="legend">
-		{#each allTags() as tag}
+		{#each allTags as tag}
 			<div class="legend-item">
 				<span class="legend-color" style="background-color: {colors[tag.tagId] ?? 'var(--dim)'}"></span>
 				<span class="legend-label">{tag.name}</span>
