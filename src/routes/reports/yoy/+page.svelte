@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { reportsStore } from '$lib/stores/reports.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
+	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import GroupedBarChart from '$lib/components/charts/GroupedBarChart.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
 	import { settings } from '$lib/stores/settings.svelte';
@@ -17,6 +18,11 @@
 	$effect(() => {
 		void reportsStore.loadYearOverYear(yearA, yearB).then(() => (loaded = true));
 	});
+
+	function retry() {
+		loaded = false;
+		void reportsStore.loadYearOverYear(yearA, yearB).then(() => (loaded = true));
+	}
 
 	const chartData = $derived(reportsStore.yearOverYear);
 	const hasYearOverYearData = $derived(
@@ -40,7 +46,7 @@
 	     every reports header into a ragged block. -->
 	<ReportsNav />
 
-	<div class="flex items-center gap-4">
+	<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
 		<div class="flex items-center gap-2">
 			<label for="yoy-year-a" class="text-sm text-dim">{m.reports_select_year()} A:</label>
 			<input
@@ -62,7 +68,9 @@
 		</div>
 	</div>
 
-	{#if !loaded}
+	{#if reportsStore.error}
+		<ErrorState description={reportsStore.error} onRetry={retry} />
+	{:else if !loaded}
 		<div class="surface rounded-lg p-5">
 			<Skeleton lines={5} />
 		</div>

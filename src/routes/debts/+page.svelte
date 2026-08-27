@@ -14,6 +14,8 @@
 	import { formatCurrency } from '$lib/utils/currency';
 import Money from '$lib/components/reports/Money.svelte';
 	import { parseAmount } from '$lib/utils/number_parse';
+	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
+	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import type { DebtAccount } from '$lib/db/client';
 	import * as m from '$lib/paraglide/messages';
 	import { mapError } from '$lib/utils/errors';
@@ -98,6 +100,15 @@ import Money from '$lib/components/reports/Money.svelte';
 <div class="space-y-6">
 	<h1 class="page-title">{m.debts_title()}</h1>
 
+	{#if debts.loading}
+		<div class="surface rounded-lg p-4">
+			<Skeleton lines={5} />
+		</div>
+	{:else if debts.error}
+		<!-- A failed load must never wear the debt-free celebration lamp. -->
+		<ErrorState description={debts.error} onRetry={() => debts.load()} />
+	{:else}
+
 	<section>
 		<h2 class="plate mb-2">{m.debts_i_owe()}</h2>
 		{#if debts.i_owe.length === 0}
@@ -138,8 +149,13 @@ import Money from '$lib/components/reports/Money.svelte';
 	<section>
 		<h2 class="plate mb-2">{m.debts_owed_to_me()}</h2>
 		{#if debts.owed_to_me.length === 0}
+			<!-- Same machine-glyph treatment as the debt-free lamp: an empty
+			     section is a designed moment, and the path that creates a debt
+			     (an account of loan type) is one tap away. -->
 			<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
+				<p class="figures-glow text-2xl mb-2" aria-hidden="true">▮▯▯▯</p>
 				<p class="text-sm">{m.debts_empty_owed_to_me()}</p>
+				<a href="/accounts" class="inline-block mt-3 text-sm text-phosphor hover:underline">{m.debts_empty_add_hint()}</a>
 			</div>
 		{:else}
 			<div class="bg-tape rounded-lg border border-line divide-y divide-line">
@@ -166,6 +182,7 @@ import Money from '$lib/components/reports/Money.svelte';
 			</div>
 		{/if}
 	</section>
+	{/if}
 </div>
 
 <Modal bind:open={showAction} title={actionType === 'payment' ? (activeDebt?.type === 'loan_from_person' ? m.debts_make_payment() : m.debts_receive_payment()) : m.debts_write_off_debt()}>

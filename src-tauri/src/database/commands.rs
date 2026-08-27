@@ -847,12 +847,12 @@ pub async fn report_get_stacked_category_series(
 pub async fn report_get_year_over_year(
     manager: State<'_, Arc<DatabaseManager>>,
     year_a: i32,
-    _year_b: i32,
+    year_b: i32,
     include_adjustments: Option<bool>,
 ) -> Result<Vec<YearOverYearPoint>, DbError> {
     let inc = include_adjustments.unwrap_or(false);
     manager.data_job(move |state| {
-        domains::reports::get_year_over_year(state.connection()?, year_a, inc)
+        domains::reports::get_year_over_year(state.connection()?, year_a, year_b, inc)
     }).await
 }
 
@@ -932,11 +932,13 @@ pub fn generate_bindings() -> String {
     push_decl(&mut out, CategorizeRule::decl(&cfg));
 
     push_decl(&mut out, BucketSpending::decl(&cfg));
+    push_decl(&mut out, TagSpending::decl(&cfg));
+    push_decl(&mut out, TopTransaction::decl(&cfg));
     push_decl(&mut out, OverviewReport::decl(&cfg));
     push_decl(&mut out, TrendPoint::decl(&cfg));
     push_decl(&mut out, CompareRow::decl(&cfg));
     push_decl(&mut out, CategoryTrendPoint::decl(&cfg));
-    push_decl(&mut out, TypeTotal::decl(&cfg));
+    push_decl(&mut out, StackedTag::decl(&cfg));
     push_decl(&mut out, StackedCategoryPoint::decl(&cfg));
     push_decl(&mut out, YearOverYearPoint::decl(&cfg));
     push_decl(&mut out, NetWorthPoint::decl(&cfg));

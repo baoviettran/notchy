@@ -2,19 +2,19 @@
 	import { getDb } from '$lib/db';
 	import type { OverviewReport } from '$lib/db/client';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
+	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import TapeLine from '$lib/components/reports/TapeLine.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { formatCurrency, formatCurrencyCompact, isLongCurrency } from '$lib/utils/currency';
 	import { seriesColor } from '$lib/utils/palette';
+	import { mapError } from '$lib/utils/errors';
 	import * as m from '$lib/paraglide/messages';
 	import ReportsNav from '$lib/components/layout/ReportsNav.svelte';
 
 	let report = $state<OverviewReport | null>(null);
 	let loaded = $state(false);
+	let error = $state<string | null>(null);
 	let includeAdjustments = $state(false);
-
-	// Stable per-bucket ordering so a bucket keeps one ink across months.
-	const bucketRank = ['Essentials', 'Learning & Entertainment', 'Saving & Investment', 'Adjustments'];
 
 	// The ledger's own minus (−), never Intl's hyphen: sign is a glyph in
 	// this system, paired with tone so color never carries it alone.
@@ -38,9 +38,14 @@
 	}
 
 	async function load() {
-		const db = getDb();
-		report = await db.reports.getOverview(currentMonth(), includeAdjustments);
-		loaded = true;
+		error = null;
+		try {
+			const db = getDb();
+			report = await db.reports.getOverview(currentMonth(), includeAdjustments);
+			loaded = true;
+		} catch (e) {
+			error = mapError(e);
+		}
 	}
 
 	$effect(() => { includeAdjustments; load(); });
@@ -58,7 +63,9 @@
 		{m.reports_include_adjustments()}
 	</label>
 
-	{#if !loaded}
+	{#if error}
+		<ErrorState description={error} onRetry={load} />
+	{:else if !loaded}
 		<div class="surface rounded-lg p-5">
 			<Skeleton lines={6} />
 		</div>
@@ -100,9 +107,12 @@
 					role="presentation"
 					aria-hidden="true"
 				>
-					{#each report.spending_by_bucket as b (b.name)}
-						<div style="width: {bucketPct(b.total)}%; background: {seriesColor(bucketRank.indexOf(b.name))}"></div>
-					{/each}
+				{#each report.spending_by_bucket as b, i (b.name)}
+					<!-- Ramp keyed off the row's position in the API result, not a
+					     name list: an unknown or renamed bucket still gets its own
+					     distinct ink instead of collapsing into the fallback. -->
+					<div style="width: {bucketPct(b.total)}%; background: {seriesColor(i)}"></div>
+				{/each}
 				</div>
 				{#each report.spending_by_bucket as b (b.name)}
 					<TapeLine
@@ -130,13 +140,15 @@
 			<section class="surface rounded-lg p-4">
 				<h2 class="plate mb-3">{m.reports_top_transactions()}</h2>
 				{#each report.top_transactions as tx}
-					<TapeLine label={tx.payee || m.reports_no_payee()} amount={'−' + fmt(tx.amount)} tone="debit" title={formatCurrency(tx.amount, settings.currency, settings.locale)} />
+					<!-- Negative sign owned here, not by the caller's data: a refund
+					     surfacing as a top transaction can't produce "−−". -->
+					<TapeLine label={tx.payee || m.reports_no_payee()} amount={fmt(-Math.abs(tx.amount))} tone="debit" title={formatCurrency(tx.amount, settings.currency, settings.locale)} />
 				{/each}
 			</section>
 		{/if}
 
 		{#if report.spending_by_bucket.length === 0 && report.top_transactions.length === 0}
-			<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
+			<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim min-h-[200px] flex items-center justify-center">
 				<p class="text-sm">{m.reports_empty()}</p>
 			</div>
 		{/if}

@@ -1,16 +1,18 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { getDb } from '$lib/db';
 	import type { TrendPoint } from '$lib/db/client';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
+	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { formatCurrency, formatCurrencyCompact, isLongCurrency } from '$lib/utils/currency';
 	import { formatMonth, formatMonthShort } from '$lib/utils/date';
+	import { mapError } from '$lib/utils/errors';
 	import * as m from '$lib/paraglide/messages';
 	import ReportsNav from '$lib/components/layout/ReportsNav.svelte';
 
 	let points = $state<TrendPoint[]>([]);
 	let loaded = $state(false);
+	let error = $state<string | null>(null);
 	let months = $state(6);
 	let includeAdjustments = $state(false);
 
@@ -25,12 +27,16 @@
 	}
 
 	async function load() {
-		const db = getDb();
-		points = await db.reports.getTrend(months, includeAdjustments);
-		loaded = true;
+		error = null;
+		try {
+			const db = getDb();
+			points = await db.reports.getTrend(months, includeAdjustments);
+			loaded = true;
+		} catch (e) {
+			error = mapError(e);
+		}
 	}
 
-	onMount(load);
 	$effect(() => { months; includeAdjustments; load(); });
 
 	let maxValue = $derived(Math.max(...points.map((p) => Math.max(p.income, p.expense)), 1));
@@ -46,11 +52,11 @@
 	     every reports header into a ragged block. -->
 	<ReportsNav />
 
-	<div class="flex items-center gap-4">
+	<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
 		<div class="flex gap-1 text-sm">
 			{#each [6, 12, 24] as n}
 				<button type="button" onclick={() => months = n}
-					class="px-2 py-1 rounded {months === n ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim'}"
+					class="px-2 min-h-9 pointer-coarse:min-h-11 rounded transition-colors {months === n ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim hover:text-ledger'}"
 				>{m.reports_months({ count: n })}</button>
 			{/each}
 		</div>
@@ -60,7 +66,9 @@
 		</label>
 	</div>
 
-	{#if !loaded}
+	{#if error}
+		<ErrorState description={error} onRetry={load} />
+	{:else if !loaded}
 		<div class="surface rounded-lg p-5">
 			<Skeleton lines={5} />
 		</div>
@@ -94,21 +102,21 @@
 
 		<!-- The ledger: one ruled line per month, closed by a grand total. -->
 		<section class="surface rounded-lg px-4 py-3" aria-label={m.reports_trend()}>
-			<div class="grid grid-cols-[auto_1fr_1fr_1fr] gap-x-4 pb-2 border-b border-dashed border-line/60">
+			<div class="grid grid-cols-[auto_1fr_1fr_1fr] gap-x-2 sm:gap-x-4 pb-2 border-b border-dashed border-line/60">
 				<span class="plate"></span>
 				<span class="plate text-right">{m.reports_income()}</span>
 				<span class="plate text-right">{m.reports_expense()}</span>
 				<span class="plate text-right">Δ</span>
 			</div>
 			{#each points as point (point.month)}
-				<div class="grid grid-cols-[auto_1fr_1fr_1fr] gap-x-4 py-2 border-b border-line/40 text-sm min-w-0">
+				<div class="grid grid-cols-[auto_1fr_1fr_1fr] gap-x-2 sm:gap-x-4 py-2 border-b border-line/40 text-xs sm:text-sm min-w-0">
 					<span class="figures text-dim shrink-0">{point.month}</span>
 					<span class="figures text-phosphor text-right" title={formatCurrency(point.income, settings.currency, settings.locale)}>{fmt(point.income)}</span>
 					<span class="figures text-debit text-right" title={formatCurrency(point.expense, settings.currency, settings.locale)}>{fmt(point.expense)}</span>
 					<span class="figures text-right {point.net >= 0 ? 'text-phosphor' : 'text-debit'}" title={formatCurrency(point.net, settings.currency, settings.locale)}>{fmt(point.net)}</span>
 				</div>
 			{/each}
-			<div class="grid grid-cols-[auto_1fr_1fr_1fr] gap-x-4 pt-2 mt-1 border-t-4 border-double border-line">
+			<div class="grid grid-cols-[auto_1fr_1fr_1fr] gap-x-2 sm:gap-x-4 pt-2 mt-1 border-t-4 border-double border-line">
 				<span class="plate !text-ledger">{m.reports_total()}</span>
 				<span class="figures text-phosphor text-right">{fmt(totalIncome)}</span>
 				<span class="figures text-debit text-right">{fmt(totalExpense)}</span>

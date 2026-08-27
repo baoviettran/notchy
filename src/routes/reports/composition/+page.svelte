@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { reportsStore } from '$lib/stores/reports.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
+	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import StackedAreaChart from '$lib/components/charts/StackedAreaChart.svelte';
 	import TapeLine from '$lib/components/reports/TapeLine.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
@@ -17,6 +18,11 @@
 		reportsStore.includeAdjustments;
 		void reportsStore.loadStackedComposition().then(() => (loaded = true));
 	});
+
+	function retry() {
+		loaded = false;
+		void reportsStore.loadStackedComposition().then(() => (loaded = true));
+	}
 
 	const chartData = $derived(reportsStore.stackedComposition);
 
@@ -58,10 +64,6 @@
 		return [...totals.entries()].sort((a, b) => b[1].total - a[1].total);
 	});
 	const grandTotal = $derived(tagTotals.reduce((s, [, t]) => s + t.total, 0));
-
-	let chartSummary = $derived(
-		m.reports_spending_by_bucket() + ' — ' + m.reports_months({ count: reportsStore.window })
-	);
 </script>
 
 <div class="space-y-6">
@@ -71,12 +73,12 @@
 	     every reports header into a ragged block. -->
 	<ReportsNav />
 
-	<div class="flex items-center gap-4">
+	<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
 		<div class="flex gap-1 text-sm">
 			{#each windowOptions as n}
 				<button
 					onclick={() => (reportsStore.window = n)}
-					class="px-2 py-1 rounded {reportsStore.window === n ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim'}"
+					class="px-2 min-h-9 pointer-coarse:min-h-11 rounded transition-colors {reportsStore.window === n ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim hover:text-ledger'}"
 				>
 					{m.reports_months({ count: n })}
 				</button>
@@ -89,15 +91,17 @@
 		</label>
 	</div>
 
-	{#if !loaded}
+	{#if reportsStore.error}
+		<ErrorState description={reportsStore.error} onRetry={retry} />
+	{:else if !loaded}
 		<div class="surface rounded-lg p-5">
 			<Skeleton lines={5} />
 		</div>
 	{:else if chartData.length > 0 && chartData.some((point) => point.tags.length > 0)}
 		<section class="surface rounded-lg border border-line p-4">
-			<div role="img" aria-label={chartSummary}>
-				<StackedAreaChart data={chartData} {yFormat} {xFormat} {colors} label={m.reports_composition_chart_label()} />
-			</div>
+			<!-- The SVG carries its own role="img" + label; no wrapper role, so AT
+			     doesn't announce the chart twice. -->
+			<StackedAreaChart data={chartData} {yFormat} {xFormat} {colors} label={m.reports_composition_chart_label()} />
 		</section>
 
 		<!-- The data, printed: per-tag ruled totals so the meter above stays

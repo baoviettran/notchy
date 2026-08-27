@@ -6,10 +6,12 @@
 <!-- Persistent status region: the wrapper is always mounted so screen readers
      announce the message when it is inserted into the region (role="status" is
      implicitly aria-live="polite" + aria-atomic). -->
+<!-- md+: the sidebar owns the left 15rem, so the toast docks inside the
+     content column instead of covering the sidebar's LOCAL · OFFLINE plate. -->
 <div
 	role="status"
 	aria-live="polite"
-	class="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 md:left-6 md:translate-x-0 z-50"
+	class="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 md:left-[17.5rem] md:translate-x-0 z-50"
 	onpointerenter={() => toast.pause()}
 	onpointerleave={() => toast.resume()}
 	onfocusin={() => toast.pause()}

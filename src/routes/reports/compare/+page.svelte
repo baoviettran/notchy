@@ -1,15 +1,17 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { getDb } from '$lib/db';
 	import type { CompareRow } from '$lib/db/client';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
+	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { formatCurrency, formatCurrencyCompact, isLongCurrency } from '$lib/utils/currency';
+	import { mapError } from '$lib/utils/errors';
 	import * as m from '$lib/paraglide/messages';
 	import ReportsNav from '$lib/components/layout/ReportsNav.svelte';
 
 	let rows = $state<CompareRow[]>([]);
 	let loaded = $state(false);
+	let error = $state<string | null>(null);
 	let includeAdjustments = $state(false);
 
 	// The ledger's own minus (−), never Intl's hyphen: sign is a glyph in
@@ -36,12 +38,16 @@
 	let monthB = $state(currentMonth());
 
 	async function load() {
-		const db = getDb();
-		rows = await db.reports.getComparison(monthA, monthB, includeAdjustments);
-		loaded = true;
+		error = null;
+		try {
+			const db = getDb();
+			rows = await db.reports.getComparison(monthA, monthB, includeAdjustments);
+			loaded = true;
+		} catch (e) {
+			error = mapError(e);
+		}
 	}
 
-	onMount(load);
 	$effect(() => { monthA; monthB; includeAdjustments; load(); });
 
 	let totalA = $derived(rows.reduce((s, r) => s + r.month_a, 0));
@@ -56,17 +62,19 @@
 	     every reports header into a ragged block. -->
 	<ReportsNav />
 
-	<div class="flex items-center gap-4">
-		<input type="month" bind:value={monthA} aria-label={monthA} class="px-2 py-1 text-sm rounded border border-line bg-ink text-ledger" />
+	<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+		<input type="month" bind:value={monthA} aria-label={m.reports_month_from()} class="px-2 py-1 text-sm rounded border border-line bg-ink text-ledger" />
 		<span class="text-dim">{m.reports_vs()}</span>
-		<input type="month" bind:value={monthB} aria-label={monthB} class="px-2 py-1 text-sm rounded border border-line bg-ink text-ledger" />
+		<input type="month" bind:value={monthB} aria-label={m.reports_month_to()} class="px-2 py-1 text-sm rounded border border-line bg-ink text-ledger" />
 		<label class="flex items-center gap-2 text-sm text-dim">
 			<input type="checkbox" bind:checked={includeAdjustments} class="rounded" />
 			{m.reports_include_adjustments()}
 		</label>
 	</div>
 
-	{#if !loaded}
+	{#if error}
+		<ErrorState description={error} onRetry={load} />
+	{:else if !loaded}
 		<div class="surface rounded-lg p-5">
 			<Skeleton lines={6} />
 		</div>

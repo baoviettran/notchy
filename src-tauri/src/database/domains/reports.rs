@@ -7,7 +7,7 @@ use rusqlite::{Connection, params};
 use crate::database::error::{DbResult, map_sqlite_error};
 use crate::database::types::{
     BucketSpending, CategoryTrendPoint, CompareRow, NetWorthPoint, OverviewReport,
-    StackedCategoryPoint, TrendPoint, TypeTotal, YearOverYearPoint,
+    StackedCategoryPoint, StackedTag, TagSpending, TopTransaction, TrendPoint, YearOverYearPoint,
 };
 
 // ---------------------------------------------------------------------------
@@ -87,10 +87,23 @@ pub fn get_overview(
     let end = next_month_start(month);
     let kind = kind_filter(include_adjustments);
 
+    // Exclude transactions tagged in the Adjustments bucket (e.g. reconciliation
+    // expenses) from the aggregates unless adjustments are explicitly included.
+    // Mirrors the browser repo's adjustmentTagFilter.
+    let adjustment_tag_filter = if include_adjustments {
+        String::new()
+    } else {
+        "AND (t.tag_id IS NULL OR t.tag_id NOT IN (
+            SELECT id FROM category_tags WHERE type_id = 'bucket_adjustments'
+        ))"
+        .to_string()
+    };
+
     // Aggregate income/expense by kind
     let sql = format!(
         "SELECT t.kind, SUM(t.amount) AS total FROM transactions t
          WHERE {kind} AND t.date >= ?1 AND t.date < ?2 AND t.deleted_at IS NULL
+         {adjustment_tag_filter}
          GROUP BY t.kind"
     );
     let mut stmt = conn.prepare(&sql).map_err(map_sqlite_error)?;
@@ -126,11 +139,52 @@ pub fn get_overview(
         .collect::<Result<Vec<_>, _>>()
         .map_err(map_sqlite_error)?;
 
+    // Top spending tags (categorized expenses only, mirroring the browser repo)
+    let top_cat_sql =
+        "SELECT t.tag_id, ct.name, SUM(t.amount) AS total
+         FROM transactions t
+         JOIN category_tags ct ON t.tag_id = ct.id
+         WHERE t.kind = 'expense' AND t.date >= ?1 AND t.date < ?2 AND t.deleted_at IS NULL
+         GROUP BY t.tag_id ORDER BY total DESC LIMIT 5";
+    let mut stmt = conn.prepare(top_cat_sql).map_err(map_sqlite_error)?;
+    let top_categories: Vec<TagSpending> = stmt
+        .query_map(params![start, end], |row| {
+            Ok(TagSpending {
+                tag_id: row.get(0)?,
+                name: row.get(1)?,
+                total: row.get(2)?,
+            })
+        })
+        .map_err(map_sqlite_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(map_sqlite_error)?;
+
+    // Top expense transactions
+    let top_tx_sql =
+        "SELECT id, payee, amount, date FROM transactions
+         WHERE kind = 'expense' AND date >= ?1 AND date < ?2 AND deleted_at IS NULL
+         ORDER BY amount DESC LIMIT 5";
+    let mut stmt = conn.prepare(top_tx_sql).map_err(map_sqlite_error)?;
+    let top_transactions: Vec<TopTransaction> = stmt
+        .query_map(params![start, end], |row| {
+            Ok(TopTransaction {
+                id: row.get(0)?,
+                payee: row.get(1)?,
+                amount: row.get(2)?,
+                date: row.get(3)?,
+            })
+        })
+        .map_err(map_sqlite_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(map_sqlite_error)?;
+
     Ok(OverviewReport {
-        income,
-        expense,
-        net,
+        total_income: income,
+        total_expense: expense,
+        net_cash_flow: net,
         spending_by_bucket: buckets,
+        top_categories,
+        top_transactions,
     })
 }
 
@@ -265,11 +319,19 @@ pub fn get_comparison(
             .or_else(|| map_b.get(&key))
             .map(|(n, _)| n.clone())
             .unwrap_or_else(|| "Uncategorised".to_string());
+        let change = month_b_val - month_a_val;
+        let change_pct = if month_a_val > 0 {
+            Some((change as f64 / month_a_val as f64) * 100.0)
+        } else {
+            None
+        };
         rows.push(CompareRow {
-            category: name,
+            tag_id: key,
+            name,
             month_a: month_a_val,
             month_b: month_b_val,
-            delta: month_b_val - month_a_val,
+            change,
+            change_pct,
         });
     }
 
@@ -343,7 +405,7 @@ pub fn get_category_trend(
 
         points.push(CategoryTrendPoint {
             month: month_str,
-            total,
+            spent: total,
         });
 
         cur_month_i -= 1;
@@ -390,11 +452,11 @@ pub fn get_stacked_category_series(
     let mut cur_year = yr;
 
     let sql = format!(
-        "SELECT ct.type_id, t.kind, SUM(t.amount) AS total
+        "SELECT t.tag_id, COALESCE(ct.name, 'Uncategorised') AS name, t.kind, SUM(t.amount) AS total
          FROM transactions t
-         JOIN category_tags ct ON t.tag_id = ct.id
+         LEFT JOIN category_tags ct ON t.tag_id = ct.id
          WHERE {kind} AND t.date >= ?1 AND t.date < ?2 AND t.deleted_at IS NULL
-         GROUP BY ct.type_id, t.kind"
+         GROUP BY t.tag_id, t.kind"
     );
 
     for _ in 0..months {
@@ -403,34 +465,41 @@ pub fn get_stacked_category_series(
         let end = next_month_start(&month_str);
 
         let mut stmt = conn.prepare(&sql).map_err(map_sqlite_error)?;
-        let rows: Vec<(String, String, i64)> = stmt
+        let rows: Vec<(Option<String>, String, String, i64)> = stmt
             .query_map(params![start, end], |row| {
-                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
             })
             .map_err(map_sqlite_error)?
             .collect::<Result<Vec<_>, _>>()
             .map_err(map_sqlite_error)?;
 
-        let mut bucket_map = std::collections::HashMap::new();
-        for (type_id, kind, total) in &rows {
-            let entry = bucket_map.entry(type_id.clone()).or_insert(0i64);
+        let mut tag_map: std::collections::HashMap<Option<String>, (String, i64)> =
+            std::collections::HashMap::new();
+        for (tag_id, name, kind, total) in &rows {
+            let entry = tag_map
+                .entry(tag_id.clone())
+                .or_insert_with(|| (name.clone(), 0i64));
             match kind.as_str() {
-                "expense" => *entry += total,
-                "refund" => *entry -= total,
-                "adjustment" if include_adjustments => *entry += total,
+                "expense" => entry.1 += total,
+                "refund" => entry.1 -= total,
+                "adjustment" if include_adjustments => entry.1 += total,
                 _ => {}
             }
         }
 
-        let mut categories: Vec<TypeTotal> = bucket_map
+        let mut tags: Vec<StackedTag> = tag_map
             .into_iter()
-            .map(|(type_id, total)| TypeTotal { type_id, total })
+            .map(|(tag_id, (name, total))| StackedTag {
+                tag_id,
+                name,
+                total,
+            })
             .collect();
-        categories.sort_by(|a, b| b.total.cmp(&a.total));
+        tags.sort_by(|a, b| b.total.cmp(&a.total));
 
         points.push(StackedCategoryPoint {
             month: month_str,
-            categories,
+            tags,
         });
 
         cur_month_i -= 1;
@@ -444,40 +513,52 @@ pub fn get_stacked_category_series(
     Ok(points)
 }
 
-/// Year-over-year: 12-month income/expense for a given year.
+/// Year-over-year: 12-month income/expense for two years side by side.
 pub fn get_year_over_year(
     conn: &Connection,
-    year: i32,
+    year_a: i32,
+    year_b: i32,
     include_adjustments: bool,
 ) -> DbResult<Vec<YearOverYearPoint>> {
     let kind = kind_filter(include_adjustments);
     let mut points = Vec::with_capacity(12);
 
-    for m in 1..=12 {
-        let month_str = format!("{:04}-{:02}", year, m);
-        let start = month_start(&month_str);
-        let end = next_month_start(&month_str);
+    let sql = format!(
+        "SELECT t.kind, SUM(t.amount) AS total FROM transactions t
+         WHERE {kind} AND t.date >= ?1 AND t.date < ?2 AND t.deleted_at IS NULL
+         GROUP BY t.kind"
+    );
+    let mut stmt = conn.prepare(&sql).map_err(map_sqlite_error)?;
 
-        let sql = format!(
-            "SELECT t.kind, SUM(t.amount) AS total FROM transactions t
-             WHERE {kind} AND t.date >= ?1 AND t.date < ?2 AND t.deleted_at IS NULL
-             GROUP BY t.kind"
-        );
-        let mut stmt = conn.prepare(&sql).map_err(map_sqlite_error)?;
-        let rows: Vec<(String, i64)> = stmt
-            .query_map(params![start, end], |row| {
+    for m in 1..=12 {
+        let month_num = format!("{:02}", m);
+        let month_a_str = format!("{:04}-{}", year_a, month_num);
+        let month_b_str = format!("{:04}-{}", year_b, month_num);
+
+        let rows_a: Vec<(String, i64)> = stmt
+            .query_map(params![month_start(&month_a_str), next_month_start(&month_a_str)], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })
+            .map_err(map_sqlite_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(map_sqlite_error)?;
+        let rows_b: Vec<(String, i64)> = stmt
+            .query_map(params![month_start(&month_b_str), next_month_start(&month_b_str)], |row| {
                 Ok((row.get(0)?, row.get(1)?))
             })
             .map_err(map_sqlite_error)?
             .collect::<Result<Vec<_>, _>>()
             .map_err(map_sqlite_error)?;
 
-        let (income, expense) = aggregate_kind_totals(&rows, include_adjustments);
+        let (year_a_income, year_a_expense) = aggregate_kind_totals(&rows_a, include_adjustments);
+        let (year_b_income, year_b_expense) = aggregate_kind_totals(&rows_b, include_adjustments);
 
         points.push(YearOverYearPoint {
-            month: format!("{:02}", m),
-            income,
-            expense,
+            month: month_num,
+            year_a_income,
+            year_a_expense,
+            year_b_income,
+            year_b_expense,
         });
     }
 

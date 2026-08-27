@@ -36,12 +36,18 @@
 
 	let lastPersisted = '';
 	async function loadQuickAccount() {
-		const db = getDb();
-		accounts = await db.accounts.list();
-		const loaded = (await db.meta.getDefaultQuickAccount()) ?? '';
-		quickAccountId = loaded;
-		lastPersisted = loaded; // suppress redundant write for the seed value
-		quickAccountLoaded = true;
+		quickAccountError = null;
+		try {
+			const db = getDb();
+			accounts = await db.accounts.list();
+			const loaded = (await db.meta.getDefaultQuickAccount()) ?? '';
+			quickAccountId = loaded;
+			lastPersisted = loaded; // suppress redundant write for the seed value
+			quickAccountLoaded = true;
+		} catch {
+			quickAccountLoaded = false;
+			quickAccountError = m.errors_unknown();
+		}
 	}
 
 	// Persist when the user changes the selection. Skips the seed value (set in
@@ -130,7 +136,10 @@
 				disabled={!quickAccountLoaded}
 			/>
 			{#if quickAccountError}
-				<div class="text-xs text-debit mt-2">{quickAccountError}</div>
+				<div class="flex items-center gap-2 text-xs text-debit mt-2">
+					<span>{quickAccountError}</span>
+					<button onclick={loadQuickAccount} class="text-dim hover:text-ledger transition-colors underline">{m.common_retry()}</button>
+				</div>
 			{/if}
 		</div>
 		<div class="bg-tape rounded-lg border border-line p-4">

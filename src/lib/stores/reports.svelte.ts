@@ -1,4 +1,5 @@
 import { getDb } from '$lib/db';
+import { mapError } from '$lib/utils/errors';
 import type {
 	NetWorthPoint,
 	CategoryTrendPoint,
@@ -9,6 +10,9 @@ import type {
 export class ReportsStore {
 	window = $state<6 | 12 | 24>(12);
 	includeAdjustments = $state(false);
+	// A failed report load must surface as a retryable error, never an
+	// endlessly spinning skeleton.
+	error = $state<string | null>(null);
 
 	netWorth = $state<NetWorthPoint[]>([]);
 	categoryTrend = $state<CategoryTrendPoint[]>([]);
@@ -16,23 +20,43 @@ export class ReportsStore {
 	yearOverYear = $state<YearOverYearPoint[]>([]);
 
 	async loadNetWorth(): Promise<void> {
-		const db = getDb();
-		this.netWorth = await db.reports.getNetWorthSeries(this.window, this.includeAdjustments);
+		this.error = null;
+		try {
+			const db = getDb();
+			this.netWorth = await db.reports.getNetWorthSeries(this.window, this.includeAdjustments);
+		} catch (e) {
+			this.error = mapError(e);
+		}
 	}
 
 	async loadCategoryTrend(tagId: string): Promise<void> {
-		const db = getDb();
-		this.categoryTrend = await db.reports.getCategoryTrend(tagId, this.window, this.includeAdjustments);
+		this.error = null;
+		try {
+			const db = getDb();
+			this.categoryTrend = await db.reports.getCategoryTrend(tagId, this.window, this.includeAdjustments);
+		} catch (e) {
+			this.error = mapError(e);
+		}
 	}
 
 	async loadStackedComposition(): Promise<void> {
-		const db = getDb();
-		this.stackedComposition = await db.reports.getStackedCategorySeries(this.window, this.includeAdjustments);
+		this.error = null;
+		try {
+			const db = getDb();
+			this.stackedComposition = await db.reports.getStackedCategorySeries(this.window, this.includeAdjustments);
+		} catch (e) {
+			this.error = mapError(e);
+		}
 	}
 
 	async loadYearOverYear(yearA: number, yearB: number): Promise<void> {
-		const db = getDb();
-		this.yearOverYear = await db.reports.getYearOverYear(yearA, yearB, this.includeAdjustments);
+		this.error = null;
+		try {
+			const db = getDb();
+			this.yearOverYear = await db.reports.getYearOverYear(yearA, yearB, this.includeAdjustments);
+		} catch (e) {
+			this.error = mapError(e);
+		}
 	}
 }
 

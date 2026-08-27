@@ -82,7 +82,7 @@
 			await getRawDb(db).execute(`VACUUM INTO '${path.replace(/'/g, "''")}'`);
 			toast.show(m.settings_backup_toast_exported());
 		} catch (e) {
-			toast.show(m.settings_backup_toast_export_failed({ error: String(e) }));
+			toast.show(m.settings_backup_toast_export_failed({ error: mapError(e) }));
 		} finally {
 			busy = false;
 		}
@@ -100,7 +100,7 @@
 			}
 			toast.show(m.settings_backup_toast_csv_exported());
 		} catch (e) {
-			toast.show(m.settings_backup_toast_export_failed({ error: String(e) }));
+			toast.show(m.settings_backup_toast_export_failed({ error: mapError(e) }));
 		} finally {
 			busy = false;
 		}
@@ -140,7 +140,7 @@
 
 	<div class="space-y-4">
 		<div class="bg-tape rounded-lg border border-line p-4 space-y-3">
-			<div class="flex items-center justify-between gap-2">
+			<div class="flex flex-wrap items-center justify-between gap-2 gap-y-2">
 				<h2 class="font-medium text-ledger">{m.settings_backup_health()}</h2>
 				<div class="flex gap-2">
 					<Button size="sm" variant="secondary" disabled={busy} onclick={createBackupNow}>{m.settings_backup_health_create_now()}</Button>

@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { reportsStore } from '$lib/stores/reports.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
+	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import LineChart from '$lib/components/charts/LineChart.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
 	import { settings } from '$lib/stores/settings.svelte';
@@ -33,6 +34,12 @@
 		}
 	});
 
+	function retry() {
+		if (!selectedTagId) return;
+		loaded = false;
+		void reportsStore.loadCategoryTrend(selectedTagId).then(() => (loaded = true));
+	}
+
 	const chartData = $derived(
 		reportsStore.categoryTrend.map((point) => ({
 			x: new Date(point.month + '-01'),
@@ -56,7 +63,7 @@
 	     every reports header into a ragged block. -->
 	<ReportsNav />
 
-	<div class="flex items-center gap-4">
+	<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
 		<select bind:value={selectedTagId} class="bg-tape border border-line rounded-md px-3 py-1.5 text-sm text-ledger">
 			<option value="">{m.reports_select_tag()}</option>
 			{#each tags as tag}
@@ -68,7 +75,7 @@
 			{#each windowOptions as n}
 				<button
 					onclick={() => (reportsStore.window = n)}
-					class="px-2 py-1 rounded {reportsStore.window === n ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim'}"
+					class="px-2 min-h-9 pointer-coarse:min-h-11 rounded transition-colors {reportsStore.window === n ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim hover:text-ledger'}"
 				>
 					{m.reports_months({ count: n })}
 				</button>
@@ -81,12 +88,14 @@
 		</label>
 	</div>
 
-	{#if !loaded}
+	{#if reportsStore.error}
+		<ErrorState description={reportsStore.error} onRetry={retry} />
+	{:else if !loaded}
 		<div class="surface rounded-lg p-5">
 			<Skeleton lines={5} />
 		</div>
 	{:else}
-	{#if loaded && chartData.length > 0 && chartData.some((d) => d.y !== 0)}
+	{#if chartData.length > 0 && chartData.some((d) => d.y !== 0)}
 		<div class="bg-tape rounded-lg border border-line p-4">
 			<LineChart data={chartData} {yFormat} {xFormat} showArea={false} />
 		</div>

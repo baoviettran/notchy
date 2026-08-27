@@ -5,6 +5,8 @@
 	import Input from '$lib/components/primitives/Input.svelte';
 	import Select from '$lib/components/primitives/Select.svelte';
 	import ConfirmDialog from '$lib/components/primitives/ConfirmDialog.svelte';
+	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
+	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import { categories } from '$lib/stores/categories.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { getDb } from '$lib/db';
@@ -47,11 +49,15 @@
 	}
 
 	async function startDelete(t: Tag) {
-		const db = getDb();
-		const info = await db.categories.getTagTransactionInfo(t.id);
-		affectedCount = info.affected_count;
-		deleteOption = 'uncategorise';
-		confirmDelete = t;
+		try {
+			const db = getDb();
+			const info = await db.categories.getTagTransactionInfo(t.id);
+			affectedCount = info.affected_count;
+			deleteOption = 'uncategorise';
+			confirmDelete = t;
+		} catch (e) {
+			toast.show(mapError(e));
+		}
 	}
 
 	async function doDelete() {
@@ -77,10 +83,18 @@
 </script>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
+	<div class="flex flex-wrap items-center justify-between gap-y-2">
 		<h1 class="page-title">{m.categories_title()}</h1>
 		<Button size="sm" onclick={openCreate}>{m.categories_add_tag()}</Button>
 	</div>
+
+	{#if categories.loading}
+		<div class="surface rounded-lg p-4">
+			<Skeleton lines={5} />
+		</div>
+	{:else if categories.error}
+		<ErrorState description={categories.error} onRetry={() => categories.load()} />
+	{:else}
 
 	{#each categories.buckets as bucket}
 		{@const bucketTags = categories.tagsForBucket(bucket.id)}
@@ -108,6 +122,7 @@
 			</div>
 		</section>
 	{/each}
+	{/if}
 </div>
 
 <Modal bind:open={showForm} title={editing ? m.categories_edit_tag() : m.categories_add_tag_modal()}>

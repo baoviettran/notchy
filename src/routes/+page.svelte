@@ -164,9 +164,11 @@ const sampleBuckets = [
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 		<!-- THIS MONTH: segmented budget meter. -->
 		<section class="surface rounded-lg p-5">
-			<div class="flex items-center justify-between mb-3">
+			<!-- flex-wrap: the Vietnamese plate runs long and wraps on compact
+			     widths; the link must wrap as a whole (arrow never orphans). -->
+			<div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
 				<h2 class="plate">{m.dashboard_this_month()}</h2>
-				<a href="/budgets" class="plate hover:text-ledger transition-colors hit">{m.dashboard_budgets_link()}</a>
+				<a href="/budgets" class="plate hover:text-ledger transition-colors hit whitespace-nowrap">{m.dashboard_budgets_link()}</a>
 			</div>
 			{#if budgets.hasAllocations && totalAllocated > 0}
 				<div class="flex items-baseline gap-3 mb-3">
@@ -232,12 +234,16 @@ const sampleBuckets = [
 		{:else}
 			<ul class="divide-y divide-line border-t border-line">
 				{#each recentTxns as tx (tx.id)}
-					<li class="px-5 py-3 flex items-center justify-between gap-3">
-						<div class="min-w-0">
-							<p class="text-sm text-ledger truncate">{tx.payee || labelFor(tx.kind)}</p>
-							<p class="plate mt-0.5">{formatDateRelative(tx.date, settings.locale)}</p>
-						</div>
-						<Money amount={tx.amount} glyph={tx.kind === 'expense' ? '−' : tx.kind === 'income' ? '+' : ''} tone={tx.kind === 'expense' ? 'debit' : tx.kind === 'income' ? 'phosphor' : 'dim'} />
+					<!-- Same contract as every other transaction row in the app:
+					     tapping it opens the record. -->
+					<li class="px-5 py-3">
+						<a href={`/transactions/${tx.id}`} class="flex items-center justify-between gap-3">
+							<div class="min-w-0">
+								<p class="text-sm text-ledger truncate">{tx.payee || labelFor(tx.kind)}</p>
+								<p class="plate mt-0.5">{formatDateRelative(tx.date, settings.locale)}</p>
+							</div>
+							<Money amount={tx.amount} glyph={tx.kind === 'expense' ? '−' : tx.kind === 'income' ? '+' : ''} tone={tx.kind === 'expense' ? 'debit' : tx.kind === 'income' ? 'phosphor' : 'dim'} />
+						</a>
 					</li>
 				{/each}
 			</ul>

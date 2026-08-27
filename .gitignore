@@ -31,7 +31,7 @@ coverage/
 playwright-report/
 test-results/
 .vitest-cache/
-reports/
+/reports/
 
 # Logs
 *.log
@@ -67,6 +67,7 @@ artifacts/
 .claude/worktrees/
 .impeccable/hook.cache.json
 .impeccable/config.local.json
+.impeccable/critique/
 
 # Vendored agent skills: personal tooling, restorable from skills-lock.json
 .agents/

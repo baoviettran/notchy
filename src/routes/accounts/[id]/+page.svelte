@@ -8,6 +8,7 @@
 	import { getDb } from '$lib/db';
 	import { isLargeDiscrepancy } from '$lib/db/repos/reconciliations';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
+	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
@@ -16,12 +17,16 @@
 	import { parseAmount } from '$lib/utils/number_parse';
 	import { labelFor } from '$lib/utils/tx-kind';
 	import { accountTypeLabel } from '$lib/utils/account-type';
+	import { mapError } from '$lib/utils/errors';
 	import type { AccountWithBalance, Transaction, Reconciliation } from '$lib/db/client';
 	import * as m from '$lib/paraglide/messages';
 
 	let account = $state<AccountWithBalance | null>(null);
 	let txns = $state<Transaction[]>([]);
 	let history = $state<Reconciliation[]>([]);
+	// A missing or failed load must surface, never hang as a skeleton.
+	let notFound = $state(false);
+	let errorMsg = $state<string | null>(null);
 	let showReconcile = $state(false);
 	let actualBalance = $state('');
 	let reconcileError = $state('');
@@ -32,13 +37,29 @@
 	const accountId = $derived($page.params.id);
 
 	async function load() {
-		const db = getDb();
-		account = await db.accounts.get(accountId);
-		txns = await db.transactions.list({ account_id: accountId, limit: 100 });
-		history = await db.reconciliations.getHistory(accountId);
+		errorMsg = null;
+		notFound = false;
+		try {
+			const db = getDb();
+			account = await db.accounts.get(accountId);
+			if (!account) {
+				notFound = true;
+				return;
+			}
+			txns = await db.transactions.list({ account_id: accountId, limit: 100 });
+			history = await db.reconciliations.getHistory(accountId);
+		} catch (e) {
+			errorMsg = mapError(e);
+		}
 	}
 
 	onMount(load);
+
+	// Re-load when the id param changes (in-app nav between accounts).
+	$effect(() => {
+		accountId;
+		void load();
+	});
 
 	async function startReconcile() {
 		if (!actualBalance.trim()) return;
@@ -63,12 +84,16 @@
 	}
 
 	async function doReconcile(actual: number) {
-		const db = getDb();
-		const result = await db.reconciliations.reconcile(accountId, actual, true);
-		toast.show(result.discrepancy === 0 ? m.accounts_reconciled_toast() : m.accounts_adjustment_created({ amount: formatCurrency(result.discrepancy, settings.currency, settings.locale) }));
-		showReconcile = false;
-		actualBalance = '';
-		await load();
+		try {
+			const db = getDb();
+			const result = await db.reconciliations.reconcile(accountId, actual, true);
+			toast.show(result.discrepancy === 0 ? m.accounts_reconciled_toast() : m.accounts_adjustment_created({ amount: formatCurrency(result.discrepancy, settings.currency, settings.locale) }));
+			showReconcile = false;
+			actualBalance = '';
+			await load();
+		} catch (e) {
+			toast.show(mapError(e));
+		}
 	}
 
 	async function confirmLargeReconcile() {
@@ -79,7 +104,15 @@
 </script>
 
 <div class="space-y-6">
-	{#if account}
+	<a href="/accounts" class="inline-flex items-center gap-1 text-xs text-dim hover:text-phosphor transition-colors">← {m.common_back()}</a>
+
+	{#if errorMsg}
+		<ErrorState description={errorMsg} onRetry={load} />
+	{:else if notFound}
+		<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
+			<p class="text-sm">{m.errors_account_not_found()}</p>
+		</div>
+	{:else if account}
 		<div class="flex items-center justify-between">
 			<div>
 				<h1 class="page-title">{account.name}</h1>
@@ -102,12 +135,16 @@
 			{:else}
 				<div class="bg-tape rounded-lg border border-line divide-y divide-line">
 					{#each txns as tx}
-						<div class="p-3 flex items-center justify-between text-sm">
-							<div>
-								<div class="text-ledger">{tx.payee || labelFor(tx.kind)}</div>
-								<div class="text-xs text-dim">{formatDateRelative(tx.date, settings.locale)}</div>
-							</div>
-							<Money amount={tx.amount} glyph={tx.kind === 'expense' ? '−' : tx.kind === 'income' ? '+' : ''} tone={tx.kind === 'expense' ? 'debit' : tx.kind === 'income' ? 'phosphor' : 'dim'} />
+						<!-- Same contract as every other transaction row: tap opens
+						     the record. -->
+						<div class="p-3 text-sm">
+							<a href={`/transactions/${tx.id}`} class="flex items-center justify-between">
+								<div>
+									<div class="text-ledger">{tx.payee || labelFor(tx.kind)}</div>
+									<div class="text-xs text-dim">{formatDateRelative(tx.date, settings.locale)}</div>
+								</div>
+								<Money amount={tx.amount} glyph={tx.kind === 'expense' ? '−' : tx.kind === 'income' ? '+' : ''} tone={tx.kind === 'expense' ? 'debit' : tx.kind === 'income' ? 'phosphor' : 'dim'} />
+							</a>
 						</div>
 					{/each}
 				</div>

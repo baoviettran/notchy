@@ -49,7 +49,7 @@ test.describe('transactions', () => {
 		// Row tap opens the read-only detail view (/transactions/[id]); Edit
 		// lives there as an action. The row's accessible name for a payee-less
 		// expense is "Expense Today · Expense".
-		await page.getByRole('main').getByRole('button', { name: /^Expense/ }).click();
+		await page.getByRole('main').getByRole('link', { name: /^Expense/ }).click();
 		await expect(page.getByRole('heading', { name: 'Expense' })).toBeVisible();
 		await page.getByRole('button', { name: 'Edit' }).click();
 		const editModal = page.getByRole('dialog');
@@ -81,7 +81,7 @@ test.describe('transactions', () => {
 		await addTransaction(page, { kind: 'expense', amount: '50k' });
 		await page.getByRole('link', { name: 'Transactions', exact: true }).click();
 		// Row tap → detail view → Edit action opens the form modal.
-		await page.getByRole('main').getByRole('button', { name: /^Expense/ }).click();
+		await page.getByRole('main').getByRole('link', { name: /^Expense/ }).click();
 		await expect(page.getByRole('heading', { name: 'Expense' })).toBeVisible();
 		await page.getByRole('button', { name: 'Edit' }).click();
 		const editModal = page.getByRole('dialog');

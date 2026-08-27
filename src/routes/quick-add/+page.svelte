@@ -4,7 +4,7 @@
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import * as m from '$lib/paraglide/messages';
 	import { settings } from '$lib/stores/settings.svelte';
-	import { getDb, isTauri } from '$lib/db';
+	import { getDb, initDb, isTauri } from '$lib/db';
 	import { parseQuickInput } from '$lib/utils/quick_parse';
 	import { AppError } from '$lib/errors';
 	import { mapError } from '$lib/utils/errors';
@@ -25,7 +25,10 @@
 			: null;
 	}
 
-	const noAccountHint = $derived(!ready || !activeAccount ? m.quick_add_no_account_hint() : null);
+	// Only claim "no account" once the window is genuinely ready — during the
+	// initial load, or after a db/locale error, it would contradict reality
+	// (and, on a database_update_required rejection, stack against the error).
+	const noAccountHint = $derived(ready && !activeAccount ? m.quick_add_no_account_hint() : null);
 
 	async function loadDefaultAccount(): Promise<void> {
 		const db = getDb();
@@ -48,6 +51,11 @@
 		// `database_update_required` — show that explicitly instead of failing
 		// silently.
 		try {
+			// The Tauri-only skip above means the quick-add window reuses the main
+			// window's pooled connection. On the web there is no pool and no
+			// second window — a fresh /quick-add navigation must initialize its
+			// own sql.js database or getDb() throws "database not initialized".
+			if (!isTauri()) await initDb();
 			await getDb();
 			await settings.load();
 			await loadDefaultAccount();
@@ -146,7 +154,7 @@
 
 <div class="tape">
 	<header class="top">
-		<span class="mark" class:animate-flash={justSaved}>▮</span>
+		<span class="mark" class:animate-flash={justSaved} aria-hidden="true">▮</span>
 		<span class="esc">ESC</span>
 	</header>
 
