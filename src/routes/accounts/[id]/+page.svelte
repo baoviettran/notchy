@@ -104,12 +104,12 @@
 </script>
 
 <div class="space-y-6">
-	<a href="/accounts" class="inline-flex items-center gap-1 text-xs text-dim hover:text-phosphor transition-colors">← {m.common_back()}</a>
+	<a href="/accounts" class="inline-flex items-center gap-1 text-xs text-dim hover:text-phosphor transition-colors">◀ {m.common_back()}</a>
 
 	{#if errorMsg}
 		<ErrorState description={errorMsg} onRetry={load} />
 	{:else if notFound}
-		<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
+		<div class="surface rounded-lg p-6 text-center text-dim">
 			<p class="text-sm">{m.errors_account_not_found()}</p>
 		</div>
 	{:else if account}
@@ -121,7 +121,7 @@
 			<Button size="sm" variant="secondary" onclick={() => { showReconcile = true; actualBalance = ''; reconcileError = ''; }}>{m.accounts_reconcile()}</Button>
 		</div>
 
-		<div class="bg-tape rounded-lg border border-line p-4">
+		<div class="surface rounded-lg p-4">
 			<p class="figures text-2xl text-ledger">{formatCurrency(account.balance, settings.currency, settings.locale)}</p>
 			<p class="plate mt-1">{m.accounts_current_balance()}</p>
 		</div>
@@ -129,11 +129,11 @@
 		<section>
 			<h2 class="plate mb-2">{m.accounts_transactions()}</h2>
 			{#if txns.length === 0}
-				<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
+				<div class="surface rounded-lg p-6 text-center text-dim">
 					<p class="text-sm">{m.accounts_no_transactions()}</p>
 				</div>
 			{:else}
-				<div class="bg-tape rounded-lg border border-line divide-y divide-line">
+				<div class="surface rounded-lg divide-y divide-line">
 					{#each txns as tx}
 						<!-- Same contract as every other transaction row: tap opens
 						     the record. -->
@@ -154,7 +154,7 @@
 		{#if history.length > 0}
 			<section>
 				<h2 class="plate mb-2">{m.accounts_reconciliation_history()}</h2>
-				<div class="bg-tape rounded-lg border border-line divide-y divide-line">
+				<div class="surface rounded-lg divide-y divide-line">
 					{#each history as h}
 						<div class="p-3 flex items-center justify-between text-sm">
 							<div>

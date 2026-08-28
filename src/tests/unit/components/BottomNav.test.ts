@@ -6,9 +6,9 @@ import BottomNav from '$lib/components/layout/BottomNav.svelte';
 describe('BottomNav', () => {
 	it('renders the 4 primary nav links', () => {
 		render(BottomNav);
-		expect(screen.getByText('Home')).toBeInTheDocument();
-		expect(screen.getByText('Trans')).toBeInTheDocument();
-		expect(screen.getByText('Budget')).toBeInTheDocument();
+		expect(screen.getByText('Dashboard')).toBeInTheDocument();
+		expect(screen.getByText('Transactions')).toBeInTheDocument();
+		expect(screen.getByText('Budgets')).toBeInTheDocument();
 		expect(screen.getByText('Reports')).toBeInTheDocument();
 	});
 

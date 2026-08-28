@@ -1,22 +1,13 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { slideUp } from '$lib/transitions/motion';
+	import { primaryNav, secondaryNav, icons, isActive } from '$lib/nav-items';
 	import * as m from '$lib/paraglide/messages';
 	import { createFocusTrap } from '$lib/utils/focusTrap';
 
-	const tabs = [
-		{ href: '/', label: m.layout_home(), d: 'M3 12h7V3H3zM14 21h7v-9h-7zM14 3v6h7V3zM3 21h7v-3H3z' },
-		{ href: '/transactions', label: m.layout_trans(), d: 'M4 6h16M4 12h16M4 18h10', tourId: 'transactions' },
-		{ href: '/budgets', label: m.layout_budget(), d: 'M3 17l5-5 4 4 8-8M21 8v5h-5', tourId: 'budgets' },
-		{ href: '/reports', label: m.nav_reports(), d: 'M4 20V10M10 20V4M16 20v-7M22 20H2' }
-	];
-
-	const moreItems = [
-		{ href: '/accounts', label: m.nav_accounts(), d: 'M3 7h18v12H3zM3 11h18M7 15h4' },
-		{ href: '/goals', label: m.nav_goals(), d: 'M12 3a9 9 0 100 18 9 9 0 000-18zM12 7v5l3 2' },
-		{ href: '/debts', label: m.nav_debts(), d: 'M3 12h13M11 7l5 5-5 5M19 4v16' },
-		{ href: '/settings', label: m.nav_settings(), d: 'M12 9a3 3 0 100 6 3 3 0 000-6zM12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2' }
-	];
+	// BottomNav shows primary tabs + a "More" button that opens a sheet
+	// with secondary items.
+	const moreItems = secondaryNav;
 
 	let moreOpen = $state(false);
 	let sheetEl = $state<HTMLElement | null>(null);
@@ -41,16 +32,12 @@
 	$effect(() => {
 		if (moreOpen) return focusTrap.enter(() => sheetEl ?? undefined);
 	});
-
-	function isActive(href: string, path: string): boolean {
-		return href === '/' ? path === '/' : path === href || path.startsWith(href + '/');
-	}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
 
 <nav class="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-tape/95 backdrop-blur border-t border-line flex z-30 pb-[env(safe-area-inset-bottom)]">
-	{#each tabs as tab}
+	{#each primaryNav as tab}
 		{@const active = isActive(tab.href, $page.url.pathname)}
 		<a
 			href={tab.href}
@@ -60,9 +47,9 @@
 				{active ? 'text-phosphor-bright' : 'text-dim'}"
 		>
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 {active ? 'text-phosphor' : ''}">
-				<path d={tab.d} />
+				<path d={icons[tab.key]} />
 			</svg>
-			<span class="tracking-wide">{tab.label}</span>
+			<span class="tracking-wide">{tab.label()}</span>
 		</a>
 	{/each}
 
@@ -102,9 +89,9 @@
 					class="flex flex-col items-center gap-2 p-3 rounded-lg transition-colors {active ? 'text-phosphor-bright' : 'text-dim'}"
 				>
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 {active ? 'text-phosphor' : ''}">
-						<path d={item.d} />
+						<path d={icons[item.key]} />
 					</svg>
-					<span class="text-xs tracking-wide">{item.label}</span>
+					<span class="text-xs tracking-wide">{item.label()}</span>
 				</a>
 			{/each}
 		</div>

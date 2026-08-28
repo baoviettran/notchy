@@ -7,13 +7,11 @@ import { addTransaction } from './helpers/ui';
 // onboarding. So every navigation here uses SPA (client-side) link clicks,
 // which keep the same in-memory DB alive for the whole test.
 
-// Verified against src/routes/reports/+page.svelte and the root layout:
+// Verified against src/lib/components/layout/ReportsNav.svelte:
 //  - The sidebar exposes a "Reports" link (m.nav_reports).
-//  - The reports index page renders in-page tab links labelled "Overview",
-//    "Trend", "Compare" (+page.svelte:38-40).
-//  - The root layout wraps every route's children in a <main> element
-//    (+layout.svelte:56), so getByRole('main') is a reliable "mounted"
-//    signal for each report route.
+//  - ReportsNav uses 3 grouped tabs ("Flow", "Breakdown", "Compare") with
+//    sub-items visible per active group. The reports overview page heading
+//    is "Overview" (m.reports_overview).
 
 test('reports sub-pages load with no console errors', async ({ onboardedPage: page }) => {
 	const errors: string[] = [];
@@ -26,14 +24,15 @@ test('reports sub-pages load with no console errors', async ({ onboardedPage: pa
 
 	// Navigate to /reports via the sidebar (SPA — keeps the DB alive).
 	await page.getByRole('link', { name: 'Reports', exact: true }).click();
-	await expect(page.getByRole('heading', { name: 'Reports', exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
 	await expect(page.getByRole('main')).toBeVisible();
 
-	// Trend + Compare are reachable as in-page tab links on /reports.
+	// Trend is a sub-item of the Flow group (visible on overview).
 	await page.getByRole('link', { name: 'Trend', exact: true }).click();
 	await expect(page.getByRole('main')).toBeVisible();
 
-	await page.getByRole('link', { name: 'Compare', exact: true }).click();
+	// Compare is a group tab — click it to switch to the Compare group.
+	await page.getByRole('tab', { name: 'Compare', exact: true }).click();
 	await expect(page.getByRole('main')).toBeVisible();
 
 	expect(errors).toEqual([]);
@@ -49,7 +48,7 @@ test('overview statement renders real figures after the report loads', async ({ 
 	await addTransaction(page, { kind: 'expense', amount: '50k' });
 
 	await page.getByRole('link', { name: 'Reports', exact: true }).click();
-	await expect(page.getByRole('heading', { name: 'Reports', exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
 
 	// Net = 25,000,000 − 50,000 = 24,950,000. If the contract drifts again,
 	// this figure never appears (the page sticks on its skeleton).

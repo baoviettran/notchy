@@ -22,6 +22,7 @@
 	import TopBar from '$lib/components/layout/TopBar.svelte';
 	import BottomNav from '$lib/components/layout/BottomNav.svelte';
 	import FAB from '$lib/components/layout/FAB.svelte';
+	import ShortcutRef from '$lib/components/layout/ShortcutRef.svelte';
 	import Modal from '$lib/components/primitives/Modal.svelte';
 	import TransactionForm from '$lib/components/forms/TransactionForm.svelte';
 	import GlobalToast from '$lib/components/primitives/GlobalToast.svelte';
@@ -33,6 +34,7 @@
 
 	let { children } = $props();
 	let showTxModal = $state(false);
+	let showShortcuts = $state(false);
 	let unlisten: (() => void) | undefined;
 	let tourInitialized = false;
 
@@ -80,10 +82,11 @@
 		if (tour.active) return;
 		const target = e.target as HTMLElement;
 		const inInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
-		if (e.key === 'Escape') { showTxModal = false; return; }
+		if (e.key === 'Escape') { showTxModal = false; showShortcuts = false; return; }
 		if (inInput) return;
 		if (e.key === 'n') { showTxModal = true; e.preventDefault(); }
 		if (e.key === '/') { document.querySelector<HTMLInputElement>('[type="search"]')?.focus(); e.preventDefault(); }
+		if (e.key === '?') { showShortcuts = !showShortcuts; e.preventDefault(); }
 	}
 
 	const isOnboarding = $derived($page.url.pathname === '/onboarding');
@@ -141,4 +144,5 @@
 		<TransactionForm onclose={() => showTxModal = false} />
 	</Modal>
 	<GlobalToast />
+	<ShortcutRef bind:open={showShortcuts} />
 {/if}

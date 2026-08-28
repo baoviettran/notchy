@@ -1,52 +1,39 @@
 <script lang="ts">
-	import { getDb } from '$lib/db';
-	import type { TrendPoint } from '$lib/db/client';
+	import { reportsStore } from '$lib/stores/reports.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
+	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
+	import AdjustmentsToggle from '$lib/components/reports/AdjustmentsToggle.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
-	import { formatCurrency, formatCurrencyCompact, isLongCurrency } from '$lib/utils/currency';
+	import { formatCurrency } from '$lib/utils/currency';
+	import { fmtReport } from '$lib/utils/report-format';
 	import { formatMonth, formatMonthShort } from '$lib/utils/date';
-	import { mapError } from '$lib/utils/errors';
 	import * as m from '$lib/paraglide/messages';
 	import ReportsNav from '$lib/components/layout/ReportsNav.svelte';
 
-	let points = $state<TrendPoint[]>([]);
 	let loaded = $state(false);
-	let error = $state<string | null>(null);
-	let months = $state(6);
-	let includeAdjustments = $state(false);
 
-	// The ledger's own minus (−), never Intl's hyphen: sign is a glyph in
-	// this system, paired with tone so color never carries it alone.
-	function fmt(amount: number): string {
-		const magnitude = Math.abs(amount);
-		const figure = isLongCurrency(magnitude, settings.currency, settings.locale)
-			? formatCurrencyCompact(magnitude, settings.currency, settings.locale)
-			: formatCurrency(magnitude, settings.currency, settings.locale);
-		return (amount < 0 ? '−' : '') + figure;
+	const windowOptions = [6, 12, 24] as const;
+
+	function retry() {
+		loaded = false;
+		void reportsStore.loadTrend().then(() => (loaded = true));
 	}
 
-	async function load() {
-		error = null;
-		try {
-			const db = getDb();
-			points = await db.reports.getTrend(months, includeAdjustments);
-			loaded = true;
-		} catch (e) {
-			error = mapError(e);
-		}
-	}
+	$effect(() => {
+		reportsStore.window;
+		reportsStore.includeAdjustments;
+		void reportsStore.loadTrend().then(() => (loaded = true));
+	});
 
-	$effect(() => { months; includeAdjustments; load(); });
-
-	let maxValue = $derived(Math.max(...points.map((p) => Math.max(p.income, p.expense)), 1));
-	let totalIncome = $derived(points.reduce((s, p) => s + p.income, 0));
-	let totalExpense = $derived(points.reduce((s, p) => s + p.expense, 0));
+	let maxValue = $derived(Math.max(...reportsStore.trend.map((p) => Math.max(p.income, p.expense)), 1));
+	let totalIncome = $derived(reportsStore.trend.reduce((s, p) => s + p.income, 0));
+	let totalExpense = $derived(reportsStore.trend.reduce((s, p) => s + p.expense, 0));
 	let totalNet = $derived(totalIncome - totalExpense);
 </script>
 
 <div class="space-y-6">
-	<h1 class="page-title">{m.reports_title()}</h1>
+	<h1 class="page-title">{m.reports_trend()}</h1>
 
 	<!-- The nav owns its band: seven tabs wrapping beside the title turned
 	     every reports header into a ragged block. -->
@@ -54,31 +41,28 @@
 
 	<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
 		<div class="flex gap-1 text-sm">
-			{#each [6, 12, 24] as n}
-				<button type="button" onclick={() => months = n}
-					class="px-2 min-h-9 pointer-coarse:min-h-11 rounded transition-colors {months === n ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim hover:text-ledger'}"
+			{#each windowOptions as n}
+				<button type="button" onclick={() => (reportsStore.window = n)}
+					class="px-2 min-h-9 pointer-coarse:min-h-11 rounded transition-colors {reportsStore.window === n ? 'bg-phosphor/15 text-phosphor font-medium' : 'text-dim hover:text-ledger'}"
 				>{m.reports_months({ count: n })}</button>
 			{/each}
 		</div>
-		<label class="flex items-center gap-2 text-sm text-dim">
-			<input type="checkbox" bind:checked={includeAdjustments} class="rounded" />
-			{m.reports_include_adjustments()}
-		</label>
+		<AdjustmentsToggle bind:checked={reportsStore.includeAdjustments} />
 	</div>
 
-	{#if error}
-		<ErrorState description={error} onRetry={load} />
+	{#if reportsStore.error}
+		<ErrorState description={reportsStore.error} onRetry={retry} />
 	{:else if !loaded}
 		<div class="surface rounded-lg p-5">
 			<Skeleton lines={5} />
 		</div>
-	{:else if points.length > 0 && points.some((p) => p.income > 0 || p.expense > 0)}
+	{:else if reportsStore.trend.length > 0 && reportsStore.trend.some((p) => p.income > 0 || p.expense > 0)}
 		<!-- The meter: each month column announces its figures to the title
 		     tooltip and to assistive tech — the bars carry no values alone. -->
 		<section class="surface rounded-lg border border-line p-4">
 			<h2 class="plate mb-3">{m.reports_trend()}</h2>
 			<div class="flex items-end gap-1 h-48">
-				{#each points as point (point.month)}
+				{#each reportsStore.trend as point (point.month)}
 					{@const label = formatMonth(point.month, settings.locale) + ': ' + m.reports_income() + ' ' + formatCurrency(point.income, settings.currency, settings.locale) + ', ' + m.reports_expense() + ' ' + formatCurrency(point.expense, settings.currency, settings.locale)}
 					<button
 						type="button"
@@ -108,24 +92,22 @@
 				<span class="plate text-right">{m.reports_expense()}</span>
 				<span class="plate text-right">Δ</span>
 			</div>
-			{#each points as point (point.month)}
+			{#each reportsStore.trend as point (point.month)}
 				<div class="grid grid-cols-[auto_1fr_1fr_1fr] gap-x-2 sm:gap-x-4 py-2 border-b border-line/40 text-xs sm:text-sm min-w-0">
-					<span class="figures text-dim shrink-0">{point.month}</span>
-					<span class="figures text-phosphor text-right" title={formatCurrency(point.income, settings.currency, settings.locale)}>{fmt(point.income)}</span>
-					<span class="figures text-debit text-right" title={formatCurrency(point.expense, settings.currency, settings.locale)}>{fmt(point.expense)}</span>
-					<span class="figures text-right {point.net >= 0 ? 'text-phosphor' : 'text-debit'}" title={formatCurrency(point.net, settings.currency, settings.locale)}>{fmt(point.net)}</span>
+					<span class="figures text-dim shrink-0">{formatMonthShort(point.month, settings.locale)}</span>
+					<span class="figures text-phosphor text-right" title={formatCurrency(point.income, settings.currency, settings.locale)}>{fmtReport(point.income, settings.currency, settings.locale)}</span>
+					<span class="figures text-debit text-right" title={formatCurrency(point.expense, settings.currency, settings.locale)}>{fmtReport(point.expense, settings.currency, settings.locale)}</span>
+					<span class="figures text-right {point.net >= 0 ? 'text-phosphor' : 'text-debit'}" title={formatCurrency(point.net, settings.currency, settings.locale)}>{fmtReport(point.net, settings.currency, settings.locale)}</span>
 				</div>
 			{/each}
 			<div class="grid grid-cols-[auto_1fr_1fr_1fr] gap-x-2 sm:gap-x-4 pt-2 mt-1 border-t-4 border-double border-line">
 				<span class="plate !text-ledger">{m.reports_total()}</span>
-				<span class="figures text-phosphor text-right">{fmt(totalIncome)}</span>
-				<span class="figures text-debit text-right">{fmt(totalExpense)}</span>
-				<span class="figures text-right figures-glow {totalNet >= 0 ? 'text-phosphor' : 'text-debit'}">{fmt(totalNet)}</span>
+				<span class="figures text-phosphor text-right">{fmtReport(totalIncome, settings.currency, settings.locale)}</span>
+				<span class="figures text-debit text-right">{fmtReport(totalExpense, settings.currency, settings.locale)}</span>
+				<span class="figures text-right figures-glow {totalNet >= 0 ? 'text-phosphor' : 'text-debit'}">{fmtReport(totalNet, settings.currency, settings.locale)}</span>
 			</div>
 		</section>
 	{:else}
-		<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim min-h-[200px] flex items-center justify-center">
-			<p class="text-sm">{m.reports_trend_empty()}</p>
-		</div>
+		<EmptyState message={m.reports_trend_empty()} icon="▮▯▯▯" />
 	{/if}
 </div>

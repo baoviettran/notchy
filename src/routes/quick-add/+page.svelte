@@ -6,12 +6,14 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import { getDb, initDb, isTauri } from '$lib/db';
 	import { parseQuickInput } from '$lib/utils/quick_parse';
+	import { formatCurrency } from '$lib/utils/currency';
 	import { AppError } from '$lib/errors';
 	import { mapError } from '$lib/utils/errors';
 
 	let value = $state('');
 	let error = $state<string | null>(null);
 	let activeAccount = $state<{ id: string; name: string } | null>(null);
+	let allAccounts = $state<{ id: string; name: string }[]>([]);
 	let ready = $state(false);
 	let submitting = $state(false);
 	let justSaved = $state(false);
@@ -28,14 +30,39 @@
 	// Only claim "no account" once the window is genuinely ready — during the
 	// initial load, or after a db/locale error, it would contradict reality
 	// (and, on a database_update_required rejection, stack against the error).
-	const noAccountHint = $derived(ready && !activeAccount ? m.quick_add_no_account_hint() : null);
+	// In web mode there is no tray window — show a softer hint instead.
+	const noAccountHint = $derived.by(() => {
+		if (!ready || activeAccount) return null;
+		return isTauri() ? m.quick_add_no_account_hint() : m.quick_add_no_account_hint_web();
+	});
+
+	// Live parsed preview: show kind·amount·payee as the user types.
+	const preview = $derived.by(() => {
+		if (!value.trim()) return null;
+		try {
+			const parsed = parseQuickInput(value, settings.locale, settings.currency);
+			const amount = formatCurrency(parsed.amount, settings.currency, settings.locale);
+			const kind = parsed.kind === 'income' ? '+' : '−';
+			return { kind, amount, payee: parsed.payee ?? '' };
+		} catch {
+			return null;
+		}
+	});
 
 	async function loadDefaultAccount(): Promise<void> {
 		const db = getDb();
 		const id = await db.meta.getDefaultQuickAccount();
 		const accounts = await db.accounts.list();
+		allAccounts = accounts.map((a) => ({ id: a.id, name: a.name }));
 		const chosen = (id && accounts.find((a) => a.id === id)) || accounts[0];
 		activeAccount = chosen ? { id: chosen.id, name: chosen.name } : null;
+	}
+
+	function cycleAccount(): void {
+		if (allAccounts.length < 2) return;
+		const idx = allAccounts.findIndex((a) => a.id === activeAccount?.id);
+		const next = allAccounts[(idx + 1) % allAccounts.length];
+		activeAccount = next;
 	}
 
 	onMount(async () => {
@@ -132,7 +159,7 @@
 			// The machine registers the keypress: one phosphor flicker before the
 			// window hides, so a save never vanishes unacknowledged.
 			justSaved = true;
-			await new Promise((r) => setTimeout(r, 250));
+			await new Promise((r) => setTimeout(r, 400));
 			justSaved = false;
 			await hideWindow();
 		} finally {
@@ -152,22 +179,25 @@
 	}
 </script>
 
-<div class="tape">
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<svelte:window onkeydown={onKeydown} />
+
+<div class="tape" class:disabled={!ready || !activeAccount}>
 	<header class="top">
 		<span class="mark" class:animate-flash={justSaved} aria-hidden="true">▮</span>
-		<span class="esc">ESC</span>
+		<span class="esc" role="img" aria-label="Escape key">ESC</span>
 	</header>
 
 	<input
 		id="qa-input"
 		class="amount"
 		type="text"
+		inputmode="decimal"
 		autocomplete="off"
 		spellcheck="false"
 		placeholder={m.quick_add_placeholder()}
 		aria-label={m.quick_add_placeholder()}
 		bind:value
-		onkeydown={onKeydown}
 		disabled={!ready || !activeAccount}
 	/>
 
@@ -177,12 +207,27 @@
 
 	<div class="rule"></div>
 
-	<div class="payee" class:empty={!value}>
-		{value ? value : m.quick_add_payee_hint()}
+	<div class="payee" class:empty={!value && !preview}>
+		{#if preview}
+			<span class="preview-kind" class:income={preview.kind === '+'}>{preview.kind}</span>
+			<span class="preview-amount">{preview.amount}</span>
+			{#if preview.payee}
+				<span class="preview-payee">{preview.payee}</span>
+			{/if}
+		{:else}
+			{m.quick_add_payee_hint()}
+		{/if}
 	</div>
 
 	<footer class="status">
-		<span>{accountName} · {m.quick_add_today()}</span>
+		<button
+			type="button"
+			onclick={cycleAccount}
+			disabled={allAccounts.length < 2}
+			class="account-switch"
+			aria-label={m.quick_add_switch_account()}
+		>{accountName}{#if allAccounts.length > 1} ▾{/if}</button>
+		<span>· {m.quick_add_today()}</span>
 		<span class:animate-flash={justSaved}>{m.quick_add_save()} ⏎</span>
 	</footer>
 
@@ -201,6 +246,11 @@
 		padding: 0.75rem 1rem;
 		box-sizing: border-box;
 		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		transition: opacity 150ms ease-out;
+	}
+	.tape.disabled {
+		opacity: 0.5;
+		pointer-events: none;
 	}
 	.top {
 		display: flex;
@@ -236,19 +286,61 @@
 		color: var(--ledger);
 		font-size: 16px;
 		min-height: 1.2em;
+		display: flex;
+		align-items: baseline;
+		gap: 0.35em;
 	}
 	.payee.empty {
+		color: var(--dim);
+	}
+	.preview-kind {
+		color: var(--debit);
+		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-weight: 600;
+		font-size: 18px;
+	}
+	.preview-kind.income {
+		color: var(--phosphor);
+	}
+	.preview-amount {
+		color: var(--ledger);
+		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	}
+	.preview-payee {
 		color: var(--dim);
 	}
 	.status {
 		margin-top: auto;
 		display: flex;
 		justify-content: space-between;
+		align-items: center;
 		color: var(--dim);
 		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 		font-size: 11px;
 		text-transform: uppercase;
 		letter-spacing: 0.18em; /* engraved-faceplate tracking, matching .plate */
+	}
+	.account-switch {
+		background: none;
+		border: 1px solid var(--line);
+		color: var(--dim);
+		font-family: inherit;
+		font-size: inherit;
+		letter-spacing: inherit;
+		text-transform: inherit;
+		padding: 0.15em 0.5em;
+		border-radius: 6px; /* rounded-md: tight chip for adding-machine status bar */
+		cursor: pointer;
+		transition: color 150ms, border-color 150ms, background 150ms;
+	}
+	.account-switch:not(:disabled):hover {
+		color: var(--ledger);
+		border-color: var(--dim);
+		background: var(--line);
+	}
+	.account-switch:disabled {
+		cursor: default;
+		border-color: transparent;
 	}
 	/* Vietnamese: sentence-case the status bar and tighten tracking —
 	   stacked diacritics smear under uppercase at 11px, and the wider

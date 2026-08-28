@@ -1,9 +1,5 @@
 import type { Locale } from './number_parse';
-
-const CURRENCY_CONFIG: Record<string, { fractionDigits: number }> = {
-	VND: { fractionDigits: 0 },
-	USD: { fractionDigits: 2 }
-};
+import { CURRENCY_CONFIG } from './currency-config';
 
 /**
  * Formats an integer amount (smallest currency unit) into a display string.

@@ -3,10 +3,12 @@
 	import type { OverviewReport } from '$lib/db/client';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
+	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
 	import TapeLine from '$lib/components/reports/TapeLine.svelte';
+	import AdjustmentsToggle from '$lib/components/reports/AdjustmentsToggle.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
-	import { formatCurrency, formatCurrencyCompact, isLongCurrency } from '$lib/utils/currency';
-	import { seriesColor } from '$lib/utils/palette';
+	import { formatCurrency } from '$lib/utils/currency';
+	import { fmtReport } from '$lib/utils/report-format';
 	import { mapError } from '$lib/utils/errors';
 	import * as m from '$lib/paraglide/messages';
 	import ReportsNav from '$lib/components/layout/ReportsNav.svelte';
@@ -16,21 +18,7 @@
 	let error = $state<string | null>(null);
 	let includeAdjustments = $state(false);
 
-	// The ledger's own minus (−), never Intl's hyphen: sign is a glyph in
-	// this system, paired with tone so color never carries it alone.
-	function fmt(amount: number): string {
-		const magnitude = Math.abs(amount);
-		const figure = isLongCurrency(magnitude, settings.currency, settings.locale)
-			? formatCurrencyCompact(magnitude, settings.currency, settings.locale)
-			: formatCurrency(magnitude, settings.currency, settings.locale);
-		return (amount < 0 ? '−' : '') + figure;
-	}
-
 	let totalSpending = $derived(report?.spending_by_bucket.reduce((s, b) => s + b.total, 0) ?? 0);
-
-	function bucketPct(total: number): number {
-		return totalSpending > 0 ? Math.round((total / totalSpending) * 100) : 0;
-	}
 
 	function currentMonth() {
 		const d = new Date();
@@ -52,16 +40,13 @@
 </script>
 
 <div class="space-y-6">
-	<h1 class="page-title">{m.reports_title()}</h1>
+	<h1 class="page-title">{m.reports_overview()}</h1>
 
 	<!-- The nav owns its band: seven tabs wrapping beside the title turned
 	     every reports header into a ragged block. -->
 	<ReportsNav />
 
-	<label class="flex items-center gap-2 text-sm text-dim">
-		<input type="checkbox" bind:checked={includeAdjustments} class="rounded" />
-		{m.reports_include_adjustments()}
-	</label>
+	<AdjustmentsToggle bind:checked={includeAdjustments} />
 
 	{#if error}
 		<ErrorState description={error} onRetry={load} />
@@ -78,60 +63,29 @@
 				<span class="plate">▮▯▯▯</span>
 			</div>
 
-			<TapeLine label={m.reports_income()} amount={fmt(report.total_income)} tone="phosphor" variant="subtotal" />
+			<TapeLine label={m.reports_income()} amount={fmtReport(report.total_income, settings.currency, settings.locale)} tone="phosphor" variant="subtotal" />
 
 			<div class="mt-2">
 				<p class="plate mb-1">{m.reports_expenses()}</p>
 				{#each report.spending_by_bucket as b (b.name)}
-					<TapeLine label={b.name} amount={fmt(b.total)} tone="dim" title={formatCurrency(b.total, settings.currency, settings.locale)} />
+					<TapeLine label={b.name} amount={fmtReport(b.total, settings.currency, settings.locale)} tone="ledger" title={formatCurrency(b.total, settings.currency, settings.locale)} />
 				{/each}
-				<TapeLine label={m.reports_subtotal()} amount={fmt(report.total_expense)} tone="debit" variant="subtotal" />
+				<TapeLine label={m.reports_subtotal()} amount={fmtReport(report.total_expense, settings.currency, settings.locale)} tone="debit" variant="subtotal" />
 			</div>
 
 			<TapeLine
 				label={m.reports_net_cash_flow()}
-				amount={fmt(report.net_cash_flow)}
+				amount={fmtReport(report.net_cash_flow, settings.currency, settings.locale)}
 				tone={report.net_cash_flow >= 0 ? 'phosphor' : 'debit'}
 				variant="total"
 			/>
 		</section>
 
-		{#if report.spending_by_bucket.length > 0}
-			<!-- COMPOSITION: stacked tape segments, not a pie. One bar of the
-			     machine's own inks; the ruled lines below are the data, so the
-			     meter stays decorative and the numbers stay accessible. -->
-			<section class="surface rounded-lg p-4">
-				<h2 class="plate mb-3">{m.reports_spending_by_bucket()}</h2>
-				<div
-					class="flex h-3 w-full overflow-hidden rounded-full border border-line/60 mb-4"
-					role="presentation"
-					aria-hidden="true"
-				>
-				{#each report.spending_by_bucket as b, i (b.name)}
-					<!-- Ramp keyed off the row's position in the API result, not a
-					     name list: an unknown or renamed bucket still gets its own
-					     distinct ink instead of collapsing into the fallback. -->
-					<div style="width: {bucketPct(b.total)}%; background: {seriesColor(i)}"></div>
-				{/each}
-				</div>
-				{#each report.spending_by_bucket as b (b.name)}
-					<TapeLine
-						label={b.name}
-						amount={fmt(b.total)}
-						note="{bucketPct(b.total)}%"
-						tone="dim"
-						title={formatCurrency(b.total, settings.currency, settings.locale)}
-					/>
-				{/each}
-				<TapeLine label={m.reports_subtotal()} amount={fmt(totalSpending)} tone="ledger" variant="subtotal" />
-			</section>
-		{/if}
-
 		{#if report.top_categories.length > 0}
 			<section class="surface rounded-lg p-4">
 				<h2 class="plate mb-3">{m.reports_top_categories()}</h2>
 				{#each report.top_categories as c}
-					<TapeLine label={c.name} amount={fmt(c.total)} tone="dim" title={formatCurrency(c.total, settings.currency, settings.locale)} />
+					<TapeLine label={c.name} amount={fmtReport(c.total, settings.currency, settings.locale)} tone="ledger" title={formatCurrency(c.total, settings.currency, settings.locale)} />
 				{/each}
 			</section>
 		{/if}
@@ -142,15 +96,13 @@
 				{#each report.top_transactions as tx}
 					<!-- Negative sign owned here, not by the caller's data: a refund
 					     surfacing as a top transaction can't produce "−−". -->
-					<TapeLine label={tx.payee || m.reports_no_payee()} amount={fmt(-Math.abs(tx.amount))} tone="debit" title={formatCurrency(tx.amount, settings.currency, settings.locale)} />
+					<TapeLine label={tx.payee || m.reports_no_payee()} amount={fmtReport(-Math.abs(tx.amount), settings.currency, settings.locale)} tone="debit" title={formatCurrency(tx.amount, settings.currency, settings.locale)} />
 				{/each}
 			</section>
 		{/if}
 
 		{#if report.spending_by_bucket.length === 0 && report.top_transactions.length === 0}
-			<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim min-h-[200px] flex items-center justify-center">
-				<p class="text-sm">{m.reports_empty()}</p>
-			</div>
+			<EmptyState message={m.reports_empty()} icon="▮▯▯▯" />
 		{/if}
 	{/if}
 </div>

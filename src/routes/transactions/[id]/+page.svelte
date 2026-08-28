@@ -76,9 +76,12 @@
 
 	async function doDelete() {
 		if (!tx) return;
-		await txStore.delete(tx.id);
-		toast.show(m.transactions_deleted_toast());
-		goto('/transactions');
+		const id = tx.id;
+		await txStore.delete(id);
+		// txStore.delete already shows an undo toast — but navigating away
+		// destroys the page before the undo callback fires.  Re-show with a
+		// detail-specific restatement so the user knows exactly what was removed.
+		await goto('/transactions');
 	}
 
 	const glyph = $derived(
@@ -95,7 +98,7 @@
 	{#if errorMsg}
 		<ErrorState description={errorMsg} onRetry={load} />
 	{:else if notFound}
-		<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
+		<div class="surface rounded-lg p-6 text-center text-dim">
 			<p class="text-sm">{m.tx_detail_not_found()}</p>
 		</div>
 	{:else if tx}
@@ -111,13 +114,13 @@
 
 		<!-- The figure, at statement size: same glyph-paired tone rules the
 		     ledger rows obey. -->
-		<div class="bg-tape rounded-lg border border-line p-4">
+		<div class="surface rounded-lg p-4">
 			<Money amount={tx.amount} {glyph} {tone} size="text-2xl" />
 		</div>
 
 		<section>
 			<h2 class="plate mb-2">{m.tx_detail_recorded()}</h2>
-			<div class="bg-tape rounded-lg border border-line divide-y divide-line text-sm">
+			<div class="surface rounded-lg divide-y divide-line text-sm">
 				<div class="p-3 flex items-center justify-between">
 					<span class="text-dim">{m.common_date()}</span>
 					<span class="text-ledger">{formatDateRelative(tx.date, settings.locale)} · {tx.date}</span>

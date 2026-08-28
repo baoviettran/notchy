@@ -1,12 +1,12 @@
 import { AppError } from '$lib/errors';
+import { CURRENCY_CONFIG } from './currency-config';
 
 export type Locale = 'en' | 'vi';
 
-/** Fraction digits per currency (smallest-unit storage). Mirrors currency.ts. */
-export const FRACTION_DIGITS: Record<string, number> = {
-	VND: 0,
-	USD: 2
-};
+/** Fraction digits per currency (smallest-unit storage). Derived from shared config. */
+export const FRACTION_DIGITS: Record<string, number> = Object.fromEntries(
+	Object.entries(CURRENCY_CONFIG).map(([k, v]) => [k, v.fractionDigits])
+);
 
 /**
  * Parses a user-entered amount string into an integer (smallest currency unit).

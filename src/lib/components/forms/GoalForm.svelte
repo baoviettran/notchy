@@ -38,6 +38,7 @@
 	async function save() {
 		if (!name.trim()) { error = m.validation_name_required(); return; }
 		if (!targetDate) { error = m.validation_target_date_required(); return; }
+		if (!targetAmount.trim()) { error = m.validation_amount_required(); return; }
 		saving = true;
 		error = '';
 		try {

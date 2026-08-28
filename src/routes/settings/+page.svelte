@@ -4,11 +4,13 @@
 	import { goto } from '$app/navigation';
 	import Select from '$lib/components/primitives/Select.svelte';
 	import Button from '$lib/components/primitives/Button.svelte';
+	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { tour } from '$lib/stores/tour.svelte';
 	import { getDb } from '$lib/db';
 	import type { AccountWithBalance } from '$lib/db/client';
 	import * as m from '$lib/paraglide/messages';
+	import { CURRENCY_CODES } from '$lib/utils/currency-config';
 
 	const themeLabels = {
 		auto: () => m.settings_theme_auto(),
@@ -22,6 +24,10 @@
 
 	async function setLocale(locale: 'en' | 'vi') {
 		await settings.setLocale(locale);
+	}
+
+	async function setCurrency(currency: string) {
+		await settings.setCurrency(currency);
 	}
 
 	let quickAccountId = $state<string>('');
@@ -92,62 +98,114 @@
 	<h1 class="page-title">{m.settings_title()}</h1>
 
 	<div class="space-y-3">
-		<a href="/settings/categories" class="block bg-tape rounded-lg border border-line p-4 hover:bg-line/30 transition-colors">
-			<div class="font-medium text-ledger">{m.settings_categories()}</div>
-			<div class="text-sm text-dim">{m.settings_categories_desc()}</div>
-		</a>
-		<a href="/settings/backup" class="block bg-tape rounded-lg border border-line p-4 hover:bg-line/30 transition-colors">
-			<div class="font-medium text-ledger">{m.settings_backup()}</div>
-			<div class="text-sm text-dim">{m.settings_backup_desc()}</div>
-		</a>
-		<div class="bg-tape rounded-lg border border-line p-4">
-			<div class="plate mb-2">{m.settings_theme()}</div>
-			<div class="flex gap-2" role="group" aria-label={m.settings_theme()}>
-				{#each ['auto', 'light', 'dark'] as theme}
-					<button
-						onclick={() => setTheme(theme as 'auto' | 'light' | 'dark')}
-						aria-pressed={settings.theme === theme}
-						class="px-3 py-2.5 text-sm rounded-md border transition-colors {settings.theme === theme ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
-					>{themeLabels[theme as keyof typeof themeLabels]()}</button>
-				{/each}
-			</div>
-		</div>
-		<div class="bg-tape rounded-lg border border-line p-4">
-			<div class="plate mb-2">{m.settings_language()}</div>
-			<div class="flex gap-2" role="group" aria-label={m.settings_language()}>
-				<button
-					onclick={() => setLocale('en')}
-					aria-pressed={settings.locale === 'en'}
-					class="px-3 py-2.5 text-sm rounded-md border transition-colors {settings.locale === 'en' ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
-				>{m.lang_english()}</button>
-				<button
-					onclick={() => setLocale('vi')}
-					aria-pressed={settings.locale === 'vi'}
-					class="px-3 py-2.5 text-sm rounded-md border transition-colors {settings.locale === 'vi' ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
-				>{m.lang_vietnamese()}</button>
-			</div>
-		</div>
-		<div class="bg-tape rounded-lg border border-line p-4">
-			<div class="plate mb-1">{m.settings_quick_account()}</div>
-			<div class="text-sm text-dim mb-3">{m.settings_quick_account_desc()}</div>
-			<Select
-				bind:value={quickAccountId}
-				options={quickAccountOptions}
-				disabled={!quickAccountLoaded}
-			/>
-			{#if quickAccountError}
-				<div class="flex items-center gap-2 text-xs text-debit mt-2">
-					<span>{quickAccountError}</span>
-					<button onclick={loadQuickAccount} class="text-dim hover:text-ledger transition-colors underline">{m.common_retry()}</button>
+		<!-- Manage: data operations -->
+		<div class="surface rounded-lg p-4 space-y-3">
+			<div class="plate">{m.settings_group_manage()}</div>
+			<a href="/settings/categories" class="flex items-start justify-between gap-2 hover:bg-line/30 rounded-md p-2 -mx-2 transition-colors">
+				<div>
+					<div class="font-medium text-ledger">{m.settings_categories()}</div>
+					<div class="text-sm text-dim">{m.settings_categories_desc()}</div>
 				</div>
-			{/if}
+				<span class="text-dim mt-0.5 shrink-0" aria-hidden="true">→</span>
+			</a>
+			<div class="border-t border-line"></div>
+			<a href="/settings/backup" class="flex items-start justify-between gap-2 hover:bg-line/30 rounded-md p-2 -mx-2 transition-colors">
+				<div>
+					<div class="font-medium text-ledger">{m.settings_backup()}</div>
+					<div class="text-sm text-dim">{m.settings_backup_desc()}</div>
+				</div>
+				<span class="text-dim mt-0.5 shrink-0" aria-hidden="true">→</span>
+			</a>
 		</div>
-		<div class="bg-tape rounded-lg border border-line p-4">
-			<div class="font-medium text-ledger">{m.tour_replay()}</div>
-			<div class="text-sm text-dim mb-3">{m.tour_replay_desc()}</div>
-			<Button size="sm" onclick={replayTour}>{m.tour_replay()}</Button>
+
+		<!-- Preferences: look, language, currency -->
+		<div class="surface rounded-lg p-4 space-y-4">
+			<div class="plate">{m.settings_group_preferences()}</div>
+
+			<div>
+				<div class="plate mb-2">{m.settings_theme()}</div>
+				<div class="flex gap-2" role="radiogroup" aria-label={m.settings_theme()}>
+					{#each ['auto', 'light', 'dark'] as theme}
+						<button
+							onclick={() => setTheme(theme as 'auto' | 'light' | 'dark')}
+							role="radio"
+							aria-checked={settings.theme === theme}
+							class="px-3 py-2.5 text-sm rounded-md border transition-colors {settings.theme === theme ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
+						>{themeLabels[theme as keyof typeof themeLabels]()}</button>
+					{/each}
+				</div>
+			</div>
+
+			<div class="border-t border-line"></div>
+
+			<div>
+				<div class="plate mb-2">{m.settings_language()}</div>
+				<div class="flex gap-2" role="radiogroup" aria-label={m.settings_language()}>
+					<button
+						onclick={() => setLocale('en')}
+						role="radio"
+						aria-checked={settings.locale === 'en'}
+						class="px-3 py-2.5 text-sm rounded-md border transition-colors {settings.locale === 'en' ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
+					>{m.lang_english()}</button>
+					<button
+						onclick={() => setLocale('vi')}
+						role="radio"
+						aria-checked={settings.locale === 'vi'}
+						class="px-3 py-2.5 text-sm rounded-md border transition-colors {settings.locale === 'vi' ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
+					>{m.lang_vietnamese()}</button>
+				</div>
+			</div>
+
+			<div class="border-t border-line"></div>
+
+			<div>
+				<div class="plate mb-2">{m.settings_currency()}</div>
+				<div class="flex flex-wrap gap-2" role="radiogroup" aria-label={m.settings_currency()}>
+					{#each CURRENCY_CODES as cur}
+						<button
+							onclick={() => setCurrency(cur)}
+							role="radio"
+							aria-checked={settings.currency === cur}
+							class="px-3 py-2.5 text-sm rounded-md border transition-colors {settings.currency === cur ? 'border-phosphor bg-phosphor/15 text-phosphor' : 'border-line text-dim'}"
+						>{cur}</button>
+					{/each}
+				</div>
+				<p class="text-xs text-dim mt-2">{m.settings_currency_warning()}</p>
+			</div>
+
+			<div class="border-t border-line"></div>
+
+			<div>
+				<div class="plate mb-1">{m.settings_quick_account()}</div>
+				<div class="text-sm text-dim mb-3">{m.settings_quick_account_desc()}</div>
+				{#if !quickAccountLoaded && !quickAccountError}
+					<Skeleton lines={1} />
+				{:else}
+					<Select
+						label={m.settings_quick_account()}
+						bind:value={quickAccountId}
+						options={quickAccountOptions}
+						disabled={!quickAccountLoaded}
+					/>
+				{/if}
+				{#if quickAccountError}
+					<div class="flex items-center gap-2 text-xs text-debit mt-2">
+						<span>{quickAccountError}</span>
+						<button onclick={loadQuickAccount} class="text-dim hover:text-ledger transition-colors underline">{m.common_retry()}</button>
+					</div>
+				{/if}
+			</div>
 		</div>
-		<div class="bg-tape rounded-lg border border-line p-4">
+
+		<!-- About: tour, version -->
+		<div class="surface rounded-lg p-4 space-y-3">
+			<div class="plate">{m.settings_group_about()}</div>
+			<div>
+				<div class="font-medium text-ledger">{m.tour_replay()}</div>
+				<div class="text-sm text-dim mb-3">{m.tour_replay_desc()}</div>
+				<Button size="sm" onclick={replayTour}>{m.tour_replay()}</Button>
+			</div>
+			<div class="border-t border-line"></div>
 			<div class="text-xs text-dim">{m.settings_version()}</div>
 		</div>
 	</div>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import Button from '$lib/components/primitives/Button.svelte';
 	import { page } from '$app/stores';
 	import { transactions } from '$lib/stores/transactions.svelte';
@@ -20,8 +20,11 @@
 	import Select from '$lib/components/primitives/Select.svelte';
 	import Input from '$lib/components/primitives/Input.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
+	import FilterSheet from '$lib/components/primitives/FilterSheet.svelte';
+	import FilterControls from '$lib/components/primitives/FilterControls.svelte';
 	import { accounts } from '$lib/stores/accounts.svelte';
 	import { categories } from '$lib/stores/categories.svelte';
+	import { uiHints } from '$lib/stores/ui-hint.svelte';
 	import type { Transaction, TransactionKind } from '$lib/db/repos/transactions';
 
 	let search = $state($page.url.searchParams.get('q') ?? '');
@@ -48,6 +51,11 @@
 	let batchOpen = $state(false);
 	let batchMode = $state<'tag' | 'account'>('tag');
 	let batchValue = $state('');
+	let batchTargetName = $derived(
+		batchMode === 'tag'
+			? categories.tags.find((t) => t.id === batchValue)?.name ?? ''
+			: accounts.items.find((a) => a.id === batchValue)?.name ?? ''
+	);
 	let highlightedId = $state<string | null>(null);
 	let highlightTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -120,6 +128,17 @@
 		void loadPage();
 	});
 
+	// Hide the FAB while the batch-action bar is visible to prevent
+	// the two from overlapping on narrow screens.
+	$effect(() => {
+		uiHints.hideFab = selectMode && selected.length > 0;
+	});
+
+	onDestroy(() => {
+		uiHints.hideFab = false;
+		showFilters = false;
+	});
+
 	function confirmDelete(tx: Transaction) {
 		pendingDeleteTx = tx;
 		showDeleteConfirm = true;
@@ -127,10 +146,21 @@
 
 	async function doDelete() {
 		if (!pendingDeleteTx) return;
-		await transactions.delete(pendingDeleteTx.id);
-		selected = selected.filter((id) => id !== pendingDeleteTx!.id);
-		await loadPage();
+		const id = pendingDeleteTx.id;
 		pendingDeleteTx = null;
+		await transactions.delete(id);
+		selected = selected.filter((sid) => sid !== id);
+		await loadPage();
+		toast.show(m.transactions_deleted_toast(), {
+			action: m.transactions_undo(),
+			duration: 5000,
+			onaction: async () => {
+				const db = getDb();
+				await db.transactions.restore(id);
+				await loadPage();
+				toast.show(m.transactions_restored_toast());
+			}
+		});
 	}
 
 	async function doDuplicate(tx: Transaction) {
@@ -215,7 +245,7 @@
 	}
 </script>
 
-<div class="space-y-4">
+<div class="space-y-6">
 	<h1 class="page-title">{m.transactions_title()}</h1>
 
 	<!-- One action row: filters stay behind a toggle (with an active count)
@@ -240,44 +270,22 @@
 		>{selectMode ? m.transactions_done() : m.transactions_select()}</Button>
 	</div>
 
+	<!-- Desktop: inline filters. -->
 	{#if showFilters || activeFilterCount > 0}
-		<div class="flex flex-wrap gap-3">
-			<div class="w-44">
-				<Select
-					label={m.transactions_filter_kind()}
-					bind:value={filterKind}
-					options={[
-						{ value: '', label: m.transactions_filter_all_kinds() },
-						{ value: 'expense', label: m.forms_expense() },
-						{ value: 'income', label: m.forms_income() },
-						{ value: 'transfer', label: m.forms_transfer() },
-						{ value: 'refund', label: m.forms_refund() },
-						{ value: 'adjustment', label: m.forms_adjustment() }
-					]}
-				/>
-			</div>
-			<div class="w-44">
-				<Select
-					label={m.transactions_filter_account()}
-					bind:value={filterAccount}
-					options={[{ value: '', label: m.transactions_filter_all_accounts() }, ...accounts.items.map((a) => ({ value: a.id, label: a.name }))]}
-				/>
-			</div>
-			<div class="w-44">
-				<Select
-					label={m.transactions_filter_tag()}
-					bind:value={filterTag}
-					options={[{ value: '', label: m.transactions_filter_all_tags() }, ...categories.tags.map((t) => ({ value: t.id, label: t.name }))]}
-				/>
-			</div>
-			<div class="w-44">
-				<Input type="month" label={m.transactions_filter_month()} bind:value={filterMonth} />
-			</div>
+		<div class="hidden md:block">
+			<FilterControls bind:filterKind bind:filterAccount bind:filterTag bind:filterMonth />
 		</div>
 	{/if}
 
+	<!-- Mobile: slide-up filter sheet. -->
+	<FilterSheet open={showFilters} onclose={() => showFilters = false}>
+		<div class="flex flex-col gap-4">
+			<FilterControls bind:filterKind bind:filterAccount bind:filterTag bind:filterMonth />
+		</div>
+	</FilterSheet>
+
 	{#if transactions.loading}
-		<div class="bg-tape rounded-lg border border-line p-4">
+		<div class="surface rounded-lg p-4">
 			<Skeleton lines={6} />
 		</div>
 	{:else if transactions.error}
@@ -292,7 +300,7 @@
 			</div>
 		{/if}
 
-		<div class="bg-tape rounded-lg border border-line divide-y divide-line">
+		<div class="surface rounded-lg divide-y divide-line">
 			{#if displayItems.length === 0}
 				<EmptyState message={m.transactions_empty_state()} icon="▮▯▯▯" />
 		{:else}
@@ -373,10 +381,18 @@
 
 <Modal bind:open={batchOpen} title={batchMode === 'tag' ? m.transactions_batch_retag() : m.transactions_batch_move()}>
 	<div class="space-y-4">
+		<p class="text-sm text-dim">{m.transactions_batch_update_count({ count: selected.length })}</p>
 		{#if batchMode === 'tag'}
 			<Select label={m.forms_tag()} bind:value={batchValue} options={[...categories.tags.map((t) => ({ value: t.id, label: t.name }))]} />
 		{:else}
 			<Select label={m.forms_account()} bind:value={batchValue} options={[...accounts.items.map((a) => ({ value: a.id, label: a.name }))]} />
+		{/if}
+		{#if batchTargetName}
+			<p class="text-xs text-dim">
+				{batchMode === 'tag'
+					? m.transactions_batch_target_tag({ tag: batchTargetName })
+					: m.transactions_batch_target_account({ account: batchTargetName })}
+			</p>
 		{/if}
 		<div class="flex justify-end gap-2">
 			<Button variant="ghost" onclick={() => batchOpen = false}>{m.common_cancel()}</Button>

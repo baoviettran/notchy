@@ -91,14 +91,15 @@
 			<Skeleton lines={1} />
 		{:else if items.length >= 3}
 			<div class="relative">
-				<div class="flex gap-2 overflow-x-auto pb-1" style="scrollbar-width: thin;">
+				<div class="flex gap-2 overflow-x-auto pb-1">
 					{#each items as item (itemKey(item))}
 						<button
 							onclick={() => armOrRepeat(item)}
 							aria-pressed={armedKey === itemKey(item)}
+							data-arming={armedKey === itemKey(item) ? '' : undefined}
 							class="shrink-0 w-28 p-2.5 rounded-md border transition-colors text-left
 								{armedKey === itemKey(item)
-									? 'border-phosphor bg-phosphor/10'
+									? 'border-phosphor bg-phosphor/10 animate-arm-countdown'
 									: 'border-line bg-ink hover:border-phosphor/60'}"
 						>
 							<div class="text-xs text-ledger truncate">{item.payee}</div>

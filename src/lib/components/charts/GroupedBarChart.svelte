@@ -53,7 +53,7 @@
 			: scaleBand().range([0, innerWidth])
 	);
 
-	const yScale = $derived(() => {
+	const yScale = $derived.by(() => {
 		if (data.length === 0) return scaleLinear().range([innerHeight, 0]);
 
 		let maxValue = 0;
@@ -67,11 +67,11 @@
 			.range([innerHeight, 0]);
 	});
 
-	const groupedBars = $derived(() => {
+	const groupedBars = $derived.by(() => {
 		if (data.length === 0) return [];
 
 		const xScl = xScale;
-		const yScl = yScale();
+		const yScl = yScale;
 		const bandWidth = xScl.bandwidth();
 		const barWidth = bandWidth / series.length;
 
@@ -109,9 +109,9 @@
 		return bars;
 	});
 
-	const yTicks = $derived(() => {
+	const yTicks = $derived.by(() => {
 		if (data.length === 0) return [];
-		return yScale().ticks(5);
+		return yScale.ticks(5);
 	});
 </script>
 
@@ -122,7 +122,7 @@
 				<svg viewBox="0 0 {safeWidth} {chartHeight}" class="grouped-bar-chart" role="img" aria-label={label}>
 				<g transform="translate({margin.left}, {margin.top})">
 					<!-- Bars -->
-					{#each groupedBars() as bar}
+					{#each groupedBars as bar}
 						<rect
 							x={bar.x}
 							y={bar.y}
@@ -150,8 +150,8 @@
 					<!-- Y Axis -->
 					<g class="axis y-axis">
 						<line x1={0} y1={0} x2={0} y2={innerHeight} class="axis-line" />
-						{#each yTicks() as tick}
-							<g transform="translate(0, {yScale()(tick)})">
+						{#each yTicks as tick}
+							<g transform="translate(0, {yScale(tick)})">
 								<line x2="-6" class="tick-line" />
 								<text x="-10" class="tick-label">{yFormat(tick)}</text>
 							</g>

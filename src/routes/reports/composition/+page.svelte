@@ -2,8 +2,10 @@
 	import { reportsStore } from '$lib/stores/reports.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
+	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
 	import StackedAreaChart from '$lib/components/charts/StackedAreaChart.svelte';
 	import TapeLine from '$lib/components/reports/TapeLine.svelte';
+	import AdjustmentsToggle from '$lib/components/reports/AdjustmentsToggle.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { formatCurrency, formatCurrencyCompact, isLongCurrency } from '$lib/utils/currency';
 	import { seriesColor } from '$lib/utils/palette';
@@ -38,6 +40,7 @@
 		return colorMap;
 	});
 
+	// Chart axes use magnitude only — tone carries the sign in tape lines.
 	function fmt(amount: number): string {
 		return isLongCurrency(amount, settings.currency, settings.locale)
 			? formatCurrencyCompact(amount, settings.currency, settings.locale)
@@ -85,10 +88,7 @@
 			{/each}
 		</div>
 
-		<label class="flex items-center gap-2 text-sm text-dim">
-			<input type="checkbox" bind:checked={reportsStore.includeAdjustments} class="rounded" />
-			{m.reports_include_adjustments()}
-		</label>
+		<AdjustmentsToggle bind:checked={reportsStore.includeAdjustments} />
 	</div>
 
 	{#if reportsStore.error}
@@ -113,15 +113,13 @@
 					label={tag.name}
 					amount={fmt(tag.total)}
 					note={grandTotal > 0 ? Math.round((tag.total / grandTotal) * 100) + '%' : '0%'}
-					tone="dim"
+					tone="ledger"
 					title={formatCurrency(tag.total, settings.currency, settings.locale)}
 				/>
 			{/each}
 			<TapeLine label={m.reports_subtotal()} amount={fmt(grandTotal)} tone="ledger" variant="subtotal" />
 		</section>
 	{:else}
-		<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim min-h-[200px] flex items-center justify-center">
-			<p class="text-sm">{m.reports_empty_composition()}</p>
-		</div>
+		<EmptyState message={m.reports_empty_composition()} icon="▮▯▯▯" />
 	{/if}
 </div>

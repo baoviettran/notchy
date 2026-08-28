@@ -52,16 +52,16 @@
 	let totalSpent = $derived(budgets.items.reduce((s, b) => s + b.spent, 0));
 	let budgetPct = $derived(totalAllocated > 0 ? Math.round((totalSpent / totalAllocated) * 100) : 0);
 
-// Empty-budget teaching state: a sample month that shows the shape of a
-// budget before the user has made one. The amounts are illustrative, scaled
-// to a believable magnitude for the user's currency so the example reads in
-// their money rather than an abstract unit.
-const sampleScale = settings.currency === 'VND' ? 1_000_000 : 100;
-const sampleBuckets = [
-	{ name: m.dashboard_sample_rent(), spent: 6 * sampleScale, allocated: 6 * sampleScale },
-	{ name: m.dashboard_sample_groceries(), spent: 4 * sampleScale, allocated: 6 * sampleScale },
-	{ name: m.dashboard_sample_savings(), spent: 3 * sampleScale, allocated: 6 * sampleScale }
-];
+	// Empty-budget teaching state: a sample month that shows the shape of a
+	// budget before the user has made one. The amounts are illustrative, scaled
+	// to a believable magnitude for the user's currency so the example reads in
+	// their money rather than an abstract unit.
+	const sampleScale = settings.currency === 'VND' ? 1_000_000 : 100;
+	const sampleBuckets = [
+		{ name: m.dashboard_sample_rent(), spent: 6 * sampleScale, allocated: 6 * sampleScale },
+		{ name: m.dashboard_sample_groceries(), spent: 4 * sampleScale, allocated: 6 * sampleScale },
+		{ name: m.dashboard_sample_savings(), spent: 3 * sampleScale, allocated: 6 * sampleScale }
+	];
 
 	let monthFlow = $derived(transactions.monthFlow);
 
@@ -88,7 +88,7 @@ const sampleBuckets = [
 	});
 </script>
 
-<div class="space-y-5">
+<div class="space-y-6">
 	{#if isLoading && !initialLoadDone && !storeError}
 		<div class="surface rounded-lg p-5">
 			<Skeleton lines={4} />
@@ -161,7 +161,7 @@ const sampleBuckets = [
 		</div>
 	</section>
 
-	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+	<div class="space-y-4">
 		<!-- THIS MONTH: segmented budget meter. -->
 		<section class="surface rounded-lg p-5">
 			<!-- flex-wrap: the Vietnamese plate runs long and wraps on compact
@@ -183,14 +183,14 @@ const sampleBuckets = [
 						{@const spentFig = isLongCurrency(b.spent, settings.currency, settings.locale) ? formatCurrencyCompact(b.spent, settings.currency, settings.locale) : formatCurrency(b.spent, settings.currency, settings.locale)}
 						{@const allocFig = isLongCurrency(b.allocated, settings.currency, settings.locale) ? formatCurrencyCompact(b.allocated, settings.currency, settings.locale) : formatCurrency(b.allocated, settings.currency, settings.locale)}
 						{@const anyLong = isLongCurrency(b.spent, settings.currency, settings.locale) || isLongCurrency(b.allocated, settings.currency, settings.locale)}
-						<div class="flex items-center justify-between text-xs gap-2">
+						<div class="flex items-center justify-between text-xs gap-2" aria-label="{bucketName(b.type_id)}: {formatCurrency(b.spent, settings.currency, settings.locale)} of {formatCurrency(b.allocated, settings.currency, settings.locale)} ({bPct}%)">
 							<span class="text-dim truncate">{bucketName(b.type_id)}</span>
 							<div class="flex items-center gap-2 shrink-0">
 								<div class="w-12 h-1 rounded-full bg-line/40 overflow-hidden">
 									<div class="h-full rounded-full {bPct > 100 ? 'bg-debit' : 'bg-phosphor/70'}" style="width: {Math.min(bPct, 100)}%"></div>
 								</div>
 								<span class="figures text-ledger" title="{formatCurrency(b.spent, settings.currency, settings.locale)} / {formatCurrency(b.allocated, settings.currency, settings.locale)}">
-									{#if bPct > 100}<span class="text-debit" aria-hidden="true">⚠ </span>{/if}<span aria-hidden={anyLong ? 'true' : undefined}>{spentFig} <span class="text-dim">/ {allocFig}</span></span>
+									{#if bPct > 100}<span class="text-debit" aria-hidden="true">⚠︎ </span>{/if}<span aria-hidden={anyLong ? 'true' : undefined}>{spentFig} <span class="text-dim">/ {allocFig}</span></span>
 									{#if anyLong}<span class="sr-only">{formatCurrency(b.spent, settings.currency, settings.locale)} / {formatCurrency(b.allocated, settings.currency, settings.locale)}</span>{/if}
 								</span>
 							</div>

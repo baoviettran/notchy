@@ -4,6 +4,7 @@
 	import Button from '$lib/components/primitives/Button.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
+	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
 	import { budgets } from '$lib/stores/budgets.svelte';
 	import { categories } from '$lib/stores/categories.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
@@ -47,9 +48,12 @@
 	// a new month). loadMonthIncome re-reads budgets.items for the rolled total.
 	// Also re-check whether the previous month has allocations (for the
 	// "Copy from previous" guard).
-	$effect(() => { budgets.items; budgets.month; void loadMonthIncome(); void checkPrevAllocations(); });
+	$effect(() => { budgets.items; budgets.month; void checkPrevAllocations(); });
 
 	let totalAllocated = $derived(budgets.items.reduce((s, b) => s + b.allocated, 0));
+	let totalSpent = $derived(budgets.items.reduce((s, b) => s + b.spent, 0));
+	let totalAvailable = $derived(budgets.items.reduce((s, b) => s + (b.available ?? b.allocated - b.spent), 0));
+	let remainingToAllocate = $derived(Math.max(0, monthIncome - totalAllocated));
 	let overAmount = $derived(Math.max(0, totalAllocated - monthIncome));
 
 	function bucketName(typeId: string): string {
@@ -71,11 +75,13 @@
 	}
 
 	let editOriginal = $state('');
+	let editPrevAllocated = $state(0);
 
 	function startEdit(typeId: string, current: number) {
 		editing = typeId;
 		editValue = current > 0 ? String(current) : '';
 		editOriginal = editValue;
+		editPrevAllocated = current;
 		editError = '';
 	}
 
@@ -93,8 +99,16 @@
 	async function saveEdit(typeId: string) {
 		try {
 			const parsed = editValue.trim() ? parseAmount(editValue, settings.locale, settings.currency) : 0;
+			const prevAllocated = editPrevAllocated;
 			await budgets.setAllocation(typeId, parsed);
-			toast.show(m.budgets_updated());
+			toast.show(m.budgets_updated(), {
+				action: m.common_undo(),
+				duration: 5000,
+				onaction: async () => {
+					await budgets.setAllocation(typeId, prevAllocated);
+					toast.show(m.budgets_updated());
+				}
+			});
 			editing = null;
 			editError = '';
 		} catch {
@@ -131,7 +145,7 @@
 		<h1 class="page-title">{m.budgets_title()}</h1>
 		<div class="flex items-center gap-2 text-sm">
 			<button onclick={prevMonth} aria-label={m.budgets_previous_month()} class="min-w-11 min-h-11 inline-flex items-center justify-center text-dim hover:text-ledger rounded hover:bg-line/40">◀</button>
-			<span class="figures font-medium text-ledger">{formatMonth(budgets.month, settings.locale)}</span>
+			<span class="plate">{formatMonth(budgets.month, settings.locale)}</span>
 			<button onclick={nextMonth} aria-label={m.budgets_next_month()} class="min-w-11 min-h-11 inline-flex items-center justify-center text-dim hover:text-ledger rounded hover:bg-line/40">▶</button>
 		</div>
 	</div>
@@ -154,11 +168,43 @@
 
 	{#if overAmount > 0}
 		<div class="bg-debit/10 border border-debit/30 rounded-lg p-3">
-			<p class="text-sm text-debit">{m.budgets_over_allocated({ amount: formatCurrency(overAmount, settings.currency, settings.locale) })}</p>
+			{#if monthIncome > 0}
+				<p class="text-sm text-debit">{m.budgets_over_allocated_with_income({ allocated: formatCurrency(totalAllocated, settings.currency, settings.locale), income: formatCurrency(monthIncome, settings.currency, settings.locale), amount: formatCurrency(overAmount, settings.currency, settings.locale) })}</p>
+			{:else}
+				<p class="text-sm text-debit">{m.budgets_over_allocated({ amount: formatCurrency(overAmount, settings.currency, settings.locale) })}</p>
+			{/if}
 		</div>
 	{/if}
 
 	<div class="space-y-4">
+		{#if budgetableBuckets.length === 0}
+			<div class="surface rounded-lg">
+				<EmptyState message={m.budgets_no_budget_for_month()} icon="▮▯▯▯" />
+			</div>
+		{:else}
+		<!-- Summary surface — the VFD window: income, allocated, spent, available. -->
+		<div class="surface rounded-lg p-4">
+			<div class="grid grid-cols-3 gap-4 text-center">
+				<div>
+					<p class="text-xs text-dim">{m.budgets_summary_income()}</p>
+					<p class="figures-glow text-lg text-ledger">{formatCurrency(monthIncome, settings.currency, settings.locale)}</p>
+				</div>
+				<div>
+					<p class="text-xs text-dim">{m.budgets_used()}</p>
+					<p class="figures text-lg text-ledger">{formatCurrency(totalAllocated, settings.currency, settings.locale)}</p>
+				</div>
+				<div>
+					<p class="text-xs text-dim">{m.budgets_summary_spent()}</p>
+					<p class="figures text-lg {totalSpent > totalAllocated ? 'text-debit' : 'text-ledger'}">{formatCurrency(totalSpent, settings.currency, settings.locale)}</p>
+				</div>
+			</div>
+			{#if monthIncome > 0}
+				<div class="mt-2 pt-2 border-t border-line flex justify-between text-xs text-dim">
+					<span>{m.budgets_remaining()}: <span class="figures">{formatCurrency(remainingToAllocate, settings.currency, settings.locale)}</span></span>
+					<span>{m.budgets_available()}: <span class="figures {totalAvailable < 0 ? 'text-debit' : ''}">{formatCurrency(totalAvailable, settings.currency, settings.locale)}</span></span>
+				</div>
+			{/if}
+		</div>
 		{#each budgetableBuckets as bucket}
 			{@const b = getBudget(bucket.id)}
 			{@const allocated = b?.allocated ?? 0}
@@ -166,7 +212,7 @@
 			{@const rolledOver = b?.rolled_over ?? 0}
 			{@const available = b?.available ?? allocated - spent}
 			{@const pct = allocated > 0 ? Math.round((spent / allocated) * 100) : 0}
-			<div class="bg-tape rounded-lg border border-line p-4 space-y-2">
+			<div class="surface rounded-lg p-4 space-y-2">
 				<div class="flex items-center justify-between">
 					<h3 class="text-sm font-medium text-ledger">{bucket.name}</h3>
 				{#if editing === bucket.id}
@@ -186,11 +232,15 @@
 						<button onmousedown={(e) => e.preventDefault()} onclick={() => editing = null} aria-label={m.common_cancel()} class="min-w-11 min-h-11 inline-flex items-center justify-center text-sm text-dim rounded hover:bg-line/40">✕</button>
 					</div>
 					{:else}
-						<button type="button" onclick={() => startEdit(bucket.id, allocated)} class="figures text-xs text-dim hover:text-phosphor text-right"
+						<button type="button" onclick={() => startEdit(bucket.id, allocated)} class="figures text-xs text-ledger hover:text-phosphor text-right"
 							title="{formatCurrency(spent, settings.currency, settings.locale)} / {formatCurrency(allocated, settings.currency, settings.locale)}"
 						>
-							{isLongCurrency(spent, settings.currency, settings.locale) ? formatCurrencyCompact(spent, settings.currency, settings.locale) : formatCurrency(spent, settings.currency, settings.locale)}
-							/ {isLongCurrency(allocated, settings.currency, settings.locale) ? formatCurrencyCompact(allocated, settings.currency, settings.locale) : formatCurrency(allocated, settings.currency, settings.locale)}
+							{#if allocated === 0 && spent === 0}
+								<span class="text-dim">{m.budgets_not_budgeted()}</span>
+							{:else}
+								{isLongCurrency(spent, settings.currency, settings.locale) ? formatCurrencyCompact(spent, settings.currency, settings.locale) : formatCurrency(spent, settings.currency, settings.locale)}
+								/ {isLongCurrency(allocated, settings.currency, settings.locale) ? formatCurrencyCompact(allocated, settings.currency, settings.locale) : formatCurrency(allocated, settings.currency, settings.locale)}
+							{/if}
 						</button>
 					{/if}
 				</div>
@@ -211,6 +261,7 @@
 				</div>
 			</div>
 		{/each}
+		{/if}
 	</div>
 	{/if}
 </div>

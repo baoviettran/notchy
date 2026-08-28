@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import Button from '$lib/components/primitives/Button.svelte';
 	import ConfirmDialog from '$lib/components/primitives/ConfirmDialog.svelte';
+	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import { save, open } from '@tauri-apps/plugin-dialog';
 	import { writeTextFile } from '@tauri-apps/plugin-fs';
 	import { getDb } from '$lib/db';
@@ -138,77 +139,77 @@
 <div class="space-y-6">
 	<h1 class="page-title">{m.settings_backup()}</h1>
 
-	<div class="space-y-4">
-		<div class="bg-tape rounded-lg border border-line p-4 space-y-3">
-			<div class="flex flex-wrap items-center justify-between gap-2 gap-y-2">
-				<h2 class="font-medium text-ledger">{m.settings_backup_health()}</h2>
-				<div class="flex gap-2">
-					<Button size="sm" variant="secondary" disabled={busy} onclick={createBackupNow}>{m.settings_backup_health_create_now()}</Button>
-					<Button size="sm" variant="secondary" disabled={!upgradeBackupDir} onclick={openUpgradeFolder}>{m.settings_backup_health_open_folder()}</Button>
-				</div>
-			</div>
-
-			{#if healthError}
-				<p class="text-sm text-debit">{healthError}</p>
-			{:else if health}
-				<dl class="space-y-2 text-sm">
-					<div>
-						<dt class="text-dim">{m.settings_backup_health_version()}</dt>
-						<dd class="text-ledger">{health.appVersion}</dd>
-					</div>
-					<div>
-						<dt class="text-dim">{m.settings_backup_health_schema()}</dt>
-						<dd class="text-ledger">{health.schemaVersion}</dd>
-					</div>
-					<div>
-						<dt class="text-dim">{m.settings_backup_health_database_path()}</dt>
-						<dd><code class="font-mono text-xs text-ledger break-all">{health.databasePath}</code></dd>
-					</div>
-					<div>
-						<dt class="text-dim">{m.settings_backup_health_last_backup()}</dt>
-						<dd class="text-ledger">{health.lastRoutineBackupAt ?? m.settings_backup_health_no_backup()}</dd>
-					</div>
-					<div>
-						<dt class="text-dim">{m.settings_backup_health_last_upgrade_backup()}</dt>
-						{#if health.lastUpgradeBackupPath}
-							<dd><code class="font-mono text-xs text-ledger break-all">{health.lastUpgradeBackupPath}</code></dd>
-							<dd class="text-xs text-dim">{m.settings_backup_health_upgrade_source_schema()}: {health.lastUpgradeFromSchema ?? '—'}</dd>
-						{:else}
-							<dd class="text-ledger">{m.common_none()}</dd>
-						{/if}
-					</div>
-					{#if health.warning}
-						<div>
-							<dt class="text-dim">{m.settings_backup_health_warning()}</dt>
-							<dd class="text-debit break-all">{health.warning}</dd>
-						</div>
-					{/if}
-				</dl>
-			{:else}
-				<p class="text-sm text-dim">{m.layout_warming_up()}</p>
-			{/if}
-		</div>
-
-		<div class="bg-tape rounded-lg border border-line p-4 space-y-2">
-			<h2 class="font-medium text-ledger">{m.settings_backup_export()}</h2>
-			<p class="text-sm text-dim">{m.settings_backup_export_desc()}</p>
+	<!-- Backup status: health info + manual backup action. -->
+	<div class="surface rounded-lg p-4 space-y-3">
+		<div class="flex flex-wrap items-center justify-between gap-2 gap-y-2">
+			<h2 class="plate">{m.settings_backup_health()}</h2>
 			<div class="flex gap-2">
-				<Button size="sm" variant="secondary" disabled={busy} onclick={exportSqlite}>{m.settings_backup_export_sqlite()}</Button>
-				<Button size="sm" variant="secondary" disabled={busy} onclick={exportCsvFiles}>{m.settings_backup_export_csv()}</Button>
+				<Button size="sm" variant="secondary" disabled={busy} onclick={createBackupNow}>{m.settings_backup_health_create_now()}</Button>
+				<Button size="sm" variant="secondary" disabled={!upgradeBackupDir} onclick={openUpgradeFolder}>{m.settings_backup_health_open_folder()}</Button>
 			</div>
 		</div>
 
-		<div class="bg-tape rounded-lg border border-line p-4 space-y-2">
-			<h2 class="font-medium text-ledger">{m.settings_backup_import()}</h2>
-			<p class="text-sm text-dim">{m.settings_backup_import_desc()}</p>
-			<Button size="sm" variant="danger" onclick={() => confirmImport = true}>{m.settings_backup_import_button()}</Button>
-		</div>
+		{#if healthError}
+			<p class="text-sm text-debit">{healthError}</p>
+		{:else if health}
+			<dl class="space-y-2 text-sm">
+				<div>
+					<dt class="text-dim">{m.settings_backup_health_version()}</dt>
+					<dd class="text-ledger">{health.appVersion}</dd>
+				</div>
+				<div>
+					<dt class="text-dim">{m.settings_backup_health_schema()}</dt>
+					<dd class="text-ledger">{health.schemaVersion}</dd>
+				</div>
+				<div>
+					<dt class="text-dim">{m.settings_backup_health_database_path()}</dt>
+					<dd><code class="font-mono text-xs text-ledger break-all">{health.databasePath}</code></dd>
+				</div>
+				<div>
+					<dt class="text-dim">{m.settings_backup_health_last_backup()}</dt>
+					<dd class="text-ledger">{health.lastRoutineBackupAt ?? m.settings_backup_health_no_backup()}</dd>
+				</div>
+				<div>
+					<dt class="text-dim">{m.settings_backup_health_last_upgrade_backup()}</dt>
+					{#if health.lastUpgradeBackupPath}
+						<dd><code class="font-mono text-xs text-ledger break-all">{health.lastUpgradeBackupPath}</code></dd>
+						<dd class="text-xs text-dim">{m.settings_backup_health_upgrade_source_schema()}: {health.lastUpgradeFromSchema ?? '—'}</dd>
+					{:else}
+						<dd class="text-ledger">{m.common_none()}</dd>
+					{/if}
+				</div>
+				{#if health.warning}
+					<div>
+						<dt class="text-dim">{m.settings_backup_health_warning()}</dt>
+						<dd class="text-debit break-all">{health.warning}</dd>
+					</div>
+				{/if}
+			</dl>
+		{:else}
+			<Skeleton lines={4} />
+		{/if}
+	</div>
 
-		<div class="bg-tape rounded-lg border border-line p-4 space-y-2">
-			<h2 class="font-medium text-ledger">{m.settings_backup_auto()}</h2>
-			<p class="text-sm text-dim">{m.settings_backup_auto_desc()}</p>
-			<p class="text-xs text-dim">{m.settings_backup_auto_location()}</p>
+	<!-- Data management: export, import, and auto-backup. -->
+	<div class="surface rounded-lg p-4 space-y-2">
+		<h2 class="plate">{m.settings_backup_export()}</h2>
+		<p class="text-sm text-dim">{m.settings_backup_export_desc()}</p>
+		<div class="flex gap-2">
+			<Button size="sm" variant="secondary" disabled={busy} onclick={exportSqlite}>{m.settings_backup_export_sqlite()}</Button>
+			<Button size="sm" variant="secondary" disabled={busy} onclick={exportCsvFiles}>{m.settings_backup_export_csv()}</Button>
 		</div>
+	</div>
+
+	<div class="surface rounded-lg p-4 space-y-2">
+		<h2 class="plate">{m.settings_backup_import()}</h2>
+		<p class="text-sm text-dim">{m.settings_backup_import_desc()}</p>
+		<Button size="sm" variant="danger" onclick={() => confirmImport = true}>{m.settings_backup_import_button()}</Button>
+	</div>
+
+	<div class="surface rounded-lg p-4 space-y-2">
+		<h2 class="plate">{m.settings_backup_auto()}</h2>
+		<p class="text-sm text-dim">{m.settings_backup_auto_desc()}</p>
+		<p class="text-xs text-dim">{m.settings_backup_auto_location()}</p>
 	</div>
 </div>
 

@@ -15,13 +15,16 @@ export async function onboard(
 	const accountName = opts.accountName ?? 'Test Checking';
 
 	await page.goto('/');
+	// Wait for the Svelte app to hydrate and sql.js WASM to finish initializing
+	// before interacting — prevents race-condition timeouts under parallel workers.
+	await page.getByRole('radiogroup').first().waitFor();
 
 	// Step 1: language
-	await page.getByRole('button', { name: lang }).click();
+	await page.getByRole('radio', { name: lang }).click();
 	await page.getByRole('button', { name: 'Continue →' }).click();
 
 	// Step 2: currency
-	await page.getByRole('button', { name: currency }).click();
+	await page.getByRole('radio', { name: currency }).click();
 	await page.getByRole('button', { name: 'Continue →' }).click();
 
 	// Step 3: first account (Finish disabled until a name is entered)

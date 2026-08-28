@@ -12,7 +12,7 @@
 	import { toast } from '$lib/stores/toast.svelte';
 	import { getDb } from '$lib/db';
 	import { formatCurrency } from '$lib/utils/currency';
-import Money from '$lib/components/reports/Money.svelte';
+	import Money from '$lib/components/reports/Money.svelte';
 	import { parseAmount } from '$lib/utils/number_parse';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
@@ -31,12 +31,23 @@ import Money from '$lib/components/reports/Money.svelte';
 
 	let actionError = $state('');
 
+	// Aggregate totals for each section.
+	const iOweTotal = $derived(debts.i_owe.reduce((sum, d) => sum + Math.abs(d.balance), 0));
+	const owedToMeTotal = $derived(debts.owed_to_me.reduce((sum, d) => sum + Math.abs(d.balance), 0));
+
 	function openPayment(d: DebtAccount) {
 		activeDebt = d; actionType = 'payment'; amount = ''; fromAccount = ''; actionError = ''; showAction = true;
 	}
 	function openWriteoff(d: DebtAccount) {
-		activeDebt = d; actionType = 'writeoff'; amount = ''; actionError = ''; showAction = true;
+		activeDebt = d; actionType = 'writeoff'; amount = ''; actionError = ''; writeoffConfirmed = ''; showAction = true;
 	}
+
+	// Write-off confirmation: user must re-type the amount to confirm.
+	let writeoffConfirmed = $state('');
+	const writeoffMatch = $derived(
+		actionType === 'writeoff' && activeDebt && amount.trim() !== '' &&
+		writeoffConfirmed.trim() === amount.trim()
+	);
 
 	async function doAction() {
 		if (!activeDebt || !amount) return;
@@ -110,9 +121,16 @@ import Money from '$lib/components/reports/Money.svelte';
 	{:else}
 
 	<section>
-		<h2 class="plate mb-2">{m.debts_i_owe()}</h2>
+		<div class="flex items-baseline justify-between mb-2">
+			<h2 class="plate">{m.debts_i_owe()}</h2>
+			{#if debts.i_owe.length > 0}
+				<span class="figures text-sm text-dim">
+					{m.debts_count_total({ count: String(debts.i_owe.length), total: formatCurrency(iOweTotal, settings.currency, settings.locale) })}
+				</span>
+			{/if}
+		</div>
 		{#if debts.i_owe.length === 0}
-			<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
+			<div class="surface rounded-lg p-6 text-center text-dim">
 					<!-- Being debt-free is a real milestone — the celebration gets a
 				     designed lamp (phosphor ring + tint) instead of an off-brand
 				     emoji. The copy carries the meaning. -->
@@ -120,9 +138,9 @@ import Money from '$lib/components/reports/Money.svelte';
 				<p class="text-sm">{m.debts_empty_i_owe()}</p>
 			</div>
 		{:else}
-			<div class="bg-tape rounded-lg border border-line divide-y divide-line">
+			<div class="surface rounded-lg divide-y divide-line">
 				{#each debts.i_owe as d}
-					<div class="p-4 flex items-center justify-between group">
+					<div class="debt-item p-4 flex items-center justify-between">
 						<div>
 							<div class="text-sm font-medium text-ledger">{d.counterparty}</div>
 							<div class="text-xs text-dim">{d.name}</div>
@@ -147,20 +165,27 @@ import Money from '$lib/components/reports/Money.svelte';
 	</section>
 
 	<section>
-		<h2 class="plate mb-2">{m.debts_owed_to_me()}</h2>
+		<div class="flex items-baseline justify-between mb-2">
+			<h2 class="plate">{m.debts_owed_to_me()}</h2>
+			{#if debts.owed_to_me.length > 0}
+				<span class="figures text-sm text-dim">
+					{m.debts_count_total({ count: String(debts.owed_to_me.length), total: formatCurrency(owedToMeTotal, settings.currency, settings.locale) })}
+				</span>
+			{/if}
+		</div>
 		{#if debts.owed_to_me.length === 0}
 			<!-- Same machine-glyph treatment as the debt-free lamp: an empty
 			     section is a designed moment, and the path that creates a debt
 			     (an account of loan type) is one tap away. -->
-			<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim">
+			<div class="surface rounded-lg p-6 text-center text-dim">
 				<p class="figures-glow text-2xl mb-2" aria-hidden="true">▮▯▯▯</p>
 				<p class="text-sm">{m.debts_empty_owed_to_me()}</p>
 				<a href="/accounts" class="inline-block mt-3 text-sm text-phosphor hover:underline">{m.debts_empty_add_hint()}</a>
 			</div>
 		{:else}
-			<div class="bg-tape rounded-lg border border-line divide-y divide-line">
+			<div class="surface rounded-lg divide-y divide-line">
 				{#each debts.owed_to_me as d}
-					<div class="p-4 flex items-center justify-between group">
+					<div class="debt-item p-4 flex items-center justify-between">
 						<div>
 							<div class="text-sm font-medium text-ledger">{d.counterparty}</div>
 							<div class="text-xs text-dim">{d.name}</div>
@@ -203,11 +228,23 @@ import Money from '$lib/components/reports/Money.svelte';
 		{/if}
 		<Input label={m.common_amount()} bind:value={amount} placeholder={m.forms_amount_placeholder()} />
 		{#if actionType === 'payment'}
-			<Select label={activeDebt?.type === 'loan_from_person' ? m.debts_from_account() : m.debts_to_account()} bind:value={fromAccount} options={assetAccounts} error={actionError} />
+			<Select
+				label={activeDebt?.type === 'loan_from_person' ? m.debts_from_account() : m.debts_deposit_to_account()}
+				bind:value={fromAccount}
+				options={assetAccounts}
+				error={actionError}
+			/>
+		{/if}
+		{#if actionType === 'writeoff' && amount.trim() !== ''}
+			<Input label={m.debts_write_off_confirm()} bind:value={writeoffConfirmed} placeholder={amount} />
 		{/if}
 		<div class="flex justify-end gap-2 pt-2">
 			<Button variant="ghost" onclick={() => showAction = false}>{m.common_cancel()}</Button>
-			<Button disabled={saving} variant={actionType === 'writeoff' ? 'danger' : 'primary'} onclick={doAction}>{actionType === 'payment' ? m.debts_record() : m.debts_write_off()}</Button>
+			<Button
+				disabled={saving || (actionType === 'writeoff' && !writeoffMatch)}
+				variant={actionType === 'writeoff' ? 'danger' : 'primary'}
+				onclick={doAction}
+			>{actionType === 'payment' ? m.debts_record() : m.debts_write_off()}</Button>
 		</div>
 	</div>
 </Modal>

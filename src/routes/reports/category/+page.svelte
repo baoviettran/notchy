@@ -3,7 +3,10 @@
 	import { reportsStore } from '$lib/stores/reports.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
+	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
+	import Select from '$lib/components/primitives/Select.svelte';
 	import LineChart from '$lib/components/charts/LineChart.svelte';
+	import AdjustmentsToggle from '$lib/components/reports/AdjustmentsToggle.svelte';
 	import { formatCurrency } from '$lib/utils/currency';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { getDb } from '$lib/db';
@@ -47,6 +50,11 @@
 		}))
 	);
 
+	const tagOptions = $derived([
+		{ value: '', label: m.reports_select_tag() },
+		...tags.map((t) => ({ value: t.id, label: t.name }))
+	]);
+
 	const yFormat = (n: number) => formatCurrency(n, settings.currency, settings.locale);
 	const windowOptions = [6, 12, 24] as const;
 	const xFormat = (d: Date) =>
@@ -64,12 +72,9 @@
 	<ReportsNav />
 
 	<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-		<select bind:value={selectedTagId} class="bg-tape border border-line rounded-md px-3 py-1.5 text-sm text-ledger">
-			<option value="">{m.reports_select_tag()}</option>
-			{#each tags as tag}
-				<option value={tag.id}>{tag.name}</option>
-			{/each}
-		</select>
+		<div class="w-48">
+			<Select bind:value={selectedTagId} options={tagOptions} />
+		</div>
 
 		<div class="flex gap-1 text-sm">
 			{#each windowOptions as n}
@@ -82,10 +87,7 @@
 			{/each}
 		</div>
 
-		<label class="flex items-center gap-2 text-sm text-dim">
-			<input type="checkbox" bind:checked={reportsStore.includeAdjustments} class="rounded" />
-			{m.reports_include_adjustments()}
-		</label>
+		<AdjustmentsToggle bind:checked={reportsStore.includeAdjustments} />
 	</div>
 
 	{#if reportsStore.error}
@@ -95,14 +97,12 @@
 			<Skeleton lines={5} />
 		</div>
 	{:else}
-	{#if chartData.length > 0 && chartData.some((d) => d.y !== 0)}
-		<div class="bg-tape rounded-lg border border-line p-4">
-			<LineChart data={chartData} {yFormat} {xFormat} showArea={false} />
-		</div>
-	{:else}
-		<div class="bg-tape rounded-lg border border-line p-6 text-center text-dim min-h-[200px] flex items-center justify-center">
-			<p class="text-sm">{m.reports_empty_category()}</p>
-		</div>
-	{/if}
+		{#if chartData.length > 0 && chartData.some((d) => d.y !== 0)}
+			<div class="surface rounded-lg p-4">
+				<LineChart data={chartData} {yFormat} {xFormat} showArea={false} />
+			</div>
+		{:else}
+			<EmptyState message={m.reports_empty_category()} icon="▮▯▯▯" />
+		{/if}
 	{/if}
 </div>
