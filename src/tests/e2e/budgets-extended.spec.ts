@@ -116,16 +116,34 @@ test.describe('budgets — extended', () => {
 		await expect(page.locator('main button.figures').first()).toContainText('Not budgeted');
 	});
 
-	test('over-allocating beyond available income shows a soft warning', async ({ onboardedPage: page }) => {
-		// No income this month → any allocation exceeds available funds. The
-		// page shows a non-blocking "Over budget by X" banner; allocation is
-		// still allowed (soft warn, not a hard block).
+	test('spending beyond budget shows a soft warning', async ({ onboardedPage: page }) => {
+		// Create a tag, allocate 500k, then spend 600k in that bucket.
+		// The over-budget banner surfaces when spending exceeds the available
+		// budget (totalSpent > totalAvailable), not when allocation exceeds
+		// income — allocation-only overages are an advisory ceiling, not a
+		// hard warning trigger.
+		await createTagInFirstBucket(page, 'Groceries');
+
+		// Allocate 500k to the first bucket.
 		await page.getByRole('link', { name: 'Budgets', exact: true }).click();
 		await allocateFirstBucket(page, '500000');
-		// Banner surfaces (budgets/+page.svelte budgets_over_allocated).
-		await expect(page.getByRole('main').getByText(/Over budget by/)).toBeVisible();
-		// The allocation itself is still stored (not blocked).
 		await expect(page.locator('main button.figures').first()).toContainText('500,000');
+
+		// Spend 600k in that bucket — exceeds the 500k allocation.
+		await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
+		await page.getByRole('button', { name: 'Add transaction' }).click();
+		const txModal = page.getByRole('dialog');
+		const tagCombo = txModal.getByLabel('Tag');
+		await tagCombo.click();
+		await tagCombo.fill('Groceries');
+		await page.getByRole('option', { name: 'Groceries' }).click();
+		await txModal.getByLabel('Amount').fill('600000');
+		await txModal.getByRole('button', { name: 'Save' }).click();
+		await expect(txModal).not.toBeVisible();
+
+		// Navigate to budgets — over-budget banner surfaces.
+		await page.getByRole('link', { name: 'Budgets', exact: true }).click();
+		await expect(page.getByRole('main').getByText(/Over budget by/)).toBeVisible();
 	});
 
 	test('prior-month allocation persists, and roll-over surfaces in the next month', async ({ onboardedPage: page }) => {

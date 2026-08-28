@@ -10,7 +10,7 @@
 	let panelEl = $state<HTMLElement>();
 	const focusTrap = createFocusTrap();
 
-	function confirm() { onconfirm(); open = false; }
+	function confirm() { open = false; onconfirm(); }
 
 	$effect(() => {
 		if (open) return focusTrap.enter(() => panelEl);

@@ -6,7 +6,7 @@
 	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
 	import { budgets } from '$lib/stores/budgets.svelte';
-	import { categories } from '$lib/stores/categories.svelte';
+	import { categories, systemName } from '$lib/stores/categories.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { getDb } from '$lib/db';
@@ -54,12 +54,16 @@
 	let totalSpent = $derived(budgets.items.reduce((s, b) => s + b.spent, 0));
 	let totalAvailable = $derived(budgets.items.reduce((s, b) => s + (b.available ?? b.allocated - b.spent), 0));
 	let remainingToAllocate = $derived(Math.max(0, monthIncome - totalAllocated));
-	let overAmount = $derived(Math.max(0, totalAllocated - monthIncome));
+	// Over-budget: spending exceeds what's available (allocated + rolled over).
+	// This is NOT "allocated > income" — that's an advisory ceiling, not a hard limit.
+	let overAmount = $derived(Math.max(0, totalSpent - totalAvailable));
 
 	function bucketName(typeId: string): string {
-		// Never print the raw bucket_ slug (DESIGN.md's Don't list) — an
-		// unknown id falls back to a localized label.
-		return categories.buckets.find((b) => b.id === typeId)?.name ?? m.dashboard_uncategorized_bucket();
+		// System buckets have localised display names; user-created buckets
+		// use their DB name directly. Unknown IDs fall back to "Uncategorised".
+		return systemName(typeId)
+			?? categories.buckets.find((b) => b.id === typeId)?.name
+			?? m.dashboard_uncategorized_bucket();
 	}
 
 	function prevMonth() {
@@ -168,8 +172,8 @@
 
 	{#if overAmount > 0}
 		<div class="bg-debit/10 border border-debit/30 rounded-lg p-3">
-			{#if monthIncome > 0}
-				<p class="text-sm text-debit">{m.budgets_over_allocated_with_income({ allocated: formatCurrency(totalAllocated, settings.currency, settings.locale), income: formatCurrency(monthIncome, settings.currency, settings.locale), amount: formatCurrency(overAmount, settings.currency, settings.locale) })}</p>
+			{#if totalAvailable > 0}
+				<p class="text-sm text-debit">{m.budgets_over_allocated_with_income({ spent: formatCurrency(totalSpent, settings.currency, settings.locale), available: formatCurrency(totalAvailable, settings.currency, settings.locale), amount: formatCurrency(overAmount, settings.currency, settings.locale) })}</p>
 			{:else}
 				<p class="text-sm text-debit">{m.budgets_over_allocated({ amount: formatCurrency(overAmount, settings.currency, settings.locale) })}</p>
 			{/if}

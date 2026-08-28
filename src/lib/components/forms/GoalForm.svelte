@@ -2,6 +2,7 @@
 	import Button from '$lib/components/primitives/Button.svelte';
 	import Input from '$lib/components/primitives/Input.svelte';
 	import Select from '$lib/components/primitives/Select.svelte';
+	import DatePicker from '$lib/components/primitives/DatePicker.svelte';
 	import { goals } from '$lib/stores/goals.svelte';
 	import { accounts } from '$lib/stores/accounts.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
@@ -69,7 +70,7 @@
 	<Input label={m.common_name()} bind:value={name} placeholder={m.forms_goal_name_placeholder()} maxlength={64} />
 	<Select label={m.forms_type()} bind:value={type} options={types} disabled={isEdit} />
 	<Input label={m.forms_target_amount()} bind:value={targetAmount} placeholder={m.forms_target_amount_placeholder()} />
-	<Input label={m.forms_target_date()} type="date" bind:value={targetDate} />
+	<DatePicker label={m.forms_target_date()} bind:value={targetDate} />
 	{#if type !== 'net_worth'}
 		<Select label={m.forms_linked_account()} bind:value={linkedAccountId} options={accountOptions} />
 	{/if}

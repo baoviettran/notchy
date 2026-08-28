@@ -25,6 +25,12 @@
         "rule": "rgba(255, 255, 255, 0.3)",
         "value": "deboss highlight for light-mode figures-glow — one-off paper edge effect",
         "createdAt": "2026-08-27T16:14:13.657Z"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "10px",
+        "createdAt": "2026-08-28T13:37:04.448Z",
+        "reason": "Calendar weekday headers: compact utility labels at 10px are domain-appropriate for 7-column grid headers"
       }
     ]
   }
