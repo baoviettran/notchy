@@ -230,6 +230,7 @@
 					</div>
 					<Input label={m.common_name()} bind:value={accountName} placeholder={m.onboarding_account_name_placeholder()} />
 					<Input label={m.forms_initial_balance()} bind:value={initialBalance} placeholder={m.onboarding_amount_hint()} />
+					<p class="text-xs text-dim leading-relaxed">{m.onboarding_quick_add_hint()}</p>
 					{#if error}<p class="text-sm text-debit" role="alert">{error}</p>{/if}
 				</div>
 				<div class="flex items-center justify-between pt-2">

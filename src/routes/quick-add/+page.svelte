@@ -13,6 +13,7 @@
 	let value = $state('');
 	let error = $state<string | null>(null);
 	let activeAccount = $state<{ id: string; name: string } | null>(null);
+	let allAccounts = $state<{ id: string; name: string }[]>([]);
 	let ready = $state(false);
 	let submitting = $state(false);
 	let justSaved = $state(false);
@@ -52,8 +53,16 @@
 		const db = getDb();
 		const id = await db.meta.getDefaultQuickAccount();
 		const accounts = await db.accounts.list();
+		allAccounts = accounts.map((a) => ({ id: a.id, name: a.name }));
 		const chosen = (id && accounts.find((a) => a.id === id)) || accounts[0];
 		activeAccount = chosen ? { id: chosen.id, name: chosen.name } : null;
+	}
+
+	function cycleAccount(): void {
+		if (allAccounts.length < 2) return;
+		const idx = allAccounts.findIndex((a) => a.id === activeAccount?.id);
+		const next = allAccounts[(idx + 1) % allAccounts.length];
+		activeAccount = next;
 	}
 
 	onMount(async () => {
@@ -211,7 +220,14 @@
 	</div>
 
 	<footer class="status">
-		<span>{accountName} · {m.quick_add_today()}</span>
+		<button
+			type="button"
+			onclick={cycleAccount}
+			disabled={allAccounts.length < 2}
+			class="account-switch"
+			aria-label={m.quick_add_switch_account()}
+		>{accountName}{#if allAccounts.length > 1} ▾{/if}</button>
+		<span>· {m.quick_add_today()}</span>
 		<span class:animate-flash={justSaved}>{m.quick_add_save()} ⏎</span>
 	</footer>
 
@@ -297,11 +313,34 @@
 		margin-top: auto;
 		display: flex;
 		justify-content: space-between;
+		align-items: center;
 		color: var(--dim);
 		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 		font-size: 11px;
 		text-transform: uppercase;
 		letter-spacing: 0.18em; /* engraved-faceplate tracking, matching .plate */
+	}
+	.account-switch {
+		background: none;
+		border: 1px solid var(--line);
+		color: var(--dim);
+		font-family: inherit;
+		font-size: inherit;
+		letter-spacing: inherit;
+		text-transform: inherit;
+		padding: 0.15em 0.5em;
+		border-radius: 6px; /* rounded-md: tight chip for adding-machine status bar */
+		cursor: pointer;
+		transition: color 150ms, border-color 150ms, background 150ms;
+	}
+	.account-switch:not(:disabled):hover {
+		color: var(--ledger);
+		border-color: var(--dim);
+		background: var(--line);
+	}
+	.account-switch:disabled {
+		cursor: default;
+		border-color: transparent;
 	}
 	/* Vietnamese: sentence-case the status bar and tighten tracking —
 	   stacked diacritics smear under uppercase at 11px, and the wider

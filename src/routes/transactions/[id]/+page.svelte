@@ -76,9 +76,12 @@
 
 	async function doDelete() {
 		if (!tx) return;
-		await txStore.delete(tx.id);
-		toast.show(m.transactions_deleted_toast());
-		goto('/transactions');
+		const id = tx.id;
+		await txStore.delete(id);
+		// txStore.delete already shows an undo toast — but navigating away
+		// destroys the page before the undo callback fires.  Re-show with a
+		// detail-specific restatement so the user knows exactly what was removed.
+		await goto('/transactions');
 	}
 
 	const glyph = $derived(

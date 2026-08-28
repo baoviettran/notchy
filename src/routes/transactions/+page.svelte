@@ -51,6 +51,11 @@
 	let batchOpen = $state(false);
 	let batchMode = $state<'tag' | 'account'>('tag');
 	let batchValue = $state('');
+	let batchTargetName = $derived(
+		batchMode === 'tag'
+			? categories.tags.find((t) => t.id === batchValue)?.name ?? ''
+			: accounts.items.find((a) => a.id === batchValue)?.name ?? ''
+	);
 	let highlightedId = $state<string | null>(null);
 	let highlightTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -376,10 +381,18 @@
 
 <Modal bind:open={batchOpen} title={batchMode === 'tag' ? m.transactions_batch_retag() : m.transactions_batch_move()}>
 	<div class="space-y-4">
+		<p class="text-sm text-dim">{m.transactions_batch_update_count({ count: selected.length })}</p>
 		{#if batchMode === 'tag'}
 			<Select label={m.forms_tag()} bind:value={batchValue} options={[...categories.tags.map((t) => ({ value: t.id, label: t.name }))]} />
 		{:else}
 			<Select label={m.forms_account()} bind:value={batchValue} options={[...accounts.items.map((a) => ({ value: a.id, label: a.name }))]} />
+		{/if}
+		{#if batchTargetName}
+			<p class="text-xs text-dim">
+				{batchMode === 'tag'
+					? m.transactions_batch_target_tag({ tag: batchTargetName })
+					: m.transactions_batch_target_account({ account: batchTargetName })}
+			</p>
 		{/if}
 		<div class="flex justify-end gap-2">
 			<Button variant="ghost" onclick={() => batchOpen = false}>{m.common_cancel()}</Button>

@@ -75,11 +75,13 @@
 	}
 
 	let editOriginal = $state('');
+	let editPrevAllocated = $state(0);
 
 	function startEdit(typeId: string, current: number) {
 		editing = typeId;
 		editValue = current > 0 ? String(current) : '';
 		editOriginal = editValue;
+		editPrevAllocated = current;
 		editError = '';
 	}
 
@@ -97,8 +99,16 @@
 	async function saveEdit(typeId: string) {
 		try {
 			const parsed = editValue.trim() ? parseAmount(editValue, settings.locale, settings.currency) : 0;
+			const prevAllocated = editPrevAllocated;
 			await budgets.setAllocation(typeId, parsed);
-			toast.show(m.budgets_updated());
+			toast.show(m.budgets_updated(), {
+				action: m.common_undo(),
+				duration: 5000,
+				onaction: async () => {
+					await budgets.setAllocation(typeId, prevAllocated);
+					toast.show(m.budgets_updated());
+				}
+			});
 			editing = null;
 			editError = '';
 		} catch {
@@ -135,7 +145,7 @@
 		<h1 class="page-title">{m.budgets_title()}</h1>
 		<div class="flex items-center gap-2 text-sm">
 			<button onclick={prevMonth} aria-label={m.budgets_previous_month()} class="min-w-11 min-h-11 inline-flex items-center justify-center text-dim hover:text-ledger rounded hover:bg-line/40">◀</button>
-			<span class="font-medium text-ledger">{formatMonth(budgets.month, settings.locale)}</span>
+			<span class="plate">{formatMonth(budgets.month, settings.locale)}</span>
 			<button onclick={nextMonth} aria-label={m.budgets_next_month()} class="min-w-11 min-h-11 inline-flex items-center justify-center text-dim hover:text-ledger rounded hover:bg-line/40">▶</button>
 		</div>
 	</div>
