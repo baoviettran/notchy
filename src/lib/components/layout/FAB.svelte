@@ -10,7 +10,7 @@
 <button
 	{onclick}
 	data-tour="add"
-		class="group fab-halo fixed bottom-20 right-5 md:bottom-8 md:right-8 w-14 h-14 rounded-full flex items-center justify-center z-40
+	class="group fab-halo fixed bottom-20 right-5 md:bottom-8 md:right-8 w-14 h-14 rounded-full flex items-center justify-center z-40
 		bg-phosphor text-ink hover:brightness-110 transition-[filter,background-color]"
 	aria-label="{m.layout_add_transaction()} (N)"
 >

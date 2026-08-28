@@ -328,7 +328,7 @@
 							<div class="text-sm text-ledger flex items-center gap-2">
 								{tx.payee || labelFor(tx.kind)}
 								{#if tx.date > today}
-									<span class="text-[11px] px-1.5 py-0.5 rounded bg-phosphor/15 text-phosphor font-medium uppercase">{m.transactions_future()}</span>
+									<span class="text-[11px] px-1.5 py-0.5 rounded bg-phosphor/15 text-phosphor font-medium">{m.transactions_future()}</span>
 								{/if}
 							</div>
 							<div class="text-xs text-dim">{formatDateRelative(tx.date, settings.locale)} · {labelFor(tx.kind)}</div>
