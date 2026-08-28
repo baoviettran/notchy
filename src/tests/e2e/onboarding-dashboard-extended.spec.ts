@@ -27,7 +27,7 @@ baseTest.describe('onboarding — extended (§1)', () => {
 		// state because a currency is always chosen. We assert Continue is
 		// enabled and the step advances — the genuine behaviour.
 		await page.goto('/');
-		await page.getByRole('button', { name: /^English/ }).click();
+		await page.getByRole('radio', { name: /^English/ }).click();
 		await page.getByRole('button', { name: 'Continue →' }).click();
 		// Now on step 2 (currency). Continue is enabled.
 		const continueBtn = page.getByRole('button', { name: 'Continue →' });
@@ -40,7 +40,7 @@ baseTest.describe('onboarding — extended (§1)', () => {
 	baseTest('Finish setup is disabled until an account name is entered', async ({ page }) => {
 		// onboarding/+page.svelte:141 disabled={!accountName || saving}.
 		await page.goto('/');
-		await page.getByRole('button', { name: /^English/ }).click();
+		await page.getByRole('radio', { name: /^English/ }).click();
 		await page.getByRole('button', { name: 'Continue →' }).click();
 		await page.getByRole('button', { name: 'Continue →' }).click();
 		await expect(page.getByRole('button', { name: 'Finish setup' })).toBeDisabled();
@@ -52,7 +52,7 @@ baseTest.describe('onboarding — extended (§1)', () => {
 		// onboarding finish() must trim-check the name so a spaces-only name is
 		// rejected — matching AccountForm's name.trim() validation.
 		await page.goto('/');
-		await page.getByRole('button', { name: /^English/ }).click();
+		await page.getByRole('radio', { name: /^English/ }).click();
 		await page.getByRole('button', { name: 'Continue →' }).click();
 		await page.getByRole('button', { name: 'Continue →' }).click();
 		await page.getByLabel('Name').fill('   ');
@@ -66,7 +66,7 @@ baseTest.describe('onboarding — extended (§1)', () => {
 		// balance can't be parsed, rather than swallowing it and creating the
 		// account with no opening balance.
 		await page.goto('/');
-		await page.getByRole('button', { name: /^English/ }).click();
+		await page.getByRole('radio', { name: /^English/ }).click();
 		await page.getByRole('button', { name: 'Continue →' }).click();
 		await page.getByRole('button', { name: 'Continue →' }).click();
 		await page.getByLabel('Name').fill('Bad Balance');

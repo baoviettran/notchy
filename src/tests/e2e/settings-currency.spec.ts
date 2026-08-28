@@ -28,15 +28,15 @@ test.describe('onboarding currency options', () => {
 	test('shows 5 currency choices', async ({ page }) => {
 		await page.goto('/');
 		// Step 1: language
-		await page.getByRole('button', { name: /^English/ }).click();
+		await page.getByRole('radio', { name: /^English/ }).click();
 		await page.getByRole('button', { name: 'Continue →' }).click();
 
 		// Step 2: should show 5 currencies.
-		await expect(page.getByRole('button', { name: /VND — Vietnamese đồng/ })).toBeVisible();
-		await expect(page.getByRole('button', { name: /USD — US Dollar/ })).toBeVisible();
-		await expect(page.getByRole('button', { name: /EUR — Euro/ })).toBeVisible();
-		await expect(page.getByRole('button', { name: /JPY — Japanese Yen/ })).toBeVisible();
-		await expect(page.getByRole('button', { name: /THB — Thai Baht/ })).toBeVisible();
+		await expect(page.getByRole('radio', { name: /VND — Vietnamese đồng/ })).toBeVisible();
+		await expect(page.getByRole('radio', { name: /USD — US Dollar/ })).toBeVisible();
+		await expect(page.getByRole('radio', { name: /EUR — Euro/ })).toBeVisible();
+		await expect(page.getByRole('radio', { name: /JPY — Japanese Yen/ })).toBeVisible();
+		await expect(page.getByRole('radio', { name: /THB — Thai Baht/ })).toBeVisible();
 
 		// Code plates should render.
 		await expect(page.getByText('VN', { exact: true })).toBeVisible();

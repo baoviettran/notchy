@@ -103,8 +103,9 @@ test.describe('debts — extended', () => {
 		await expect(page.getByText('Payment recorded.')).toBeVisible();
 		await expect(page.getByRole('dialog')).toBeHidden();
 		// Outstanding reduced to 300,000; 500,000 no longer present.
-		await expect(main.getByText('300,000')).toBeVisible();
-		await expect(main.getByText('500,000')).toHaveCount(0);
+		// Scope to the debt item row to avoid matching the summary badge.
+		await expect(main.locator('.debt-item', { hasText: 'Alice' }).getByText('300,000')).toBeVisible();
+		await expect(main.locator('.debt-item', { hasText: 'Alice' }).getByText('500,000')).toHaveCount(0);
 	});
 
 	test('payment without selecting an account is blocked', async ({ onboardedPage: page }) => {
@@ -135,6 +136,7 @@ test.describe('debts — extended', () => {
 		const modal = page.getByRole('dialog');
 		await expect(modal.getByRole('heading', { name: 'Write off debt' })).toBeVisible();
 		await modal.getByLabel('Amount').fill('500k');
+		await modal.getByLabel('Type the amount to confirm write-off').fill('500k');
 		await modal.getByRole('button', { name: 'Write off' }).click();
 		await expect(page.getByText('Debt written off.')).toBeVisible();
 		await expect(page.getByRole('dialog')).toBeHidden();

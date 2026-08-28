@@ -48,7 +48,7 @@ test.describe('budgets', () => {
 	test('prev/next month navigation changes the month and isolates allocations', async ({ onboardedPage: page }) => {
 		await page.getByRole('link', { name: 'Budgets', exact: true }).click();
 
-		const monthLabel = page.locator('span.figures.font-medium');
+		const monthLabel = page.locator('.plate').filter({ hasText: /\w+ \d{4}/ }).first();
 		const initialMonth = await monthLabel.textContent();
 		expect(initialMonth).toBeTruthy();
 		expect(initialMonth!).toMatch(/\d{4}/); // localized month label now carries the year
@@ -73,7 +73,7 @@ test.describe('budgets', () => {
 		// "₫0 / ₫0" (spent / allocated, both zero) — not "₫300,000". This proves the
 		// month-N+1 allocation did not leak backwards into month N.
 		const triggerOriginal = page.locator('main button.figures').first();
-		await expect(triggerOriginal).toContainText('₫0 / ₫0');
+		await expect(triggerOriginal).toContainText('Not budgeted');
 		await expect(triggerOriginal).not.toContainText('300,000');
 	});
 });

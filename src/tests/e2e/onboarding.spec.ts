@@ -11,9 +11,9 @@ test('onboarding → dashboard → add transaction', async ({ page }) => {
 
 test('Finish setup is disabled until an account name is entered', async ({ page }) => {
 	await page.goto('/');
-	await page.getByRole('button', { name: /^English/ }).click();
+	await page.getByRole('radio', { name: /^English/ }).click();
 	await page.getByRole('button', { name: 'Continue →' }).click();
-	await page.getByRole('button', { name: /VND — Vietnamese đồng/ }).click();
+	await page.getByRole('radio', { name: /VND — Vietnamese đồng/ }).click();
 	await page.getByRole('button', { name: 'Continue →' }).click();
 	const finish = page.getByRole('button', { name: 'Finish setup' });
 	await expect(finish).toBeDisabled();
@@ -27,12 +27,12 @@ test('currency step: code plates render as designed dies, not inline glyphs', as
 	// primary desktop) does not render. The code + name still form the
 	// button's accessible name.
 	await page.goto('/');
-	await page.getByRole('button', { name: /^English/ }).click();
+	await page.getByRole('radio', { name: /^English/ }).click();
 	await page.getByRole('button', { name: 'Continue →' }).click();
 	// The code is its own exact-text element inside the row.
 	await expect(page.getByText('VN', { exact: true })).toBeVisible();
 	await expect(page.getByText('US', { exact: true })).toBeVisible();
 	// Accessible names preserved.
-	await expect(page.getByRole('button', { name: /VND — Vietnamese đồng/ })).toBeVisible();
-	await expect(page.getByRole('button', { name: /USD — US Dollar/ })).toBeVisible();
+	await expect(page.getByRole('radio', { name: /VND — Vietnamese đồng/ })).toBeVisible();
+	await expect(page.getByRole('radio', { name: /USD — US Dollar/ })).toBeVisible();
 });

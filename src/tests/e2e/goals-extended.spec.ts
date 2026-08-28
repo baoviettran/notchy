@@ -110,6 +110,8 @@ test.describe('goals — extended', () => {
 		// Actions live in the row's overflow menu (persistent kebab).
 		await card.getByRole('button', { name: 'Actions: Late Goal' }).click();
 		await page.getByRole('menuitem', { name: 'Mark complete' }).click();
+		// ConfirmDialog opens — click confirm to execute.
+		await page.getByRole('dialog').getByRole('button', { name: 'Mark complete' }).click();
 		// Toast confirms.
 		await expect(page.getByText('Goal marked complete.')).toBeVisible();
 		// The goal leaves Active and appears under Completed with a ✓.
@@ -163,6 +165,8 @@ test.describe('goals — extended', () => {
 		const card = page.getByRole('main').locator('.goal-item', { hasText: 'Finishable' });
 		await card.getByRole('button', { name: 'Actions: Finishable' }).click();
 		await page.getByRole('menuitem', { name: 'Mark complete' }).click();
+		// ConfirmDialog opens — click confirm to execute.
+		await page.getByRole('dialog').getByRole('button', { name: 'Mark complete' }).click();
 		await expect(page.getByText('Goal marked complete.')).toBeVisible();
 		// Moves to the Completed section.
 		const completedSection = page.getByRole('main').locator('section', { hasText: 'Completed' });

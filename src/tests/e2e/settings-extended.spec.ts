@@ -39,8 +39,8 @@ test.describe('settings — extended', () => {
 		await page.getByRole('link', { name: 'Settings', exact: true }).click();
 		const main = page.getByRole('main');
 		// settings_theme_light = "light", settings_theme_dark = "dark".
-		const lightBtn = main.getByRole('button', { name: 'light', exact: true });
-		const darkBtn = main.getByRole('button', { name: 'dark', exact: true });
+		const lightBtn = main.getByRole('radio', { name: 'light', exact: true });
+		const darkBtn = main.getByRole('radio', { name: 'dark', exact: true });
 		// Clicking Light marks it active (border-phosphor class, line 90).
 		await lightBtn.click();
 		await expect(lightBtn).toHaveClass(/border-phosphor/);
@@ -57,9 +57,9 @@ test.describe('settings — extended', () => {
 		// UI updates in place — no reload, no data loss.
 		await page.getByRole('link', { name: 'Settings', exact: true }).click();
 		const main = page.getByRole('main');
-		const viBtn = main.getByRole('button', { name: 'Tiếng Việt' });
+		const viBtn = main.getByRole('radio', { name: 'Tiếng Việt' });
 		// English active by default post-onboarding.
-		await expect(main.getByRole('button', { name: 'English' })).toHaveClass(/border-phosphor/);
+		await expect(main.getByRole('radio', { name: 'English' })).toHaveClass(/border-phosphor/);
 		// Click VI → UI updates in place.
 		await viBtn.click();
 		// Onboarding must NOT re-appear (no reload).
@@ -198,7 +198,7 @@ async function changeQuickSelect(page: import('@playwright/test').Page, optionLa
 		// Navigate to settings.
 		await page.getByRole('link', { name: 'Settings', exact: true }).click();
 		// Switch to Vietnamese.
-		const viBtn = page.getByRole('main').getByRole('button', { name: 'Tiếng Việt' });
+		const viBtn = page.getByRole('main').getByRole('radio', { name: 'Tiếng Việt' });
 		await viBtn.click();
 		// The page must NOT reload — onboarding must NOT re-appear.
 		await expect(page.getByRole('heading', { name: 'Choose your language' })).toHaveCount(0);

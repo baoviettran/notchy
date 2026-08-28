@@ -113,7 +113,7 @@ test.describe('budgets — extended', () => {
 		await input.press('Enter');
 		await expect(page.getByText('Invalid amount')).toBeVisible();
 		// Allocation unchanged: still 0 / 0.
-		await expect(page.locator('main button.figures').first()).toContainText('0');
+		await expect(page.locator('main button.figures').first()).toContainText('Not budgeted');
 	});
 
 	test('over-allocating beyond available income shows a soft warning', async ({ onboardedPage: page }) => {
@@ -144,13 +144,13 @@ test.describe('budgets — extended', () => {
 
 		// Current month: allocation is independent (0 by default).
 		await page.getByRole('button', { name: 'Next month' }).click();
-		await expect(page.locator('main button.figures').first()).toContainText('₫0');
+		await expect(page.locator('main button.figures').first()).toContainText('Not budgeted');
 
 		// Allocate 500k in the current month too. The prior 500k surplus rolls
 		// in, so available = 500k (allocated) + 500k (rolled) − 0 (spent) = 1,000k,
 		// and a "rolled over ₫500,000" line appears under the bar.
 		await allocateFirstBucket(page, '500000');
-		const firstBucket = page.locator('main .surface.rounded-lg').first();
+		const firstBucket = page.locator('main .surface.rounded-lg.space-y-2').first();
 		await expect(firstBucket.getByText(/rolled over/i)).toBeVisible();
 		await expect(firstBucket.getByText(/₫500,000 rolled over/)).toBeVisible();
 		// Available figure (₫1,000,000) is shown with the "available" label.

@@ -18,15 +18,16 @@ test.describe('transactions filter sheet (mobile)', () => {
 		await expect(filtersBtn).toBeVisible();
 
 		// Before opening: filter selects are NOT visible (hidden on mobile).
-		await expect(page.getByLabel('Kind')).not.toBeVisible();
+		const dialog = page.getByRole('dialog', { name: 'Filters' });
+		await expect(dialog.getByLabel('Kind')).not.toBeVisible();
 
 		// Open filter sheet.
 		await filtersBtn.click();
 
-		// Sheet opens: filter selects are now visible.
-		const kindSelect = page.getByLabel('Kind');
+		// Sheet opens: filter selects are now visible inside the dialog.
+		const kindSelect = dialog.getByLabel('Kind');
 		await expect(kindSelect).toBeVisible();
-		await expect(page.getByLabel('Account')).toBeVisible();
+		await expect(dialog.getByLabel('Account')).toBeVisible();
 
 		// Select a filter.
 		await kindSelect.selectOption('expense');
@@ -47,10 +48,11 @@ test.describe('transactions filter sheet (mobile)', () => {
 		await page.getByRole('link', { name: 'Transactions', exact: true }).click();
 		const filtersBtn = page.getByRole('button', { name: /Filters/ });
 		await filtersBtn.click();
-		await expect(page.getByLabel('Kind')).toBeVisible();
+		const dialog = page.getByRole('dialog', { name: 'Filters' });
+		await expect(dialog.getByLabel('Kind')).toBeVisible();
 
 		await page.keyboard.press('Escape');
-		await expect(page.getByLabel('Kind')).not.toBeVisible();
+		await expect(dialog.getByLabel('Kind')).not.toBeVisible();
 	});
 });
 
@@ -61,9 +63,12 @@ test.describe('transactions filter (desktop)', () => {
 		await filtersBtn.click();
 
 		// On desktop, filter selects should be visible inline (not in a sheet).
-		await expect(page.getByLabel('Kind')).toBeVisible();
+		// Scope to the inline container (hidden md:block) to avoid matching the
+		// dialog's duplicate filter selects that also exist in the DOM.
+		const inlineFilters = page.locator('.hidden.md\\:block');
+		await expect(inlineFilters.getByLabel('Kind')).toBeVisible();
 
-		// No scrim overlay should exist for the filter sheet.
-		await expect(page.locator('.fixed.inset-0.z-40')).toHaveCount(0);
+		// Scrim overlay is CSS-hidden on desktop (md:hidden) — not visible.
+		await expect(page.locator('.fixed.inset-0.z-40')).not.toBeVisible();
 	});
 });
