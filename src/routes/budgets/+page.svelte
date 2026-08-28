@@ -186,15 +186,15 @@
 		<div class="surface rounded-lg p-4">
 			<div class="grid grid-cols-3 gap-4 text-center">
 				<div>
-					<p class="text-xs text-dim">{m.budgets_summary_income()}</p>
+					<p class="plate">{m.budgets_summary_income()}</p>
 					<p class="figures-glow text-lg text-ledger">{formatCurrency(monthIncome, settings.currency, settings.locale)}</p>
 				</div>
 				<div>
-					<p class="text-xs text-dim">{m.budgets_used()}</p>
+					<p class="plate">{m.budgets_used()}</p>
 					<p class="figures text-lg text-ledger">{formatCurrency(totalAllocated, settings.currency, settings.locale)}</p>
 				</div>
 				<div>
-					<p class="text-xs text-dim">{m.budgets_summary_spent()}</p>
+					<p class="plate">{m.budgets_summary_spent()}</p>
 					<p class="figures text-lg {totalSpent > totalAllocated ? 'text-debit' : 'text-ledger'}">{formatCurrency(totalSpent, settings.currency, settings.locale)}</p>
 				</div>
 			</div>

@@ -135,15 +135,15 @@
 	<div class="surface rounded-lg p-4">
 		<div class="grid grid-cols-3 gap-4 text-center">
 			<div>
-				<p class="text-xs text-dim">{m.goals_active()}</p>
+				<p class="plate">{m.goals_active()}</p>
 				<p class="figures text-lg text-ledger">{goals.active.length}</p>
 			</div>
 			<div>
-				<p class="text-xs text-dim">{m.goals_summary_saved()}</p>
+				<p class="plate">{m.goals_summary_saved()}</p>
 				<p class="figures text-lg text-ledger">{formatCurrency(totalSaved, settings.currency, settings.locale)}</p>
 			</div>
 			<div>
-				<p class="text-xs text-dim">{m.goals_summary_target()}</p>
+				<p class="plate">{m.goals_summary_target()}</p>
 				<p class="figures-glow text-lg text-ledger">{formatCurrency(totalTarget, settings.currency, settings.locale)}</p>
 			</div>
 		</div>

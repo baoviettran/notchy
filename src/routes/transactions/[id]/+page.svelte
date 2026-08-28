@@ -93,7 +93,7 @@
 </script>
 
 <div class="space-y-6">
-	<a href="/transactions" class="inline-flex items-center gap-1 text-xs text-dim hover:text-phosphor transition-colors">← {m.common_back()}</a>
+	<a href="/transactions" class="inline-flex items-center gap-1 text-xs text-dim hover:text-phosphor transition-colors">◀ {m.common_back()}</a>
 
 	{#if errorMsg}
 		<ErrorState description={errorMsg} onRetry={load} />
