@@ -1,3 +1,7 @@
+#![allow(clippy::too_many_arguments, clippy::useless_format, clippy::unnecessary_sort_by, clippy::suspicious_open_options)]
+// from_str: MetaKey::from_str is intentional, not std::str::FromStr
+#![allow(clippy::should_implement_trait)]
+
 pub mod database;
 
 use tauri::{
