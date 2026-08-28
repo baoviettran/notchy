@@ -28,8 +28,9 @@ fn scratch_root(tag: &str) -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_nanos();
+    let thread_id = std::thread::current().id();
     std::env::temp_dir().join(format!(
-        "notchy-crash-test-{}-{tag}-{nanos}",
+        "notchy-crash-test-{}-{thread_id:?}-{tag}-{nanos}",
         std::process::id()
     ))
 }
