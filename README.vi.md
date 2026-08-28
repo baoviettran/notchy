@@ -12,15 +12,15 @@
 
 ### Tải về
 
-Bản dựng sẵn cho Linux có sẵn tại [bản phát hành mới nhất](https://github.com/baoviettran/notchy/releases):
+Các bản dựng sẵn có sẵn tại [bản phát hành mới nhất](https://github.com/baoviettran/notchy/releases):
 
 | Nền tảng | Tệp |
 |---|---|
-| Linux (Debian/Ubuntu) | `Notchy_0.1.0_amd64.deb` |
-| Linux (Fedora/RHEL) | `Notchy-0.1.0-1.x86_64.rpm` |
-| Linux (bất kỳ) | `Notchy_0.1.0_amd64.AppImage` |
-| macOS | `Notchy_0.1.0_x64.dmg` (dự kiến) |
-| Windows | `Notchy_0.1.0_x64-setup.exe` (dự kiến) |
+| Linux (Debian/Ubuntu) | `Notchy_0.2.0_amd64.deb` |
+| Linux (Fedora/RHEL) | `Notchy-0.2.0-1.x86_64.rpm` |
+| Linux (bất kỳ) | `Notchy_0.2.0_amd64.AppImage` |
+| macOS (ARM) | `Notchy_0.2.0_aarch64.dmg` |
+| Windows | `Notchy_0.2.0_x64-setup.exe` |
 
 ### Build từ mã nguồn
 

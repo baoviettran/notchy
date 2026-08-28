@@ -12,15 +12,15 @@ A local-first personal finance application. Your data stays on your device — n
 
 ### Download
 
-Pre-built Linux binaries are available from the [latest release](https://github.com/baoviettran/notchy/releases):
+Pre-built binaries are available from the [latest release](https://github.com/baoviettran/notchy/releases):
 
 | Platform | File |
 |---|---|
-| Linux (Debian/Ubuntu) | `Notchy_0.1.0_amd64.deb` |
-| Linux (Fedora/RHEL) | `Notchy-0.1.0-1.x86_64.rpm` |
-| Linux (any) | `Notchy_0.1.0_amd64.AppImage` |
-| macOS | `Notchy_0.1.0_x64.dmg` (planned) |
-| Windows | `Notchy_0.1.0_x64-setup.exe` (planned) |
+| Linux (Debian/Ubuntu) | `Notchy_0.2.0_amd64.deb` |
+| Linux (Fedora/RHEL) | `Notchy-0.2.0-1.x86_64.rpm` |
+| Linux (any) | `Notchy_0.2.0_amd64.AppImage` |
+| macOS (ARM) | `Notchy_0.2.0_aarch64.dmg` |
+| Windows | `Notchy_0.2.0_x64-setup.exe` |
 
 ### Build from Source
 
@@ -101,7 +101,7 @@ You can open this file with any SQLite tool. See [RECOVERY.md](RECOVERY.md) for 
 1. **Data outlives the application.** SQLite is the single source of truth; the file remains readable in any era.
 2. **Local-first.** No cloud, no telemetry, no required network.
 3. **Built for a decade.** Pinned dependencies, reproducible builds.
-4. **Small and shippable.** v0.1 is intentionally minimal.
+4. **Small and shippable.** Intentionally minimal — only what's needed.
 
 ## Tech Stack
 
