@@ -25,8 +25,8 @@
     "tauri": "tauri"
   },
   "engines": {
-    "node": "22.22.3",
-    "pnpm": "10.11.0"
+    "node": ">=22",
+    "pnpm": ">=10"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
