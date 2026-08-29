@@ -515,23 +515,23 @@ EOF
 - Consumes: the 0%-coverage layout components and the 30% DatePicker; the existing harness + probe pattern.
 - Produces: ≥80% stmts / ≥70% branch on all six.
 
-- [ ] **Step 1: Layout (Sidebar, FAB, ShortcutRef)**
+- [x] **Step 1: Layout (Sidebar, FAB, ShortcutRef)**
 
 Navigation active-state logic (Sidebar), FAB visibility/click-to-add, ShortcutRef key-label rendering. ≥80/70 each.
 
-- [ ] **Step 2: DatePicker**
+- [x] **Step 2: DatePicker**
 
 This is the 30%-coverage one and a `dbcb436` bug target: date selection, month navigation, min/max bounds, empty/disabled states. Reference the tour/DatePicker inventory rows from Task 1. ≥80/70.
 
-- [ ] **Step 3: FilterControls + FilterSheet**
+- [x] **Step 3: FilterControls + FilterSheet**
 
 Filter chip add/remove/toggle, sheet open/close, apply/cancel, empty-filter state. ≥80/70 each.
 
-- [ ] **Step 4: Floors + gate**
+- [x] **Step 4: Floors + gate**
 
 Record floors; `pnpm test` green; gate green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/tests/unit/components specs/coverage-floors.json

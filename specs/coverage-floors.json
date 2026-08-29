@@ -11,7 +11,7 @@
   "src/lib/utils/number_parse.ts": { "stmts": 92, "branch": 88 },
   "src/lib/utils/dedup.ts": { "stmts": 100, "branch": 100 },
   "src/lib/components/primitives/Autocomplete.svelte": { "stmts": 97, "branch": 93 },
-  "src/lib/components/primitives/DatePicker.svelte": { "stmts": 30, "branch": 10 },
+  "src/lib/components/primitives/DatePicker.svelte": { "stmts": 90, "branch": 72 },
   "src/lib/components/forms/AccountForm.svelte": { "stmts": 98, "branch": 96 },
   "src/lib/components/forms/GoalForm.svelte": { "stmts": 96, "branch": 100 },
   "src/lib/components/modals/ImportTransactionsModal.svelte": { "stmts": 91, "branch": 70 },
