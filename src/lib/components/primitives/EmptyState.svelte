@@ -36,8 +36,8 @@
 		class="figures-glow glyph text-2xl mb-3"
 		aria-hidden="true"
 	>{shown}</p>
-	{#if title}<p class="empty-title text-ledger font-medium mb-1">{title}</p>{/if}
-	<p class="text-sm text-dim leading-relaxed max-w-xs mx-auto">{message}</p>
+	{#if title}<p class="empty-title text-ledger font-medium mb-1.5">{title}</p>{/if}
+	<p class="text-sm text-dim leading-relaxed max-w-sm mx-auto">{message}</p>
 	{#if action}
 		<div class="mt-4">
 			{@render action()}

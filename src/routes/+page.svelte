@@ -236,13 +236,11 @@
 			<a href="/transactions" class="plate hover:text-ledger transition-colors hit">{m.dashboard_view_all()}</a>
 		</div>
 		{#if recentTxns.length === 0}
-			<div class="px-5 pb-2">
-				<EmptyState message={m.dashboard_no_txns_yet({ shortcut: 'N' })} glyph="tape" title={m.empty_title_dashboard()}>
-					{#snippet action()}
-						<Button size="sm" variant="secondary" onclick={recordFirstTransaction}>{m.layout_add_transaction()}</Button>
-					{/snippet}
-				</EmptyState>
-			</div>
+			<EmptyState message={m.dashboard_no_txns_yet({ shortcut: 'N' })} glyph="tape" title={m.empty_title_dashboard()}>
+				{#snippet action()}
+					<Button size="sm" variant="secondary" onclick={recordFirstTransaction}>{m.layout_add_transaction()}</Button>
+				{/snippet}
+			</EmptyState>
 		{:else}
 			<ul class="divide-y divide-line border-t border-line">
 				{#each recentTxns as tx (tx.id)}
