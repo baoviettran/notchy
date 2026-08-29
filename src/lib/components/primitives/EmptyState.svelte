@@ -1,8 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 
-	type Glyph = 'tape' | 'register' | 'vault' | 'envelope' | 'target' | 'check';
-	type Tone = 'neutral' | 'positive';
+	type Glyph = 'tape' | 'register' | 'vault' | 'envelope' | 'target';
 
 	// Machine "modes" — each empty state reads as a different idle display
 	// waiting for input, not a dead end. Decorative only; aria-hidden.
@@ -11,8 +10,7 @@
 		register: '▯▯▯▯',
 		vault: '▣▯',
 		envelope: '▤▯',
-		target: '◇▯',
-		check: '✓'
+		target: '◇▯'
 	};
 
 	let {
@@ -20,15 +18,13 @@
 		icon = undefined,
 		title = undefined,
 		message,
-		action = undefined,
-		tone = 'neutral'
+		action = undefined
 	}: {
 		glyph?: Glyph;
 		icon?: string;
 		title?: string;
 		message: string;
 		action?: Snippet;
-		tone?: Tone;
 	} = $props();
 
 	const shown = $derived(icon ?? GLYPHS[glyph] ?? GLYPHS.tape);
@@ -37,7 +33,7 @@
 <div class="text-center py-12 px-4" role="status">
 	<!-- Decorative machine glyph — meaningless to a screen reader, hidden. -->
 	<p
-		class="figures-glow glyph text-2xl mb-3 {tone === 'positive' ? 'text-phosphor' : ''}"
+		class="figures-glow glyph text-2xl mb-3"
 		aria-hidden="true"
 	>{shown}</p>
 	{#if title}<p class="empty-title text-ledger font-medium mb-1">{title}</p>{/if}

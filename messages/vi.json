@@ -569,5 +569,6 @@
   "empty_title_dashboard": "Ghi giao dịch đầu tiên",
   "empty_title_goals": "Đặt một mục tiêu",
   "empty_title_reports": "Chưa có dữ liệu để biểu đồ",
-  "empty_title_transactions": "Sổ cái trống"
+  "empty_title_transactions": "Sổ cái trống",
+  "empty_title_debts": "Theo dõi khoản được nợ"
 }

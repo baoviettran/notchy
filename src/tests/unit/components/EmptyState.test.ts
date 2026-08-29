@@ -45,16 +45,6 @@ describe('EmptyState', () => {
 		expect(container.querySelector('.empty-title')).not.toBeInTheDocument();
 	});
 
-	it('applies the positive tone class to the glyph when tone is positive', () => {
-		render(EmptyState, { message: 'Empty', glyph: 'check', tone: 'positive' });
-		expect(screen.getByText('✓').className).toContain('text-phosphor');
-	});
-
-	it('keeps the neutral tone by default (no positive color)', () => {
-		render(EmptyState, { message: 'Empty' });
-		expect(screen.getByText('▮▯▯▯').className).not.toContain('text-phosphor');
-	});
-
 	it('renders an action snippet container when action is provided', () => {
 		const { container } = render(EmptyState, { message: 'Empty', action: snip('Add one') });
 		expect(container.querySelector('.mt-4')).toBeInTheDocument();

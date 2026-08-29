@@ -569,5 +569,6 @@
   "empty_title_dashboard": "Record your first transaction",
   "empty_title_goals": "Set a goal",
   "empty_title_reports": "Nothing to chart yet",
-  "empty_title_transactions": "Your ledger is empty"
+  "empty_title_transactions": "Your ledger is empty",
+  "empty_title_debts": "Track what you're owed"
 }
