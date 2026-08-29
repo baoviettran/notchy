@@ -1,4 +1,5 @@
 # Rust Database Integrity Boundary
+**Serves:** STORY-001
 
 **Date:** 2026-08-17  
 **Status:** Revised architecture — awaiting user review

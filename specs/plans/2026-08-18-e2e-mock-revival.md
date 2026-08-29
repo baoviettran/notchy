@@ -1,4 +1,5 @@
 # E2E Tauri Mock Revival Implementation Plan
+**Serves:** STORY-013
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 

@@ -1,4 +1,5 @@
 # Vietnamese Locale — Full Bilingual Design
+**Serves:** STORY-011
 
 **Date:** 2026-06-29
 **Status:** Approved (pending implementation plan)

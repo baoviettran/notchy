@@ -1,4 +1,5 @@
 # Test-Coverage Cure — Design Spec
+**Serves:** STORY-013
 
 - **Date:** 2026-08-28 (rev 2 — native-boundary re-scope)
 - **Status:** Draft for review

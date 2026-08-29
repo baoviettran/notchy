@@ -1,4 +1,5 @@
 # Categorize Rules Engine — Design
+**Serves:** STORY-007
 
 **Date:** 2026-07-06
 **Status:** Design (pending implementation plan)

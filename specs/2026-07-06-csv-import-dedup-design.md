@@ -1,4 +1,5 @@
 # CSV Transaction Import + Dedup — Design
+**Serves:** STORY-006
 
 **Date:** 2026-07-06
 **Status:** Design (pending implementation plan)

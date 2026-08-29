@@ -1,4 +1,5 @@
 # Light Machine — Design System Rollout (Light-first, Dual-mode)
+**Serves:** STORY-015
 
 **Date:** 2026-06-29
 **Status:** Approved (design)

@@ -1,4 +1,5 @@
 # Battle-Tested E2E Suite — Design
+**Serves:** STORY-013
 
 **Date:** 2026-06-30
 **Goal:** Replace the single onboarding E2E spec with a comprehensive, isolated Playwright suite that proves Notchy's core flows — breadth across every route, depth on the data-integrity surfaces (transactions, accounts/reconciliation, budgets), and full-IPC-mock depth on backup/restore plus a reload-survival guarantee. This is the gate that lets us call the app "battle-tested" before shipping.

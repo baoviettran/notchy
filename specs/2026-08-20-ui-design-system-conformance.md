@@ -1,4 +1,5 @@
 # UI Design-System Conformance — Design Review (Spec)
+**Serves:** STORY-014
 
 **Date:** 2026-08-20
 **Status:** Approved for implementation planning

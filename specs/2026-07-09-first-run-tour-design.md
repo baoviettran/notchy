@@ -1,4 +1,5 @@
 # First-run product tour (spotlight coachmarks)
+**Serves:** STORY-010
 
 **Date:** 2026-07-09  
 **Status:** Spec only — not yet implemented

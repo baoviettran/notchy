@@ -1,4 +1,5 @@
 # Quality-Gate Stabilization Design
+**Serves:** STORY-013
 
 **Date:** 2026-08-15
 
