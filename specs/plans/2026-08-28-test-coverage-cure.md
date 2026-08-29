@@ -35,23 +35,23 @@ The orphan `db/native/*.ts` standalone adapters (throw `'not wired'`, imported b
 - Consumes: `git log --grep="fix:"` (esp. `dbcb436` batch UI fixes), the memory docs (`MEMORY.md`), `specs/STATUS.md`, and the native-layer ground truth (Task 2's target, `src/lib/db/native/client.ts`, plus the orphan `db/native/*.ts` files).
 - Produces: the backlog that Tasks 2, 8, 9, and 13 read rows from, and the file list that seeds Task 4's `coverage-floors.json`.
 
-- [ ] **Step 1: Enumerate the bug backlog**
+- [x] **Step 1: Enumerate the bug backlog**
 
 Mine `git log --oneline --grep="fix:"` plus the memory docs. For each candidate bug, record: bug, fixing commit SHA, layer (unit/component/E2E/native-boundary), primary file(s), and whether an existing test covers it (which test file?).
 
-- [ ] **Step 2: Cross-check against existing tests**
+- [x] **Step 2: Cross-check against existing tests**
 
 For each row, grep the test tree (`src/tests/unit/`, `src/tests/e2e/`) for a test that would fail on the pre-fix build. Mark rows "covered" (existing test) or "gap" (needs a TC-2 unit/component test, TC-7 E2E flow, and/or TC-8 boundary test). The seed bugs known to already have specs: onboarding, tour, budgets, quick-add, reload-survival — verify, don't assume.
 
-- [ ] **Step 3: Add the native seam + dead-code rows**
+- [x] **Step 3: Add the native seam + dead-code rows**
 
 Add a row for the live desktop seam: `NativeDatabaseClient` in `src/lib/db/native/client.ts` — every op's command-name/arg-shape contract is untested (only invoke-error propagation is covered). Note the suspected `accountId` vs `account_id` serialization seam. Separately, mark **every** `db/native/*.ts` standalone adapter (accounts/transactions/budgets/categories/goals/rules/meta/debts/reconciliations/reports/export) as `dead-code-candidate` — verify with `grep -rn "db/native/<name>" src/ scripts/` returning nothing, so Tasks 4/5 skip them.
 
-- [ ] **Step 4: Write `specs/coverage-bug-inventory.md`**
+- [x] **Step 4: Write `specs/coverage-bug-inventory.md`**
 
 Table with columns: Bug | Fix commit | Layer | Primary file | Existing test? | Target test. Every gap row must have a Target test cell filled before its TC-2/TC-7/TC-8 task starts.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add specs/coverage-bug-inventory.md
@@ -77,23 +77,23 @@ EOF
 - Consumes: the real `NativeDatabaseClient` (`src/lib/db/native/client.ts`) and the registered Rust command surface (`src-tauri/src/lib.rs` `generate_handler` list). Reuses the `vi.mock('@tauri-apps/api/core')` pattern from `native-client.test.ts`.
 - Produces: locks the live-desktop seam. This is the highest-value, currently-zero-covered path. Enables Task 5 to mutate `db/native/client.ts` meaningfully.
 
-- [ ] **Step 1: Build the recording invoke mock**
+- [x] **Step 1: Build the recording invoke mock**
 
 In `src/tests/unit/native-boundary.test.ts`, mock `@tauri-apps/api/core`'s `invoke` as a spy that records `(command, args)` and returns a per-command fixture map (accounts → `[{...AccountWithBalance}]`, transactions → `{...}`, etc.). Instantiate the real `NativeDatabaseClient`.
 
-- [ ] **Step 2: Assert command-name mapping per ops group**
+- [x] **Step 2: Assert command-name mapping per ops group**
 
 For one operation per ops group (accounts, transactions, categories, budgets, goals, rules, meta, debts, reconciliations, reports) plus the lifecycle commands, assert `invoke` was called with the **exact** command name that the Rust `generate_handler` registers (e.g. `account_list`, `transaction_create`, `category_list_buckets`). Cross-check each name against `src-tauri/src/lib.rs`.
 
-- [ ] **Step 3: Assert the serialization seam**
+- [x] **Step 3: Assert the serialization seam**
 
 The `accountId` vs `account_id` risk: assert the recorded args object's keys match the Rust command's parameter names. If Tauri does not convert camelCase→snake_case, this step is red — surface the mismatch exactly (the suspected live bug), then resolve by aligning the client's arg keys to the Rust params in the same commit.
 
-- [ ] **Step 4: Assert result shaping + idempotency**
+- [x] **Step 4: Assert result shaping + idempotency**
 
 Assert fixture data deserializes to the domain types (`AccountWithBalance[]`, `Transaction[]`, …). Assert the idempotency contract: a retried mutation reuses the same operation ULID (per `NativeDatabaseClient`'s header comment) rather than minting a new one.
 
-- [ ] **Step 5: Green + commit**
+- [x] **Step 5: Green + commit**
 
 `pnpm test` green (the new test included). The old `native-client.test.ts` "throws on every operation" assertion may now be redundant for asserted ops — keep it only where it still holds, or extend it. Commit.
 
@@ -121,7 +121,7 @@ EOF
 - Consumes: the existing `playwright.config.ts` (`webServer: pnpm build && pnpm preview`, `reuseExistingServer: !CI`, `retries: 1`).
 - Produces: the CI job that Task 13's flow specs and Task 14's gate must not break.
 
-- [ ] **Step 1: Add the `e2e` job**
+- [x] **Step 1: Add the `e2e` job**
 
 Append to `.github/workflows/ci.yml`:
 
@@ -150,15 +150,15 @@ Append to `.github/workflows/ci.yml`:
           path: playwright-report/
 ```
 
-- [ ] **Step 2: Verify the job runs on a PR**
+- [x] **Step 2: Verify the job runs on a PR**
 
 Push the branch and open a PR against `main` (or run the job on the existing `fix/ui-bugfix-session` branch). Confirm: `e2e` job starts, installs chromium, runs all 32 specs, reports pass/fail; the job runs in parallel with `rust` and doesn't block unit tests.
 
-- [ ] **Step 3: Confirm failure artifacts**
+- [x] **Step 3: Confirm failure artifacts**
 
 Introduce a deliberate failing assertion in one spec (or reuse a known-flaky one), confirm `playwright-report/` uploads on failure, then revert. All 32 specs must pass with only the existing `retries: 1` absorbing sql.js fallback flakiness.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add .github/workflows/ci.yml
@@ -186,27 +186,27 @@ EOF
 - Consumes: `coverage/coverage-summary.json` from `pnpm test:coverage`; `git diff` against the base ref (`BASE_SHA` env in CI, default `HEAD~1` locally).
 - Produces: the enforcement mechanism Task 14 ratchets and every later task must keep green. The orphan `db/native/*.ts` adapters are deliberately absent from the floors.
 
-- [ ] **Step 1: Add the `json-summary` reporter**
+- [x] **Step 1: Add the `json-summary` reporter**
 
 In `vitest.config.ts`, add `'json-summary'` to `coverage.reporter`. Run `pnpm test:coverage` and confirm `coverage/coverage-summary.json` exists with a `total` and per-file `statements`/`branches`/`functions`/`lines` object.
 
-- [ ] **Step 2: Seed `specs/coverage-floors.json`**
+- [x] **Step 2: Seed `specs/coverage-floors.json`**
 
 For each module in the inventory's primary-file list plus the TC-3/TC-4/TC-5/TC-8 targets, record the **current observed** coverage as the floor (so the gate passes at launch). Include `db/native/client.ts` (Task 2 raises it). **Do NOT include** the orphan `db/native/*.ts` adapters. Format: `{ "path/to/file.ts": { "stmts": 80, "branch": 70 } }`. Explicitly include the 0% components so they're visible.
 
-- [ ] **Step 3: Write `scripts/coverage-gate.mjs`**
+- [x] **Step 3: Write `scripts/coverage-gate.mjs`**
 
 Read `coverage/coverage-summary.json`; compute touched files via `git diff --name-only` against `BASE_SHA` (filter to `src/lib/**`); for each touched file with a floor entry, fail if observed < floor. Print a per-file report (`PASS`/`FAIL floor=80 got=43`) and exit 1 on any violation. No floor entry → pass (targeted floors, not global).
 
-- [ ] **Step 4: Wire the CI step**
+- [x] **Step 4: Wire the CI step**
 
 In the `quality` job, after `Unit tests`, add a `Coverage gate (touched files)` step: run `pnpm test:coverage` then `node scripts/coverage-gate.mjs` with `BASE_SHA` set from the PR base. The step must be green against the seeded lenient floors.
 
-- [ ] **Step 5: Prove the gate fires**
+- [x] **Step 5: Prove the gate fires**
 
 Adversarial check: temporarily lower a covered file's floor *below* its observed value, run the gate → `FAIL` + exit 1. Restore the floor. Then confirm the gate passes on a clean run and that the CI step shows PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add scripts/coverage-gate.mjs specs/coverage-floors.json vitest.config.ts .github/workflows/ci.yml
