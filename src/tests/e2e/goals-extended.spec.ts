@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures/onboarded';
+import { pickDate } from './helpers/datepicker';
 
 // Extended goal coverage for the AUTO-tagged checklist items in §6.
 // Conventions match goals.spec.ts: SPA navigation only, comments cite source
@@ -40,7 +41,7 @@ async function createGoal(page: import('@playwright/test').Page, name: string, t
 	const modal = page.getByRole('dialog');
 	await modal.getByLabel('Name').fill(name);
 	await modal.getByLabel('Target amount').fill(target);
-	await modal.getByLabel('Target date').fill(date);
+	await pickDate(modal.getByLabel('Target date'), date);
 	// Link to the onboarding account so current_amount tracks its balance.
 	await modal.getByLabel('Linked account').selectOption({ label: 'Test Checking' });
 	await modal.getByRole('button', { name: 'Create' }).click();

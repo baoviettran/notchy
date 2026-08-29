@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures/onboarded';
+import { pickDate } from './helpers/datepicker';
 import { addTransaction } from './helpers/ui';
 
 // Extended account coverage for the AUTO-tagged checklist items in §4.
@@ -179,7 +180,7 @@ test.describe('accounts — extended', () => {
 		await goalModal.getByLabel('Target amount').fill('1m');
 		// Target date is required (GoalForm.svelte:40 validation_target_date_required).
 		// Use a future date next year.
-		await goalModal.getByLabel('Target date').fill('2027-12-31');
+		await pickDate(goalModal.getByLabel('Target date'), '2027-12-31');
 		// "Linked account" Select (GoalForm.svelte:73). Required for the link.
 		await goalModal.getByLabel('Linked account').selectOption({ label: 'Test Checking' });
 		await goalModal.getByRole('button', { name: 'Create' }).click();
