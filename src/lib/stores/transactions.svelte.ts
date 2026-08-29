@@ -2,6 +2,7 @@ import { getDb } from '$lib/db';
 import type { Transaction, NewTransaction, TransactionFilter } from '$lib/db/client';
 import { toast } from '$lib/stores/toast.svelte';
 import { mapError } from '$lib/utils/errors';
+import { monthDateRange, flowSum } from '$lib/logic/tx-transform';
 import * as m from '$lib/paraglide/messages';
 
 class TransactionsStore {
@@ -28,19 +29,12 @@ class TransactionsStore {
 	}
 
 	async loadMonthFlow(): Promise<void> {
-		const now = new Date();
-		const year = now.getUTCFullYear();
-		const month = now.getUTCMonth();
-		const dateFrom = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-		const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-		const dateTo = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+		const { dateFrom, dateTo } = monthDateRange(new Date());
 
 		try {
 			const db = getDb();
 			const items = await db.transactions.list({ date_from: dateFrom, date_to: dateTo, limit: 500 });
-			this.monthFlow = items
-				.filter((t) => t.kind === 'income' || t.kind === 'expense')
-				.reduce((s, t) => s + (t.kind === 'income' ? t.amount : -t.amount), 0);
+			this.monthFlow = flowSum(items);
 		} catch {
 			this.monthFlow = null;
 		}

@@ -1,10 +1,11 @@
 import { getDb } from '$lib/db';
 import type { BudgetSummary } from '$lib/db/client';
 import { mapError } from '$lib/utils/errors';
+import { monthKey } from '$lib/logic/budget-calc';
 
 class BudgetsStore {
 	items = $state<BudgetSummary[]>([]);
-	month = $state(currentMonth());
+	month = $state(monthKey(new Date()));
 	loading = $state(false);
 	error = $state<string | null>(null);
 	hasAllocations = $state(false);
@@ -35,11 +36,6 @@ class BudgetsStore {
 		await db.budgets.copyFromPreviousMonth(this.month);
 		await this.load();
 	}
-}
-
-function currentMonth(): string {
-	const d = new Date();
-	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
 export const budgets = new BudgetsStore();

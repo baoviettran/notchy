@@ -317,23 +317,23 @@ EOF
 - Consumes: the calc/validation/transform logic currently inline in the three stores (follow the existing `BudgetSummaryCalc` pattern).
 - Produces: pure modules with tests; thinner stores. No behavior change.
 
-- [ ] **Step 1: Locate the pure logic**
+- [x] **Step 1: Locate the pure logic**
 
 For each of the three stores, list the pure calc/validation/transform blocks (budget summary math, settings currency/theme transforms, transaction kind/date/amount normalization).
 
-- [ ] **Step 2: Write tests for the extracted functions (green-first)**
+- [x] **Step 2: Write tests for the extracted functions (green-first)**
 
 New tests in `src/tests/unit/logic/` hit ≥90% stmts / ≥80% branch on each new module. Include the branch-y edge cases (empty budgets, boundary dates, null payee/tag) that the 59% branch number hides today.
 
-- [ ] **Step 3: Extract and thin the stores**
+- [x] **Step 3: Extract and thin the stores**
 
 Move logic; stores call into the pure modules. Full suite green, `pnpm check` green.
 
-- [ ] **Step 4: Update floors and gate**
+- [x] **Step 4: Update floors and gate**
 
 Record new-module floors in `specs/coverage-floors.json`; confirm the gate stays green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/logic specs/coverage-floors.json
