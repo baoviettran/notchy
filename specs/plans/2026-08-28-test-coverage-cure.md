@@ -670,19 +670,19 @@ EOF
 - Consumes: every prior task's landed commits and flipped checkboxes.
 - Produces: the "cured" state: both success criteria met, the native boundary locked, and visible in the roadmap.
 
-- [ ] **Step 1: Confirm bug-driven criterion**
+- [x] **Step 1: Confirm bug-driven criterion**
 
 Every inventory row has its target test landed (unit/component, E2E, and/or native-boundary) — spot-check three rows by reverting the fix mentally and confirming the test is red. Confirm the plan's own tasks' steps are all `- [x]`.
 
-- [ ] **Step 2: Confirm numeric + boundary criteria**
+- [x] **Step 2: Confirm numeric + boundary criteria**
 
 `pnpm test:coverage` shows the target modules ≥ their floors and the gate passes on the full tree; mutation scores reported for the expanded scope including `db/native/client.ts`; `pnpm test:unit/native-boundary` green. The orphan `db/native/*.ts` adapters are marked dead-code candidates (removal deferred to a separate task) — confirm they are not counted as gaps.
 
-- [ ] **Step 3: Refresh the roadmap**
+- [x] **Step 3: Refresh the roadmap**
 
 Run `pnpm test:roadmap`; confirm no `⚠ stale` warning and `specs/STATUS.md` shows the plan as implemented (all boxes `[x]` with matching commits).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add specs/plans/2026-08-28-test-coverage-cure.md
@@ -701,23 +701,23 @@ EOF
 ## Checkpoints
 
 ### Checkpoint: Foundation (after Tasks 1–4)
-- [ ] `specs/coverage-bug-inventory.md` exists with a Target test per gap row, native-seam row present, orphan adapters flagged dead-code
-- [ ] Boundary contract test (Task 2) green and locking the Rust seam
-- [ ] E2E job runs in CI; gate step runs and passes (lenient)
-- [ ] Full suite green: `pnpm test`, `pnpm check`
-- [ ] Review with human before proceeding
+- [x] `specs/coverage-bug-inventory.md` exists with a Target test per gap row, native-seam row present, orphan adapters flagged dead-code
+- [x] Boundary contract test (Task 2) green and locking the Rust seam
+- [x] E2E job runs in CI; gate step runs and passes (lenient)
+- [x] Full suite green: `pnpm test`, `pnpm check`
+- [x] Review with human before proceeding
 
 ### Checkpoint: Coverage raised (after Tasks 5–13)
-- [ ] No 0% component remains in `src/lib/`; pure modules ≥90/80
-- [ ] Every inventory row has its target test landed
-- [ ] Mutation baselines recorded; Stryker covers the bug-prone modules incl. `db/native/client.ts`
-- [ ] `pnpm test`, `pnpm test:e2e` green; gate green
-- [ ] Review with human before proceeding
+- [x] No 0% component remains in `src/lib/`; pure modules ≥90/80
+- [x] Every inventory row has its target test landed
+- [x] Mutation baselines recorded; Stryker covers the bug-prone modules incl. `db/native/client.ts`
+- [x] `pnpm test`, `pnpm test:e2e` green; gate green
+- [x] Review with human before proceeding
 
 ### Checkpoint: Capstone (after Tasks 14–15)
-- [ ] Gate enforces target floors and blocks a real regression (adversarial check passed)
-- [ ] `pnpm test:roadmap` shows the plan implemented, no staleness
-- [ ] Both success criteria demonstrated — bug-driven AND numeric floors; native boundary locked
+- [x] Gate enforces target floors and blocks a real regression (adversarial check passed)
+- [x] `pnpm test:roadmap` shows the plan implemented, no staleness
+- [x] Both success criteria demonstrated — bug-driven AND numeric floors; native boundary locked
 
 ## Risks and Mitigations
 
