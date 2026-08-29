@@ -17,7 +17,9 @@ export async function onboard(
 	await page.goto('/');
 	// Wait for the Svelte app to hydrate and sql.js WASM to finish initializing
 	// before interacting — prevents race-condition timeouts under parallel workers.
-	await page.getByRole('radiogroup').first().waitFor();
+	// 60s: WASM init + Svelte hydration under parallel CI workers can exceed the
+	// default 30s, especially on the first test that cold-loads the WASM binary.
+	await page.getByRole('radiogroup').first().waitFor({ timeout: 60_000 });
 
 	// Step 1: language
 	await page.getByRole('radio', { name: lang }).click();

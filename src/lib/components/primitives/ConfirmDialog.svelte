@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import Button from './Button.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { createFocusTrap } from '$lib/utils/focusTrap';
@@ -10,7 +11,11 @@
 	let panelEl = $state<HTMLElement>();
 	const focusTrap = createFocusTrap();
 
-	function confirm() { open = false; onconfirm(); }
+	async function confirm() {
+		open = false;
+		await tick();
+		onconfirm();
+	}
 
 	$effect(() => {
 		if (open) return focusTrap.enter(() => panelEl);

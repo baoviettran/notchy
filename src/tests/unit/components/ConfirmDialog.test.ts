@@ -22,6 +22,19 @@ describe('ConfirmDialog', () => {
 		expect(onconfirm).toHaveBeenCalledOnce();
 	});
 
+	it('closes dialog BEFORE firing onconfirm callback', async () => {
+		// Prove-it test: a regression to the old ordering (onconfirm(); open = false)
+		// would pass all other tests but break components that remove the trigger
+		// element inside the callback (focus trap would try to restore focus to a
+		// destroyed node).
+		const onconfirm = vi.fn(() => {
+			expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+		});
+		render(ConfirmDialog, { open: true, title: 'Delete?', message: 'Sure?', onconfirm });
+		await fireEvent.click(screen.getByText('Delete'));
+		await vi.waitFor(() => expect(onconfirm).toHaveBeenCalledOnce());
+	});
+
 	it('closes when Cancel is clicked', async () => {
 		render(ConfirmDialog, { open: true, title: 'Delete?', message: 'Sure?' });
 		await fireEvent.click(screen.getByText('Cancel'));
