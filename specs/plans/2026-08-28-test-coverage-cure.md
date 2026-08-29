@@ -632,19 +632,19 @@ EOF
 - Consumes: the floors achieved by Tasks 4–12 and the mutation baselines from Task 5.
 - Produces: the enforced gate — the "no bug-prone module drops below its floor" guarantee. The orphan adapter stubs remain ungated.
 
-- [ ] **Step 1: Ratchet floors to targets**
+- [x] **Step 1: Ratchet floors to targets**
 
 Set `specs/coverage-floors.json` to the spec's targets for every module that reached them: `db/native/client.ts` 90/80, `db/browser/client.ts` 80/70, `db/repos/transactions.ts` 90/80, `db/repos/budgets.ts` 85/75, `backup/index.ts` 80/70, TC-4 pure modules 90/80, TC-5 components 80/70. Add `mutation` floors from Task 5's baselines. Any module below target gets an explicit "known gap + plan" entry, not a silent pass. **No entry for the orphan `db/native/*.ts` adapters.**
 
-- [ ] **Step 2: Adversarial gate check**
+- [x] **Step 2: Adversarial gate check**
 
 Remove one test from a covered module, run the gate → must FAIL with the file and floor in the report. Restore the test. Also confirm a PR that drops a touched module below its floor is blocked.
 
-- [ ] **Step 3: Full verification**
+- [x] **Step 3: Full verification**
 
 `pnpm test`, `pnpm test:coverage` (gate green), `pnpm test:e2e`, `pnpm check`, `pnpm test:mutation` — all green. Confirm no 0%-coverage module remains in `src/lib/` other than the documented exclusions and the orphan adapters.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add specs/coverage-floors.json scripts/coverage-gate.mjs
