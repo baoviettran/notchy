@@ -243,6 +243,14 @@
 		setSelectMode(false);
 		await loadPage();
 	}
+
+	// The add-transaction modal lives in the root layout (a single instance,
+	// opened by the `n` shortcut). Fire the same key so the empty-state CTA
+	// reuses that exact path instead of duplicating modal state here. The
+	// layout ignores `n` while the tour is active, so this is a no-op then.
+	function recordFirstTransaction() {
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'n' }));
+	}
 </script>
 
 <div class="space-y-6">
@@ -302,7 +310,11 @@
 
 		<div class="surface rounded-lg divide-y divide-line">
 			{#if displayItems.length === 0}
-				<EmptyState message={m.transactions_empty_state()} icon="▮▯▯▯" />
+				<EmptyState message={m.transactions_empty_state()} glyph="tape" title={m.empty_title_transactions()}>
+					{#snippet action()}
+						<Button size="sm" variant="secondary" onclick={recordFirstTransaction}>{m.layout_add_transaction()}</Button>
+					{/snippet}
+				</EmptyState>
 		{:else}
 			{#each displayItems as tx (tx.id)}
 				<div

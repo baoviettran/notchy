@@ -563,5 +563,11 @@
   "budgets_previous_month": "Previous month",
   "budgets_next_month": "Next month",
   "reports_subtotal": "Subtotal",
-  "reports_total": "Total"
+  "reports_total": "Total",
+  "empty_title_accounts": "Start with an account",
+  "empty_title_budgets": "Give every coin a job",
+  "empty_title_dashboard": "Record your first transaction",
+  "empty_title_goals": "Set a goal",
+  "empty_title_reports": "Nothing to chart yet",
+  "empty_title_transactions": "Your ledger is empty"
 }

@@ -158,7 +158,7 @@
 		<h2 class="plate mb-2">{m.goals_active()}</h2>
 		{#if goals.active.length === 0}
 			<div class="surface rounded-lg">
-				<EmptyState message={m.goals_no_active()} icon="▮▯▯▯">
+				<EmptyState message={m.goals_no_active()} glyph="target" title={m.empty_title_goals()}>
 					{#snippet action()}
 						<Button size="sm" variant="ghost" onclick={openCreate}>{m.goals_empty_state()}</Button>
 					{/snippet}

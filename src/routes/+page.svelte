@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import Progress from '$lib/components/primitives/Progress.svelte';
 	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
+	import Button from '$lib/components/primitives/Button.svelte';
 	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import FrequentTransactions from '$lib/components/sections/FrequentTransactions.svelte';
@@ -32,6 +33,13 @@
 		return isLongCurrency(left, settings.currency, settings.locale)
 			? formatCurrencyCompact(left, settings.currency, settings.locale)
 			: formatCurrency(left, settings.currency, settings.locale);
+	}
+
+	// The add-transaction modal lives in the root layout (opened by the `n`
+	// shortcut). Fire that same key so the empty-state CTA reuses the exact
+	// path instead of duplicating modal state here.
+	function recordFirstTransaction() {
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'n' }));
 	}
 
 	let isLoading = $derived(transactions.loading || accounts.loading || budgets.loading || goals.loading);
@@ -229,7 +237,11 @@
 		</div>
 		{#if recentTxns.length === 0}
 			<div class="px-5 pb-2">
-				<EmptyState message={m.dashboard_no_txns_yet({ shortcut: 'N' })} icon="▮▯▯▯" />
+				<EmptyState message={m.dashboard_no_txns_yet({ shortcut: 'N' })} glyph="tape" title={m.empty_title_dashboard()}>
+					{#snippet action()}
+						<Button size="sm" variant="secondary" onclick={recordFirstTransaction}>{m.layout_add_transaction()}</Button>
+					{/snippet}
+				</EmptyState>
 			</div>
 		{:else}
 			<ul class="divide-y divide-line border-t border-line">

@@ -89,7 +89,11 @@
 		<h2 class="plate mb-2">{m.accounts_assets()}</h2>
 		{#if accounts.assets.length === 0}
 			<div class="surface rounded-lg">
-				<EmptyState message={m.accounts_empty_assets()} icon="▮▯▯▯" />
+				<EmptyState message={m.accounts_empty_assets()} glyph="vault" title={m.empty_title_accounts()}>
+					{#snippet action()}
+						<Button size="sm" variant="secondary" onclick={openCreate}>{m.accounts_add()}</Button>
+					{/snippet}
+				</EmptyState>
 			</div>
 		{:else}
 			<div class="surface rounded-lg divide-y divide-line">
@@ -115,7 +119,11 @@
 		<h2 class="plate mb-2">{m.accounts_liabilities()}</h2>
 		{#if accounts.liabilities.length === 0}
 			<div class="surface rounded-lg">
-				<EmptyState message={m.accounts_empty_liabilities()} icon="▮▯▯▯" />
+				<EmptyState message={m.accounts_empty_liabilities()} glyph="vault" title={m.empty_title_accounts()}>
+					{#snippet action()}
+						<Button size="sm" variant="secondary" onclick={openCreate}>{m.accounts_add()}</Button>
+					{/snippet}
+				</EmptyState>
 			</div>
 		{:else}
 			<div class="surface rounded-lg divide-y divide-line">
