@@ -338,11 +338,13 @@ Record new-module floors in `specs/coverage-floors.json`; confirm the gate stays
 ```bash
 git add src/lib/logic specs/coverage-floors.json
 git commit -m "$(cat <<'EOF'
-refactor: extract budgets/settings/transactions pure logic
+refactor: extract budgets/transactions pure logic
 
 Move calc and transform logic out of $state() runes into pure modules
 under src/lib/logic/ so it is Istanbul-measurable. Branch-oriented tests
-cover the edge cases the 59% branch coverage hides today.
+cover the edge cases the 59% branch coverage hides today. settings.svelte.ts
+left in place: its only non-trivial line is an applyThemeClass ternary, not
+worth a module.
 EOF
 )"
 ```
