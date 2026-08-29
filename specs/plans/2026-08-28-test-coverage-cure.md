@@ -235,19 +235,19 @@ EOF
 - Consumes: the existing `@stryker-mutator/vitest-runner` setup; the `db/native/client.ts` boundary test from Task 2 (without it, mutating `client.ts` command strings proves nothing).
 - Produces: mutation-score floors for the bug-prone modules; feeds Task 14's floors. The orphan adapters are NOT targets.
 
-- [ ] **Step 1: Extend `stryker.conf.mjs`**
+- [x] **Step 1: Extend `stryker.conf.mjs`**
 
 Add to `mutate`: `src/lib/db/native/client.ts` (command-name/arg-key mutations are now caught by Task 2's boundary test). Keep `rules_matcher.ts` and `dedup.ts`. Do NOT add the orphan `db/native/*.ts` adapters.
 
-- [ ] **Step 2: Extend `stryker.db.conf.mjs`**
+- [x] **Step 2: Extend `stryker.db.conf.mjs`**
 
 Add `src/lib/db/repos/transactions.ts` and `src/lib/db/repos/budgets.ts`. Keep the existing ranges/comment contract — Tauri-only `runAutoBackup`/`restore` wrappers stay excluded.
 
-- [ ] **Step 3: Run and baseline**
+- [x] **Step 3: Run and baseline**
 
 Run `pnpm test:mutation:pure` and `pnpm test:mutation:db`. Record the mutation scores for the newly added files in the Task 14 floor file as `mutation` floors. If `db/native/client.ts` scores alarmingly low (<50%), it signals the boundary test is too shallow — extend it rather than accepting the low score.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add stryker.conf.mjs stryker.db.conf.mjs specs/coverage-floors.json
@@ -274,23 +274,23 @@ EOF
 - Consumes: `db.svelte.ts` — the boot/migration-ordering/quick-add decision logic (the code paths behind the quick-add contention and migration-race bugs).
 - Produces: the pure module Tasks 8 and 9 test against; a thinner store. Behavior must be byte-identical (refactor under test).
 
-- [ ] **Step 1: Identify the pure candidates**
+- [x] **Step 1: Identify the pure candidates**
 
 In `src/lib/stores/db.svelte.ts`, extract the decision logic that does not touch `$state`/Tauri plumbing: migration ordering, idempotent boot guard, quick-add savepoint/`getDb()` decision, VACUUM gating. Keep the `isTauri()`/event wiring in the store.
 
-- [ ] **Step 2: Write characterization tests (green-first)**
+- [x] **Step 2: Write characterization tests (green-first)**
 
 For each extracted candidate, write `src/tests/unit/logic/db-boot.test.ts` pinning current behavior — including the failure states the two bugs produced (double-init must not "duplicate column name"; quick-add under contention must not throw "no such savepoint"). These pass against current behavior; they lock it down.
 
-- [ ] **Step 3: Extract and thin the store**
+- [x] **Step 3: Extract and thin the store**
 
 Move the logic to `src/lib/logic/db-boot.ts`; `db.svelte.ts` calls into it. All existing tests stay green, `pnpm check` passes (public store surface unchanged).
 
-- [ ] **Step 4: Verify coverage and gate**
+- [x] **Step 4: Verify coverage and gate**
 
 Run `pnpm test:coverage`: the new module must be ≥90% stmts / ≥80% branch. Update `specs/coverage-floors.json` with its floor. Gate stays green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/logic/db-boot.ts src/tests/unit/logic/db-boot.test.ts src/lib/stores/db.svelte.ts specs/coverage-floors.json

@@ -17,6 +17,7 @@
  * dev`). This is the approved JS-side substitute for real-native smoke.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import type { NewAccount, NewTransaction, NewGoal, NewCategorizeRule } from '$lib/db/client';
 
 // Hoisted so the module mock can reference it before `@tauri-apps/api/core`
 // is imported by client.ts.
@@ -63,7 +64,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 }));
 
 import { invoke } from '@tauri-apps/api/core';
-import { NativeDatabaseClient, databaseStatus } from '$lib/db/native/client';
+import { NativeDatabaseClient, databaseStatus, databaseRetry } from '$lib/db/native/client';
 
 function lastCall() {
 	return calls[calls.length - 1];
@@ -262,4 +263,124 @@ describe('NativeDatabaseClient: mutation idempotency contract (documented, not a
 		} });
 		expect(JSON.stringify(lastCall().args)).not.toContain('operation_id');
 	});
+});
+
+describe('NativeDatabaseClient: full surface sweep (command name + camelCase arg key set)', () => {
+	// Task 5 Step 3 response: the boundary test originally asserted ~10 ops, so
+	// db/native/client.ts scored 23.53% total mutation / 54.37% covered, with 135
+	// surviving mutants because the rest of the ~70-command surface was never
+	// exercised. This sweep invokes every op and locks (a) the REGISTERED snake_case
+	// command name and (b) the camelCase arg-KEY SET sent over the IPC seam. A
+	// command-string mutant or an arg-key rename mutant now kills a test.
+	//
+	// The sweep asserts shape, not values: create/update inputs are cast minimal
+	// literals because the ops pass the payload through untouched (no runtime
+	// validation on the JS side). Precise multi-field assertions for the complex
+	// creates are covered by the dedicated tests above.
+
+	interface Row {
+		label: string;
+		run: () => Promise<unknown>;
+		command: string;
+		argKeys: string[] | null;
+	}
+
+	const client = new NativeDatabaseClient();
+
+	const rows: Row[] = [
+		// Lifecycle (module fns)
+		{ label: 'databaseInitialize', run: () => databaseRetry(), command: 'database_retry', argKeys: null },
+
+		// Accounts
+		{ label: 'accounts.list', run: () => client.accounts.list(), command: 'account_list', argKeys: null },
+		{ label: 'accounts.get', run: () => client.accounts.get('acc1'), command: 'account_get', argKeys: ['id'] },
+		{ label: 'accounts.getBalanceAsOf', run: () => client.accounts.getBalanceAsOf('acc1', '2026-01-15'), command: 'account_get_balance_as_of', argKeys: ['accountId', 'date'] },
+		{ label: 'accounts.create', run: () => client.accounts.create({ name: 'Cash', type: 'cash', currency: 'VND' } as NewAccount), command: 'account_create', argKeys: ['input'] },
+		{ label: 'accounts.update', run: () => client.accounts.update('acc1', { name: 'Wallet' }), command: 'account_update', argKeys: ['id', 'patch'] },
+		{ label: 'accounts.delete', run: () => client.accounts.delete('acc1'), command: 'account_delete', argKeys: ['id'] },
+		{ label: 'accounts.restore', run: () => client.accounts.restore('acc1'), command: 'account_restore', argKeys: ['id'] },
+
+		// Transactions
+		{ label: 'transactions.list', run: () => client.transactions.list(), command: 'transaction_list', argKeys: ['filter'] },
+		{ label: 'transactions.get', run: () => client.transactions.get('tx1'), command: 'transaction_get', argKeys: ['id'] },
+		{ label: 'transactions.createBatch', run: () => client.transactions.createBatch([{ kind: 'expense', date: '2026-01-15', amount: 50000, account_id: 'acc1' } as NewTransaction]), command: 'transaction_create_batch', argKeys: ['inputs'] },
+		{ label: 'transactions.update', run: () => client.transactions.update('tx1', { amount: 60000 }), command: 'transaction_update', argKeys: ['id', 'patch'] },
+		{ label: 'transactions.delete', run: () => client.transactions.delete('tx1'), command: 'transaction_delete', argKeys: ['id'] },
+		{ label: 'transactions.restore', run: () => client.transactions.restore('tx1'), command: 'transaction_restore', argKeys: ['id'] },
+		{ label: 'transactions.duplicate', run: () => client.transactions.duplicate('tx1'), command: 'transaction_duplicate', argKeys: ['id'] },
+		{ label: 'transactions.deleteMany', run: () => client.transactions.deleteMany(['tx1', 'tx2']), command: 'transaction_delete_many', argKeys: ['ids'] },
+		{ label: 'transactions.setTagMany', run: () => client.transactions.setTagMany(['tx1'], 'tag1'), command: 'transaction_set_tag_many', argKeys: ['ids', 'tagId'] },
+		{ label: 'transactions.setAccountMany', run: () => client.transactions.setAccountMany(['tx1'], 'acc1'), command: 'transaction_set_account_many', argKeys: ['ids', 'accountId'] },
+		{ label: 'transactions.getFrequent', run: () => client.transactions.getFrequent('2026-01-01'), command: 'transaction_frequent', argKeys: ['sinceDate'] },
+
+		// Categories
+		{ label: 'categories.listBuckets', run: () => client.categories.listBuckets(), command: 'category_list_buckets', argKeys: null },
+		{ label: 'categories.createBucket', run: () => client.categories.createBucket('Food'), command: 'category_create_bucket', argKeys: ['name', 'budgetable'] },
+		{ label: 'categories.renameBucket', run: () => client.categories.renameBucket('b1', 'Food'), command: 'category_rename_bucket', argKeys: ['id', 'name'] },
+		{ label: 'categories.setRolloverEnabled', run: () => client.categories.setRolloverEnabled('b1', false), command: 'category_set_rollover_enabled', argKeys: ['id', 'enabled'] },
+		{ label: 'categories.deleteBucket', run: () => client.categories.deleteBucket('b1'), command: 'category_delete_bucket', argKeys: ['id'] },
+		{ label: 'categories.listTags', run: () => client.categories.listTags('b1'), command: 'category_list_tags', argKeys: ['bucketId'] },
+		{ label: 'categories.createTag', run: () => client.categories.createTag('Salary', 'b1'), command: 'category_create_tag', argKeys: ['name', 'bucketId'] },
+		{ label: 'categories.renameTag', run: () => client.categories.renameTag('t1', 'Wages'), command: 'category_rename_tag', argKeys: ['id', 'name'] },
+		{ label: 'categories.moveTag', run: () => client.categories.moveTag('t1', 'b2'), command: 'category_move_tag', argKeys: ['tagId', 'newBucketId'] },
+		{ label: 'categories.getTagTransactionInfo', run: () => client.categories.getTagTransactionInfo('t1'), command: 'category_get_tag_transaction_info', argKeys: ['tagId'] },
+		{ label: 'categories.deleteTag', run: () => client.categories.deleteTag('t1', 'uncategorise'), command: 'category_delete_tag', argKeys: ['id', 'option'] },
+
+		// Budgets
+		{ label: 'budgets.getRolledOver', run: () => client.budgets.getRolledOver('bt1', '2026-01'), command: 'budget_get_rolled_over', argKeys: ['typeId', 'month'] },
+		{ label: 'budgets.setAllocation', run: () => client.budgets.setAllocation('bt1', '2026-01', 100000), command: 'budget_set_allocation', argKeys: ['typeId', 'month', 'allocated'] },
+		{ label: 'budgets.copyFromPreviousMonth', run: () => client.budgets.copyFromPreviousMonth('2026-02'), command: 'budget_copy_from_previous_month', argKeys: ['targetMonth'] },
+		{ label: 'budgets.hasAllocations', run: () => client.budgets.hasAllocations('2026-01'), command: 'budget_has_allocations', argKeys: ['month'] },
+
+		// Goals
+		{ label: 'goals.get', run: () => client.goals.get('g1'), command: 'goal_get', argKeys: ['id'] },
+		{ label: 'goals.create', run: () => client.goals.create({ name: 'Runway', type: 'savings', target_amount: 10000000, target_date: '2027-12-31' } as NewGoal), command: 'goal_create', argKeys: ['name', 'goalType', 'targetAmount', 'targetDate', 'linkedAccountId', 'startingAmount', 'showOnDashboard'] },
+		{ label: 'goals.update', run: () => client.goals.update('g1', { status: 'active' }), command: 'goal_update', argKeys: ['id', 'name', 'targetAmount', 'targetDate', 'showOnDashboard', 'status'] },
+		{ label: 'goals.delete', run: () => client.goals.delete('g1'), command: 'goal_delete', argKeys: ['id'] },
+
+		// Rules
+		{ label: 'rules.listAll', run: () => client.rules.listAll(), command: 'rule_list_all', argKeys: null },
+		{ label: 'rules.create', run: () => client.rules.create({ payee_term: 'walmart', match_mode: 'substring', tag_id: 't1', source: 'manual' } as unknown as NewCategorizeRule), command: 'rule_create', argKeys: ['payeeTerm', 'matchMode', 'tagId', 'source'] },
+		{ label: 'rules.update', run: () => client.rules.update('r1', { enabled: 0 }), command: 'rule_update', argKeys: ['id', 'payeeTerm', 'matchMode', 'tagId', 'source', 'enabled'] },
+		{ label: 'rules.delete', run: () => client.rules.delete('r1'), command: 'rule_delete', argKeys: ['id'] },
+		{ label: 'rules.upsertLearned', run: () => client.rules.upsertLearned('walmart', 't1'), command: 'rule_upsert_learned', argKeys: ['payeeTerm', 'tagId'] },
+
+		// Meta
+		{ label: 'meta.set', run: () => client.meta.set('locale', 'vi'), command: 'meta_set', argKeys: ['key', 'value'] },
+		{ label: 'meta.delete', run: () => client.meta.delete('locale'), command: 'meta_delete', argKeys: ['key'] },
+		{ label: 'meta.isFirstRunComplete', run: () => client.meta.isFirstRunComplete(), command: 'meta_is_first_run_complete', argKeys: null },
+		{ label: 'meta.getLocale', run: () => client.meta.getLocale(), command: 'meta_get_locale', argKeys: null },
+		{ label: 'meta.getCurrency', run: () => client.meta.getCurrency(), command: 'meta_get_currency', argKeys: null },
+		{ label: 'meta.isTourComplete', run: () => client.meta.isTourComplete(), command: 'meta_is_tour_complete', argKeys: null },
+		{ label: 'meta.setTourComplete', run: () => client.meta.setTourComplete(), command: 'meta_set_tour_complete', argKeys: null },
+		{ label: 'meta.setFirstRunComplete', run: () => client.meta.setFirstRunComplete(), command: 'meta_set_first_run_complete', argKeys: null },
+		{ label: 'meta.getDefaultQuickAccount', run: () => client.meta.getDefaultQuickAccount(), command: 'meta_get_default_quick_account', argKeys: null },
+		{ label: 'meta.setDefaultQuickAccount', run: () => client.meta.setDefaultQuickAccount('acc1'), command: 'meta_set_default_quick_account', argKeys: ['accountId'] },
+		{ label: 'meta.clearDefaultQuickAccount', run: () => client.meta.clearDefaultQuickAccount(), command: 'meta_clear_default_quick_account', argKeys: null },
+
+		// Debts
+		{ label: 'debts.writeOff', run: () => client.debts.writeOff('acc1', 10000, 'tag1'), command: 'debt_write_off', argKeys: ['accountId', 'amount', 'tagId'] },
+
+		// Reconciliations
+		{ label: 'reconciliations.reconcile', run: () => client.reconciliations.reconcile('acc1', 5000, true, 'note'), command: 'reconciliation_reconcile', argKeys: ['accountId', 'actualBalance', 'createAdjustment', 'notes'] },
+
+		// Reports
+		{ label: 'reports.getTrend', run: () => client.reports.getTrend(12), command: 'report_get_trend', argKeys: ['months', 'includeAdjustments', 'bucketId'] },
+		{ label: 'reports.getComparison', run: () => client.reports.getComparison('2026-01', '2026-02'), command: 'report_get_comparison', argKeys: ['monthA', 'monthB', 'includeAdjustments'] },
+		{ label: 'reports.getCategoryTrend', run: () => client.reports.getCategoryTrend('t1', 12), command: 'report_get_category_trend', argKeys: ['tagId', 'months', 'includeAdjustments'] },
+		{ label: 'reports.getStackedCategorySeries', run: () => client.reports.getStackedCategorySeries(12), command: 'report_get_stacked_category_series', argKeys: ['months', 'includeAdjustments'] },
+		{ label: 'reports.getYearOverYear', run: () => client.reports.getYearOverYear(2025, 2026), command: 'report_get_year_over_year', argKeys: ['yearA', 'yearB', 'includeAdjustments'] },
+		{ label: 'reports.getNetWorthSeries', run: () => client.reports.getNetWorthSeries(12), command: 'report_get_net_worth_series', argKeys: ['months', 'includeAdjustments'] },
+	];
+
+	it.each(rows.map((r) => [r.label, r.run, r.command, r.argKeys] as const))(
+		'%s issues the registered %s command with the camelCase arg-key set',
+		async (_label, run, command, argKeys) => {
+			calls.length = 0;
+			await run();
+			expect(lastCall().command).toBe(command);
+			const actualKeys = lastCall().args ? Object.keys(lastCall().args as object).sort() : null;
+			expect(actualKeys).toEqual(argKeys ? argKeys.slice().sort() : null);
+		}
+	);
 });

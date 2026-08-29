@@ -1,8 +1,8 @@
 {
-  "src/lib/db/native/client.ts": { "stmts": 52, "branch": 26 },
+  "src/lib/db/native/client.ts": { "stmts": 52, "branch": 26, "mutation": 84 },
   "src/lib/db/browser/client.ts": { "stmts": 43, "branch": 100 },
-  "src/lib/db/browser/repos/transactions.ts": { "stmts": 93, "branch": 87 },
-  "src/lib/db/browser/repos/budgets.ts": { "stmts": 90, "branch": 75 },
+  "src/lib/db/browser/repos/transactions.ts": { "stmts": 93, "branch": 87, "mutation": 85 },
+  "src/lib/db/browser/repos/budgets.ts": { "stmts": 90, "branch": 75, "mutation": 78 },
   "src/lib/db/browser/repos/accounts.ts": { "stmts": 88, "branch": 82 },
   "src/lib/logic/db-boot.ts": { "stmts": 100, "branch": 100 },
   "src/lib/utils/quick_parse.ts": { "stmts": 100, "branch": 100 },
