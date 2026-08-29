@@ -12,7 +12,10 @@ import { addTransaction } from './helpers/ui';
 
 /** Click a ReportsNav group tab by its label. */
 async function clickGroupTab(page: import('@playwright/test').Page, name: string) {
-	await page.getByRole('link', { name, exact: true }).click();
+	// "Compare" is both a group-tab link and (when Compare is the active group)
+	// a sub-item link — identical text + href. Group tabs render before sub-items
+	// in ReportsNav, so .first() selects the group tab in every context.
+	await page.getByRole('link', { name, exact: true }).first().click();
 }
 
 test.describe('new reports - time series', () => {

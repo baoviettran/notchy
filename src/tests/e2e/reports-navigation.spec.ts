@@ -11,7 +11,10 @@ import { test, expect } from './fixtures/onboarded';
 
 /** Click a ReportsNav group link by its label. */
 async function clickGroupTab(page: import('@playwright/test').Page, name: string) {
-	await page.getByRole('link', { name, exact: true }).click();
+	// "Compare" is both a group-tab link and (when Compare is the active group)
+	// a sub-item link — identical text + href. Group tabs render before sub-items
+	// in ReportsNav, so .first() selects the group tab in every context.
+	await page.getByRole('link', { name, exact: true }).first().click();
 }
 
 test.describe('reports navigation — grouped tab structure', () => {
@@ -95,7 +98,7 @@ test.describe('reports navigation — grouped tab structure', () => {
 	test('compare page keeps Compare group active with sub-items', async ({ onboardedPage: page }) => {
 		await page.getByRole('link', { name: 'Reports', exact: true }).click();
 		await clickGroupTab(page, 'Compare');
-		await page.getByRole('link', { name: 'Compare', exact: true }).click();
+		await page.getByRole('link', { name: 'Compare', exact: true }).first().click();
 
 		// Compare tab should be active; sub-items still visible.
 		// The "Compare" sub-item link shares this name, so scope to the group tab.
