@@ -49,7 +49,21 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           pnpm test:coverage
-          node scripts/coverage-gate.mjs
+          # GitHub's pull_request.base.sha can be STALE: an older main tip than
+          # where this branch actually diverged. The gate diffs HEAD against that
+          # base, which sweeps main's own commits into this PR and fails floors on
+          # files it never touched (e.g. DatePicker.svelte). For PR builds, diff
+          # against the live base-branch tip so only this PR's own changes are
+          # checked. Push-to-main builds keep BASE_SHA (github.event.before) to
+          # re-check the just-merged changes. Falls back to BASE_SHA if origin/main
+          # can't be resolved.
+          if [ -n "${{ github.event.pull_request.number }}" ]; then
+            git fetch origin main --quiet 2>/dev/null || true
+            EFFECTIVE_BASE="$(git merge-base HEAD origin/main 2>/dev/null || echo "$BASE_SHA")"
+          else
+            EFFECTIVE_BASE="$BASE_SHA"
+          fi
+          BASE_SHA="$EFFECTIVE_BASE" node scripts/coverage-gate.mjs
 
       - name: Web build
         run: pnpm build

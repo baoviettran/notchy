@@ -1,16 +1,20 @@
 import { test, expect } from './fixtures/onboarded';
 
-// ReportsNav (src/lib/components/layout/ReportsNav.svelte) uses grouped tabs:
+// ReportsNav (src/lib/components/layout/ReportsNav.svelte) uses grouped links:
 //   Flow:      Overview, Trend, Year Over Year
 //   Breakdown: Tag Trend, Composition
 //   Compare:   Compare, Net Worth
 //
-// Only the active group's sub-items are visible. Group tabs use role="tab";
-// sub-items are regular <a> links.
+// Only the active group's sub-items are visible. Group headers and sub-items are
+// all <a> links (the active group link carries aria-current="page", not a tab
+// widget), so locators use getByRole('link').
 
-/** Click a ReportsNav group tab by its label. */
+/** Click a ReportsNav group link by its label. */
 async function clickGroupTab(page: import('@playwright/test').Page, name: string) {
-	await page.getByRole('tab', { name, exact: true }).click();
+	// "Compare" is both a group-tab link and (when Compare is the active group)
+	// a sub-item link — identical text + href. Group tabs render before sub-items
+	// in ReportsNav, so .first() selects the group tab in every context.
+	await page.getByRole('link', { name, exact: true }).first().click();
 }
 
 test.describe('reports navigation — grouped tab structure', () => {
@@ -18,9 +22,9 @@ test.describe('reports navigation — grouped tab structure', () => {
 		await page.getByRole('link', { name: 'Reports', exact: true }).click();
 
 		// All 3 group tabs should be visible.
-		await expect(page.getByRole('tab', { name: 'Flow', exact: true })).toBeVisible();
-		await expect(page.getByRole('tab', { name: 'Breakdown', exact: true })).toBeVisible();
-		await expect(page.getByRole('tab', { name: 'Compare', exact: true })).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Flow', exact: true })).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Breakdown', exact: true })).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Compare', exact: true })).toBeVisible();
 
 		// Flow sub-items visible (active group on /reports).
 		await expect(page.getByRole('link', { name: 'Overview' }).first()).toBeVisible();
@@ -86,7 +90,7 @@ test.describe('reports navigation — grouped tab structure', () => {
 		await page.getByRole('link', { name: 'Trend', exact: true }).click();
 
 		// Flow tab should be active; sub-items still visible.
-		await expect(page.getByRole('tab', { name: 'Flow', exact: true })).toHaveAttribute('aria-selected', 'true');
+		await expect(page.getByRole('link', { name: 'Flow', exact: true })).toHaveAttribute('aria-current', 'page');
 		await expect(page.getByRole('link', { name: 'Overview' }).first()).toBeVisible();
 		await expect(page.getByRole('link', { name: 'Year Over Year' }).first()).toBeVisible();
 	});
@@ -94,10 +98,11 @@ test.describe('reports navigation — grouped tab structure', () => {
 	test('compare page keeps Compare group active with sub-items', async ({ onboardedPage: page }) => {
 		await page.getByRole('link', { name: 'Reports', exact: true }).click();
 		await clickGroupTab(page, 'Compare');
-		await page.getByRole('link', { name: 'Compare', exact: true }).click();
+		await page.getByRole('link', { name: 'Compare', exact: true }).first().click();
 
 		// Compare tab should be active; sub-items still visible.
-		await expect(page.getByRole('tab', { name: 'Compare', exact: true })).toHaveAttribute('aria-selected', 'true');
+		// The "Compare" sub-item link shares this name, so scope to the group tab.
+		await expect(page.getByRole('link', { name: 'Compare', exact: true }).first()).toHaveAttribute('aria-current', 'page');
 		await expect(page.getByRole('link', { name: 'Net Worth' }).first()).toBeVisible();
 	});
 });

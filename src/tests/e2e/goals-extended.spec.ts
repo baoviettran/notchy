@@ -71,7 +71,7 @@ test.describe('goals — extended', () => {
 
 		// Add 200k income to the onboarding account.
 		await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
-		await page.getByRole('button', { name: 'Add transaction' }).click();
+		await page.getByRole('button', { name: 'Add transaction' }).first().click();
 		const txModal = page.getByRole('dialog');
 		await txModal.getByRole('button', { name: 'Income', exact: true }).click();
 		await txModal.getByLabel('Amount').fill('200k');

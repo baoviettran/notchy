@@ -16,6 +16,7 @@
 	import { parseAmount } from '$lib/utils/number_parse';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import ErrorState from '$lib/components/primitives/ErrorState.svelte';
+	import EmptyState from '$lib/components/primitives/EmptyState.svelte';
 	import type { DebtAccount } from '$lib/db/client';
 	import * as m from '$lib/paraglide/messages';
 	import { mapError } from '$lib/utils/errors';
@@ -174,13 +175,14 @@
 			{/if}
 		</div>
 		{#if debts.owed_to_me.length === 0}
-			<!-- Same machine-glyph treatment as the debt-free lamp: an empty
-			     section is a designed moment, and the path that creates a debt
-			     (an account of loan type) is one tap away. -->
-			<div class="surface rounded-lg p-6 text-center text-dim">
-				<p class="figures-glow text-2xl mb-2" aria-hidden="true">▮▯▯▯</p>
-				<p class="text-sm">{m.debts_empty_owed_to_me()}</p>
-				<a href="/accounts" class="inline-block mt-3 text-sm text-phosphor hover:underline">{m.debts_empty_add_hint()}</a>
+			<!-- An empty section is a designed moment, and the path that creates a
+			     debt (an account of loan type) is one tap away. -->
+			<div class="surface rounded-lg">
+				<EmptyState message={m.debts_empty_owed_to_me()} glyph="vault" title={m.empty_title_debts()}>
+					{#snippet action()}
+						<a href="/accounts" class="inline-flex items-center justify-center min-h-9 px-3 text-sm font-medium rounded-md border border-dim bg-tape text-ledger hover:border-ledger transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-phosphor pointer-coarse:min-h-11">{m.debts_empty_add_hint()}</a>
+					{/snippet}
+				</EmptyState>
 			</div>
 		{:else}
 			<div class="surface rounded-lg divide-y divide-line">

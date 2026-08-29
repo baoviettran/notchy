@@ -7,12 +7,15 @@ import { addTransaction } from './helpers/ui';
 // - Composition (/reports/composition)     — Breakdown group
 // - Year Over Year (/reports/yoy)          — Flow group
 //
-// ReportsNav uses grouped tabs. Each report requires clicking the appropriate
-// group tab before the sub-item link is visible.
+// ReportsNav uses grouped links (not a tab widget). Each report requires clicking
+// the appropriate group link before the sub-item link is visible.
 
 /** Click a ReportsNav group tab by its label. */
 async function clickGroupTab(page: import('@playwright/test').Page, name: string) {
-	await page.getByRole('tab', { name, exact: true }).click();
+	// "Compare" is both a group-tab link and (when Compare is the active group)
+	// a sub-item link — identical text + href. Group tabs render before sub-items
+	// in ReportsNav, so .first() selects the group tab in every context.
+	await page.getByRole('link', { name, exact: true }).first().click();
 }
 
 test.describe('new reports - time series', () => {

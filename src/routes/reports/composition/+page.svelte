@@ -120,6 +120,12 @@
 			<TapeLine label={m.reports_subtotal()} amount={fmt(grandTotal)} tone="ledger" variant="subtotal" />
 		</section>
 	{:else}
-		<EmptyState message={m.reports_empty_composition()} icon="▮▯▯▯" />
+		<div class="surface rounded-lg">
+			<EmptyState message={m.reports_empty_composition()} glyph="register" title={m.empty_title_reports()}>
+				{#snippet action()}
+					<a href="/transactions" class="inline-flex items-center justify-center min-h-9 px-3 text-sm font-medium pointer-coarse:min-h-11 rounded-md border border-dim bg-tape text-ledger hover:border-ledger transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-phosphor">{m.layout_add_transaction()}</a>
+				{/snippet}
+			</EmptyState>
+		</div>
 	{/if}
 </div>

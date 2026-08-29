@@ -35,7 +35,7 @@ async function createLoanAccount(
 	name: string
 ) {
 	await page.getByRole('link', { name: 'Accounts', exact: true }).click();
-	await page.getByRole('button', { name: '+ Add account' }).click();
+	await page.getByRole('button', { name: '+ Add account' }).first().click();
 	const modal = page.getByRole('dialog');
 	await modal.getByLabel('Name').fill(name);
 	await modal.getByLabel('Type').selectOption(type);

@@ -183,7 +183,7 @@
 	<div class="space-y-4">
 		{#if budgetableBuckets.length === 0}
 			<div class="surface rounded-lg">
-				<EmptyState message={m.budgets_no_budget_for_month()} icon="▮▯▯▯" />
+				<EmptyState message={m.budgets_no_budget_for_month()} glyph="envelope" title={m.empty_title_budgets()} />
 			</div>
 		{:else}
 		<!-- Summary surface — the VFD window: income, allocated, spent, available. -->

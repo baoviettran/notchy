@@ -563,5 +563,12 @@
   "budgets_previous_month": "Tháng trước",
   "budgets_next_month": "Tháng sau",
   "reports_subtotal": "Tạm tính",
-  "reports_total": "Tổng cộng"
+  "reports_total": "Tổng cộng",
+  "empty_title_accounts": "Bắt đầu bằng một tài khoản",
+  "empty_title_budgets": "Cho mỗi đồng một nhiệm vụ",
+  "empty_title_dashboard": "Ghi giao dịch đầu tiên",
+  "empty_title_goals": "Đặt một mục tiêu",
+  "empty_title_reports": "Chưa có dữ liệu để biểu đồ",
+  "empty_title_transactions": "Sổ cái trống",
+  "empty_title_debts": "Theo dõi khoản được nợ"
 }

@@ -8,7 +8,7 @@ test.describe('transactions', () => {
 		// "Accounts →" shortcut (both match a non-exact name query).
 		await page.getByRole('link', { name: 'Accounts', exact: true }).click();
 		// Accounts page button label is m.accounts_add() = "+ Add account" (accounts/+page.svelte:45).
-		await page.getByRole('button', { name: '+ Add account' }).click();
+		await page.getByRole('button', { name: '+ Add account' }).first().click();
 		const acctModal = page.getByRole('dialog');
 		await acctModal.getByLabel('Name').fill('Savings');
 		// AccountForm create button is m.forms_create() = "Create" (AccountForm.svelte:79).
@@ -22,7 +22,7 @@ test.describe('transactions', () => {
 		// destination account" when transferAccountId is empty), which the
 		// helper doesn't set. Drive the modal directly: pick Transfer, amount,
 		// then the "To Account" (Savings), then Save.
-		await page.getByRole('button', { name: 'Add transaction' }).click();
+		await page.getByRole('button', { name: 'Add transaction' }).first().click();
 		const txModal = page.getByRole('dialog');
 		await expect(txModal.getByRole('heading', { name: 'Add transaction' })).toBeVisible();
 		// Transfer is an advanced kind behind the "More" toggle.

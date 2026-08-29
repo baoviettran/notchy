@@ -51,7 +51,10 @@ export async function addTransaction(
 	page: Page,
 	opts: { kind: 'expense' | 'income' | 'transfer' | 'refund' | 'adjustment'; amount: string; payee?: string; tag?: string }
 ): Promise<void> {
-	await page.getByRole('button', { name: 'Add transaction' }).click();
+	// The FAB ("Add transaction (N)") and the empty-state springboard CTA
+	// ("Add transaction") both match this name. Disambiguate to the first in
+	// DOM order so strict mode doesn't throw "resolved to 2 elements".
+	await page.getByRole('button', { name: 'Add transaction' }).first().click();
 	const modal = page.getByRole('dialog');
 	await expect(modal.getByRole('heading', { name: 'Add transaction' })).toBeVisible();
 	// Transfer/refund/adjustment are advanced kinds behind the "More" toggle

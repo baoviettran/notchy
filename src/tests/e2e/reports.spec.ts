@@ -32,7 +32,7 @@ test('reports sub-pages load with no console errors', async ({ onboardedPage: pa
 	await expect(page.getByRole('main')).toBeVisible();
 
 	// Compare is a group tab — click it to switch to the Compare group.
-	await page.getByRole('tab', { name: 'Compare', exact: true }).click();
+	await page.getByRole('link', { name: 'Compare', exact: true }).click();
 	await expect(page.getByRole('main')).toBeVisible();
 
 	expect(errors).toEqual([]);

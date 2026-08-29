@@ -47,7 +47,7 @@ test.describe('accounts — extended', () => {
 			{ type: 'Loan from Person', name: 'Owed to Alice' }
 		];
 		for (const t of types) {
-			await page.getByRole('button', { name: '+ Add account' }).click();
+			await page.getByRole('button', { name: '+ Add account' }).first().click();
 			const modal = page.getByRole('dialog');
 			await modal.getByLabel('Name').fill(t.name);
 			await modal.getByLabel('Type').selectOption(t.type);
@@ -74,7 +74,7 @@ test.describe('accounts — extended', () => {
 
 	test('loan type without a counterparty is rejected', async ({ onboardedPage: page }) => {
 		await page.getByRole('link', { name: 'Accounts', exact: true }).click();
-		await page.getByRole('button', { name: '+ Add account' }).click();
+		await page.getByRole('button', { name: '+ Add account' }).first().click();
 		const modal = page.getByRole('dialog');
 		await modal.getByLabel('Name').fill('Bad Loan');
 		await modal.getByLabel('Type').selectOption('Loan from Person');
@@ -105,7 +105,7 @@ test.describe('accounts — extended', () => {
 	test('delete an account with no transactions is confirmed then removed', async ({ onboardedPage: page }) => {
 		// Create a throwaway account with no transactions.
 		await page.getByRole('link', { name: 'Accounts', exact: true }).click();
-		await page.getByRole('button', { name: '+ Add account' }).click();
+		await page.getByRole('button', { name: '+ Add account' }).first().click();
 		const createModal = page.getByRole('dialog');
 		await createModal.getByLabel('Name').fill('Disposable');
 		await createModal.getByRole('button', { name: 'Create' }).click();
@@ -218,7 +218,7 @@ test.describe('accounts — extended', () => {
 
 	test('empty name is rejected when creating an account', async ({ onboardedPage: page }) => {
 		await page.getByRole('link', { name: 'Accounts', exact: true }).click();
-		await page.getByRole('button', { name: '+ Add account' }).click();
+		await page.getByRole('button', { name: '+ Add account' }).first().click();
 		const modal = page.getByRole('dialog');
 		// Leave name empty; click Create.
 		await modal.getByRole('button', { name: 'Create' }).click();
@@ -228,7 +228,7 @@ test.describe('accounts — extended', () => {
 
 	test('invalid opening balance is rejected', async ({ onboardedPage: page }) => {
 		await page.getByRole('link', { name: 'Accounts', exact: true }).click();
-		await page.getByRole('button', { name: '+ Add account' }).click();
+		await page.getByRole('button', { name: '+ Add account' }).first().click();
 		const modal = page.getByRole('dialog');
 		await modal.getByLabel('Name').fill('Bad Balance');
 		await modal.getByLabel('Initial balance (optional)').fill('not a number');

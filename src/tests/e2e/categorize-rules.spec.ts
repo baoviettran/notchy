@@ -35,7 +35,7 @@ test.describe('Categorize Rules Engine', () => {
 		}
 
 		// Create 4th transaction — tag should auto-fill when payee is entered.
-		await page.getByRole('button', { name: 'Add transaction' }).click();
+		await page.getByRole('button', { name: 'Add transaction' }).first().click();
 		const txModal = page.getByRole('dialog');
 		await txModal.getByLabel('Payee').fill('starbucks');
 
@@ -72,7 +72,7 @@ test.describe('Categorize Rules Engine', () => {
 		await addTransaction(page, { kind: 'expense', amount: '50k', payee: 'CÀ PHÊ', tag: 'Food' });
 
 		// Create 4th transaction with normalized form — tag should auto-fill.
-		await page.getByRole('button', { name: 'Add transaction' }).click();
+		await page.getByRole('button', { name: 'Add transaction' }).first().click();
 		const txModal = page.getByRole('dialog');
 		await txModal.getByLabel('Payee').fill('ca phe');
 
