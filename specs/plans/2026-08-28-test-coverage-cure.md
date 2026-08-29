@@ -594,19 +594,19 @@ EOF
 - Consumes: Task 1's inventory (rows marked for E2E flows); the existing `fixtures/` + `helpers/`; CI from Task 3.
 - Produces: flow-level regression coverage — the layer that catches wiring bugs unit tests cannot.
 
-- [ ] **Step 1: Enumerate the flow-level gaps**
+- [x] **Step 1: Enumerate the flow-level gaps**
 
 From the inventory, the rows whose target test includes E2E and whose existing coverage was verified as missing or incidental in Task 9. Step 3.
 
-- [ ] **Step 2: Write the flow specs**
+- [x] **Step 2: Write the flow specs**
 
 For each: reproduce the pre-fix user flow, assert the fixed behavior. Follow the E2E selector patterns (`e2e-selector-patterns-2026-08`): radio roles, grouped tabs, confirm dialogs, hydration wait, surface specificity. Verify each spec fails against the pre-fix build (check out parent of the fix commit) and passes on current HEAD.
 
-- [ ] **Step 3: Full E2E suite**
+- [x] **Step 3: Full E2E suite**
 
 `pnpm test:e2e` green locally (and in CI via Task 3's job). Update the inventory's `Existing test` column to "E2E spec".
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/tests/e2e specs/coverage-bug-inventory.md
