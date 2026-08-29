@@ -557,19 +557,19 @@ EOF
 - Consumes: the reports components at 0% (AdjustmentsToggle, TapeLine) and partial (Money); the harness.
 - Produces: ≥80% stmts / ≥70% branch on all three.
 
-- [ ] **Step 1: AdjustmentsToggle + TapeLine**
+- [x] **Step 1: AdjustmentsToggle + TapeLine**
 
 Toggle on/off state, label/accessibility, tape-line rendering with the `palette.ts`/`report-format.ts` fixtures. ≥80/70 each.
 
-- [ ] **Step 2: Money**
+- [x] **Step 2: Money**
 
 Extend to branch-complete: formatting edges, sign handling, currency config variants. ≥80/70.
 
-- [ ] **Step 3: Floors + gate**
+- [x] **Step 3: Floors + gate**
 
 Record floors; `pnpm test` green; gate green.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/tests/unit/components specs/coverage-floors.json
