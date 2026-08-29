@@ -301,3 +301,42 @@ describe('migrations are idempotent (race-safe on a shared DB)', () => {
 		await expect(migration004.up(db)).resolves.not.toThrow();
 	});
 });
+
+describe('migration sequence idempotency (no "duplicate column name" on re-run)', () => {
+	it('running the full sequence twice over the same file-backed DB is a no-op', async () => {
+		const directory = await mkdtemp(join(tmpdir(), 'notchy-idem-double-'));
+		temporaryPaths.push(directory);
+		const fileDb = createTestDbFromPath(join(directory, 'double.sqlite'));
+
+		await runMigrations(fileDb, migrations);
+		await expect(runMigrations(fileDb, migrations)).resolves.toBeUndefined();
+
+		expect(
+			await fileDb.query<{ value: string }>(
+				`SELECT value FROM app_meta WHERE key = 'schema_version'`
+			)
+		).toEqual([{ value: String(LATEST_SCHEMA_VERSION) }]);
+		await fileDb.close();
+	});
+
+	it('re-applies an already-applied migration without "duplicate column name" when schema_version lags (the concurrent-boot race)', async () => {
+		// Two windows read currentVersion=0 during concurrent boot; the losing run
+		// re-applies migrations whose columns/triggers already exist. Simulate the
+		// lagging half: schema is fully applied but the version write "raced" to an
+		// older value, so the runner re-selects the already-applied frontier.
+		const directory = await mkdtemp(join(tmpdir(), 'notchy-idem-race-'));
+		temporaryPaths.push(directory);
+		const fileDb = createTestDbFromPath(join(directory, 'race.sqlite'));
+
+		await runMigrations(fileDb, migrations);
+		await fileDb.execute(`UPDATE app_meta SET value = '3' WHERE key = 'schema_version'`);
+
+		await expect(runMigrations(fileDb, migrations)).resolves.toBeUndefined();
+		expect(
+			await fileDb.query<{ value: string }>(
+				`SELECT value FROM app_meta WHERE key = 'schema_version'`
+			)
+		).toEqual([{ value: String(LATEST_SCHEMA_VERSION) }]);
+		await fileDb.close();
+	});
+});

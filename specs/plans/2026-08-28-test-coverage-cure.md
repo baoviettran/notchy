@@ -360,27 +360,40 @@ EOF
 - Consumes: the inventory rows for quick-add contention, migration idempotency race, schema-version call-site drift, and the native-seam row; the pure module from Task 6.
 - Produces: the DB-layer + native half of the "every inventory bug has a regression test" criterion. (The orphan adapter stubs are NOT targeted — they throw by construction.)
 
-- [ ] **Step 1: Confirm the gap per inventory row**
+- [x] **Step 1: Confirm the gap per inventory row**
 
 For each row, confirm the exact pre-fix failure state is still untested (or extend an existing test that misses the failure mode).
 
-- [ ] **Step 2: Migration idempotency race**
+- [x] **Step 2: Migration idempotency race**
 
 Add a test to `src/tests/unit/migrations.test.ts` (or `db-boot.test.ts`): run the migration sequence twice over the same `createTestDbFromPath` db — must not throw "duplicate column name". It must fail if the idempotency guard is removed.
 
-- [ ] **Step 3: Schema-version call-site drift**
+- [x] **Step 3: Schema-version call-site drift**
 
 Add a test asserting every `importDatabase`/`validateImport` version literal (UI, unit, E2E fixtures) equals the current migration registry version. It must fail if any literal drifts — the failure that silently broke E2E.
 
-- [ ] **Step 4: Quick-add contention path**
+- [x] **Step 4: Quick-add contention path**
 
 Extend `db-boot.test.ts` to cover the quick-add decision logic under the contended state the "no such savepoint" bug came from (single pooled connection, second call while a savepoint is open). Test must fail if the guard is removed.
 
-- [ ] **Step 5: Native-seam regression rows**
+> **2026-08-29 placement deviation:** the contention guard lives in savepoint *naming*
+> (`browser/service.ts`'s `uniqueSavepointName`), not in `db-boot.ts` — `db-boot.ts` is a
+> pure status→recovery module with no savepoint logic. The nested-in-flight regression
+> test therefore landed in `db-service.test.ts` alongside the existing `uniqueSavepointName`
+> tests (the file that owns the guard), not in `db-boot.test.ts`.
+
+- [x] **Step 5: Native-seam regression rows**
 
 For any native-seam bug the inventory surfaced beyond Task 2's coverage (e.g. a specific op whose response shape changed on the Rust side), add the failing assertion. Do NOT touch the orphan adapters.
 
-- [ ] **Step 6: Full suite + commit**
+> **2026-08-29 no-new-assertion note:** inventory row 10 (retry reuses ULID) is covered by
+> the boundary test's idempotency contract, which documents the honest finding: there is
+> NO JS-side retry-ULID to assert — mutations pass no `operation_id` and idempotency is
+> Rust-side (`cargo test`). Fabricating a JS retry-ULID assertion would be dishonest, so
+> Step 5 adds no new failing assertion. Row 9 (command/arg shape) is already locked by
+> Task 2 + the Task 5 surface sweep.
+
+- [x] **Step 6: Full suite + commit**
 
 `pnpm test` fully green; demonstrate each new test is red when its guard is removed. Commit with the inventory updated (`Existing test` column).
 
