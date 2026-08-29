@@ -474,23 +474,23 @@ EOF
 - Consumes: the components at 0% coverage (`forms/AccountForm`, `forms/GoalForm`, `modals/ImportTransactionsModal`); the existing component-test harness.
 - Produces: ≥80% stmts / ≥70% branch on all three.
 
-- [ ] **Step 1: AccountForm**
+- [x] **Step 1: AccountForm**
 
 `@testing-library/svelte` tests: required-field validation, amount/date binding, submit payload, error states, disabled submit. ≥80/70.
 
-- [ ] **Step 2: GoalForm**
+- [x] **Step 2: GoalForm**
 
 Validation branches (amount formats, empty target), save/cancel behavior, empty-state rendering. ≥80/70.
 
-- [ ] **Step 3: ImportTransactionsModal**
+- [x] **Step 3: ImportTransactionsModal**
 
 File-change flow, CSV parse trigger, error surface (AppError), cancel, success dismissal. Use the `csv-import` E2E fixtures' expectations as the unit contract where useful. ≥80/70.
 
-- [ ] **Step 4: Floors + gate**
+- [x] **Step 4: Floors + gate**
 
 Record floors for the three components in `specs/coverage-floors.json`; `pnpm test` green; gate green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/tests/unit/components specs/coverage-floors.json
