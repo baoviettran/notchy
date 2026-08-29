@@ -95,6 +95,7 @@
 					{#each items as item (itemKey(item))}
 						<button
 							onclick={() => armOrRepeat(item)}
+							onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); armOrRepeat(item); } }}
 							aria-pressed={armedKey === itemKey(item)}
 							data-arming={armedKey === itemKey(item) ? '' : undefined}
 							class="shrink-0 w-28 p-2.5 rounded-md border transition-colors text-left

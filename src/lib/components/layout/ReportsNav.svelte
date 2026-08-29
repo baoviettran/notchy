@@ -48,12 +48,11 @@
 <div class="space-y-2">
 	<!-- Category tabs: 3 grouped buttons replacing 7 flat tabs. -->
 	<nav aria-label={m.reports_nav()}>
-		<div class="flex gap-1.5" role="tablist">
+		<div class="flex gap-1.5">
 			{#each groups as group, i}
 				<a
 					href={group.items[0].href}
-					role="tab"
-					aria-selected={activeGroup === i}
+					aria-current={activeGroup === i ? 'page' : undefined}
 					class="inline-flex items-center min-h-9 pointer-coarse:min-h-11 px-3 rounded-md text-sm transition-colors
 						{activeGroup === i
 							? 'bg-phosphor/15 text-phosphor font-medium'

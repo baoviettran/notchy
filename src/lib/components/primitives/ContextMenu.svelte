@@ -42,7 +42,7 @@
 	     changing the visual footprint in dense rows. -->
 	<button
 		onclick={toggle}
-		class="relative p-2 -m-1 text-dim hover:text-ledger hover:bg-line/40 rounded transition-colors before:content-[''] before:absolute before:-inset-2"
+		class="relative p-2 -m-1 text-dim hover:text-ledger hover:bg-line/40 rounded transition-colors focus-visible:outline-none focus-visible:bg-line/40 before:content-[''] before:absolute before:-inset-2"
 		aria-label={label}
 		aria-haspopup="menu"
 		aria-expanded={open}

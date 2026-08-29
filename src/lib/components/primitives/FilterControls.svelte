@@ -19,7 +19,7 @@
 </script>
 
 <div class="flex flex-wrap gap-3">
-	<div class="w-44">
+	<div class="min-w-36 max-w-52 flex-1">
 		<Select
 			label={m.transactions_filter_kind()}
 			bind:value={filterKind}
@@ -33,21 +33,21 @@
 			]}
 		/>
 	</div>
-	<div class="w-44">
+	<div class="min-w-36 max-w-52 flex-1">
 		<Select
 			label={m.transactions_filter_account()}
 			bind:value={filterAccount}
 			options={[{ value: '', label: m.transactions_filter_all_accounts() }, ...accounts.items.map((a) => ({ value: a.id, label: a.name }))]}
 		/>
 	</div>
-	<div class="w-44">
+	<div class="min-w-36 max-w-52 flex-1">
 		<Select
 			label={m.transactions_filter_tag()}
 			bind:value={filterTag}
 			options={[{ value: '', label: m.transactions_filter_all_tags() }, ...categories.tags.map((t) => ({ value: t.id, label: t.name }))]}
 		/>
 	</div>
-	<div class="w-44">
+	<div class="min-w-36 max-w-52 flex-1">
 		<Input type="month" label={m.transactions_filter_month()} bind:value={filterMonth} />
 	</div>
 </div>

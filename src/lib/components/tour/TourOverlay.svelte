@@ -152,7 +152,7 @@
 					{/if}
 				</mask>
 			</defs>
-			<rect width="100%" height="100%" style="fill: rgb(var(--scrim-rgb) / 0.6)" mask="url(#tour-mask)" />
+			<rect width="100%" height="100%" style="fill: rgb(var(--scrim-rgb) / var(--scrim-tour))" mask="url(#tour-mask)" />
 		</svg>
 
 		<!-- Highlight ring around target -->

@@ -31,6 +31,18 @@
         "value": "10px",
         "createdAt": "2026-08-28T13:37:04.448Z",
         "reason": "Calendar weekday headers: compact utility labels at 10px are domain-appropriate for 7-column grid headers"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "18px",
+        "createdAt": "2026-08-29T06:32:37.154Z",
+        "reason": "user confirmed: replaced raw 18px with Tailwind text-lg utility; same value, now tokenized"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(255, 255, 255, 0.3)",
+        "createdAt": "2026-08-29T06:33:19.329Z",
+        "reason": "false positive: text-shadow highlight for deboss/engraved digit effect, not a foreground color"
       }
     ]
   }

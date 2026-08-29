@@ -49,10 +49,11 @@
 
 	function onFocus() { open = true; query = ''; activeIndex = -1; }
 	function onBlur() {
-		// Close on a short delay so an option click (mousedown) isn't pre-empted
-		// by the input blur. id mode discards the transient query; free-text
-		// mode keeps `value` as-is (it already tracks the input).
-		setTimeout(() => { open = false; query = ''; }, 150);
+		// Close after a tick so an option mousedown isn't pre-empted by blur.
+		// Uses requestAnimationFrame instead of setTimeout to avoid the
+		// 150ms race window where rapid mouse movement causes accidental
+		// selection or missed clicks on touch devices.
+		requestAnimationFrame(() => { open = false; query = ''; });
 	}
 	function onInput(e: Event) {
 		const v = (e.target as HTMLInputElement).value;
@@ -102,7 +103,8 @@
 		onfocus={onFocus}
 		onblur={onBlur}
 		onkeydown={onKeydown}
-		class="w-full px-3 py-2 text-base rounded-md border border-line bg-ink text-ledger"
+		class="w-full px-3 py-2 text-base rounded-md border border-line bg-ink text-ledger
+			focus-visible:outline-none focus-visible:border-phosphor"
 		role="combobox"
 		aria-expanded={open}
 		aria-controls={listboxId}

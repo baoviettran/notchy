@@ -17,6 +17,8 @@
 	// Parse value into date parts
 	let viewYear = $state(0);
 	let viewMonth = $state(0); // 0-indexed
+	// Keyboard-focused day within the calendar grid
+	let focusedDay = $state(0);
 
 	function initFromValue() {
 		if (value) {
@@ -100,6 +102,41 @@
 		open = false;
 	}
 
+	// --- Keyboard navigation within the calendar grid ---
+	function daysInMonth(y: number, m: number) {
+		return new Date(y, m + 1, 0).getDate();
+	}
+
+	function moveFocus(delta: number) {
+		const cur = focusedDay || 1;
+		let d = cur + delta;
+		let y = viewYear;
+		let m = viewMonth;
+		let total = daysInMonth(y, m);
+		while (d > total) { d -= total; m++; if (m > 11) { m = 0; y++; } total = daysInMonth(y, m); }
+		while (d < 1) { m--; if (m < 0) { m = 11; y--; } d += daysInMonth(y, m); }
+		viewYear = y;
+		viewMonth = m;
+		focusedDay = d;
+	}
+
+	function onCalendarKeydown(e: KeyboardEvent) {
+		const day = focusedDay || selectedDay || 1;
+		focusedDay = day;
+		switch (e.key) {
+			case 'ArrowLeft': e.preventDefault(); moveFocus(-1); break;
+			case 'ArrowRight': e.preventDefault(); moveFocus(1); break;
+			case 'ArrowUp': e.preventDefault(); moveFocus(-7); break;
+			case 'ArrowDown': e.preventDefault(); moveFocus(7); break;
+			case 'Home': e.preventDefault(); focusedDay = 1; break;
+			case 'End': e.preventDefault(); focusedDay = daysInMonth(viewYear, viewMonth); break;
+			case 'PageUp': e.preventDefault(); prevMonth(); focusedDay = Math.min(focusedDay || 1, daysInMonth(viewYear, viewMonth)); break;
+			case 'PageDown': e.preventDefault(); nextMonth(); focusedDay = Math.min(focusedDay || 1, daysInMonth(viewYear, viewMonth)); break;
+			case 'Enter':
+			case ' ': e.preventDefault(); if (focusedDay) selectDay(focusedDay); break;
+		}
+	}
+
 	let open = $state(false);
 
 	function positionPanel() {
@@ -122,6 +159,9 @@
 		if (disabled) return;
 		if (!open) {
 			initFromValue();
+			// Start keyboard focus on the selected day, today, or the 1st
+			focusedDay = selectedDay || new Date().getDate();
+			if (focusedDay > daysInMonth(viewYear, viewMonth)) focusedDay = 1;
 			open = true;
 		} else {
 			open = false;
@@ -135,6 +175,9 @@
 			tick().then(() => {
 				positionPanel();
 				if (panelEl) focusTrap.enter(() => panelEl);
+				// Focus the keyboard-active day cell
+				const active = panelEl?.querySelector<HTMLElement>('[tabindex="0"]');
+				active?.focus();
 			});
 		}
 	});
@@ -175,7 +218,7 @@
 		class="w-full px-3 py-2 text-base rounded-md border text-left transition-colors
 			border-line bg-ink text-ledger
 			disabled:opacity-50 disabled:cursor-not-allowed
-			focus:outline-none focus:border-phosphor"
+			focus-visible:outline-none focus-visible:border-phosphor"
 		aria-haspopup="dialog"
 		aria-expanded={open}
 	>
@@ -211,12 +254,13 @@
 			</div>
 
 			<!-- Calendar grid -->
-			<div class="grid grid-cols-7 gap-0">
+			<div class="grid grid-cols-7 gap-0" role="grid" aria-label="Calendar" onkeydown={onCalendarKeydown}>
 				{#each calendarDays as cell (cell.key)}
 					{#if cell.day === 0}
 						<div class="h-8"></div>
 					{:else}
 						<button
+							tabindex={focusedDay === cell.day ? 0 : -1}
 							type="button"
 							onclick={() => selectDay(cell.day)}
 							class="h-8 text-xs rounded flex items-center justify-center transition-colors

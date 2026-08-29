@@ -263,12 +263,12 @@
 		color: var(--phosphor);
 	}
 	.amount {
+		@apply text-3xl;
 		background: transparent;
 		border: none;
 		outline: none;
 		color: var(--phosphor-bright);
 		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-		font-size: 30px;
 		letter-spacing: -0.01em; /* same VFD digit spacing as .figures */
 		margin-top: 0.4rem;
 		width: 100%;
@@ -283,8 +283,8 @@
 		margin: 0.5rem 0;
 	}
 	.payee {
+		@apply text-base;
 		color: var(--ledger);
-		font-size: 16px;
 		min-height: 1.2em;
 		display: flex;
 		align-items: baseline;
@@ -294,10 +294,9 @@
 		color: var(--dim);
 	}
 	.preview-kind {
+		@apply text-lg font-semibold;
 		color: var(--debit);
 		font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-		font-weight: 600;
-		font-size: 18px;
 	}
 	.preview-kind.income {
 		color: var(--phosphor);

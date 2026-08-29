@@ -39,6 +39,12 @@
 		/* Overlay scrims stay neutral black in both themes; tokenized so a
 		   warm-tinted dim could ship without touching call sites. */
 		--scrim-rgb: 0 0 0;
+		/* Scrim alpha levels — layered by weight: sheet < nav = filter < tour < modal. */
+		--scrim-sheet: 0.4;
+		--scrim-nav: 0.5;
+		--scrim-filter: 0.5;
+		--scrim-tour: 0.6;
+		--scrim-modal: 0.7;
 
 		--ink-rgb: 20 17 12;
 		--tape-rgb: 28 24 18;

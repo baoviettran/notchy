@@ -30,7 +30,7 @@
 {#if open}
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<div class="fixed inset-0 z-50 flex items-center justify-center p-4" tabindex="-1" onkeydown={onKeydown} role="dialog" aria-modal="true" aria-labelledby={titleId}>
-		<div class="absolute inset-0 bg-[rgb(var(--scrim-rgb)/0.7)] backdrop-blur-sm" onclick={onBackdrop} role="presentation"></div>
+		<div class="absolute inset-0 bg-[rgb(var(--scrim-rgb)/var(--scrim-modal))] backdrop-blur-sm" onclick={onBackdrop} role="presentation"></div>
 		<div bind:this={panelEl} tabindex="-1" class="relative bg-tape border border-line rounded-lg shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-scale-in">
 			{#if title}
 				<div class="flex items-center justify-between px-6 py-4 border-b border-line">

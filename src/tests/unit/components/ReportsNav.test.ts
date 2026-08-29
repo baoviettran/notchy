@@ -17,9 +17,9 @@ vi.mock('$app/stores', () => ({
 describe('ReportsNav', () => {
 	it('renders three category groups with correct hrefs', () => {
 		render(ReportsNav);
-		expect(screen.getByRole('tab', { name: 'Flow' }).getAttribute('href')).toBe('/reports');
-		expect(screen.getByRole('tab', { name: 'Breakdown' }).getAttribute('href')).toBe('/reports/category');
-		expect(screen.getByRole('tab', { name: 'Compare' }).getAttribute('href')).toBe('/reports/compare');
+		expect(screen.getByRole('link', { name: 'Flow' }).getAttribute('href')).toBe('/reports');
+		expect(screen.getByRole('link', { name: 'Breakdown' }).getAttribute('href')).toBe('/reports/category');
+		expect(screen.getByRole('link', { name: 'Compare' }).getAttribute('href')).toBe('/reports/compare');
 	});
 
 	it('renders sub-items for the active group (Flow when pathname is /reports)', () => {

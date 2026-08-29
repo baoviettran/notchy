@@ -27,7 +27,7 @@
 {#if open}
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="md:hidden fixed inset-0 bg-[rgb(var(--scrim-rgb)/0.5)] z-40" transition:fade={{ duration: 150 }} onclick={onclose}></div>
+	<div class="md:hidden fixed inset-0 bg-[rgb(var(--scrim-rgb)/var(--scrim-filter))] z-40" transition:fade={{ duration: 150 }} onclick={onclose}></div>
 
 	<div
 		bind:this={sheetEl}

@@ -15,10 +15,10 @@
 			id={selectId}
 			bind:value {disabled}
 			class="w-full appearance-none px-3 py-2 pr-8 text-base rounded-md border transition-colors
-				{error ? 'border-debit focus:border-debit' : 'border-line focus:border-phosphor'}
+				{error ? 'border-debit focus-visible:border-debit' : 'border-line focus-visible:border-phosphor'}
 				bg-ink text-ledger
 				disabled:opacity-50 disabled:cursor-not-allowed
-				focus:outline-none focus:ring-0"
+				focus-visible:outline-none"
 			aria-invalid={error ? 'true' : undefined}
 			aria-describedby={error ? errorId : undefined}
 		>
