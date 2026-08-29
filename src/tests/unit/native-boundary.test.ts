@@ -178,17 +178,17 @@ describe('NativeDatabaseClient: serialization seam (camelCase keys -> snake_case
 	it('goal_create sends goalType/targetAmount/... (-> goal_type/target_amount/...)', async () => {
 		await client.goals.create({
 			name: 'Runway',
-			type: 'target',
+			type: 'savings', // GoalType: "savings" | "debt_payoff" | "net_worth"
 			target_amount: 10000000,
-			target_date: null,
+			target_date: '2027-12-31', // target_date is a required string on create
 			starting_amount: 0,
 			show_on_dashboard: 1,
 		});
 		expect(lastCall().args).toMatchObject({
 			name: 'Runway',
-			goalType: 'target',
+			goalType: 'savings',
 			targetAmount: 10000000,
-			targetDate: null,
+			targetDate: '2027-12-31',
 			startingAmount: 0,
 			showOnDashboard: 1,
 		});
