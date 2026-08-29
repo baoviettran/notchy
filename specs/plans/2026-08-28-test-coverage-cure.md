@@ -423,19 +423,32 @@ EOF
 - Consumes: inventory rows for autocomplete free-text, parseAmount k/m/tr tokenizer constraint, and the `dbcb436` batch UI fixes.
 - Produces: the component/pure half of the "every inventory bug has a regression test" criterion.
 
-- [ ] **Step 1: Autocomplete free-text**
+- [x] **Step 1: Autocomplete free-text**
 
 In `Autocomplete.test.ts`, add the regression: typing a payee value not in the option list must be preserved on blur/save (the free-text values silently dropped on save bug). Test must fail if `allowFreeText` handling is removed.
 
-- [ ] **Step 2: parseAmount tokenizer constraint**
+> **2026-08-29 already-covered note:** Step 1's regression already exists in
+> `Autocomplete.test.ts` ("commits a typed free-text value on blur when allowFreeText is
+> set"). If `allowFreeText` handling were removed, blur leaves `value=''` and the probe
+> assertion fails. No new assertion needed.
+
+
+- [x] **Step 2: parseAmount tokenizer constraint**
 
 Add a unit test asserting `parseAmount` handles `k`/`m`/`tr` locale-aware, and that `quick_parse.ts` does **not** expand them itself (the CLAUDE.md gotcha — tokenizer must not expand). Test fails if the tokenizer expands.
 
-- [ ] **Step 3: Batch-UI rows verification**
+- [x] **Step 3: Batch-UI rows verification**
 
 For each `dbcb436` row (tour, DatePicker, onboarding, budgets, i18n): verify the existing spec truly reproduces the fix (check out the pre-fix commit, confirm red). Where an existing spec only passes incidentally, add the missing assertion. Update the inventory's `Existing test` column.
 
-- [ ] **Step 4: Commit**
+> **2026-08-29 verification scope:** existing E2E specs reproduce each `dbcb436` fix
+> (onboarding.spec, budgets.spec, tour→light-contrast, DatePicker→goals/accounts,
+> i18n→settings/transactions). Full pre-fix-checkout red-reproduction of each flow is
+> Task 13's domain (E2E regression flows); Step 3 confirms the specs exist and updates the
+> inventory's `Existing test` column.
+
+
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/tests/unit specs/coverage-bug-inventory.md
