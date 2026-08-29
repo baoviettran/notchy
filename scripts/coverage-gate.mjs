@@ -19,11 +19,21 @@ import { relative } from 'node:path';
 const ROOT = process.cwd();
 const BASE_SHA = process.env.BASE_SHA || 'HEAD~1';
 
+// Diff against the merge-base of HEAD and base, not base-branch-HEAD: that is
+// exactly the set of files THIS PR changed. Base-HEAD sweeps in commits that
+// landed on main after the PR branched, mis-flagging them as touched here.
+let diffBase = BASE_SHA;
+try {
+  diffBase = execSync(`git merge-base HEAD ${BASE_SHA}`, { encoding: 'utf8' }).trim();
+} catch {
+  // Base object unavailable (e.g. shallow local checkout) — fall back to BASE_SHA.
+}
+
 const floors = JSON.parse(readFileSync('specs/coverage-floors.json', 'utf8'));
 const summary = JSON.parse(readFileSync('coverage/coverage-summary.json', 'utf8'));
 
 // Repo-relative paths of files changed since the base.
-const touched = execSync(`git diff --name-only ${BASE_SHA}`, { encoding: 'utf8' })
+const touched = execSync(`git diff --name-only ${diffBase}`, { encoding: 'utf8' })
 	.split('\n')
 	.map((s) => s.trim())
 	.filter(Boolean)
