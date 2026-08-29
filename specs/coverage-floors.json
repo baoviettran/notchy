@@ -1,0 +1,105 @@
+{
+  "src/lib/db/native/client.ts": {
+    "stmts": 90,
+    "branch": 80,
+    "mutation": 84
+  },
+  "src/lib/db/browser/client.ts": {
+    "stmts": 43,
+    "branch": 70
+  },
+  "src/lib/db/browser/repos/transactions.ts": {
+    "stmts": 90,
+    "branch": 80,
+    "mutation": 85
+  },
+  "src/lib/db/browser/repos/budgets.ts": {
+    "stmts": 85,
+    "branch": 75,
+    "mutation": 78
+  },
+  "src/lib/db/browser/repos/accounts.ts": {
+    "stmts": 80,
+    "branch": 70
+  },
+  "src/lib/backup/index.ts": {
+    "stmts": 44,
+    "branch": 43
+  },
+  "src/lib/logic/db-boot.ts": {
+    "stmts": 90,
+    "branch": 80
+  },
+  "src/lib/logic/tx-transform.ts": {
+    "stmts": 90,
+    "branch": 80
+  },
+  "src/lib/logic/budget-calc.ts": {
+    "stmts": 90,
+    "branch": 80
+  },
+  "src/lib/utils/quick_parse.ts": {
+    "stmts": 90,
+    "branch": 80
+  },
+  "src/lib/utils/number_parse.ts": {
+    "stmts": 90,
+    "branch": 80
+  },
+  "src/lib/utils/dedup.ts": {
+    "stmts": 90,
+    "branch": 80
+  },
+  "src/lib/components/primitives/Autocomplete.svelte": {
+    "stmts": 80,
+    "branch": 70
+  },
+  "src/lib/components/primitives/DatePicker.svelte": {
+    "stmts": 80,
+    "branch": 70
+  },
+  "src/lib/components/primitives/FilterControls.svelte": {
+    "stmts": 80,
+    "branch": 70
+  },
+  "src/lib/components/primitives/FilterSheet.svelte": {
+    "stmts": 80,
+    "branch": 70
+  },
+  "src/lib/components/forms/AccountForm.svelte": {
+    "stmts": 80,
+    "branch": 70
+  },
+  "src/lib/components/forms/GoalForm.svelte": {
+    "stmts": 80,
+    "branch": 70
+  },
+  "src/lib/components/modals/ImportTransactionsModal.svelte": {
+    "stmts": 80,
+    "branch": 70
+  },
+  "src/lib/components/layout/Sidebar.svelte": {
+    "stmts": 80,
+    "branch": 70
+  },
+  "src/lib/components/layout/FAB.svelte": {
+    "stmts": 80,
+    "branch": 70
+  },
+  "src/lib/components/layout/ShortcutRef.svelte": {
+    "stmts": 80,
+    "branch": 70
+  },
+  "src/lib/components/reports/TapeLine.svelte": {
+    "stmts": 80,
+    "branch": 70
+  },
+  "src/lib/components/reports/AdjustmentsToggle.svelte": {
+    "stmts": 80,
+    "branch": 70
+  },
+  "src/lib/components/reports/Money.svelte": {
+    "stmts": 80,
+    "branch": 70
+  }
+}

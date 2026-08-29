@@ -72,3 +72,6 @@ artifacts/
 # Vendored agent skills: personal tooling, restorable from skills-lock.json
 .agents/
 .claude/skills/
+
+# Stryker sandbox workspaces
+.stryker-tmp/

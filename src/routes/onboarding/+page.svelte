@@ -70,11 +70,16 @@
 
 	async function nextStep() {
 		if (step === 1) {
+			// Persist the next step BEFORE setLocale — changing locale triggers
+			// a {#key settings.locale} remount that destroys this component
+			// mid-execution. persistedStep (module-level) survives the remount.
+			persistedStep = 2;
 			await settings.setLocale(locale);
-			persistedStep = step = 2;
+			step = 2;
 		} else if (step === 2) {
+			persistedStep = 3;
 			await settings.setCurrency(currency);
-			persistedStep = step = 3;
+			step = 3;
 		}
 	}
 

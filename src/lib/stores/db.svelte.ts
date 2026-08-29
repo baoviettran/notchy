@@ -1,61 +1,13 @@
 import { isTauri, getDb, initDb, closeDb } from '$lib/db';
 import { databaseInitialize, databaseRetry, type DatabaseStatus, type BackupSummary } from '$lib/db/native/client';
 import { invoke } from '@tauri-apps/api/core';
-import { LATEST_SCHEMA_VERSION } from '$lib/db/migrations/index';
-
-/**
- * Full recovery info shape expected by the RecoveryScreen UI.
- * The Rust RecoveryContext only provides `code` and `retryable`; the
- * remaining fields are populated from defaults or the backup list.
- */
-interface RecoveryInfo {
-	code: string;
-	appVersion: string;
-	latestSchemaVersion: number;
-	detectedSchemaVersion: number | null;
-	liveDatabasePath: string;
-	backupPath: string | null;
-	detail: string;
-}
-
-/**
- * Map a Rust DatabaseStatus to a RecoveryInfo compatible with the
- * recovery UI. The Rust side provides typed error codes; the remaining
- * fields are filled with safe defaults.
- */
-function statusToRecovery(status: DatabaseStatus, backups: BackupSummary[]): RecoveryInfo | null {
-	if (!status.recovery) return null;
-	const latestBackup = backups[0];
-	return {
-		code: status.recovery.code,
-		appVersion: 'unknown',
-		latestSchemaVersion: LATEST_SCHEMA_VERSION,
-		detectedSchemaVersion: null,
-		liveDatabasePath: 'unknown',
-		backupPath: latestBackup?.path ?? null,
-		detail: '',
-	};
-}
-
-/**
- * Stopgap for unexpected startup failures (platform-layer errors like path
- * resolution or connection open, which carry no RecoveryContext of their own).
- * Maps to a stable `database_corrupt` recovery so the recovery UI still has
- * something to render.
- */
-function fallbackRecovery(error: unknown): RecoveryInfo {
-	return {
-		code: 'database_corrupt',
-		appVersion: 'unknown',
-		latestSchemaVersion: LATEST_SCHEMA_VERSION,
-		detectedSchemaVersion: null,
-		liveDatabasePath: 'unknown',
-		backupPath: null,
-		detail: String(error)
-	};
-}
-
-type StartupStage = 'checking' | 'backing_up' | 'migrating' | 'verifying' | 'ready' | 'recovery_required';
+import {
+	statusToRecovery,
+	fallbackRecovery,
+	startupStageFromStatus,
+	type StartupStage,
+	type RecoveryInfo,
+} from '$lib/logic/db-boot';
 
 class DbStore {
 	stage = $state<StartupStage>('checking');
@@ -134,12 +86,11 @@ class DbStore {
 			return;
 		}
 
-		// Map the stage sub-field to the frontend StartupStage.
-		const stage = status.stage;
-		if (stage === 'checking') this.stage = 'checking';
-		else if (stage === 'backing_up') this.stage = 'backing_up';
-		else if (stage === 'migrating') this.stage = 'migrating';
-		else if (stage === 'verifying') this.stage = 'verifying';
+		// Map the stage sub-field to the frontend StartupStage. `null` means
+		// "unknown — leave the current stage unchanged" (byte-identical to the
+		// previous inline if/else, which assigned nothing on an unknown stage).
+		const nextStage = startupStageFromStatus(status);
+		if (nextStage) this.stage = nextStage;
 	}
 
 	/**

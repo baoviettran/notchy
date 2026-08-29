@@ -2,6 +2,7 @@
 	import Button from '$lib/components/primitives/Button.svelte';
 	import Input from '$lib/components/primitives/Input.svelte';
 	import Select from '$lib/components/primitives/Select.svelte';
+	import DatePicker from '$lib/components/primitives/DatePicker.svelte';
 	import Autocomplete from '$lib/components/primitives/Autocomplete.svelte';
 	import { transactions } from '$lib/stores/transactions.svelte';
 	import { accounts } from '$lib/stores/accounts.svelte';
@@ -277,7 +278,7 @@
 	{#if mode === 'full'}
 		<Autocomplete label={L.payee} bind:value={payee} options={payeeOptions} allowFreeText={true} placeholder={L.whoPaid} />
 		<div class="grid grid-cols-2 gap-3">
-			<Input label={L.date} type="date" bind:value={date} />
+			<DatePicker label={L.date} bind:value={date} />
 			<Input label={L.description} bind:value={description} placeholder={L.optional} maxlength={1024} />
 		</div>
 	{/if}

@@ -49,6 +49,8 @@
 		return null;
 	}
 
+	const TOOLTIP_HEIGHT = 180; // approximate; clamped below anyway
+
 	function measure() {
 		if (!tour.active) {
 			targetRect = null;
@@ -57,9 +59,20 @@
 		const target = findTarget();
 		if (target) {
 			targetRect = target.getBoundingClientRect();
-			// Position tooltip below or above the target
+			// Prefer below the target; fall back to above when insufficient space.
 			const spaceBelow = window.innerHeight - targetRect.bottom;
-			const top = spaceBelow > 200 ? targetRect.bottom + 12 : targetRect.top - 12;
+			const spaceAbove = targetRect.top;
+			let top: number;
+			if (spaceBelow > TOOLTIP_HEIGHT + 24) {
+				top = targetRect.bottom + 12;
+			} else if (spaceAbove > TOOLTIP_HEIGHT + 24) {
+				top = targetRect.top - TOOLTIP_HEIGHT - 12;
+			} else {
+				// Neither side fits — place below and let the viewport scroll handle it.
+				top = targetRect.bottom + 12;
+			}
+			// Clamp vertical: never let the tooltip leave the viewport.
+			top = Math.max(TOOLTIP_MARGIN, Math.min(top, window.innerHeight - TOOLTIP_HEIGHT - TOOLTIP_MARGIN));
 			const left = Math.max(
 				TOOLTIP_MARGIN,
 				Math.min(targetRect.left, window.innerWidth - TOOLTIP_WIDTH - TOOLTIP_MARGIN)

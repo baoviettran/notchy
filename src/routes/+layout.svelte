@@ -62,7 +62,15 @@
 		const isQuickAddWindow = $page.url.pathname.startsWith('/quick-add');
 		if (isQuickAddWindow) return;
 
-		if (dbStore.ready && dbStore.firstRunComplete && !tourInitialized) {
+		// Track stage directly so the effect re-runs when dbStore.init()
+		// transitions from 'checking' → 'ready'. Using dbStore.ready
+		// (a $derived) works in most cases, but tracking the raw stage
+		// ensures we never miss the transition.
+		const stage = dbStore.stage;
+		const ready = stage === 'ready';
+		const firstRun = dbStore.firstRunComplete;
+
+		if (ready && firstRun && !tourInitialized) {
 			tourInitialized = true;
 			(async () => {
 				await settings.load();

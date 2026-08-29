@@ -9,7 +9,7 @@
 	import { budgets } from '$lib/stores/budgets.svelte';
 	import { transactions } from '$lib/stores/transactions.svelte';
 	import { goals } from '$lib/stores/goals.svelte';
-	import { categories } from '$lib/stores/categories.svelte';
+	import { categories, systemName } from '$lib/stores/categories.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import Money from '$lib/components/reports/Money.svelte';
 	import { formatCurrency, formatCurrencyCompact, isLongCurrency } from '$lib/utils/currency';
@@ -20,9 +20,9 @@
 	// Bucket display names come from the localized catalogue — never the raw
 	// bucket_ slug.
 	function bucketName(typeId: string): string {
-		// Never print the raw bucket_ slug (DESIGN.md's Don't list) — an
-		// unknown id falls back to a localized label.
-		return categories.buckets.find((b) => b.id === typeId)?.name ?? m.dashboard_uncategorized_bucket();
+		return systemName(typeId)
+			?? categories.buckets.find((b) => b.id === typeId)?.name
+			?? m.dashboard_uncategorized_bucket();
 	}
 
 	// Goals print how far is left in currency, not just a percentage — the only

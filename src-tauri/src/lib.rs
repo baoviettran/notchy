@@ -17,8 +17,8 @@ use database::connection::DatabasePaths;
 /// Quick-capture window. `true` registers the global shortcut, the tray
 /// "Quick Add" item, and tray-left-click capture. Set to `false` to disable
 /// the feature entirely (the hidden window stays in the config, just
-/// unreachable). Disabled 2026-08-19 per user request.
-const QUICK_ADD_ENABLED: bool = false;
+/// unreachable).
+const QUICK_ADD_ENABLED: bool = true;
 
 fn show_quick_add(app: &tauri::AppHandle) {
     if let Some(w) = app.get_webview_window("quick-add") {
@@ -163,6 +163,22 @@ pub fn run() {
             } else {
                 Menu::with_items(app, &[&show, &quit])?
             };
+
+            // Hide-to-tray: the main window hides instead of closing, so the
+            // tray "Show Notchy" item has something to restore. Without this,
+            // clicking Show after closing the window does nothing because the
+            // window no longer exists.
+            if let Some(main) = app.get_webview_window("main") {
+                let app_handle = app.handle().clone();
+                main.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        if let Some(w) = app_handle.get_webview_window("main") {
+                            let _ = w.hide();
+                        }
+                    }
+                });
+            }
 
             TrayIconBuilder::with_id("main-tray")
                 .icon(app.default_window_icon().unwrap().clone())
