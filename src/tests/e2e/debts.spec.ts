@@ -9,7 +9,7 @@ test('a loan created on /accounts surfaces under "I Owe" on /debts', async ({ on
 	// Create the loan via the Accounts page.
 	await page.getByRole('link', { name: 'Accounts', exact: true }).click();
 	await expect(page.getByRole('heading', { name: 'Accounts' })).toBeVisible();
-	await page.getByRole('button', { name: '+ Add account' }).click();
+	await page.getByRole('button', { name: '+ Add account' }).first().click();
 
 	const modal = page.getByRole('dialog');
 	await expect(modal.getByRole('heading', { name: 'Add account' })).toBeVisible();

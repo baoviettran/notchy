@@ -25,7 +25,10 @@ test.describe('keyboard shortcuts', () => {
 	});
 
 	test('FAB aria-label includes shortcut hint', async ({ onboardedPage: page }) => {
-		const fab = page.getByRole('button', { name: /Add transaction/ });
+		// The FAB renders aria-label "Add transaction (N)"; the empty-state
+		// springboard CTA is a bare "Add transaction". Anchor to the FAB's
+		// "(N)" suffix so we check the right element's shortcut hint.
+		const fab = page.getByRole('button', { name: /^Add transaction \(/ });
 		await expect(fab).toBeVisible();
 		const label = await fab.getAttribute('aria-label');
 		expect(label).toContain('N');

@@ -85,7 +85,7 @@ test.describe('reports — extended', () => {
 		// Seed a current-month expense so compare has data.
 		await addTransaction(page, { kind: 'expense', amount: '50k' });
 		await page.getByRole('link', { name: 'Reports', exact: true }).click();
-		await page.getByRole('tab', { name: 'Compare', exact: true }).click();
+		await page.getByRole('link', { name: 'Compare', exact: true }).click();
 		await page.getByRole('link', { name: 'Compare', exact: true }).click();
 		const main = page.getByRole('main');
 		// Two month inputs + a table with Category / monthA / monthB / Change.
@@ -101,7 +101,7 @@ test.describe('reports — extended', () => {
 		// the table has data and we exercise the reverse-order delta path.
 		await addTransaction(page, { kind: 'expense', amount: '50k' });
 		await page.getByRole('link', { name: 'Reports', exact: true }).click();
-		await page.getByRole('tab', { name: 'Compare', exact: true }).click();
+		await page.getByRole('link', { name: 'Compare', exact: true }).click();
 		await page.getByRole('link', { name: 'Compare', exact: true }).click();
 		const main = page.getByRole('main');
 		// Defaults: monthA = previous month, monthB = current month. Swap them
@@ -119,7 +119,7 @@ test.describe('reports — extended', () => {
 
 	test('compare empty state shows the no-data prompt', async ({ onboardedPage: page }) => {
 		await page.getByRole('link', { name: 'Reports', exact: true }).click();
-		await page.getByRole('tab', { name: 'Compare', exact: true }).click();
+		await page.getByRole('link', { name: 'Compare', exact: true }).click();
 		await page.getByRole('link', { name: 'Compare', exact: true }).click();
 		// compare/+page.svelte:85 reports_compare_empty.
 		await expect(page.getByRole('main').getByText('No comparison data. Add expenses in both months to compare.')).toBeVisible();

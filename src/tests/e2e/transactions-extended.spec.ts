@@ -28,7 +28,7 @@ test.describe('transactions — extended', () => {
 		await addTransaction(page, { kind: 'expense', amount: '50k' });
 
 		// Refund: drive the modal directly (addTransaction helper doesn't expose it).
-		await page.getByRole('button', { name: 'Add transaction' }).click();
+		await page.getByRole('button', { name: 'Add transaction' }).first().click();
 		let modal = page.getByRole('dialog');
 		await modal.getByRole('button', { name: 'More' }).click();
 		await modal.getByRole('button', { name: 'Refund', exact: true }).click();
@@ -37,7 +37,7 @@ test.describe('transactions — extended', () => {
 		await expect(page.getByRole('dialog')).toBeHidden();
 
 		// Adjustment.
-		await page.getByRole('button', { name: 'Add transaction' }).click();
+		await page.getByRole('button', { name: 'Add transaction' }).first().click();
 		modal = page.getByRole('dialog');
 		await modal.getByRole('button', { name: 'More' }).click();
 		await modal.getByRole('button', { name: 'Adjustment', exact: true }).click();
@@ -56,14 +56,14 @@ test.describe('transactions — extended', () => {
 	test('search filters the list by payee', async ({ onboardedPage: page }) => {
 		// Add two expenses with distinct payees. The dashboard modal's Payee field
 		// is an Autocomplete labelled "Payee" (TransactionForm.svelte:162).
-		await page.getByRole('button', { name: 'Add transaction' }).click();
+		await page.getByRole('button', { name: 'Add transaction' }).first().click();
 		let modal = page.getByRole('dialog');
 		await modal.getByLabel('Amount').fill('10k');
 		await modal.getByLabel('Payee').fill('Acme Corp');
 		await modal.getByRole('button', { name: 'Save' }).click();
 		await expect(page.getByRole('dialog')).toBeHidden();
 
-		await page.getByRole('button', { name: 'Add transaction' }).click();
+		await page.getByRole('button', { name: 'Add transaction' }).first().click();
 		modal = page.getByRole('dialog');
 		await modal.getByLabel('Amount').fill('20k');
 		await modal.getByLabel('Payee').fill('Bigshop');
@@ -104,7 +104,7 @@ test.describe('transactions — extended', () => {
 		// (allowFreeText, TransactionForm.svelte:162), so typing commits the
 		// value on blur/Save; this also seeds the payeeOptions list for the next
 		// modal (TransactionForm.svelte:76-80).
-		await page.getByRole('button', { name: 'Add transaction' }).click();
+		await page.getByRole('button', { name: 'Add transaction' }).first().click();
 		let modal = page.getByRole('dialog');
 		await modal.getByLabel('Amount').fill('10k');
 		await modal.getByLabel('Payee').fill('Familiar Payee');
@@ -112,7 +112,7 @@ test.describe('transactions — extended', () => {
 		await expect(page.getByRole('dialog')).toBeHidden();
 
 		// Open a fresh modal and focus the Payee field.
-		await page.getByRole('button', { name: 'Add transaction' }).click();
+		await page.getByRole('button', { name: 'Add transaction' }).first().click();
 		modal = page.getByRole('dialog');
 		const payee = modal.getByLabel('Payee');
 		await payee.click();
@@ -136,7 +136,7 @@ test.describe('transactions — extended', () => {
 		// the store/repo layer instead. Here we assert the genuine client-side
 		// gate: Save is disabled until an amount is entered
 		// (TransactionForm.svelte:171: disabled={saving || !amount}).
-		await page.getByRole('button', { name: 'Add transaction' }).click();
+		await page.getByRole('button', { name: 'Add transaction' }).first().click();
 		const modal = page.getByRole('dialog');
 		await expect(modal.getByRole('button', { name: 'Save' })).toBeDisabled();
 		await modal.getByLabel('Amount').fill('10k');
@@ -146,7 +146,7 @@ test.describe('transactions — extended', () => {
 	test('invalid amount is rejected with an inline error', async ({ onboardedPage: page }) => {
 		// parseAmount throws on garbage → validation_invalid_amount = "Invalid amount"
 		// (TransactionForm.svelte:88-90).
-		await page.getByRole('button', { name: 'Add transaction' }).click();
+		await page.getByRole('button', { name: 'Add transaction' }).first().click();
 		const modal = page.getByRole('dialog');
 		await modal.getByLabel('Amount').fill('not a number');
 		await modal.getByRole('button', { name: 'Save' }).click();
@@ -167,14 +167,14 @@ test.describe('transactions — extended', () => {
 		// accounts and must explicitly select the SAME account for both From and
 		// To. Create a second account first.
 		await page.getByRole('link', { name: 'Accounts', exact: true }).click();
-		await page.getByRole('button', { name: '+ Add account' }).click();
+		await page.getByRole('button', { name: '+ Add account' }).first().click();
 		const acctModal = page.getByRole('dialog');
 		await acctModal.getByLabel('Name').fill('Savings');
 		await acctModal.getByRole('button', { name: 'Create' }).click();
 		await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
 
 		// Now open the transfer form and pick the same account for From and To.
-		await page.getByRole('button', { name: 'Add transaction' }).click();
+		await page.getByRole('button', { name: 'Add transaction' }).first().click();
 		const modal = page.getByRole('dialog');
 		await modal.getByRole('button', { name: 'More' }).click();
 		await modal.getByRole('button', { name: 'Transfer', exact: true }).click();

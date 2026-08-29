@@ -61,7 +61,7 @@ test.describe('budgets — extended', () => {
 
 		// Tag an expense with it.
 		await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
-		await page.getByRole('button', { name: 'Add transaction' }).click();
+		await page.getByRole('button', { name: 'Add transaction' }).first().click();
 		const txModal = page.getByRole('dialog');
 		const tagCombo = txModal.getByLabel('Tag');
 		await tagCombo.click();
@@ -131,7 +131,7 @@ test.describe('budgets — extended', () => {
 
 		// Spend 600k in that bucket — exceeds the 500k allocation.
 		await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
-		await page.getByRole('button', { name: 'Add transaction' }).click();
+		await page.getByRole('button', { name: 'Add transaction' }).first().click();
 		const txModal = page.getByRole('dialog');
 		const tagCombo = txModal.getByLabel('Tag');
 		await tagCombo.click();

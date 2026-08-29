@@ -152,7 +152,7 @@ async function changeQuickSelect(page: import('@playwright/test').Page, optionLa
 		await modal.getByRole('button', { name: 'Create' }).click();
 
 		// Tag a transaction.
-		await page.getByRole('button', { name: 'Add transaction' }).click();
+		await page.getByRole('button', { name: 'Add transaction' }).first().click();
 		const txModal = page.getByRole('dialog');
 		const combo = txModal.getByLabel('Tag');
 		await combo.click();

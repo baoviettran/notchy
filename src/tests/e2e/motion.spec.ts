@@ -44,7 +44,7 @@ test.describe('Popover origins', () => {
 		await expect(page.getByText('Food')).toBeVisible();
 
 		// Open the Tag autocomplete (id-mode) in the transaction modal.
-		await page.getByRole('button', { name: 'Add transaction' }).click();
+		await page.getByRole('button', { name: 'Add transaction' }).first().click();
 		const txModal = page.getByRole('dialog');
 		await txModal.getByLabel('Tag').fill('F');
 		const listbox = page.getByRole('listbox');

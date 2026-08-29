@@ -6,8 +6,10 @@ test.describe('accounts', () => {
 		await page.getByRole('link', { name: 'Accounts', exact: true }).click();
 		await expect(page.getByRole('heading', { name: 'Accounts' })).toBeVisible();
 
-		// Add-account button: i18n accounts_add() → "+ Add account".
-		await page.getByRole('button', { name: /\+?\s*Add account/i }).click();
+		// Add-account button: i18n accounts_add() → "+ Add account". The same
+		// label also appears on the empty-state springboard CTAs, so disambiguate
+		// to the first match (the persistent header button).
+		await page.getByRole('button', { name: /\+?\s*Add account/i }).first().click();
 		const modal = page.getByRole('dialog');
 		await modal.getByLabel('Name').fill('Savings');
 		// AccountForm new-account confirm button is forms_create() → "Create".

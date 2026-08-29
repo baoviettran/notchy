@@ -52,7 +52,7 @@ test('a tag can be created, and deleting a referenced tag merges into another', 
 
 	// Tag a transaction with Tag A so the tag becomes referenced
 	// (affectedCount > 0), which is the only path that surfaces the merge Select.
-	await page.getByRole('button', { name: 'Add transaction' }).click();
+	await page.getByRole('button', { name: 'Add transaction' }).first().click();
 	const txModal = page.getByRole('dialog');
 	// The Tag field is an Autocomplete (role="combobox") labelled "Tag".
 	const tagCombo = txModal.getByLabel('Tag');
