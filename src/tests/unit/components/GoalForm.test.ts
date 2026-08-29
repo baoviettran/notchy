@@ -27,7 +27,7 @@ const editGoal: GoalWithProgress = {
 	target_date: '2026-12-31', linked_account_id: null, starting_amount: 0,
 	current_amount: 0, progress: 0,
 	created_at: '', updated_at: ''
-} as GoalWithProgress;
+} as unknown as GoalWithProgress;
 
 // Opens the target-date picker and selects "Today" so `targetDate` is non-empty.
 async function pickToday() {

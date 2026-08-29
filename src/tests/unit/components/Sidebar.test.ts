@@ -8,9 +8,16 @@ import { page } from '$app/stores';
 
 import Sidebar from '$lib/components/layout/Sidebar.svelte';
 
+// svelte-check types `page` against the real $app/stores (a Readable with no
+// `.set`), even though the vitest components project aliases it to a writable.
+// Cast to the writable shape only at the set boundary so the rest of the file
+// stays type-checked by the kit types.
+const setPath = (pathname: string): void =>
+	(page as unknown as { set: (p: { url: { pathname: string } }) => void }).set({ url: { pathname } });
+
 describe('Sidebar', () => {
 	beforeEach(() => {
-		page.set({ url: { pathname: '/' } });
+		setPath('/');
 	});
 
 	it('renders brand, both nav groups, and the offline footer', () => {
@@ -30,7 +37,7 @@ describe('Sidebar', () => {
 	});
 
 	it('marks the exact current route as active and leaves Dashboard inactive', () => {
-		page.set({ url: { pathname: '/budgets' } });
+		setPath('/budgets');
 		render(Sidebar);
 		expect(screen.getByRole('link', { name: 'Budgets' })).toHaveAttribute('aria-current', 'page');
 		expect(screen.getByRole('link', { name: 'Dashboard' })).not.toHaveAttribute('aria-current');
@@ -38,20 +45,20 @@ describe('Sidebar', () => {
 	});
 
 	it('marks the Dashboard active only on the root path', () => {
-		page.set({ url: { pathname: '/' } });
+		setPath('/');
 		render(Sidebar);
 		expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page');
 		expect(screen.getByRole('link', { name: 'Budgets' })).not.toHaveAttribute('aria-current');
 	});
 
 	it('treats a sub-route as active for its parent nav item', () => {
-		page.set({ url: { pathname: '/budgets/2026-08' } });
+		setPath('/budgets/2026-08');
 		render(Sidebar);
 		expect(screen.getByRole('link', { name: 'Budgets' })).toHaveAttribute('aria-current', 'page');
 	});
 
 	it('marks a secondary nav item active on its route', () => {
-		page.set({ url: { pathname: '/accounts' } });
+		setPath('/accounts');
 		render(Sidebar);
 		expect(screen.getByRole('link', { name: 'Accounts' })).toHaveAttribute('aria-current', 'page');
 	});
