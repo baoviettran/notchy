@@ -50,6 +50,15 @@
 - **Checkbox discipline:** when a plan task's commit lands, flip that task's step checkboxes `- [ ]`→`- [x]` in the plan file. A task counts as done only if its box is `[x]` AND git log has the matching commit.
 - If `pnpm test:roadmap` prints `⚠ stale`, the rollup can't be trusted — regenerate it before relying on it. Nonzero exit = staleness detected.
 
+## Story Inventory (product source of truth for **what**)
+
+- `product/stories/index.md` is the **demand engine** — it is the source of truth for *what* to build (relevance). Specs/plans/tests remain the source of truth for *how*. Process: `product/stories/README.md`.
+- **Rule — no story → no spec.** Every spec/plan must carry a `**Serves:** STORY-0xx` header tracing to a real story. Before writing any spec or starting feature work, find the story it serves (or add one first).
+- **A story without an Evidence anchor is a wish, not a story** — it must point at a real source (bug-inventory row, Actual→Notchy research, dogfooding, interviews). Do not graduate a wish to a spec.
+- Stories are **need-shaped, not solution-shaped** — "the user wants confirmation a quick entry landed right," not "add a readback helper." Restating the feature is a spec in first-person.
+- Keep stories one-line-about-one-need. When a story's `Serves:` list grows past ~2 specs, split it.
+- Update `Status` → `shipped` when the fulfilling plan's final task lands. Retrace specs to existing stories rather than inventing new ones.
+
 ## Gotchas
 - **`docs/` is a submodule** — see Repo Layout above. Files under `docs/` will not commit with the main repo.
 - **Schema-version call sites** — every migration that bumps the schema version must update *all* `importDatabase`/`validateImport` version literals (UI, unit, E2E fixtures). Updating only some breaks E2E silently.

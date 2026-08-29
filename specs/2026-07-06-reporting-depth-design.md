@@ -3,6 +3,7 @@
 **Date:** 2026-07-06
 **Status:** Design (pending implementation plan)
 **Branch:** `feat/actual`
+**Serves:** STORY-008 — "I can see where the money went"
 
 ## Summary
 

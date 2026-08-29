@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeSubject, extractCommitSubject, parseTasks, matchGit, rollupStatus, validateStaleness, renderMarkdown, renderStdoutTable } from './roadmap.mjs';
+import { normalizeSubject, extractCommitSubject, parseTasks, matchGit, rollupStatus, validateStaleness, renderMarkdown, renderStdoutTable, extractStoryIdsFromInventory, findServesIds, buildTraceFindings, renderStoryCoverage } from './roadmap.mjs';
 
 describe('normalizeSubject', () => {
   it('parses type(scope): body', () => {
@@ -260,5 +260,73 @@ describe('renderStdoutTable', () => {
     expect(table).toContain('implemented');
     expect(table).toContain('categorize-rules');
     expect(table).toContain('in-progress');
+  });
+});
+
+describe('extractStoryIdsFromInventory', () => {
+  it('collects only table-row ids, ignoring prose and placeholders', () => {
+    const index = [
+      '# User Story Inventory',
+      '',
+      '| ID | Story name |',
+      '| --- | --- |',
+      '| STORY-001 | The native app must actually work |',
+      '| STORY-002 | Fast entry won\'t lose me |',
+      'Add the next id (e.g. STORY-010) when a new story lands.' // prose — must NOT count
+    ].join('\n');
+    const ids = extractStoryIdsFromInventory(index);
+    expect(ids).toEqual(new Set(['STORY-001', 'STORY-002']));
+  });
+});
+
+describe('findServesIds', () => {
+  it('extracts bullet and bold Serves: story headers', () => {
+    const spec = [
+      '**Serves:** STORY-008 — "I can see where the money went"',
+      '**Serves:** STORY-003'
+    ].join('\n');
+    expect(findServesIds(spec)).toEqual(['STORY-008', 'STORY-003']);
+  });
+
+  it('returns [] when no Serves header', () => {
+    expect(findServesIds('# A spec with no trace')).toEqual([]);
+  });
+});
+
+describe('buildTraceFindings', () => {
+  const validIds = new Set(['STORY-001', 'STORY-002']);
+
+  it('marks a file with a valid Serves as traced', () => {
+    const findings = buildTraceFindings([
+      { path: 'specs/plans/plan-a.md', text: '**Serves:** STORY-001' }
+    ], validIds);
+    expect(findings.traced).toBe(1);
+    expect(findings.untraced).toEqual([]);
+    expect(findings.unknown).toEqual([]);
+  });
+
+  it('flags a file with no Serves as untraced', () => {
+    const findings = buildTraceFindings([
+      { path: 'specs/plans/plan-b.md', text: 'A plan with no story.' }
+    ], validIds);
+    expect(findings.untraced).toEqual(['specs/plans/plan-b.md']);
+    expect(findings.traced).toBe(0);
+  });
+
+  it('flags a Serves referencing an unknown id', () => {
+    const findings = buildTraceFindings([
+      { path: 'specs/plans/plan-c.md', text: '**Serves:** STORY-099' }
+    ], validIds);
+    expect(findings.unknown).toEqual([{ path: 'specs/plans/plan-c.md', id: 'STORY-099' }]);
+  });
+});
+
+describe('renderStoryCoverage', () => {
+  it('renders a coverage section with counts', () => {
+    const findings = { traced: 1, total: 3, untraced: ['specs/plans/b.md'], unknown: [{ path: 'x.md', id: 'STORY-099' }] };
+    const md = renderStoryCoverage(findings);
+    expect(md).toContain('## Story coverage');
+    expect(md).toContain('Traced: 1 / 3');
+    expect(md).toContain('untraced');
   });
 });

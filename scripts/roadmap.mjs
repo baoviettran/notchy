@@ -230,6 +230,57 @@ export function renderStdoutTable(plans) {
   return table;
 }
 
+// --- Story-inventory traceability (source of truth for WHAT) ---
+// Rule (CLAUDE.md): no story -> no spec. Every plan/spec carries a `Serves: STORY-0xx`
+// header tracing to product/stories/index.md. This gate reports untraced plans/specs
+// and any Serves reference that points at a story id that does not exist.
+
+export function extractStoryIdsFromInventory(indexText) {
+  // Only table rows (`| STORY-0xx |`); prose like "use STORY-010 next" must not count.
+  const ids = new Set();
+  const re = /^\| (STORY-\d{3}) \|/gm;
+  let m;
+  while ((m = re.exec(indexText)) !== null) ids.add(m[1]);
+  return ids;
+}
+
+export function findServesIds(fileText) {
+  const ids = [];
+  // Tolerate the field's common rendered forms: `**Serves:** STORY-0xx` and `Serves: STORY-0xx`.
+  const re = /Serves:[^*\n]*\*{0,2}\s*?(STORY-\d{3})\b/gi;
+  let m;
+  while ((m = re.exec(fileText)) !== null) ids.push(m[1].toUpperCase());
+  return ids;
+}
+
+export function buildTraceFindings(fileEntries, validIds) {
+  // fileEntries: [{ path, text }]. Pure — reads nothing from disk.
+  const untraced = [];
+  const unknown = [];
+  let traced = 0;
+  const total = fileEntries.length;
+  for (const { path, text } of fileEntries) {
+    const served = findServesIds(text);
+    if (served.length === 0) {
+      untraced.push(path);
+    } else {
+      traced++;
+      for (const id of served) {
+        if (!validIds.has(id)) unknown.push({ path, id });
+      }
+    }
+  }
+  return { total, traced, untraced, unknown };
+}
+
+export function renderStoryCoverage(findings) {
+  let s = `## Story coverage (traceability)\n`;
+  s += `- Traced: ${findings.traced} / ${findings.total} | Untraced: ${findings.untraced.length} | Unknown story ids: ${findings.unknown.length}\n`;
+  for (const u of findings.unknown) s += `- ⚠ unknown story id ${u.id} in ${u.path}\n`;
+  for (const p of findings.untraced) s += `- untraced: ${p}\n`;
+  return `${s}\n`;
+}
+
 import { readFileSync, writeFileSync, existsSync, globSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -288,8 +339,26 @@ async function main() {
     }
   }
 
+  // 4.5 Story-inventory traceability (no story -> no spec, per CLAUDE.md).
+  // Gate on every plan + its linked spec. Reads nothing but facts; untraced and
+  // unknown-id references are warnings -> exit 1, so the model stays enforced.
+  let storyFindings = null;
+  const storiesPath = 'product/stories/index.md';
+  if (existsSync(storiesPath)) {
+    const validIds = extractStoryIdsFromInventory(readFileSync(storiesPath, 'utf-8'));
+    const traceEntries = new Map();
+    for (const plan of plans) {
+      traceEntries.set(plan.planPath, { path: plan.planPath, text: readFileSync(plan.planPath, 'utf-8') });
+      if (plan.specPath) traceEntries.set(plan.specPath, { path: plan.specPath, text: readFileSync(plan.specPath, 'utf-8') });
+    }
+    storyFindings = buildTraceFindings([...traceEntries.values()], validIds);
+    for (const p of storyFindings.untraced) warnings.push(`story: ${p} has no Serves: trace`);
+    for (const u of storyFindings.unknown) warnings.push(`story: ${u.path} traces to unknown ${u.id}`);
+  }
+
   // 5. Render and write
-  const markdown = renderMarkdown(plans, commits.length);
+  let markdown = renderMarkdown(plans, commits.length);
+  if (storyFindings) markdown += renderStoryCoverage(storyFindings);
   writeFileSync('specs/STATUS.md', markdown);
 
   // 6. Print stdout table
