@@ -10,7 +10,7 @@ export default defineConfig({
 		setupFiles: ['src/tests/unit/helpers/setup-dom.ts'],
 		coverage: {
 			provider: 'istanbul',
-			reporter: ['text', 'text-summary', 'html'],
+			reporter: ['text', 'text-summary', 'html', 'json-summary'],
 			reportsDirectory: 'coverage',
 			include: ['src/lib/**/*.ts', 'src/lib/**/*.svelte'],
 			exclude: [

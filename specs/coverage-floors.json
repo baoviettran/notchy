@@ -1,0 +1,18 @@
+{
+  "src/lib/db/native/client.ts": { "stmts": 52, "branch": 26 },
+  "src/lib/db/browser/client.ts": { "stmts": 43, "branch": 100 },
+  "src/lib/db/browser/repos/transactions.ts": { "stmts": 93, "branch": 87 },
+  "src/lib/db/browser/repos/budgets.ts": { "stmts": 90, "branch": 75 },
+  "src/lib/db/browser/repos/accounts.ts": { "stmts": 88, "branch": 82 },
+  "src/lib/utils/quick_parse.ts": { "stmts": 100, "branch": 100 },
+  "src/lib/utils/number_parse.ts": { "stmts": 92, "branch": 88 },
+  "src/lib/utils/dedup.ts": { "stmts": 100, "branch": 100 },
+  "src/lib/components/primitives/Autocomplete.svelte": { "stmts": 97, "branch": 93 },
+  "src/lib/components/primitives/DatePicker.svelte": { "stmts": 30, "branch": 10 },
+  "src/lib/components/forms/AccountForm.svelte": { "stmts": 0, "branch": 0 },
+  "src/lib/components/forms/GoalForm.svelte": { "stmts": 0, "branch": 0 },
+  "src/lib/components/modals/ImportTransactionsModal.svelte": { "stmts": 0, "branch": 0 },
+  "src/lib/components/layout/Sidebar.svelte": { "stmts": 0, "branch": 0 },
+  "src/lib/components/reports/TapeLine.svelte": { "stmts": 0, "branch": 0 },
+  "src/lib/components/reports/AdjustmentsToggle.svelte": { "stmts": 0, "branch": 0 }
+}
