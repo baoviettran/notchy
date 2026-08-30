@@ -1,9 +1,14 @@
 // scripts/roadmap.mjs
 
 export function normalizeSubject(subject) {
-  const match = subject.match(/^(\w+)(?:\(([^)]+)\))?:\s*(.+)$/);
+  // A plan directive may embed `Co-Authored-By: Claude <...>` — either glued onto
+  // the subject line (inline multi-line `-m` pasted as one) or on a second line.
+  // Keep only the first line and drop the footer so it never leaks into the body
+  // that matchGit later compares against real single-line commit subjects.
+  const cleaned = String(subject).split('\n')[0].replace(/Co-Authored-By:.*$/, '').trim();
+  const match = cleaned.match(/^(\w+)(?:\(([^)]+)\))?:\s*(.+)$/);
   if (!match) {
-    return { type: null, scope: null, body: subject };
+    return { type: null, scope: null, body: cleaned };
   }
   return {
     type: match[1],

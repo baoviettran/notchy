@@ -28,6 +28,16 @@ describe('normalizeSubject', () => {
       body: 'just a plain subject'
     });
   });
+
+  it('strips a trailing Co-Authored-By footer from the subject line', () => {
+    const result = normalizeSubject('fix(e2e): raw DB access for mock specs; csv-import via .raw Co-Authored-By: Claude <noreply@anthropic.com>');
+    expect(result.body).toBe('raw DB access for mock specs; csv-import via .raw');
+  });
+
+  it('uses only the first line when a directive embeds the footer on a second line', () => {
+    const result = normalizeSubject('fix(e2e): revive dead Tauri IPC mock, opt-in injection\nCo-Authored-By: Claude <noreply@anthropic.com>');
+    expect(result.body).toBe('revive dead Tauri IPC mock, opt-in injection');
+  });
 });
 
 describe('extractCommitSubject', () => {
