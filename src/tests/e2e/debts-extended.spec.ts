@@ -89,8 +89,10 @@ test.describe('debts — extended', () => {
 		await createLoanAccount(page, 'Loan from Person', 'Alice', 'Alice Debt');
 		await page.getByRole('link', { name: 'Debts', exact: true }).click();
 		// Initial outstanding = 500,000 (Math.abs of the liability balance).
+		// Scope to the debt item row — the summary chip "1 debts · ₫500,000"
+		// also contains "500,000" and would trip strict mode.
 		const main = page.getByRole('main');
-		await expect(main.getByText('500,000')).toBeVisible();
+		await expect(main.locator('.debt-item', { hasText: 'Alice' }).getByText('500,000')).toBeVisible();
 		// The hover-revealed Pay button (debts/+page.svelte:90) — scope to the
 		// i-owe row by anchoring on the counterparty text.
 		const payBtn = main.locator('.debt-item', { hasText: 'Alice' }).getByRole('button', { name: 'Pay' });
@@ -128,7 +130,8 @@ test.describe('debts — extended', () => {
 		await createLoanAccount(page, 'Loan from Person', 'Alice', 'Alice Debt');
 		await page.getByRole('link', { name: 'Debts', exact: true }).click();
 		const main = page.getByRole('main');
-		await expect(main.getByText('500,000')).toBeVisible();
+		// Scope to the debt item row — the summary chip also contains "500,000".
+		await expect(main.locator('.debt-item', { hasText: 'Alice' }).getByText('500,000')).toBeVisible();
 		// Write off lives in the row's overflow menu (persistent kebab, no hover-gate).
 		const debtRow = main.locator('.debt-item', { hasText: 'Alice' });
 		await debtRow.getByRole('button', { name: 'Actions: Alice' }).click();
