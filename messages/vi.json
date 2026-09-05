@@ -1,5 +1,11 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
+  "a11y_calendar": "Lịch",
+  "a11y_date_picker": "Bộ chọn ngày",
+  "a11y_next_month": "Tháng sau",
+  "a11y_previous_month": "Tháng trước",
+  "a11y_primary_nav": "Điều hướng chính",
+  "a11y_skip_to_content": "Tới nội dung chính",
   "accounts_actual": "Thực tế",
   "accounts_actual_balance_label": "Số dư thực tế",
   "accounts_add": "+ Thêm tài khoản",

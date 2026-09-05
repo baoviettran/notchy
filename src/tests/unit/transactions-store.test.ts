@@ -23,6 +23,57 @@ import { getDb } from '$lib/db';
 import { transactions } from '$lib/stores/transactions.svelte';
 import { toast } from '$lib/stores/toast.svelte';
 
+describe('TransactionsStore.load merge behavior', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it('reuses previous row objects for unchanged rows after a reload', async () => {
+		const rowA = { id: 'a', kind: 'expense', amount: 1, date: '2026-01-01', payee: 'A' };
+		const rowB = { id: 'b', kind: 'income', amount: 2, date: '2026-01-02', payee: 'B' };
+
+		const db = {
+			transactions: {
+				list: vi.fn()
+					.mockResolvedValueOnce([rowA, rowB])
+					// rowB comes back as a fresh object with identical fields —
+					// the store must still hand the previous object to consumers.
+					.mockResolvedValueOnce([{ ...rowA, amount: 9 }, { ...rowB }])
+			}
+		};
+		(getDb as ReturnType<typeof vi.fn>).mockReturnValue(db);
+
+		await transactions.load();
+		const first = transactions.items;
+		await transactions.load();
+		const second = transactions.items;
+
+		expect(second[0]).not.toBe(first[0]);
+		expect(second[0].amount).toBe(9);
+		expect(second[1]).toBe(first[1]);
+	});
+
+	it('replaces the row object when its fields change after a reload', async () => {
+		const rowA = { id: 'a', kind: 'expense', amount: 1, date: '2026-01-01', payee: 'A' };
+
+		const db = {
+			transactions: {
+				list: vi.fn()
+					.mockResolvedValueOnce([rowA])
+					.mockResolvedValueOnce([{ ...rowA, payee: 'A2' }])
+			}
+		};
+		(getDb as ReturnType<typeof vi.fn>).mockReturnValue(db);
+
+		await transactions.load();
+		const first = transactions.items;
+		await transactions.load();
+
+		expect(transactions.items[0]).not.toBe(first[0]);
+		expect(transactions.items[0].payee).toBe('A2');
+	});
+});
+
 describe('TransactionsStore.delete', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();

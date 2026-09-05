@@ -11,7 +11,6 @@ import type { UpgradeBackupRecord } from '$lib/backup/upgrade';
 import { parseUpgradeBackupName } from '$lib/backup/upgrade';
 import type { DatabaseService } from './browser/service';
 import { createTauriDb, type QueryResult, type Row, uniqueSavepointName, TauriDatabase } from './browser/service';
-import { createInMemoryDb } from './browser/in-memory';
 import { runIntegrityCheck } from './browser/integrity';
 import { inspectSchema, type SchemaInspection } from './browser/schema';
 import type { AppDatabase } from './client';
@@ -96,8 +95,12 @@ export async function getInstalledAppVersion(): Promise<string> {
  * this function to inject a real SQLite connection and assert it runs exactly
  * once under concurrent initialization.
  */
-export function openConnection(): Promise<DatabaseService> {
-	return isTauri() ? createTauriDb('sqlite:notchy.db') : createInMemoryDb();
+export async function openConnection(): Promise<DatabaseService> {
+	if (isTauri()) return createTauriDb('sqlite:notchy.db');
+	// Dynamic import keeps sql.js (~600KB WASM) out of the shipped Tauri
+	// bundle — this path only runs in the browser (Vitest / Playwright).
+	const { createInMemoryDb } = await import('./browser/in-memory');
+	return createInMemoryDb();
 }
 
 export async function ensureDirectory(path: string): Promise<void> {

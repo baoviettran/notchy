@@ -74,9 +74,20 @@ describe('DatePicker', () => {
 		// The header span is "MONTH[l] year". Under vi-VN the month localizes
 		// (e.g. "tháng 6"); asserting it's no longer the English form proves the
 		// locale ternary runs without pinning a specific Vietnamese word.
-		const header = screen.getByRole('dialog', { name: 'Date picker' }).querySelector('.text-sm.font-medium');
+		const header = screen.getByRole('dialog', { name: 'Bộ chọn ngày' }).querySelector('.text-sm.font-medium');
 		expect(header?.textContent).toContain('2026');
 		expect(header?.textContent).not.toBe('June 2026');
+	});
+
+	it('labels the dialog and grid in the active locale (vi)', async () => {
+		// The two labels that were hardcoded English ("Date picker" /
+		// "Calendar") — the vi flip proves they route through paraglide now.
+		lang.tag = 'vi';
+		render(DatePickerBindProbe, { label: 'Target date' });
+		await fireEvent.click(screen.getByLabelText('Target date'));
+
+		expect(screen.getByRole('dialog', { name: 'Bộ chọn ngày' })).toBeInTheDocument();
+		expect(screen.getByRole('grid', { name: 'Lịch' })).toBeInTheDocument();
 	});
 
 	it('navigates across a year boundary forward', async () => {
@@ -128,5 +139,93 @@ describe('DatePicker', () => {
 
 		await fireEvent.click(field);
 		expect(screen.queryByRole('dialog', { name: 'Date picker' })).not.toBeInTheDocument();
+	});
+
+	// --- Keyboard navigation (ARIA grid roving tabindex) ---
+	// The grid marks the keyboard-focused day with tabindex=0 (roving tabindex),
+	// so focus assertions read the DOM instead of component internals.
+
+	async function openOn(initial?: string) {
+		render(DatePickerBindProbe, { label: 'Target date', ...(initial ? { initial } : {}) });
+		await fireEvent.click(screen.getByLabelText('Target date'));
+		return screen.getByRole('grid');
+	}
+
+	function focusedDay() {
+		return screen
+			.getAllByRole('gridcell')
+			.map((c) => c.querySelector('button'))
+			.find((b) => b?.tabIndex === 0)?.textContent;
+	}
+
+	it('moves focus with arrow keys within the month', async () => {
+		const grid = await openOn('2026-06-15');
+		expect(focusedDay()).toBe('15');
+
+		await fireEvent.keyDown(grid, { key: 'ArrowRight' });
+		expect(focusedDay()).toBe('16');
+		await fireEvent.keyDown(grid, { key: 'ArrowDown' });
+		expect(focusedDay()).toBe('23');
+		await fireEvent.keyDown(grid, { key: 'ArrowUp' });
+		expect(focusedDay()).toBe('16');
+		await fireEvent.keyDown(grid, { key: 'ArrowLeft' });
+		expect(focusedDay()).toBe('15');
+	});
+
+	it('moves focus backward across a month boundary', async () => {
+		const grid = await openOn('2026-06-01');
+		await fireEvent.keyDown(grid, { key: 'ArrowLeft' });
+
+		expect(screen.getByText('May 2026')).toBeInTheDocument();
+		expect(focusedDay()).toBe('31');
+	});
+
+	it('moves focus forward across a month boundary', async () => {
+		const grid = await openOn('2026-06-30');
+		await fireEvent.keyDown(grid, { key: 'ArrowRight' });
+
+		expect(screen.getByText('July 2026')).toBeInTheDocument();
+		expect(focusedDay()).toBe('1');
+	});
+
+	it('jumps to first and last day with Home and End', async () => {
+		const grid = await openOn('2026-06-15');
+		await fireEvent.keyDown(grid, { key: 'End' });
+		expect(focusedDay()).toBe('30');
+
+		await fireEvent.keyDown(grid, { key: 'Home' });
+		expect(focusedDay()).toBe('1');
+	});
+
+	it('flips month with PageUp/PageDown, clamping the focus day', async () => {
+		// March 31 → April has 30 days, so the focus day clamps to 30.
+		const grid = await openOn('2026-03-31');
+		await fireEvent.keyDown(grid, { key: 'PageDown' });
+
+		expect(screen.getByText('April 2026')).toBeInTheDocument();
+		expect(focusedDay()).toBe('30');
+
+		await fireEvent.keyDown(grid, { key: 'PageUp' });
+		expect(screen.getByText('March 2026')).toBeInTheDocument();
+		expect(focusedDay()).toBe('30');
+	});
+
+	it('selects the focused day with Enter and closes the panel', async () => {
+		const grid = await openOn('2026-06-15');
+		await fireEvent.keyDown(grid, { key: 'ArrowRight' });
+		await fireEvent.keyDown(grid, { key: 'Enter' });
+
+		expect(screen.getByTestId('value').textContent).toBe('2026-06-16');
+		expect(screen.queryByRole('dialog', { name: 'Date picker' })).not.toBeInTheDocument();
+	});
+
+	it('mid-month header arrows step a single month', async () => {
+		await openOn('2026-06-15');
+		await fireEvent.click(screen.getByRole('button', { name: 'Next month' }));
+		expect(screen.getByText('July 2026')).toBeInTheDocument();
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
+		expect(screen.getByText('May 2026')).toBeInTheDocument();
 	});
 });

@@ -30,7 +30,7 @@
 					class="font-semibold text-phosphor hover:text-phosphor-bright uppercase text-xs shrink-0"
 				>{toast.current.action}</button>
 			{/if}
-			<button onclick={() => toast.dismiss()} aria-label={m.common_close()} class="min-w-6 min-h-6 inline-flex items-center justify-center text-dim hover:text-ledger ml-2 text-xs">✕</button>
+			<button onclick={() => toast.dismiss()} aria-label={m.common_close()} class="min-w-8 min-h-8 inline-flex items-center justify-center text-dim hover:text-ledger ml-2 text-xs">✕</button>
 		</div>
 	{/if}
 </div>

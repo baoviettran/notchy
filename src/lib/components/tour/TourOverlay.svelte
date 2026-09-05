@@ -98,15 +98,28 @@
 		}
 	}
 
+	// Scroll/resize re-measures run at most once per frame: the tour targets
+	// sit inside a scrollable <main>, so every scroll tick fired the full
+	// querySelectorAll + getBoundingClientRect pass.
+	let measureRafId: number | null = null;
+	function scheduleMeasure() {
+		if (measureRafId !== null) return;
+		measureRafId = requestAnimationFrame(() => {
+			measureRafId = null;
+			measure();
+		});
+	}
+
 	onMount(() => {
 		measure();
-		window.addEventListener('resize', measure);
-		window.addEventListener('scroll', measure, true);
+		window.addEventListener('resize', scheduleMeasure);
+		window.addEventListener('scroll', scheduleMeasure, true);
 	});
 
 	onDestroy(() => {
-		window.removeEventListener('resize', measure);
-		window.removeEventListener('scroll', measure, true);
+		window.removeEventListener('resize', scheduleMeasure);
+		window.removeEventListener('scroll', scheduleMeasure, true);
+		if (measureRafId !== null) cancelAnimationFrame(measureRafId);
 	});
 
 	// Re-measure when step or active state changes
@@ -182,25 +195,25 @@
 				<div class="flex gap-2">
 					<button
 						onclick={() => tour.skip()}
-						class="inline-flex items-center min-h-10 px-3 text-sm rounded-md text-dim hover:text-ledger transition-colors"
+						class="inline-flex items-center min-h-11 px-3 text-sm rounded-md text-dim hover:text-ledger transition-colors"
 						>{m.tour_skip()}</button
 					>
 					<button
 						onclick={() => tour.back()}
 						disabled={tour.currentStep === 0}
-						class="inline-flex items-center min-h-10 px-3 text-sm rounded-md border border-line text-dim hover:text-ledger disabled:opacity-30 transition-colors"
+						class="inline-flex items-center min-h-11 px-3 text-sm rounded-md border border-line text-dim hover:text-ledger disabled:opacity-30 transition-colors"
 						>{m.tour_back()}</button
 					>
 					{#if tour.currentStep >= TOUR_STEPS.length - 1}
 						<button
 							onclick={() => tour.finish()}
-							class="inline-flex items-center min-h-10 px-3 text-sm rounded-md bg-phosphor text-ink font-medium hover:bg-phosphor-bright transition-colors"
+							class="inline-flex items-center min-h-11 px-3 text-sm rounded-md bg-phosphor text-ink font-medium hover:bg-phosphor-bright transition-colors"
 							>{m.tour_finish()}</button
 						>
 					{:else}
 						<button
 							onclick={() => tour.next()}
-							class="inline-flex items-center min-h-10 px-3 text-sm rounded-md bg-phosphor text-ink font-medium hover:bg-phosphor-bright transition-colors"
+							class="inline-flex items-center min-h-11 px-3 text-sm rounded-md bg-phosphor text-ink font-medium hover:bg-phosphor-bright transition-colors"
 							>{m.tour_next()}</button
 						>
 					{/if}

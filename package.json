@@ -76,6 +76,8 @@
     "@tauri-apps/plugin-dialog": "2.2.0",
     "@tauri-apps/plugin-fs": "2.2.0",
     "@tauri-apps/plugin-opener": "2.5.0",
+    "d3-scale": "4.0.2",
+    "d3-shape": "3.2.0",
     "layercake": "8.2.0",
     "sql.js": "1.14.1"
   }
