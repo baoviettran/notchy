@@ -1,5 +1,7 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
+  "a11y_calendar": "Lịch",
+  "a11y_date_picker": "Bộ chọn ngày",
   "a11y_next_month": "Tháng sau",
   "a11y_previous_month": "Tháng trước",
   "a11y_primary_nav": "Điều hướng chính",

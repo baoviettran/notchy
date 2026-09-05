@@ -1,5 +1,7 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
+  "a11y_calendar": "Calendar",
+  "a11y_date_picker": "Date picker",
   "a11y_next_month": "Next month",
   "a11y_previous_month": "Previous month",
   "a11y_primary_nav": "Primary navigation",

@@ -74,9 +74,20 @@ describe('DatePicker', () => {
 		// The header span is "MONTH[l] year". Under vi-VN the month localizes
 		// (e.g. "tháng 6"); asserting it's no longer the English form proves the
 		// locale ternary runs without pinning a specific Vietnamese word.
-		const header = screen.getByRole('dialog', { name: 'Date picker' }).querySelector('.text-sm.font-medium');
+		const header = screen.getByRole('dialog', { name: 'Bộ chọn ngày' }).querySelector('.text-sm.font-medium');
 		expect(header?.textContent).toContain('2026');
 		expect(header?.textContent).not.toBe('June 2026');
+	});
+
+	it('labels the dialog and grid in the active locale (vi)', async () => {
+		// The two labels that were hardcoded English ("Date picker" /
+		// "Calendar") — the vi flip proves they route through paraglide now.
+		lang.tag = 'vi';
+		render(DatePickerBindProbe, { label: 'Target date' });
+		await fireEvent.click(screen.getByLabelText('Target date'));
+
+		expect(screen.getByRole('dialog', { name: 'Bộ chọn ngày' })).toBeInTheDocument();
+		expect(screen.getByRole('grid', { name: 'Lịch' })).toBeInTheDocument();
 	});
 
 	it('navigates across a year boundary forward', async () => {

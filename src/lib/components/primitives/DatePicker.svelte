@@ -252,7 +252,7 @@
 			class="fixed z-[60] bg-tape border border-line rounded-lg shadow-xl p-3 w-72"
 			style={panelStyle}
 			role="dialog"
-			aria-label="Date picker"
+			aria-label={m.a11y_date_picker()}
 		>
 			<!-- Header: month navigation -->
 			<div class="flex items-center justify-between mb-2">
@@ -271,7 +271,7 @@
 			<!-- Calendar grid: ARIA grid pattern (row/gridcell roles) so screen
 			     readers navigate the calendar by row; `contents` keeps the visual
 			     7-column layout unchanged. -->
-			<div class="grid grid-cols-7 gap-0" role="grid" aria-label="Calendar" tabindex="-1" onkeydown={onCalendarKeydown}>
+			<div class="grid grid-cols-7 gap-0" role="grid" aria-label={m.a11y_calendar()} tabindex="-1" onkeydown={onCalendarKeydown}>
 				{#each calendarWeeks as week (week[0].key)}
 					<div role="row" class="contents">
 						{#each week as cell (cell.key)}
