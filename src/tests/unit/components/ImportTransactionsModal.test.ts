@@ -29,6 +29,8 @@ vi.mock('$lib/stores/transactions.svelte', () => ({
 vi.mock('$lib/stores/toast.svelte', () => ({
 	toast: { show: mockToast }
 }));
+// The Tauri cross-window emit path is exercised by the __TAURI_INTERNALS__ test.
+vi.mock('@tauri-apps/api/event', () => ({ emit: vi.fn().mockResolvedValue(undefined) }));
 
 import ImportTransactionsModal from '$lib/components/modals/ImportTransactionsModal.svelte';
 
@@ -154,5 +156,55 @@ describe('ImportTransactionsModal', () => {
 			expect(screen.getByText('Could not import transactions. Please try again.')).toBeInTheDocument()
 		);
 		expect(screen.getByText('Import Transactions')).toBeInTheDocument();
+	});
+
+	it('marks duplicate and invalid rows in preview and locks their checkboxes', async () => {
+		// Row 1 already exists in the DB (same account/date/amount/kind) →
+		// duplicate. Row 2 has an unparseable amount AND no payee → invalid,
+		// and its checkbox label must fall back to the row number. Row 3 is new.
+		const dupList = [
+			{ id: 'tx-1', account_id: 'acc-1', date: '2026-01-01', amount: 100000, kind: 'expense' }
+		];
+		mockList.mockResolvedValue(dupList);
+
+		const { container } = render(ImportTransactionsModal, { open: true });
+		const mixed = 'Date,Amount,Payee\n2026-01-01,100000,Coffee\n2026-01-02,not-a-number,\n2026-01-03,200000,Salary';
+		await fireEvent.change(screen.getByLabelText('Select account'), { target: { value: 'acc-1' } });
+		await chooseFile(container, new File([mixed], 'tx.csv', { type: 'text/csv' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Load file' }));
+		await waitFor(() => expect(screen.getByText('Sign convention')).toBeInTheDocument());
+		await fireEvent.click(screen.getByRole('button', { name: 'Continue to preview' }));
+
+		expect(screen.getByText('Duplicate')).toBeInTheDocument();
+		expect(screen.getByText('Invalid')).toBeInTheDocument();
+		expect(screen.getByText('—')).toBeInTheDocument(); // payee-less row renders the em dash
+
+		// Duplicate + invalid checkboxes are locked; the new row's is not.
+		expect(screen.getByRole('checkbox', { name: 'Include: Coffee' })).toBeDisabled();
+		expect(screen.getByRole('checkbox', { name: 'Include: #2' })).toBeDisabled();
+		expect(screen.getByRole('checkbox', { name: 'Include: Salary' })).toBeEnabled();
+
+		// Only genuinely new rows are committable.
+		expect(screen.getByRole('button', { name: 'Import 1' })).toBeInTheDocument();
+	});
+
+	it('emits the cross-window save event through Tauri when running in Tauri', async () => {
+		const { emit } = vi.mocked(await import('@tauri-apps/api/event'), true);
+		vi.mocked(emit).mockClear();
+
+		// Pretend we're inside the Tauri webview so the modal takes the emit path
+		// instead of the browser window event fallback.
+		(window as unknown as { __TAURI_INTERNALS__?: object }).__TAURI_INTERNALS__ = {};
+
+		const { container } = render(ImportTransactionsModal, { open: true });
+		try {
+			await loadFile(container);
+			await fireEvent.click(screen.getByRole('button', { name: 'Continue to preview' }));
+			await fireEvent.click(screen.getByRole('button', { name: 'Import 2' }));
+
+			await waitFor(() => expect(vi.mocked(emit)).toHaveBeenCalledWith('transaction:saved', {}));
+		} finally {
+			delete (window as unknown as { __TAURI_INTERNALS__?: object }).__TAURI_INTERNALS__;
+		}
 	});
 });
