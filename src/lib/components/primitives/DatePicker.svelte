@@ -69,6 +69,21 @@
 
 	const today = $derived(new Date().toISOString().split('T')[0]);
 
+	function isToday(day: number): boolean {
+		return `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}` === today;
+	}
+
+	// role="grid" requires row/gridcell structure — chunk the flat cell list
+	// into Monday-start weeks so screen readers get navigable rows (ARIA grid
+	// pattern) instead of an unlabeled flat run of buttons.
+	const calendarWeeks = $derived.by(() => {
+		const weeks: { day: number; key: string }[][] = [];
+		for (let w = 0; w < calendarDays.length; w += 7) {
+			weeks.push(calendarDays.slice(w, w + 7));
+		}
+		return weeks;
+	});
+
 	function prevMonth() {
 		if (viewMonth === 0) { viewMonth = 11; viewYear--; }
 		else { viewMonth--; }
@@ -241,9 +256,9 @@
 		>
 			<!-- Header: month navigation -->
 			<div class="flex items-center justify-between mb-2">
-				<button type="button" onclick={prevMonth} class="min-w-8 min-h-8 inline-flex items-center justify-center text-dim hover:text-ledger rounded hover:bg-line/40">◀</button>
+				<button type="button" onclick={prevMonth} aria-label={m.a11y_previous_month()} class="min-w-8 min-h-8 pointer-coarse:min-w-11 pointer-coarse:min-h-11 inline-flex items-center justify-center text-dim hover:text-ledger rounded hover:bg-line/40">◀</button>
 				<span class="text-sm font-medium text-ledger">{MONTHS[viewMonth]} {viewYear}</span>
-				<button type="button" onclick={nextMonth} class="min-w-8 min-h-8 inline-flex items-center justify-center text-dim hover:text-ledger rounded hover:bg-line/40">▶</button>
+				<button type="button" onclick={nextMonth} aria-label={m.a11y_next_month()} class="min-w-8 min-h-8 pointer-coarse:min-w-11 pointer-coarse:min-h-11 inline-flex items-center justify-center text-dim hover:text-ledger rounded hover:bg-line/40">▶</button>
 			</div>
 
 			<!-- Weekday headers -->
@@ -253,24 +268,32 @@
 				{/each}
 			</div>
 
-			<!-- Calendar grid -->
-			<div class="grid grid-cols-7 gap-0" role="grid" aria-label="Calendar" onkeydown={onCalendarKeydown}>
-				{#each calendarDays as cell (cell.key)}
-					{#if cell.day === 0}
-						<div class="h-8"></div>
-					{:else}
-						<button
-							tabindex={focusedDay === cell.day ? 0 : -1}
-							type="button"
-							onclick={() => selectDay(cell.day)}
-							class="h-8 text-xs rounded flex items-center justify-center transition-colors
-								{selectedDay === cell.day ? 'bg-phosphor text-ink font-medium' : ''}
-								{`${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(cell.day).padStart(2, '0')}` === today && selectedDay !== cell.day ? 'text-phosphor font-medium' : 'text-ledger hover:bg-line/40'}
-								{selectedDay === cell.day ? '' : ''}"
-						>
-							{cell.day}
-						</button>
-					{/if}
+			<!-- Calendar grid: ARIA grid pattern (row/gridcell roles) so screen
+			     readers navigate the calendar by row; `contents` keeps the visual
+			     7-column layout unchanged. -->
+			<div class="grid grid-cols-7 gap-0" role="grid" aria-label="Calendar" tabindex="-1" onkeydown={onCalendarKeydown}>
+				{#each calendarWeeks as week (week[0].key)}
+					<div role="row" class="contents">
+						{#each week as cell (cell.key)}
+							{#if cell.day === 0}
+								<div role="gridcell" class="h-8 pointer-coarse:h-11"></div>
+							{:else}
+								<div role="gridcell" class="flex items-center justify-center">
+									<button
+										tabindex={focusedDay === cell.day ? 0 : -1}
+										type="button"
+										onclick={() => selectDay(cell.day)}
+										aria-current={isToday(cell.day) ? 'date' : undefined}
+										class="w-full h-8 pointer-coarse:h-11 text-xs rounded flex items-center justify-center transition-colors
+											{selectedDay === cell.day ? 'bg-phosphor text-ink font-medium' : ''}
+											{isToday(cell.day) && selectedDay !== cell.day ? 'text-phosphor font-medium' : 'text-ledger hover:bg-line/40'}"
+									>
+										{cell.day}
+									</button>
+								</div>
+							{/if}
+						{/each}
+					</div>
 				{/each}
 			</div>
 

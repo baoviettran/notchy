@@ -70,7 +70,7 @@
 				<a
 					href={item.href}
 					aria-current={isActive(item.href, $page.url.pathname) ? 'page' : undefined}
-					class="inline-flex items-center min-h-8 pointer-coarse:min-h-10 px-2.5 rounded transition-colors
+					class="inline-flex items-center min-h-8 pointer-coarse:min-h-11 px-2.5 rounded transition-colors
 						{isActive(item.href, $page.url.pathname)
 							? 'bg-line/40 text-ledger font-medium'
 							: 'text-dim hover:bg-line/30'}"

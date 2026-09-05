@@ -132,10 +132,21 @@
 {:else}
 	{#key settings.locale}
 	<div class="h-screen flex flex-col bg-ink text-ledger">
+		<!-- First focusable element: keyboard users jump straight into <main>
+		     without tabbing through the sidebar and top bar (WCAG 2.4.1). -->
+		<a
+			href="#main-content"
+			class="sr-only focus:not-sr-only focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-phosphor
+				focus:absolute focus:z-50 focus:top-2 focus:left-2
+				focus:bg-tape focus:text-ledger focus:border focus:border-line focus:rounded-md
+				focus:px-3 focus:py-2 focus:text-sm"
+		>
+			{m.a11y_skip_to_content()}
+		</a>
 		<TopBar />
 		<div class="flex flex-1 overflow-hidden">
 			<Sidebar />
-			<main class="flex-1 overflow-y-auto p-4 md:p-8 pb-40 md:pb-8 max-w-5xl mx-auto w-full">
+			<main id="main-content" class="flex-1 overflow-y-auto p-4 md:p-8 pb-40 md:pb-8 max-w-5xl mx-auto w-full">
 				{@render children()}
 			</main>
 		</div>

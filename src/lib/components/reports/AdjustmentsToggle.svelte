@@ -24,9 +24,9 @@
 			: 'bg-ink'}"
 	>
 		<span
-			class="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full transition-all {checked
-				? 'left-4 bg-phosphor'
-				: 'left-0.5 bg-dim'}"
+			class="absolute left-0.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full transition-transform {checked
+				? 'translate-x-3.5 bg-phosphor'
+				: 'bg-dim'}"
 		></span>
 	</span>
 	{m.reports_include_adjustments()}

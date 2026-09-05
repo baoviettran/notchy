@@ -71,7 +71,7 @@
 	{:else if rows.length > 0}
 		<!-- Two months side by side on one tape; the change column wears Δ
 		     and closes with a ruled grand total. -->
-		<section class="surface rounded-lg overflow-hidden">
+		<section class="surface rounded-lg overflow-x-auto">
 			<table class="w-full text-sm">
 				<thead>
 					<tr class="border-b border-dashed border-line/60">

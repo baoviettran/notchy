@@ -96,7 +96,8 @@ export class ImportStore {
         id: tx.id, accountId: tx.account_id, date: tx.date, amount: tx.amount, kind: tx.kind
       }));
 
-    for (const row of this.rows) {
+    for (let i = 0; i < this.rows.length; i++) {
+      const row = this.rows[i];
       const date = this.extractDate(row);
       const { amount, kind } = this.extractAmountAndKind(row);
 
@@ -124,7 +125,9 @@ export class ImportStore {
       row.included = result.status === 'new';
 
       if (result.status === 'new') {
-        seen.push({ id: `pending:${this.rows.indexOf(row)}`, accountId: this.accountId, date, amount, kind });
+        // Row index is O(1) here — the previous rows.indexOf(row) call made
+        // classification O(n²) on all-new CSVs.
+        seen.push({ id: `pending:${i}`, accountId: this.accountId, date, amount, kind });
       }
     }
   }

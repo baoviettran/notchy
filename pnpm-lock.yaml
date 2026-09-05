@@ -34,6 +34,12 @@ importers:
       '@tauri-apps/plugin-opener':
         specifier: 2.5.0
         version: 2.5.0
+      d3-scale:
+        specifier: 4.0.2
+        version: 4.0.2
+      d3-shape:
+        specifier: 3.2.0
+        version: 3.2.0
       layercake:
         specifier: 8.2.0
         version: 8.2.0(svelte@5.28.2)(typescript@5.8.3)

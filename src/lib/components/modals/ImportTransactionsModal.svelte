@@ -168,8 +168,8 @@
       />
 
       <div class="space-y-1">
-        <span class="plate block">{m.import_tx_select_file()}</span>
-        <input type="file" accept=".csv,text/csv" onchange={onFileChosen}
+        <label for="import-file" class="plate block">{m.import_tx_select_file()}</label>
+        <input id="import-file" type="file" accept=".csv,text/csv" onchange={onFileChosen}
           class="block w-full text-sm text-dim file:mr-3 file:rounded-md file:border-0 file:bg-phosphor file:px-3 file:py-1.5 file:text-ink" />
       </div>
 
@@ -258,7 +258,7 @@
           <p class="text-sm text-debit" role="alert">{errorMsg}</p>
         {/if}
 
-        <div class="max-h-96 overflow-y-auto border border-line rounded-md">
+        <div class="max-h-96 overflow-y-auto overflow-x-auto border border-line rounded-md">
           <table class="w-full text-sm">
             <thead class="bg-ink sticky top-0">
               <tr class="text-left plate">
@@ -276,7 +276,8 @@
                     <!-- Only genuinely new rows are committable; duplicates and
                           invalid rows are locked so a stray click can't double-book. -->
                     <input type="checkbox" bind:checked={s.rows[i].included}
-                      disabled={row.status !== 'new'} />
+                      disabled={row.status !== 'new'}
+                      aria-label={`${m.import_tx_col_include()}: ${row.payee ?? `#${i + 1}`}`} />
                   </td>
                   <td class="p-2 text-ledger">{row.date ?? '—'}</td>
                   <td class="p-2 text-ledger">{row.payee ?? '—'}</td>

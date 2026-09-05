@@ -1,5 +1,9 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
+  "a11y_next_month": "Next month",
+  "a11y_previous_month": "Previous month",
+  "a11y_primary_nav": "Primary navigation",
+  "a11y_skip_to_content": "Skip to content",
   "accounts_actual": "Actual",
   "accounts_actual_balance_label": "Actual balance",
   "accounts_add": "+ Add account",

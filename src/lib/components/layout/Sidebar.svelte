@@ -13,7 +13,7 @@
 		<span class="figures-glow text-lg leading-none">▮</span>
 		<span class="figures text-ledger tracking-wide">{m.app_name()}</span>
 	</a>
-	<nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+	<nav aria-label={m.a11y_primary_nav()} class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
 		<p class="plate px-3 pb-2 pt-1">{m.layout_ledger()}</p>
 		{#each primaryNav as item}
 			<a

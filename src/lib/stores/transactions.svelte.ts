@@ -5,6 +5,19 @@ import { mapError } from '$lib/utils/errors';
 import { monthDateRange, flowSum } from '$lib/logic/tx-transform';
 import * as m from '$lib/paraglide/messages';
 
+// Field-wise equality for two DB row objects — same keys, same values.
+// Used by TransactionsStore.mergeLoaded to detect rows that list() re-hydrated
+// unchanged, so their previous object (and therefore their Svelte reactivity
+// footprint) is preserved.
+function sameTxFields(a: Transaction, b: Transaction): boolean {
+	const ra = a as unknown as Record<string, unknown>;
+	const rb = b as unknown as Record<string, unknown>;
+	for (const key in ra) {
+		if (rb[key] !== ra[key]) return false;
+	}
+	return true;
+}
+
 class TransactionsStore {
 	items = $state<Transaction[]>([]);
 	loading = $state(false);
@@ -20,12 +33,31 @@ class TransactionsStore {
 		this.error = null;
 		try {
 			const db = getDb();
-			this.items = await db.transactions.list(this.lastFilter);
+			this.mergeLoaded(await db.transactions.list(this.lastFilter));
 		} catch (e) {
 			this.error = mapError(e);
 		} finally {
 			this.loading = false;
 		}
+	}
+
+	// A mutation re-runs list(), which hydrates fresh row objects for every
+	// transaction — so a single save re-invalidated every row in the ledger
+	// (keyed each blocks re-evaluated per changed object identity). Reusing
+	// the previous object for unchanged rows keeps reactivity scoped to rows
+	// that actually changed. (Row-level splicing was rejected: one mutation
+	// can change a row's filter membership or sort position, which only
+	// list() can decide correctly.)
+	private mergeLoaded(rows: Transaction[]): void {
+		if (this.items.length === 0) {
+			this.items = rows;
+			return;
+		}
+		const prevById = new Map(this.items.map((t) => [t.id, t]));
+		this.items = rows.map((t) => {
+			const prev = prevById.get(t.id);
+			return prev && sameTxFields(prev, t) ? prev : t;
+		});
 	}
 
 	async loadMonthFlow(): Promise<void> {
