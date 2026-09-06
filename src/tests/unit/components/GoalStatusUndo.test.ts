@@ -22,9 +22,11 @@ describe('goal status undo contract', () => {
 		expect(called).toBe(true);
 	});
 
-	it('toast replaces any existing toast (no stacking)', () => {
+	it('an informational toast queues behind a live undo toast (no eviction)', () => {
 		toast.show('First message', { action: 'UNDO', onaction: () => {} });
 		toast.show('Second message');
-		expect(toast.current!.message).toBe('Second message');
+		// The undo affordance holds the slot; the informational toast is queued.
+		expect(toast.current!.message).toBe('First message');
+		expect(toast.current!.action).toBe('UNDO');
 	});
 });

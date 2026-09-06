@@ -46,4 +46,48 @@ describe('ToastBus', () => {
 		vi.advanceTimersByTime(2000);
 		expect(bus.current).toBeNull();
 	});
+
+	it('queues an informational toast behind a live action toast', () => {
+		vi.useFakeTimers();
+		const bus = new ToastBus();
+		bus.show('saved', { action: 'undo', onaction: () => {}, duration: 5000 });
+		const actionId = bus.current!.id;
+		bus.show('another thing');
+		// The undo toast is still the one on screen.
+		expect(bus.current!.id).toBe(actionId);
+		bus.dismiss();
+		// After the action toast is dismissed the queued toast is promoted.
+		expect(bus.current?.message).toBe('another thing');
+		vi.useRealTimers();
+	});
+
+	it('promotes queued toasts when the action toast expires', () => {
+		vi.useFakeTimers();
+		const bus = new ToastBus();
+		bus.show('saved', { action: 'undo', onaction: () => {}, duration: 5000 });
+		bus.show('later');
+		vi.advanceTimersByTime(5000);
+		expect(bus.current?.message).toBe('later');
+		vi.useRealTimers();
+	});
+
+	it('action toast replaces the visible toast immediately', () => {
+		vi.useFakeTimers();
+		const bus = new ToastBus();
+		bus.show('info one');
+		bus.show('critical', { action: 'undo', onaction: () => {}, duration: 5000 });
+		expect(bus.current?.message).toBe('critical');
+		vi.useRealTimers();
+	});
+
+	it('queued informational toasts still replace each other', () => {
+		vi.useFakeTimers();
+		const bus = new ToastBus();
+		bus.show('saved', { action: 'undo', onaction: () => {}, duration: 5000 });
+		bus.show('first');
+		bus.show('second');
+		bus.dismiss();
+		expect(bus.current?.message).toBe('second');
+		vi.useRealTimers();
+	});
 });
