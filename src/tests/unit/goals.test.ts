@@ -70,6 +70,20 @@ describe('deleteGoal', () => {
 	});
 });
 
+describe('restoreGoal', () => {
+	it('un-deletes a soft-deleted goal', async () => {
+		const id = await goals.createGoal(db, {
+			name: 'Trip', type: 'savings', target_amount: 100,
+			target_date: '2026-12-31', starting_amount: 0
+		});
+		await goals.deleteGoal(db, id);
+		expect(await goals.getGoal(db, id)).toBeNull();
+		await goals.restoreGoal(db, id);
+		const restored = await goals.getGoal(db, id);
+		expect(restored?.name).toBe('Trip');
+	});
+});
+
 describe('progress calculation', () => {
 	it('computes progress percentage from account balance', async () => {
 		const accId = await accounts.createAccount(db, {

@@ -337,6 +337,7 @@ describe('NativeDatabaseClient: full surface sweep (command name + camelCase arg
 		{ label: 'goals.create', run: () => client.goals.create({ name: 'Runway', type: 'savings', target_amount: 10000000, target_date: '2027-12-31' } as NewGoal), command: 'goal_create', argKeys: ['name', 'goalType', 'targetAmount', 'targetDate', 'linkedAccountId', 'startingAmount', 'showOnDashboard'] },
 		{ label: 'goals.update', run: () => client.goals.update('g1', { status: 'active' }), command: 'goal_update', argKeys: ['id', 'name', 'targetAmount', 'targetDate', 'showOnDashboard', 'status'] },
 		{ label: 'goals.delete', run: () => client.goals.delete('g1'), command: 'goal_delete', argKeys: ['id'] },
+		{ label: 'goals.restore', run: () => client.goals.restore('g1'), command: 'goal_restore', argKeys: ['id'] },
 
 		// Rules
 		{ label: 'rules.listAll', run: () => client.rules.listAll(), command: 'rule_list_all', argKeys: null },

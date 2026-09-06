@@ -97,6 +97,14 @@ export async function deleteGoal(db: DatabaseService, id: string): Promise<void>
 	await db.execute(`UPDATE goals SET deleted_at = ?, updated_at = ? WHERE id = ?`, [now, now, id]);
 }
 
+export async function restoreGoal(db: DatabaseService, id: string): Promise<void> {
+	const now = new Date().toISOString();
+	await db.execute(
+		`UPDATE goals SET deleted_at = NULL, updated_at = ? WHERE id = ? AND deleted_at IS NOT NULL`,
+		[now, id]
+	);
+}
+
 async function enrichGoal(db: DatabaseService, goal: Goal): Promise<GoalWithProgress> {
 	let current_amount: number;
 

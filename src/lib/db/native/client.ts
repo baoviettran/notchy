@@ -283,6 +283,10 @@ class NativeGoalOps implements GoalOps {
 	delete(id: string): Promise<void> {
 		return invoke<void>('goal_delete', { id });
 	}
+
+	restore(id: string): Promise<void> {
+		return invoke<void>('goal_restore', { id });
+	}
 }
 
 // ---------------------------------------------------------------------------
