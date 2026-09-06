@@ -4,6 +4,8 @@ import { render, screen, fireEvent } from '@testing-library/svelte';
 import ConfirmDialog from '$lib/components/primitives/ConfirmDialog.svelte';
 import ConfirmDialogChildrenProbe from './helpers/ConfirmDialogChildrenProbe.svelte';
 import ConfirmDialogReopenProbe from './helpers/ConfirmDialogReopenProbe.svelte';
+import ConfirmDialogConfirmTxProbe from './helpers/ConfirmDialogConfirmTxProbe.svelte';
+import ConfirmDialogConfirmBackupProbe from './helpers/ConfirmDialogConfirmBackupProbe.svelte';
 
 describe('ConfirmDialog', () => {
 	it('renders title and message when open', () => {
@@ -135,5 +137,34 @@ describe('ConfirmDialog', () => {
 		await fireEvent.click(screen.getByTestId('open-b'));
 		expect(screen.getByRole('dialog')).toBeInTheDocument();
 		expect(screen.getByText('Tag B')).toBeInTheDocument();
+	});
+
+	it('reopens after CONFIRM when the parent chooses a new target (transactions list shape)', async () => {
+		// Regression guard: the confirm handler must reset the page's trigger
+		// state too — with a one-way open prop, a confirm handler that only
+		// clears the pending target leaves the open expression stuck at true,
+		// and the next delete click never reopens the dialog.
+		render(ConfirmDialogConfirmTxProbe);
+		await fireEvent.click(screen.getByTestId('del-1'));
+		expect(screen.getByText('Tx 1')).toBeInTheDocument();
+		await fireEvent.click(screen.getByText('OK'));
+		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+		await fireEvent.click(screen.getByTestId('del-2'));
+		expect(screen.getByText('Tx 2')).toBeInTheDocument();
+	});
+
+	it('reopens after CONFIRM when the picker was cancelled (backup shape)', async () => {
+		// Regression guard: importDb's early return (native picker cancelled)
+		// must still clear confirmImport, or the Import button is dead until
+		// reload.
+		render(ConfirmDialogConfirmBackupProbe);
+		await fireEvent.click(screen.getByTestId('import-btn'));
+		expect(screen.getByRole('dialog')).toBeInTheDocument();
+		// Confirm; the "picker" is cancelled (no path picked).
+		await fireEvent.click(screen.getByText('Confirm'));
+		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+		// Import must be alive again after the cancelled picker.
+		await fireEvent.click(screen.getByTestId('import-btn'));
+		expect(screen.getByRole('dialog')).toBeInTheDocument();
 	});
 });
