@@ -17,6 +17,18 @@ describe('nextBudgetableId', () => {
 	it('returns null after the last bucket', () => {
 		expect(nextBudgetableId(buckets, 'd')).toBeNull();
 	});
+
+	it('returns null for an unknown currentId', () => {
+		expect(nextBudgetableId(buckets, 'z')).toBeNull();
+	});
+
+	it('returns null for a null currentId', () => {
+		expect(nextBudgetableId(buckets, null)).toBeNull();
+	});
+
+	it('returns null for an empty buckets list', () => {
+		expect(nextBudgetableId([], 'a')).toBeNull();
+	});
 });
 
 describe('monthStepFromKey', () => {

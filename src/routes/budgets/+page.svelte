@@ -177,8 +177,19 @@
 		return budgets.items.find((b) => b.type_id === typeId);
 	}
 
-	// Focus lands in the field the moment inline edit opens.
-	$effect(() => { if (editing) queueMicrotask(() => editInputEl?.focus()); });
+	// Focus lands in the field the moment inline edit opens. The advancing
+	// latch is cleared here — deterministically, once the new field is
+	// focused — because Chrome/Firefox drop the focused input without a
+	// blur event, which would otherwise leave the latch set and swallow the
+	// user's first genuine blur on the next bucket.
+	$effect(() => {
+		if (editing) {
+			queueMicrotask(() => {
+				editInputEl?.focus();
+				advancing = false;
+			});
+		}
+	});
 </script>
 
 <svelte:window onkeydown={onKeydown} />
