@@ -22,9 +22,11 @@ import { test, expect } from './fixtures/onboarded';
 //    tag is referenced by at least one transaction. The merge target option
 //    label is {m.categories_merge_into({ name })} = "Merge into: <name>".
 //    The Select is a native <select> (Select.svelte).
-//  - Delete-confirm modal danger button is {m.common_delete()} = "Delete"
-//    (line 140) — same text as the row Delete buttons, so it must be scoped
-//    inside the delete modal (the last-opened dialog).
+//  - Delete confirmation is the shared ConfirmDialog primitive (not the raw
+//    Modal): the dialog panel carries aria-label={m.categories_delete_confirm_title()}
+//    and has NO Close button — ConfirmDialog renders its own Cancel/Delete.
+//    Its danger button is {m.common_delete()} = "Delete" — same text as the
+//    row Delete buttons, so it must be scoped inside the delete dialog.
 //
 // To genuinely exercise merge-into (not just unreferenced delete), the test
 // creates two tags, tags a transaction with Tag A via the TransactionForm tag
@@ -71,7 +73,13 @@ test('a tag can be created, and deleting a referenced tag merges into another', 
 	// Playwright interacts regardless of CSS opacity.
 	await page.getByRole('button', { name: 'Delete', exact: true }).first().click();
 	const delModal = page.getByRole('dialog');
-	// Tag A is referenced, so the merge Select must appear.
+	// The delete confirmation must be the shared ConfirmDialog primitive, not
+	// the raw Modal: the dialog panel is labelled by its title (aria-label),
+	// and ConfirmDialog renders no Close (X) button.
+	await expect(delModal).toHaveAttribute('aria-label', 'Delete tag?');
+	await expect(delModal.getByRole('button', { name: 'Close' })).toHaveCount(0);
+	// Tag A is referenced, so the merge Select must appear inside the dialog
+	// (rendered through ConfirmDialog's optional children snippet).
 	const mergeSelect = delModal.locator('select').first();
 	await expect(mergeSelect).toBeVisible();
 	await mergeSelect.selectOption({ label: 'Merge into: Tag B' });

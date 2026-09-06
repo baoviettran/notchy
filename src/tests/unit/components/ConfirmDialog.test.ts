@@ -2,6 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/svelte';
 import ConfirmDialog from '$lib/components/primitives/ConfirmDialog.svelte';
+import ConfirmDialogChildrenProbe from './helpers/ConfirmDialogChildrenProbe.svelte';
 
 describe('ConfirmDialog', () => {
 	it('renders title and message when open', () => {
@@ -76,5 +77,13 @@ describe('ConfirmDialog', () => {
 		render(ConfirmDialog, { open: true, title: 'Delete?', message: 'Sure?' });
 		await fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
 		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+	});
+
+	it('renders optional children snippet content inside the dialog', () => {
+		// The categories delete flow passes a merge-target <Select> through the
+		// children snippet when the tag is referenced by transactions.
+		render(ConfirmDialogChildrenProbe, { open: true });
+		const extra = screen.getByTestId('merge-target');
+		expect(screen.getByRole('dialog').contains(extra)).toBe(true);
 	});
 });

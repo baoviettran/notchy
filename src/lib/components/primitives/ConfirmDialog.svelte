@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import type { Snippet } from 'svelte';
 	import Button from './Button.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { createFocusTrap } from '$lib/utils/focusTrap';
 
-	let { open = $bindable(false), title = '', message = '', confirmLabel = '', danger = false, onconfirm = () => {} }: {
-		open?: boolean; title?: string; message?: string; confirmLabel?: string; danger?: boolean; onconfirm?: () => void;
+	let { open = $bindable(false), title = '', message = '', confirmLabel = '', danger = false, onconfirm = () => {}, children }: {
+		open?: boolean; title?: string; message?: string; confirmLabel?: string; danger?: boolean; onconfirm?: () => void; children?: Snippet;
 	} = $props();
 
 	let panelEl = $state<HTMLElement>();
@@ -35,6 +36,9 @@
 			<h2 class="figures text-lg text-ledger tracking-wide">{title}</h2>
 			{#if message}
 				<p class="text-sm text-dim whitespace-pre-line">{message}</p>
+			{/if}
+			{#if children}
+				{@render children()}
 			{/if}
 			<div class="flex justify-end gap-2 pt-2">
 				<Button variant="ghost" onclick={() => open = false}>{m.common_cancel()}</Button>
