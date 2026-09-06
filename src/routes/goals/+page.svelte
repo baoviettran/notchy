@@ -94,7 +94,6 @@
 		if (!confirmDelete) return;
 		try {
 			await goals.delete(confirmDelete.id);
-			toast.show(m.goals_deleted_toast());
 			confirmDelete = null;
 		} catch (e) {
 			toast.show(mapError(e));
