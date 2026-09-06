@@ -94,6 +94,45 @@ describe('Money', () => {
 		expect(btn?.getAttribute('aria-label')).toBe('Show exact amount');
 	});
 
+	it('expand click neither default-navigates an ancestor anchor nor bubbles to an ancestor button', async () => {
+		const wrapper = document.createElement('div');
+		document.body.appendChild(wrapper);
+
+		// Hazard 1 (dashboard / account row): Money sits inside an <a href>.
+		// jsdom anchors never navigate, so assert on the event itself: the
+		// dispatch must come back cancelled (preventDefault called), which is
+		// what suppresses the ancestor anchor's navigation.
+		const anchor = document.createElement('a');
+		anchor.href = '/recent';
+		const anchorMount = document.createElement('span');
+		anchor.appendChild(anchorMount);
+		wrapper.appendChild(anchor);
+		const r1 = render(Money, { props: { amount: 1_500_000_000 }, target: anchorMount });
+		const btn1 = anchorMount.querySelector('button.figures-expand') as HTMLButtonElement;
+		expect(btn1).not.toBeNull();
+		expect(await fireEvent.click(btn1)).toBe(false); // cancelled → no row navigation
+		r1.unmount();
+
+		// Hazard 2 (frequent chip): Money sits inside a parent <button> with
+		// its own handler — a bubble-through there would fire armOrRepeat and
+		// record a real transaction, so the click must not reach it.
+		const parentBtn = document.createElement('button');
+		parentBtn.type = 'button';
+		const chipMount = document.createElement('span');
+		parentBtn.appendChild(chipMount);
+		wrapper.appendChild(parentBtn);
+		const onChipClick = vi.fn();
+		parentBtn.addEventListener('click', onChipClick);
+		const r2 = render(Money, { props: { amount: 1_500_000_000 }, target: chipMount });
+		const btn2 = chipMount.querySelector('button.figures-expand') as HTMLButtonElement;
+		expect(btn2).not.toBeNull();
+		await fireEvent.click(btn2);
+		expect(onChipClick).not.toHaveBeenCalled();
+
+		r2.unmount();
+		wrapper.remove();
+	});
+
 	it('keeps short figures a plain span with no toggle button', () => {
 		const { container } = render(Money, { amount: 50000 });
 		expect(container.querySelector('button.figures-expand')).toBeNull();

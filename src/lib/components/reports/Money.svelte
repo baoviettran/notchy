@@ -54,7 +54,11 @@
 			type="button"
 			class="figures-expand {size} {tones[tone]}"
 			aria-label={expanded ? m.figures_show_compact() : m.figures_show_exact()}
-			onclick={() => (expanded = !expanded)}
+			onclick={(e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				expanded = !expanded;
+			}}
 		>
 			{#if expanded}
 				{resolvedGlyph}{formatCurrency(amount, settings.currency, settings.locale)}
