@@ -143,7 +143,7 @@
 		>
 			{m.a11y_skip_to_content()}
 		</a>
-		<TopBar />
+		<TopBar onOpenShortcuts={() => { showShortcuts = true; }} />
 		<div class="flex flex-1 overflow-hidden">
 			<Sidebar />
 			<main id="main-content" class="flex-1 overflow-y-auto p-4 md:p-8 pb-40 md:pb-8 max-w-5xl mx-auto w-full">

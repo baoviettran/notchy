@@ -24,6 +24,13 @@ test.describe('keyboard shortcuts', () => {
 		await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeHidden();
 	});
 
+	test('top-bar Shortcuts button opens the modal', async ({ onboardedPage: page }) => {
+		const button = page.getByRole('button', { name: 'Shortcuts' });
+		await expect(button).toBeVisible();
+		await button.click();
+		await expect(page.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeVisible();
+	});
+
 	test('FAB aria-label includes shortcut hint', async ({ onboardedPage: page }) => {
 		// The FAB renders aria-label "Add transaction (N)"; the empty-state
 		// springboard CTA is a bare "Add transaction". Anchor to the FAB's

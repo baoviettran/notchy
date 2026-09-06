@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/svelte';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/svelte';
 import TopBar from '$lib/components/layout/TopBar.svelte';
 
 describe('TopBar', () => {
@@ -28,5 +28,19 @@ describe('TopBar', () => {
 		render(TopBar);
 		// Default locale is en, so the toggle announces its target: Vietnamese.
 		expect(screen.getByRole('button', { name: 'Switch to Vietnamese' })).toBeInTheDocument();
+	});
+
+	it('renders a visible Shortcuts button without hover', () => {
+		const onOpenShortcuts = vi.fn();
+		render(TopBar, { props: { onOpenShortcuts } });
+		const button = screen.getByRole('button', { name: 'Shortcuts' });
+		expect(button).toBeVisible();
+	});
+
+	it('calls onOpenShortcuts when the Shortcuts button is clicked', async () => {
+		const onOpenShortcuts = vi.fn();
+		render(TopBar, { props: { onOpenShortcuts } });
+		await fireEvent.click(screen.getByRole('button', { name: 'Shortcuts' }));
+		expect(onOpenShortcuts).toHaveBeenCalledTimes(1);
 	});
 });
