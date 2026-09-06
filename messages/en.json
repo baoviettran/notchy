@@ -488,6 +488,7 @@
   "shortcuts_search": "Search",
   "shortcuts_help": "Show this dialog",
   "shortcuts_close": "Close dialog",
+  "shortcuts_month_step": "Budget month step",
   "startup_backing_up": "Creating a recovery backup…",
   "startup_checking": "Checking your data…",
   "startup_migrating": "Upgrading your data…",

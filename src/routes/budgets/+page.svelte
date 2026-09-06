@@ -13,6 +13,7 @@
 	import { formatCurrency, formatCurrencyCompact, isLongCurrency } from '$lib/utils/currency';
 	import { parseAmount } from '$lib/utils/number_parse';
 	import { formatMonth } from '$lib/utils/date';
+	import { nextBudgetableId, monthStepFromKey } from '$lib/utils/budgets';
 	import * as m from '$lib/paraglide/messages';
 
 	let editing = $state<string | null>(null);
@@ -89,10 +90,18 @@
 		editError = '';
 	}
 
+	let advancing = $state(false);
+
 	// Commit on blur when dirty — outside clicks and tab-aways land the
 	// allocation instead of silently discarding a half-typed ritual. Escape
-	// and ✕ remain explicit cancels.
+	// and ✕ remain explicit cancels. The chaining focus move also fires the
+	// old field's blur — advancing swallows exactly that one blur; the commit
+	// already happened in the Enter handler.
 	function blurEdit() {
+		if (advancing) {
+			advancing = false;
+			return;
+		}
 		if (editing === null || editValue.trim() === editOriginal.trim()) {
 			editing = null;
 			return;
@@ -100,7 +109,7 @@
 		if (editing && editError === '') void saveEdit(editing);
 	}
 
-	async function saveEdit(typeId: string) {
+	async function saveEdit(typeId: string): Promise<boolean> {
 		try {
 			const parsed = editValue.trim() ? parseAmount(editValue, settings.locale, settings.currency) : 0;
 			const prevAllocated = editPrevAllocated;
@@ -115,9 +124,37 @@
 			});
 			editing = null;
 			editError = '';
+			return true;
 		} catch {
 			// Field-level: the problem lives next to the input, not in a toast.
 			editError = m.validation_invalid_amount();
+			return false;
+		}
+	}
+
+	// Enter chains: commit this field, then land straight in the next
+	// budgetable bucket's field so the monthly ritual is one pass.
+	async function commitAndAdvance(typeId: string) {
+		if (editError !== '') return;
+		const ok = await saveEdit(typeId);
+		if (!ok) return;
+		const nextId = nextBudgetableId(budgetableBuckets, typeId);
+		if (nextId) {
+			advancing = true;
+			startEdit(nextId, getBudget(nextId)?.allocated ?? 0);
+		}
+	}
+
+	function onKeydown(e: KeyboardEvent) {
+		// Typing an allocation must never step the month — arrows only work
+		// when focus is outside any text field (mirrors the layout shell guard).
+		const target = e.target as HTMLElement;
+		if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+		const step = monthStepFromKey(e.key);
+		if (step !== 0) {
+			e.preventDefault();
+			if (step === -1) prevMonth();
+			else nextMonth();
 		}
 	}
 
@@ -143,6 +180,8 @@
 	// Focus lands in the field the moment inline edit opens.
 	$effect(() => { if (editing) queueMicrotask(() => editInputEl?.focus()); });
 </script>
+
+<svelte:window onkeydown={onKeydown} />
 
 <div class="space-y-6">
 	<div class="flex flex-wrap items-center justify-between gap-y-2">
@@ -225,7 +264,10 @@
 							bind:value={editValue}
 							bind:this={editInputEl}
 							onblur={blurEdit}
-							onkeydown={(e) => { if (e.key === 'Enter') saveEdit(bucket.id); if (e.key === 'Escape') editing = null; }}
+							onkeydown={(e) => {
+								if (e.key === 'Enter') { e.preventDefault(); void commitAndAdvance(bucket.id); }
+								if (e.key === 'Escape') editing = null;
+							}}
 							placeholder="0"
 							aria-label={bucket.name}
 							aria-invalid={editError ? 'true' : undefined}

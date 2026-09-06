@@ -8,7 +8,8 @@
 		{ key: 'n', label: () => m.shortcuts_new_tx() },
 		{ key: '/', label: () => m.shortcuts_search() },
 		{ key: '?', label: () => m.shortcuts_help() },
-		{ key: 'Esc', label: () => m.shortcuts_close() }
+		{ key: 'Esc', label: () => m.shortcuts_close() },
+		{ key: '←/→', label: () => m.shortcuts_month_step() }
 	];
 </script>
 

@@ -521,7 +521,7 @@ Keep the non-expanded `title` attribute as a redundant mouse hint. Note: `expand
 - Produces: `nextBudgetableId(buckets: { id: string; budgetable: number }[], currentId: string | null): string | null` — the next budgetable bucket after `currentId` in list order, `null` at the end. `monthStepFromKey(key: string): -1 | 0 | 1` — ArrowLeft −1, ArrowRight +1, else 0.
 - Behavior: Enter in the inline edit commits the field and opens the next bucket's inline edit; blur still commits-and-exits (current behavior) unless the blur is the programmatic one caused by chaining; when focus is not in an input, ArrowLeft/ArrowRight step the budget month.
 
-- [ ] **Step 1: Failing helper tests** (`src/tests/unit/budgets/budgets-utils.test.ts` — follow existing dir naming; create the file if no matching dir):
+- [x] **Step 1: Failing helper tests** (`src/tests/unit/budgets/budgets-utils.test.ts` — follow existing dir naming; create the file if no matching dir):
 
 ```ts
 import { nextBudgetableId, monthStepFromKey } from '$lib/utils/budgets';
@@ -549,7 +549,7 @@ it('monthStepFromKey maps arrows only', () => {
 });
 ```
 
-- [ ] **Step 2: Run → FAIL.** **Step 3: Implement `src/lib/utils/budgets.ts`:**
+- [x] **Step 2: Run → FAIL.** **Step 3: Implement `src/lib/utils/budgets.ts`:**
 
 ```ts
 export interface BudgetableBucket { id: string; budgetable: number }
@@ -570,14 +570,14 @@ export function monthStepFromKey(key: string): -1 | 0 | 1 {
 }
 ```
 
-- [ ] **Step 4: Run → PASS.**
-- [ ] **Step 5: Wire the page** — in `budgets/+page.svelte`:
+- [x] **Step 4: Run → PASS.**
+- [x] **Step 5: Wire the page** — in `budgets/+page.svelte`:
   1. Add `let advancing = $state(false);`
   2. `blurEdit()` gains a guard at the top: `if (advancing) { advancing = false; return; }` (the chaining focus move fires the old field's blur — don't treat it as a commit-and-exit; the commit already happened).
   3. Add `onkeydown` on the inline edit input: on `Enter`, `e.preventDefault()`, then `const ok = editError === '' && (async () => { await saveEdit(editing); })();` — after a successful save (check via a return value: make `saveEdit` return `boolean`), if `editing` was committed: `const nextId = nextBudgetableId(budgetableBuckets, typeId); if (nextId) { advancing = true; startEdit(nextId); }` else `editing = null`.
   4. Add a window keydown listener (component-scoped `<svelte:window onkeydown={...}>`) mirroring the layout's guard: `const target = e.target as HTMLElement; if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;` then `const step = monthStepFromKey(e.key); if (step !== 0) { e.preventDefault(); step === -1 ? prevMonth() : nextMonth(); }`.
-- [ ] **Step 6: ShortcutRef** — add `{ key: '←/→', label: () => m.shortcuts_month_step() }` (en: `"shortcuts_month_step": "Budget month step"`, vi: `"shortcuts_month_step": "Chuyển tháng ngân sách"`; `pnpm check`).
-- [ ] **Step 7: Run** `pnpm test` → PASS. **Step 8: Commit** (heredoc, `feat: chain envelope edits and step months from the keyboard`, closes critique issue #6 + Bảo finding, STORY-018).
+- [x] **Step 6: ShortcutRef** — add `{ key: '←/→', label: () => m.shortcuts_month_step() }` (en: `"shortcuts_month_step": "Budget month step"`, vi: `"shortcuts_month_step": "Chuyển tháng ngân sách"`; `pnpm check`).
+- [x] **Step 7: Run** `pnpm test` → PASS. **Step 8: Commit** (heredoc, `feat: chain envelope edits and step months from the keyboard`, closes critique issue #6 + Bảo finding, STORY-018).
 
 ---
 
