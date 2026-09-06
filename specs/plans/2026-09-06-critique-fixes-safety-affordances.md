@@ -603,9 +603,9 @@ EOF
 - Consumes: `db.accounts.list()` (returns `balance` — verify field name from `AccountWithBalance`), `formatCurrencyCompact` from `$lib/utils/currency`, `settings` (already loaded in this page).
 - Produces: the account-switch footer button reads `AccountName · 1,2tr₫` (compact), so blind cycling becomes informed switching.
 
-- [ ] **Step 1: Failing test** — the account-switch button's text contains the compact balance of the active account.
-- [ ] **Step 2: Run → FAIL.**
-- [ ] **Step 3: Implement** — in `loadDefaultAccount`, keep a balance alongside name:
+- [x] **Step 1: Failing test** — the account-switch button's text contains the compact balance of the active account.
+- [x] **Step 2: Run → FAIL.**
+- [x] **Step 3: Implement** — in `loadDefaultAccount`, keep a balance alongside name:
 
 ```ts
 const accounts = await db.accounts.list();
@@ -619,7 +619,7 @@ allAccounts = accounts.map((a) => ({ id: a.id, name: a.name, balance: a.balance 
 ```
 
 with `const balanceOf = (id: string) => allAccounts.find((a) => a.id === id)?.balance ?? 0;`. Keep the existing `accountName` string (check how it's derived — adapt so both name and balance derive from `activeAccount`). On the web build `settings` must be loaded before use — it already is in `onMount` before `ready`.
-- [ ] **Step 4: Run** `pnpm test` + quick-add E2E → PASS. **Step 5: Commit** (heredoc, `feat: show the active account's balance in the tray tape`, closes Bảo finding #2, STORY-029).
+- [x] **Step 4: Run** `pnpm test` + quick-add E2E → PASS. **Step 5: Commit** (heredoc, `feat: show the active account's balance in the tray tape`, closes Bảo finding #2, STORY-029).
 
 ---
 

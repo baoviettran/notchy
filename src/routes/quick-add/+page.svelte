@@ -6,20 +6,21 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import { getDb, initDb, isTauri } from '$lib/db';
 	import { parseQuickInput } from '$lib/utils/quick_parse';
-	import { formatCurrency } from '$lib/utils/currency';
+	import { formatCurrency, formatCurrencyCompact } from '$lib/utils/currency';
 	import { AppError } from '$lib/errors';
 	import { mapError } from '$lib/utils/errors';
 
 	let value = $state('');
 	let error = $state<string | null>(null);
-	let activeAccount = $state<{ id: string; name: string } | null>(null);
-	let allAccounts = $state<{ id: string; name: string }[]>([]);
+	let activeAccount = $state<{ id: string; name: string; balance: number } | null>(null);
+	let allAccounts = $state<{ id: string; name: string; balance: number }[]>([]);
 	let ready = $state(false);
 	let submitting = $state(false);
 	let justSaved = $state(false);
 	let unlistenFocus: (() => void) | undefined;
 
 	const accountName = $derived(activeAccount?.name ?? '');
+	const accountBalance = $derived(activeAccount?.balance ?? 0);
 
 	function updateRequiredError(e: unknown): string | null {
 		return e instanceof AppError && e.code === 'database_update_required'
@@ -53,9 +54,9 @@
 		const db = getDb();
 		const id = await db.meta.getDefaultQuickAccount();
 		const accounts = await db.accounts.list();
-		allAccounts = accounts.map((a) => ({ id: a.id, name: a.name }));
+		allAccounts = accounts.map((a) => ({ id: a.id, name: a.name, balance: a.balance }));
 		const chosen = (id && accounts.find((a) => a.id === id)) || accounts[0];
-		activeAccount = chosen ? { id: chosen.id, name: chosen.name } : null;
+		activeAccount = chosen ? { id: chosen.id, name: chosen.name, balance: chosen.balance } : null;
 	}
 
 	function cycleAccount(): void {
@@ -226,7 +227,7 @@
 			disabled={allAccounts.length < 2}
 			class="account-switch"
 			aria-label={m.quick_add_switch_account()}
-		>{accountName}{#if allAccounts.length > 1} ▾{/if}</button>
+		>{accountName}{#if activeAccount} · {formatCurrencyCompact(accountBalance, settings.currency, settings.locale)}{/if}{#if allAccounts.length > 1} ▾{/if}</button>
 		<span>· {m.quick_add_today()}</span>
 		<span class:animate-flash={justSaved}>{m.quick_add_save()} ⏎</span>
 	</footer>
