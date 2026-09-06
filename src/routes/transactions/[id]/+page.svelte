@@ -78,9 +78,9 @@
 		if (!tx) return;
 		const id = tx.id;
 		await txStore.delete(id);
-		// txStore.delete already shows an undo toast — but navigating away
-		// destroys the page before the undo callback fires.  Re-show with a
-		// detail-specific restatement so the user knows exactly what was removed.
+		// txStore.delete already shows an undo toast. GlobalToast lives in the
+		// root layout, outside the keyed shell, so it survives this navigation —
+		// the undo callback fires against the list page. No restatement needed.
 		await goto('/transactions');
 	}
 
