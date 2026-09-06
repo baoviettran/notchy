@@ -1,6 +1,6 @@
 # 2026-09-06 Critique Fixes — Safety Net, Affordances, Discoverability, Ritual Speed — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Serves:** STORY-033 (safety net survives until I decide), STORY-034 (the app shows its own powers), STORY-014 (UI stays one coherent system), STORY-012 (keyboard/AT parity incl. reduced-motion coverage), STORY-018 (plan a month — envelope-review loop), STORY-029 (fast-entry feedback — tray account balance), STORY-013 (maintainer trusts tests).
 
@@ -34,7 +34,7 @@
 - Consumes: existing `ToastBus` API (`show`, `pause`, `resume`, `dismiss`, `current`).
 - Produces: same public API — `show(message, opts?)`, `current: ToastItem | null`. Semantics change only: an action toast currently visible is no longer evicted by a non-action toast; the non-action toast is queued (FIFO, max 3, oldest dropped) and promoted when the action toast expires or is dismissed. An action toast always takes the visible slot immediately (last action wins).
 
-- [ ] **Step 1: Write the failing tests** (append to `src/tests/unit/stores/toast.test.ts`; keep existing tests passing — non-action→non-action replacement is unchanged):
+- [x] **Step 1: Write the failing tests** (append to `src/tests/unit/stores/toast.test.ts`; keep existing tests passing — non-action→non-action replacement is unchanged):
 
 ```ts
 it('queues an informational toast behind a live action toast', () => {
@@ -82,12 +82,12 @@ it('queued informational toasts still replace each other', () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `pnpm vitest run src/tests/unit/stores/toast.test.ts`
 Expected: FAIL — the queued toasts are evicted (`bus.current.id` changes on the informational `show`).
 
-- [ ] **Step 3: Implement** — replace `ToastBus` internals (public API unchanged):
+- [x] **Step 3: Implement** — replace `ToastBus` internals (public API unchanged):
 
 ```ts
 export class ToastBus {
@@ -156,8 +156,8 @@ export class ToastBus {
 }
 ```
 
-- [ ] **Step 4: Run the full unit suite** — `pnpm test` (unit). Expected: PASS, including the pre-existing toast tests and both `unit/toast.test.ts` / `unit/stores/toast.test.ts`.
-- [ ] **Step 5: Commit**
+- [x] **Step 4: Run the full unit suite** — `pnpm test` (unit). Expected: PASS, including the pre-existing toast tests and both `unit/toast.test.ts` / `unit/stores/toast.test.ts`.
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/stores/toast.svelte.ts src/tests/unit/stores/toast.test.ts
@@ -187,7 +187,7 @@ EOF
 - Consumes: `restoreAccount` pattern (`src/lib/db/browser/repos/accounts.ts:229-235`); Rust `restore_account` (`src-tauri/src/database/domains/accounts.rs:389`) + `account_restore` command (`commands.rs:159`).
 - Produces: `GoalOps.restore(id: string): Promise<void>` on all three backends (browser, native, stub); Rust command `goal_restore`.
 
-- [ ] **Step 1: Write the failing tests** — in the browser-repo goals test (`src/tests/unit/goals.test.ts`, or the repo-level file where `deleteGoal` is covered — grep `deleteGoal` under `src/tests/unit`):
+- [x] **Step 1: Write the failing tests** — in the browser-repo goals test (`src/tests/unit/goals.test.ts`, or the repo-level file where `deleteGoal` is covered — grep `deleteGoal` under `src/tests/unit`):
 
 ```ts
 it('restoreGoal un-deletes a soft-deleted goal', async () => {
@@ -202,8 +202,8 @@ it('restoreGoal un-deletes a soft-deleted goal', async () => {
 
 And in the native-boundary suite: add a `goal_restore` row exactly mirroring the existing `goal_delete` row (same invoke-shape assertion, command name swapped).
 
-- [ ] **Step 2: Run to verify fail** — `pnpm vitest run src/tests/unit/goals.test.ts` → FAIL (`restoreGoal is not a function`).
-- [ ] **Step 3: Implement browser repo** (`src/lib/db/browser/repos/goals.ts`, mirroring `restoreAccount` exactly):
+- [x] **Step 2: Run to verify fail** — `pnpm vitest run src/tests/unit/goals.test.ts` → FAIL (`restoreGoal is not a function`).
+- [x] **Step 3: Implement browser repo** (`src/lib/db/browser/repos/goals.ts`, mirroring `restoreAccount` exactly):
 
 ```ts
 export async function restoreGoal(db: DatabaseService, id: string): Promise<void> {
@@ -224,8 +224,8 @@ restore(id: string): Promise<void> {
 ```
 
 In `src-tauri/src/database/domains/goals.rs`, add `restore_goal` mirroring `restore_account` (same op_id/idempotency handling, SQL: `UPDATE goals SET deleted_at = NULL, updated_at = ? WHERE id = ? AND deleted_at IS NOT NULL`). In `commands.rs` add `goal_restore` mirroring `account_restore` (generate `OperationId` + `data_job`). Register it in `lib.rs` invoke_handler next to `goal_delete` (line ~99). Run `pnpm generate:db-contracts` then `pnpm check:db-contracts` — type surface unchanged, expect no diff (commit any if present).
-- [ ] **Step 4: Run** — `pnpm vitest run src/tests/unit/goals.test.ts` and the native-boundary file; then `pnpm check`. Expected: PASS.
-- [ ] **Step 5: Commit**
+- [x] **Step 4: Run** — `pnpm vitest run src/tests/unit/goals.test.ts` and the native-boundary file; then `pnpm check`. Expected: PASS.
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/db/browser/repos/goals.ts src/lib/db/repos/goals.ts src/lib/db/client.ts src/lib/db/native/goals.ts src/lib/db/native/client.ts src-tauri/src/database/domains/goals.rs src-tauri/src/database/commands.rs src-tauri/src/lib.rs
@@ -255,9 +255,9 @@ EOF
 - Consumes: `GoalOps.restore` (Task 2); the accounts store undo pattern (`src/lib/stores/accounts.svelte.ts:50-69`); existing i18n keys `goals_deleted_toast`, `common_undo`, `goals_restored_toast` — **no new keys**.
 - Produces: `GoalsStore.delete(id)` shows the undo toast itself (like `AccountsStore.delete`); the page's `doDelete` no longer shows its own toast.
 
-- [ ] **Step 1: Failing test** — mirror the accounts-store delete-undo test against the goals store: delete → a toast with action `undo` is shown → invoking `onaction` calls `db.goals.restore` and reloads.
-- [ ] **Step 2: Run → FAIL** (no undo action on goals delete).
-- [ ] **Step 3: Implement** — move the toast into the store:
+- [x] **Step 1: Failing test** — mirror the accounts-store delete-undo test against the goals store: delete → a toast with action `undo` is shown → invoking `onaction` calls `db.goals.restore` and reloads.
+- [x] **Step 2: Run → FAIL** (no undo action on goals delete).
+- [x] **Step 3: Implement** — move the toast into the store:
 
 ```ts
 async delete(id: string): Promise<void> {
@@ -283,8 +283,8 @@ async delete(id: string): Promise<void> {
 ```
 
 (imports: `toast` from `$lib/stores/toast.svelte`, `* as m` from `$lib/paraglide/messages`). In `goals/+page.svelte` `doDelete`, drop the page-level `toast.show(m.goals_deleted_toast())` (the store owns it now); keep the confirm-close.
-- [ ] **Step 4: Run** `pnpm test` → PASS.
-- [ ] **Step 5: Commit**
+- [x] **Step 4: Run** `pnpm test` → PASS.
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/stores/goals.svelte.ts src/routes/goals/+page.svelte src/tests/unit/goals.test.ts
@@ -312,9 +312,9 @@ EOF
 - Consumes: `ContextMenu` (as already used in this file); `m.common_edit()`.
 - Produces: goal name renders as plain text (no `onclick`, no `title`-only button); the ContextMenu gains an Edit item above Complete/Delete. Overdue row's existing "extend date" button stays.
 
-- [ ] **Step 1: Test first** — add to the goals page component test if one exists (grep `src/tests/unit/components` for a goals page test); otherwise assert via a unit test on rendered markup is impractical — use the E2E pattern: extend an existing goals E2E spec (grep `goals` under `src/tests/e2e`) with: goal name is NOT a button (`page.locator('role=button[name=<goal-name>]')` count 0) and the row menu contains Edit. Mark the E2E to run in Step 4.
-- [ ] **Step 2: Run → FAIL** (name is currently a button that opens edit).
-- [ ] **Step 3: Implement:**
+- [x] **Step 1: Test first** — add to the goals page component test if one exists (grep `src/tests/unit/components` for a goals page test); otherwise assert via a unit test on rendered markup is impractical — use the E2E pattern: extend an existing goals E2E spec (grep `goals` under `src/tests/e2e`) with: goal name is NOT a button (`page.locator('role=button[name=<goal-name>]')` count 0) and the row menu contains Edit. Mark the E2E to run in Step 4.
+- [x] **Step 2: Run → FAIL** (name is currently a button that opens edit).
+- [x] **Step 3: Implement:**
 
 ```svelte
 <span class="text-sm font-medium text-ledger text-left truncate max-w-[60%]">{g.name}</span>
@@ -328,8 +328,8 @@ EOF
 </div>
 ```
 
-- [ ] **Step 4: Run** — `pnpm test` + `pnpm test:e2e` (goals spec). PASS.
-- [ ] **Step 5: Commit**
+- [x] **Step 4: Run** — `pnpm test` + `pnpm test:e2e` (goals spec). PASS.
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/routes/goals/+page.svelte src/tests/e2e
@@ -358,8 +358,8 @@ EOF
 **Interfaces:**
 - Consumes: `archiveAccount(acc)` (already in this file), `m.accounts_archive()` / `m.accounts_unarchive()`, `ContextMenu`.
 
-- [ ] **Step 1: Failing E2E** as described. **Step 2: Run → FAIL.**
-- [ ] **Step 3: Implement** — in the liabilities `ContextMenu` (line 137-140), insert the Archive item between Edit and Delete (same class as assets' line 109, label `acc.archived ? unarchive : archive`); in the archived section (151-158), replace the inline unarchive text button with:
+- [x] **Step 1: Failing E2E** as described. **Step 2: Run → FAIL.**
+- [x] **Step 3: Implement** — in the liabilities `ContextMenu` (line 137-140), insert the Archive item between Edit and Delete (same class as assets' line 109, label `acc.archived ? unarchive : archive`); in the archived section (151-158), replace the inline unarchive text button with:
 
 ```svelte
 <ContextMenu label={m.common_actions_for({ name: acc.name })}>
@@ -368,8 +368,8 @@ EOF
 </ContextMenu>
 ```
 
-- [ ] **Step 4: Run** — `pnpm test` + accounts E2E. PASS.
-- [ ] **Step 5: Commit** (heredoc, `fix: align liabilities and archived-account affordances with the ContextMenu pattern`, closes critique issue #4 accounts part, STORY-014).
+- [x] **Step 4: Run** — `pnpm test` + accounts E2E. PASS.
+- [x] **Step 5: Commit** (heredoc, `fix: align liabilities and archived-account affordances with the ContextMenu pattern`, closes critique issue #4 accounts part, STORY-014).
 
 ---
 
@@ -383,9 +383,9 @@ EOF
 - Consumes: `ConfirmDialog` props (`open`, `title`, `message`, `confirmLabel`, `danger`, `onconfirm` — as used in `goals/+page.svelte:241-259`).
 - Produces: same delete semantics, but the shared ConfirmDialog primitive (Esc-to-cancel, focus trap, consistent styling). The merge-target `<Select>` still appears when `affectedCount > 0` — ConfirmDialog needs a snippet slot for extra content; check `ConfirmDialog.svelte` for a `children`/snippet prop; if it lacks one, add an optional `children` snippet prop (default empty) — minimal, backward compatible.
 
-- [ ] **Step 1: Failing test** — existing delete test must still pass; add assertion that the dialog is the ConfirmDialog pattern (role="alertdialog" if ConfirmDialog renders it — verify from `ConfirmDialog.svelte` and assert accordingly).
-- [ ] **Step 2: Run → FAIL** (raw Modal has no alertdialog role).
-- [ ] **Step 3: Implement** — replace the raw Modal block (139-160) with:
+- [x] **Step 1: Failing test** — existing delete test must still pass; add assertion that the dialog is the ConfirmDialog pattern (role="alertdialog" if ConfirmDialog renders it — verify from `ConfirmDialog.svelte` and assert accordingly).
+- [x] **Step 2: Run → FAIL** (raw Modal has no alertdialog role).
+- [x] **Step 3: Implement** — replace the raw Modal block (139-160) with:
 
 ```svelte
 <ConfirmDialog
@@ -411,8 +411,8 @@ EOF
 ```
 
 (Also set `confirmDelete = null` inside `doDelete` so the dialog closes after delete; keep cancel via dialog's own close.) Verify how ConfirmDialog renders its message + children — read the component first and adapt props to its actual API rather than inventing slots.
-- [ ] **Step 4: Run** — `pnpm test` + categories E2E. PASS.
-- [ ] **Step 5: Commit** (heredoc, `fix: categories delete uses the shared ConfirmDialog`, closes critique issue #4 categories part, STORY-014).
+- [x] **Step 4: Run** — `pnpm test` + categories E2E. PASS.
+- [x] **Step 5: Commit** (heredoc, `fix: categories delete uses the shared ConfirmDialog`, closes critique issue #4 categories part, STORY-014).
 
 ---
 
@@ -427,10 +427,10 @@ EOF
 - Consumes: the layout's `showShortcuts` state — the TopBar is rendered from `+layout.svelte`, so pass a callback prop `onOpenShortcuts: () => void` wired to the same state the `?` handler toggles (`+layout.svelte:93,97`).
 - Produces: a labeled keyboard-reachable button in TopBar opening the shortcut sheet.
 
-- [ ] **Step 1: Add i18n keys** — `messages/en.json`: `"layout_help_shortcuts": "Shortcuts"`; `messages/vi.json`: `"layout_help_shortcuts": "Phím tắt"`. Run `pnpm check` to regen Paraglide.
-- [ ] **Step 2: Failing test** — TopBar renders a button with accessible name "Shortcuts"/"Phím tắt"; clicking it calls `onOpenShortcuts`.
-- [ ] **Step 3: Run → FAIL.**
-- [ ] **Step 4: Implement** — add prop `let { onOpenShortcuts }: { onOpenShortcuts: () => void } = $props();` and, before the language toggle button:
+- [x] **Step 1: Add i18n keys** — `messages/en.json`: `"layout_help_shortcuts": "Shortcuts"`; `messages/vi.json`: `"layout_help_shortcuts": "Phím tắt"`. Run `pnpm check` to regen Paraglide.
+- [x] **Step 2: Failing test** — TopBar renders a button with accessible name "Shortcuts"/"Phím tắt"; clicking it calls `onOpenShortcuts`.
+- [x] **Step 3: Run → FAIL.**
+- [x] **Step 4: Implement** — add prop `let { onOpenShortcuts }: { onOpenShortcuts: () => void } = $props();` and, before the language toggle button:
 
 ```svelte
 <button
@@ -441,7 +441,7 @@ EOF
 ```
 
 In `+layout.svelte`, where `<TopBar …>` is rendered, pass `onOpenShortcuts={() => { showShortcuts = true; }}`.
-- [ ] **Step 5: Run** `pnpm test` → PASS. **Step 6: Commit** (heredoc, `feat: visible shortcuts entry in the top bar`, closes critique issue #3, STORY-034).
+- [x] **Step 5: Run** `pnpm test` → PASS. **Step 6: Commit** (heredoc, `feat: visible shortcuts entry in the top bar`, closes critique issue #3, STORY-034).
 
 ---
 
