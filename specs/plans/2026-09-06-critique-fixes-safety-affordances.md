@@ -630,7 +630,7 @@ with `const balanceOf = (id: string) => allAccounts.find((a) => a.id === id)?.ba
 
 The comment claims navigating away destroys the toast before the undo callback fires; in reality `GlobalToast` lives in `+layout.svelte` outside the keyed shell and survives navigation — the comment describes a non-bug. Behavior is correct; the comment is not. No test can verify a comment; this is a docs-level chore (TDD exception per CLAUDE.md's generated/config carve-out — flagged here explicitly).
 
-- [ ] **Step 1: Replace lines 80-84 comment** with:
+- [x] **Step 1: Replace lines 80-84 comment** with:
 
 ```ts
 // txStore.delete already shows an undo toast. GlobalToast lives in the
@@ -638,7 +638,7 @@ The comment claims navigating away destroys the toast before the undo callback f
 // the undo callback fires against the list page. No restatement needed.
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add "src/routes/transactions/[id]/+page.svelte"
@@ -666,7 +666,7 @@ EOF
 **Interfaces:**
 - Consumes: Playwright `emulateMedia({ reducedMotion: 'reduce' })`; existing E2E fixture/selector patterns (dual-render, hydration wait — see `src/tests/e2e/light-contrast.spec.ts` for the house style).
 
-- [ ] **Step 1: Write the failing spec:**
+- [x] **Step 1: Write the failing spec:**
 
 ```ts
 import { test, expect } from './fixtures'; // follow the existing house fixture import in sibling specs
@@ -687,8 +687,8 @@ test('animations are disabled under prefers-reduced-motion', async ({ page }) =>
 ```
 
 Adapt the locator to elements actually present on the loaded page (a toast is the most reliable: trigger one by deleting a transaction per the existing transactions E2E helper).
-- [ ] **Step 2: Run → observe.** If the CSS block already disables these, the test passes as a regression lock (green is acceptable when coverage was the gap); if it fails, fix the CSS block first (same task).
-- [ ] **Step 3: Commit**
+- [x] **Step 2: Run → observe.** If the CSS block already disables these, the test passes as a regression lock (green is acceptable when coverage was the gap); if it fails, fix the CSS block first (same task).
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/tests/e2e/reduced-motion.spec.ts src/app.css
