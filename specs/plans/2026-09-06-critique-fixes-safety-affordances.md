@@ -579,6 +579,18 @@ export function monthStepFromKey(key: string): -1 | 0 | 1 {
 - [x] **Step 6: ShortcutRef** — add `{ key: '←/→', label: () => m.shortcuts_month_step() }` (en: `"shortcuts_month_step": "Budget month step"`, vi: `"shortcuts_month_step": "Chuyển tháng ngân sách"`; `pnpm check`).
 - [x] **Step 7: Run** `pnpm test` → PASS. **Step 8: Commit** (heredoc, `feat: chain envelope edits and step months from the keyboard`, closes critique issue #6 + Bảo finding, STORY-018).
 
+```bash
+git add src/lib/utils/budgets.ts src/tests/unit/budgets/budgets-utils.test.ts \
+  src/routes/budgets/+page.svelte src/lib/components/layout/ShortcutRef.svelte \
+  messages/en.json messages/vi.json
+git commit -m "$(cat <<'EOF'
+feat: chain envelope edits and step months from the keyboard
+Closes critique issue #6 + Bảo finding (STORY-018).
+Co-Authored-By: Claude Code <noreply@anthropic.com>
+EOF
+)"
+```
+
 ---
 
 ### Task 10: Tray tape shows the active account's balance
