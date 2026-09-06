@@ -247,6 +247,7 @@
 	confirmLabel={m.common_delete()}
 	danger={true}
 	onconfirm={doDelete}
+	onclose={() => (confirmDelete = null)}
 />
 
 <ConfirmDialog
@@ -256,6 +257,7 @@
 	confirmLabel={m.goals_mark_complete()}
 	danger={false}
 	onconfirm={() => { if (confirmComplete) { void markComplete(confirmComplete); confirmComplete = null; } }}
+	onclose={() => (confirmComplete = null)}
 />
 
 <ConfirmDialog
@@ -265,4 +267,5 @@
 	confirmLabel={m.goals_mark_abandoned()}
 	danger={true}
 	onconfirm={() => { if (confirmAbandon) { void markAbandoned(confirmAbandon); confirmAbandon = null; } }}
+	onclose={() => (confirmAbandon = null)}
 />

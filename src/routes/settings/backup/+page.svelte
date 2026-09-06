@@ -220,4 +220,5 @@
 	confirmLabel={m.settings_backup_confirm_label()}
 	danger={true}
 	onconfirm={importDb}
+	onclose={() => (confirmImport = false)}
 />

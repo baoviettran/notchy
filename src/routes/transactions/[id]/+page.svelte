@@ -179,4 +179,5 @@
 	confirmLabel={m.common_delete()}
 	danger={true}
 	onconfirm={doDelete}
+	onclose={() => (showDeleteConfirm = false)}
 />

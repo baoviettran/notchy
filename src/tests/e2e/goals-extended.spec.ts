@@ -161,6 +161,23 @@ test.describe('goals — extended', () => {
 		await expect(page.getByRole('main').getByText('Delete Me')).toHaveCount(0);
 	});
 
+	test('cancelling goal delete then deleting again reopens the dialog', async ({ onboardedPage: page }) => {
+		// Regression guard: the dialog's internal Cancel must reset the page's
+		// confirmDelete state (via ConfirmDialog onclose), or the one-way
+		// `open={confirmDelete !== null}` prop never flips again and a second
+		// delete click stays closed until reload.
+		await createGoal(page, 'Cancel Delete', '1m', '2027-12-31');
+		const card = page.getByRole('main').locator('.goal-item', { hasText: 'Cancel Delete' });
+		await card.getByRole('button', { name: 'Actions: Cancel Delete' }).click();
+		await page.getByRole('menuitem', { name: 'Delete', exact: true }).click();
+		await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+		await expect(page.getByRole('dialog')).toHaveCount(0);
+		// Delete again — the dialog must reopen for the same goal.
+		await card.getByRole('button', { name: 'Actions: Cancel Delete' }).click();
+		await page.getByRole('menuitem', { name: 'Delete', exact: true }).click();
+		await expect(page.getByRole('dialog').getByText('Delete goal?')).toBeVisible();
+	});
+
 	test('goal name is plain text; Edit lives in the row context menu', async ({ onboardedPage: page }) => {
 		// The goal name must not be an edit trigger — content-click never
 		// mutates (accounts pattern). Edit is a menuitem in the row's

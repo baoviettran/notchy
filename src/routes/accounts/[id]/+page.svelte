@@ -201,4 +201,5 @@
 	confirmLabel={m.accounts_yes_reconcile()}
 	danger={false}
 	onconfirm={confirmLargeReconcile}
+	onclose={() => (confirmLarge = false)}
 />
