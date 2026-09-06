@@ -246,4 +246,51 @@ test.describe('accounts — extended', () => {
 		// The onboarding account is present under Assets.
 		await expect(main.locator('section', { hasText: 'Assets' }).getByText('Test Checking')).toBeVisible();
 	});
+
+	test('a liability row ContextMenu offers Archive (m.accounts_archive)', async ({ onboardedPage: page }) => {
+		// Accounts page, liabilities ContextMenu (+page.svelte) must expose the
+		// same Edit/Archive/Delete set as assets — archiving is not asset-only.
+		await page.getByRole('link', { name: 'Accounts', exact: true }).click();
+		await page.getByRole('button', { name: '+ Add account' }).first().click();
+		const modal = page.getByRole('dialog');
+		await modal.getByLabel('Name').fill('Visa');
+		await modal.getByLabel('Type').selectOption('Credit Card');
+		await modal.getByRole('button', { name: 'Create' }).click();
+		await expect(page.getByRole('dialog')).toBeHidden();
+
+		const visaRow = page.getByRole('main').locator('.group', { hasText: 'Visa' });
+		await expect(visaRow.getByText('Visa')).toBeVisible();
+		await visaRow.getByRole('button', { name: 'Actions: Visa' }).click();
+		// Archive is a menuitem in the liability's row menu (m.accounts_archive).
+		await expect(page.getByRole('menuitem', { name: 'Archive', exact: true })).toBeVisible();
+		await expect(page.getByRole('menuitem', { name: 'Edit', exact: true })).toBeVisible();
+		await expect(page.getByRole('menuitem', { name: 'Delete', exact: true })).toBeVisible();
+	});
+
+	test('an archived row exposes a ContextMenu with Unarchive and Edit', async ({ onboardedPage: page }) => {
+		// Archived accounts (+page.svelte archived section) previously had only an
+		// inline unarchive text button — off-pattern vs the active rows. They
+		// must use the same per-row ContextMenu (Actions: <name>) with Edit.
+		await page.getByRole('link', { name: 'Accounts', exact: true }).click();
+		await page.getByRole('button', { name: '+ Add account' }).first().click();
+		const modal = page.getByRole('dialog');
+		await modal.getByLabel('Name').fill('Old Wallet');
+		await modal.getByLabel('Type').selectOption('Cash');
+		await modal.getByRole('button', { name: 'Create' }).click();
+		await expect(page.getByRole('dialog')).toBeHidden();
+
+		// Archive it via its row menu (m.accounts_archive).
+		const walletRow = page.getByRole('main').locator('.group', { hasText: 'Old Wallet' });
+		await walletRow.getByRole('button', { name: 'Actions: Old Wallet' }).click();
+		await page.getByRole('menuitem', { name: 'Archive', exact: true }).click();
+		// It leaves Assets and lands in the Archived section.
+		const main = page.getByRole('main');
+		const archived = main.locator('section', { hasText: 'Archived' });
+		await expect(archived.getByText('Old Wallet')).toBeVisible();
+
+		// The archived row uses the same ContextMenu pattern; Unarchive + Edit.
+		await archived.getByRole('button', { name: 'Actions: Old Wallet' }).click();
+		await expect(page.getByRole('menuitem', { name: 'Unarchive', exact: true })).toBeVisible();
+		await expect(page.getByRole('menuitem', { name: 'Edit', exact: true })).toBeVisible();
+	});
 });
