@@ -169,10 +169,11 @@
 					{@const vs = velocityStatus[g.velocity_status] ?? { icon: '', color: 'text-dim' }}
 					<div class="goal-item p-4 space-y-2">
 						<div class="flex items-center justify-between">
-							<button onclick={() => openEdit(g)} title={g.name} class="text-sm font-medium text-ledger text-left truncate max-w-[60%]">{g.name}</button>
+							<span class="text-sm font-medium text-ledger text-left truncate max-w-[60%]">{g.name}</span>
 							<div class="flex items-center gap-2">
 								<span class="text-xs {vs.color}">{vs.icon} {goalStatusLabel(g.velocity_status)}</span>
 								<ContextMenu label={m.common_actions_for({ name: g.name })}>
+									<button onclick={() => openEdit(g)} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-ledger hover:bg-line/40">{m.common_edit()}</button>
 									<button onclick={() => confirmComplete = g} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-phosphor hover:bg-line/40">{m.goals_mark_complete()}</button>
 									<button onclick={() => confirmDelete = g} role="menuitem" class="w-full text-left px-3 py-2 text-sm text-debit hover:bg-line/40">{m.goals_delete()}</button>
 								</ContextMenu>
