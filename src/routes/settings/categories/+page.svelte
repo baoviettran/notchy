@@ -149,6 +149,7 @@
 	confirmLabel={m.common_delete()}
 	danger={true}
 	onconfirm={doDelete}
+	onclose={() => (confirmDelete = null)}
 >
 	{#snippet children()}
 		{#if confirmDelete && affectedCount > 0}

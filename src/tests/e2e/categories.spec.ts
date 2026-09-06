@@ -52,6 +52,19 @@ test('a tag can be created, and deleting a referenced tag merges into another', 
 	await modal.getByRole('button', { name: 'Create' }).click();
 	await expect(page.getByText('Tag B')).toBeVisible();
 
+	// Cancel the delete confirmation, then delete again: the dialog must
+	// reopen. (Regression guard: the dialog's internal cancel must reset the
+	// page's confirmDelete state, or the one-way open prop never flips and a
+	// second delete click stays closed until reload.)
+	await page.getByRole('button', { name: 'Delete', exact: true }).first().click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+	await page.getByRole('button', { name: 'Delete', exact: true }).first().click();
+	await expect(page.getByRole('dialog')).toBeVisible();
+	// Cancel again to return to the list before the merge scenario below.
+	await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+	await expect(page.getByRole('dialog')).toHaveCount(0);
+
 	// Tag a transaction with Tag A so the tag becomes referenced
 	// (affectedCount > 0), which is the only path that surfaces the merge Select.
 	await page.getByRole('button', { name: 'Add transaction' }).first().click();

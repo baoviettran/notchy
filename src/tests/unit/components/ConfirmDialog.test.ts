@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/svelte';
 import ConfirmDialog from '$lib/components/primitives/ConfirmDialog.svelte';
 import ConfirmDialogChildrenProbe from './helpers/ConfirmDialogChildrenProbe.svelte';
+import ConfirmDialogReopenProbe from './helpers/ConfirmDialogReopenProbe.svelte';
 
 describe('ConfirmDialog', () => {
 	it('renders title and message when open', () => {
@@ -85,5 +86,54 @@ describe('ConfirmDialog', () => {
 		render(ConfirmDialogChildrenProbe, { open: true });
 		const extra = screen.getByTestId('merge-target');
 		expect(screen.getByRole('dialog').contains(extra)).toBe(true);
+	});
+
+	it('invokes onclose when closed via Cancel', async () => {
+		const onclose = vi.fn();
+		render(ConfirmDialog, { open: true, title: 'T', message: 'M', onclose });
+		await fireEvent.click(screen.getByText('Cancel'));
+		expect(onclose).toHaveBeenCalledOnce();
+	});
+
+	it('invokes onclose when closed via Escape', async () => {
+		const onclose = vi.fn();
+		render(ConfirmDialog, { open: true, title: 'T', message: 'M', onclose });
+		await fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+		expect(onclose).toHaveBeenCalledOnce();
+	});
+
+	it('invokes onclose when closed via the backdrop', async () => {
+		const onclose = vi.fn();
+		const { container } = render(ConfirmDialog, { open: true, title: 'T', message: 'M', onclose });
+		await fireEvent.click(container.querySelector('[role="presentation"]')!);
+		expect(onclose).toHaveBeenCalledOnce();
+	});
+
+	it('does not invoke onclose when the confirm button is clicked', async () => {
+		// Confirm has its own onconfirm callback; onclose is only for internal
+		// close paths (Cancel, Esc, backdrop).
+		const onclose = vi.fn();
+		const onconfirm = vi.fn();
+		render(ConfirmDialog, { open: true, title: 'T', message: 'M', onclose, onconfirm, confirmLabel: 'OK' });
+		await fireEvent.click(screen.getByText('OK'));
+		expect(onconfirm).toHaveBeenCalledOnce();
+		expect(onclose).not.toHaveBeenCalled();
+	});
+
+	it('reopens after an internal close when the parent chooses a new target', async () => {
+		// Regression guard: with a one-way `open={target !== null}` prop, an
+		// internal close must reach the parent (onclose), or the parent's
+		// expression never changes again and the dialog stays shut forever.
+		const onclose = vi.fn();
+		render(ConfirmDialogReopenProbe, { onclose });
+		await fireEvent.click(screen.getByTestId('open-a'));
+		expect(screen.getByRole('dialog')).toBeInTheDocument();
+		expect(screen.getByText('Tag A')).toBeInTheDocument();
+		await fireEvent.click(screen.getByText('Cancel'));
+		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+		expect(onclose).toHaveBeenCalledOnce();
+		await fireEvent.click(screen.getByTestId('open-b'));
+		expect(screen.getByRole('dialog')).toBeInTheDocument();
+		expect(screen.getByText('Tag B')).toBeInTheDocument();
 	});
 });
