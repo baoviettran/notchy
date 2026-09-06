@@ -456,8 +456,8 @@ In `+layout.svelte`, where `<TopBar …>` is rendered, pass `onOpenShortcuts={()
 - Consumes: `isLongCurrency` / `formatCurrencyCompact` (already used); the dashboard hero's dotted-underline affordance (`src/routes/+page.svelte:130-138`) as the visual precedent.
 - Produces: when `long`, the compact figure is a real `<button>` (dotted underline, visible affordance — not title-only) toggling to the full-precision figure and back; aria-label announces the toggle; keyboard operable. Uncompacted figures stay a plain span.
 
-- [ ] **Step 1: i18n keys** — en: `"figures_show_exact": "Show exact amount"`, `"figures_show_compact": "Show compact amount"`; vi: `"figures_show_exact": "Hiện số chính xác"`, `"figures_show_compact": "Hiện số gọn"`. `pnpm check`.
-- [ ] **Step 2: Failing component test:**
+- [x] **Step 1: i18n keys** — en: `"figures_show_exact": "Show exact amount"`, `"figures_show_compact": "Show compact amount"`; vi: `"figures_show_exact": "Hiện số chính xác"`, `"figures_show_compact": "Hiện số gọn"`. `pnpm check`.
+- [x] **Step 2: Failing component test:**
 
 ```ts
 it('compacted figures expand on click without relying on title', async () => {
@@ -468,8 +468,8 @@ it('compacted figures expand on click without relying on title', async () => {
 ```
 
 Write it concretely against the real component API after Step 1's regen (render `<Money amount={1_500_000_000} />` with settings stubbed to VND).
-- [ ] **Step 3: Run → FAIL.**
-- [ ] **Step 4: Implement** — in `Money.svelte`, add `let expanded = $state(false);` and when `long` render:
+- [x] **Step 3: Run → FAIL.**
+- [x] **Step 4: Implement** — in `Money.svelte`, add `let expanded = $state(false);` and when `long` render:
 
 ```svelte
 {#if long}
@@ -504,8 +504,8 @@ CSS in `app.css` (place near the existing `.figures` rules):
 ```
 
 Keep the non-expanded `title` attribute as a redundant mouse hint. Note: `expanded` must reset when `amount` changes — bind reset in an `$effect(() => { amount; expanded = false; })`.
-- [ ] **Step 5: Run** `pnpm test` → PASS.
-- [ ] **Step 6: Commit** (heredoc, `feat: visible expand affordance for compacted figures`, closes critique issue #5, STORY-034).
+- [x] **Step 5: Run** `pnpm test` → PASS.
+- [x] **Step 6: Commit** (heredoc, `feat: visible expand affordance for compacted figures`, closes critique issue #5, STORY-034).
 
 ---
 
