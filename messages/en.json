@@ -405,6 +405,8 @@
   "reports_group_breakdown": "Breakdown",
   "reports_group_compare": "Compare",
   "reports_nav": "Reports",
+  "figures_show_exact": "Show exact amount",
+  "figures_show_compact": "Show compact amount",
   "frequent_repeat_header": "Repeat · last 30 days",
   "frequent_saved_toast": "Saved · {payee} · {amount}",
   "frequent_confirm_hint": "Tap again to record",

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
-import { render } from '@testing-library/svelte';
+import { render, fireEvent } from '@testing-library/svelte';
 
 // Money reads the active locale/currency to format + decide whether to compact.
 // VND has 0 fraction digits, so integer amounts pass through untransformed.
@@ -67,5 +67,44 @@ describe('Money', () => {
 	it('appends extra classes passed through', () => {
 		const { container } = render(Money, { amount: 1000, class: 'font-bold' });
 		expect(container.querySelector('.font-bold')).not.toBeNull();
+	});
+
+	it('compacted figures expand on click without relying on title', async () => {
+		const { container } = render(Money, { amount: 1_500_000_000 });
+		// A long figure is a real button (keyboard/touch operable), not only a
+		// span with a hover title.
+		const btn = container.querySelector('button.figures-expand') as HTMLButtonElement | null;
+		expect(btn).not.toBeNull();
+		expect(btn?.getAttribute('type')).toBe('button');
+		// Collapsed: compact visible text, sr-only full figure, title kept as a
+		// redundant mouse hint, aria-label announces the expand action.
+		const compact = btn?.querySelector('[aria-hidden="true"]');
+		expect(compact?.textContent).toContain('1.5');
+		expect(btn?.querySelector('.sr-only')?.textContent).toContain('1,500,000,000');
+		// Redundant mouse hint stays on the outer figures span.
+		expect(container.querySelector('.figures')?.getAttribute('title')).toContain('1,500,000,000');
+		expect(btn?.getAttribute('aria-label')).toBe('Show exact amount');
+		// Click → the exact figure is visible (no sr-only twin needed).
+		await fireEvent.click(btn as HTMLButtonElement);
+		expect(btn?.textContent).toContain('1,500,000,000');
+		expect(btn?.getAttribute('aria-label')).toBe('Show compact amount');
+		// Click again → back to compact.
+		await fireEvent.click(btn as HTMLButtonElement);
+		expect(btn?.querySelector('[aria-hidden="true"]')?.textContent).toContain('1.5');
+		expect(btn?.getAttribute('aria-label')).toBe('Show exact amount');
+	});
+
+	it('keeps short figures a plain span with no toggle button', () => {
+		const { container } = render(Money, { amount: 50000 });
+		expect(container.querySelector('button.figures-expand')).toBeNull();
+	});
+
+	it('collapses an expanded figure when the amount changes', async () => {
+		const { container, rerender } = render(Money, { amount: 1_500_000_000 });
+		const btn = container.querySelector('button.figures-expand') as HTMLButtonElement;
+		await fireEvent.click(btn);
+		expect(btn.getAttribute('aria-label')).toBe('Show compact amount');
+		await rerender({ amount: 2_000_000_000 });
+		expect(btn.getAttribute('aria-label')).toBe('Show exact amount');
 	});
 });

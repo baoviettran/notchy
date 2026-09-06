@@ -405,6 +405,8 @@
   "reports_group_breakdown": "Phân tích",
   "reports_group_compare": "So sánh",
   "reports_nav": "Báo cáo",
+  "figures_show_exact": "Hiện số chính xác",
+  "figures_show_compact": "Hiện số gọn",
   "frequent_repeat_header": "Lặp lại · 30 ngày qua",
   "frequent_saved_toast": "Đã lưu · {payee} · {amount}",
   "frequent_confirm_hint": "Chạm lần nữa để ghi",
