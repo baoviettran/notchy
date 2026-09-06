@@ -369,7 +369,7 @@ EOF
 ```
 
 - [x] **Step 4: Run** — `pnpm test` + accounts E2E. PASS.
-- [x] **Step 5: Commit** (heredoc, `fix: align liabilities and archived-account affordances with the ContextMenu pattern`, closes critique issue #4 accounts part, STORY-014).
+- [x] **Step 5:** Commit with `fix: align liabilities and archived-account affordances with the ContextMenu pattern` (heredoc form; closes critique issue #4 accounts part, STORY-014).
 
 ---
 
@@ -412,7 +412,7 @@ EOF
 
 (Also set `confirmDelete = null` inside `doDelete` so the dialog closes after delete; keep cancel via dialog's own close.) Verify how ConfirmDialog renders its message + children — read the component first and adapt props to its actual API rather than inventing slots.
 - [x] **Step 4: Run** — `pnpm test` + categories E2E. PASS.
-- [x] **Step 5: Commit** (heredoc, `fix: categories delete uses the shared ConfirmDialog`, closes critique issue #4 categories part, STORY-014).
+- [x] **Step 5:** Commit with `fix: categories delete uses the shared ConfirmDialog` (heredoc form; closes critique issue #4 categories part, STORY-014).
 
 ---
 
@@ -441,7 +441,7 @@ EOF
 ```
 
 In `+layout.svelte`, where `<TopBar …>` is rendered, pass `onOpenShortcuts={() => { showShortcuts = true; }}`.
-- [x] **Step 5: Run** `pnpm test` → PASS. **Step 6: Commit** (heredoc, `feat: visible shortcuts entry in the top bar`, closes critique issue #3, STORY-034).
+- [x] **Step 5: Run** `pnpm test` → PASS. **Step 6:** Commit with `feat: visible shortcuts entry in the top bar` (heredoc form; closes critique issue #3, STORY-034).
 
 ---
 
@@ -505,7 +505,7 @@ CSS in `app.css` (place near the existing `.figures` rules):
 
 Keep the non-expanded `title` attribute as a redundant mouse hint. Note: `expanded` must reset when `amount` changes — bind reset in an `$effect(() => { amount; expanded = false; })`.
 - [x] **Step 5: Run** `pnpm test` → PASS.
-- [x] **Step 6: Commit** (heredoc, `feat: visible expand affordance for compacted figures`, closes critique issue #5, STORY-034).
+- [x] **Step 6:** Commit with `feat: visible expand affordance for compacted figures` (heredoc form; closes critique issue #5, STORY-034).
 
 ---
 
@@ -619,7 +619,7 @@ allAccounts = accounts.map((a) => ({ id: a.id, name: a.name, balance: a.balance 
 ```
 
 with `const balanceOf = (id: string) => allAccounts.find((a) => a.id === id)?.balance ?? 0;`. Keep the existing `accountName` string (check how it's derived — adapt so both name and balance derive from `activeAccount`). On the web build `settings` must be loaded before use — it already is in `onMount` before `ready`.
-- [x] **Step 4: Run** `pnpm test` + quick-add E2E → PASS. **Step 5: Commit** (heredoc, `feat: show the active account's balance in the tray tape`, closes Bảo finding #2, STORY-029).
+- [x] **Step 4: Run** `pnpm test` + quick-add E2E → PASS. **Step 5:** Commit with `feat: show the active account's balance in the tray tape` (heredoc form; closes Bảo finding #2, STORY-029).
 
 ---
 
