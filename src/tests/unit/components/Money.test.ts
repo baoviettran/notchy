@@ -10,6 +10,9 @@ vi.mock('$lib/stores/settings.svelte', () => ({
 
 import Money from '$lib/components/reports/Money.svelte';
 
+type MoneyProps = { tone?: 'ledger' | 'dim' | 'phosphor' | 'debit' };
+const BOGUS_TONE = 'bogus' as unknown as MoneyProps['tone'];
+
 function figure(container: HTMLElement): HTMLElement {
 	const el = container.querySelector('[aria-hidden="true"]');
 	if (!el) throw new Error('visible figure span not found');
@@ -67,6 +70,13 @@ describe('Money', () => {
 	it('appends extra classes passed through', () => {
 		const { container } = render(Money, { amount: 1000, class: 'font-bold' });
 		expect(container.querySelector('.font-bold')).not.toBeNull();
+	});
+
+	it('compacts a long negative figure with the minus glyph on both twins', () => {
+		const { container } = render(Money, { amount: -1_500_000_000 });
+		const compact = container.querySelector('[aria-hidden="true"]');
+		expect(compact?.textContent?.startsWith('−')).toBe(true);
+		expect(container.querySelector('.sr-only')?.textContent?.startsWith('−')).toBe(true);
 	});
 
 	it('compacted figures expand on click without relying on title', async () => {
@@ -136,6 +146,17 @@ describe('Money', () => {
 	it('keeps short figures a plain span with no toggle button', () => {
 		const { container } = render(Money, { amount: 50000 });
 		expect(container.querySelector('button.figures-expand')).toBeNull();
+	});
+
+	it('tolerates an unknown tone without crashing', () => {
+		// Defensive: an out-of-enum tone must degrade to the base figure styles,
+		// not throw or blank the figure — for both short and compacted figures.
+		const short = render(Money, { amount: 1000, tone: BOGUS_TONE });
+		expect(short.container.querySelector('.figures')).not.toBeNull();
+		expect(figure(short.container).textContent).toContain('1,000');
+
+		const long = render(Money, { amount: 1_500_000_000, tone: BOGUS_TONE });
+		expect(long.container.querySelector('button.figures-expand')).not.toBeNull();
 	});
 
 	it('collapses an expanded figure when the amount changes', async () => {
