@@ -10,7 +10,8 @@ import { pickDate } from './helpers/datepicker';
 //    + label (line 63), progress bar (line 65), "current / target" + "% · due"
 //    (lines 67-68); "Mark complete / Mark abandoned" buttons appear ONLY in the
 //    overdue panel (lines 70-76); completed goals render under a "Completed"
-//    section (lines 83-95); the edit trigger is the goal name button (line 62).
+//    section (lines 83-95); edit lives in the row's ContextMenu (the goal
+//    name is plain text — content-click never mutates).
 //  - src/lib/components/forms/GoalForm.svelte: name + target amount + target
 //    date (required) + linked account; type defaults to 'savings'.
 //  - src/lib/db/repos/goals.ts: current_amount is DERIVED from the linked
@@ -86,8 +87,10 @@ test.describe('goals — extended', () => {
 
 	test('edit a goal: target amount change persists', async ({ onboardedPage: page }) => {
 		await createGoal(page, 'Edit Me', '1m', '2027-12-31');
-		// Open edit via the goal name button (goals/+page.svelte:62).
-		await page.getByRole('main').getByRole('button', { name: 'Edit Me', exact: true }).click();
+		// Open edit via the row's overflow menu (goals/+page.svelte).
+		const card0 = page.getByRole('main').locator('.goal-item', { hasText: 'Edit Me' });
+		await card0.getByRole('button', { name: 'Actions: Edit Me' }).click();
+		await page.getByRole('menuitem', { name: 'Edit' }).click();
 		const editModal = page.getByRole('dialog');
 		await expect(editModal.getByRole('heading', { name: 'Edit goal' })).toBeVisible();
 		// Type Select is disabled in edit mode (GoalForm.svelte:69) — analogous
@@ -156,6 +159,41 @@ test.describe('goals — extended', () => {
 		await expect(page.getByText('Goal deleted.')).toBeVisible();
 		// Goal removed from the active list.
 		await expect(page.getByRole('main').getByText('Delete Me')).toHaveCount(0);
+	});
+
+	test('cancelling goal delete then deleting again reopens the dialog', async ({ onboardedPage: page }) => {
+		// Regression guard: the dialog's internal Cancel must reset the page's
+		// confirmDelete state (via ConfirmDialog onclose), or the one-way
+		// `open={confirmDelete !== null}` prop never flips again and a second
+		// delete click stays closed until reload.
+		await createGoal(page, 'Cancel Delete', '1m', '2027-12-31');
+		const card = page.getByRole('main').locator('.goal-item', { hasText: 'Cancel Delete' });
+		await card.getByRole('button', { name: 'Actions: Cancel Delete' }).click();
+		await page.getByRole('menuitem', { name: 'Delete', exact: true }).click();
+		await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
+		await expect(page.getByRole('dialog')).toHaveCount(0);
+		// Delete again — the dialog must reopen for the same goal.
+		await card.getByRole('button', { name: 'Actions: Cancel Delete' }).click();
+		await page.getByRole('menuitem', { name: 'Delete', exact: true }).click();
+		await expect(page.getByRole('dialog').getByText('Delete goal?')).toBeVisible();
+	});
+
+	test('goal name is plain text; Edit lives in the row context menu', async ({ onboardedPage: page }) => {
+		// The goal name must not be an edit trigger — content-click never
+		// mutates (accounts pattern). Edit is a menuitem in the row's
+		// ContextMenu (goals/+page.svelte).
+		await createGoal(page, 'Menu Goal', '1m', '2027-12-31');
+		const card = page.getByRole('main').locator('.goal-item', { hasText: 'Menu Goal' });
+		// No button whose accessible name is the goal name.
+		await expect(page.getByRole('main').getByRole('button', { name: 'Menu Goal', exact: true })).toHaveCount(0);
+		// Clicking the visible name must not open the edit form.
+		await card.getByText('Menu Goal').click();
+		await expect(page.getByRole('dialog')).toBeHidden();
+		// Edit is the first item in the row's overflow menu.
+		await card.getByRole('button', { name: 'Actions: Menu Goal' }).click();
+		await expect(page.getByRole('menuitem').first()).toHaveAccessibleName('Edit');
+		await page.getByRole('menuitem', { name: 'Edit' }).click();
+		await expect(page.getByRole('dialog').getByRole('heading', { name: 'Edit goal' })).toBeVisible();
 	});
 
 	test('Mark complete is available on any active goal (not only overdue)', async ({ onboardedPage: page }) => {

@@ -97,6 +97,7 @@ pub fn run() {
             goal_create,
             goal_update,
             goal_delete,
+            goal_restore,
             // Rule commands
             rule_list,
             rule_list_all,

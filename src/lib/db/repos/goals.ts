@@ -10,5 +10,6 @@ export {
 	getGoal,
 	createGoal,
 	updateGoal,
-	deleteGoal
+	deleteGoal,
+	restoreGoal
 } from '../browser/repos/goals';

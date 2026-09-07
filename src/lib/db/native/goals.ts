@@ -51,3 +51,7 @@ export async function updateGoal(
 export async function deleteGoal(_id: string): Promise<void> {
 	throw new Error('native goals adapter not wired');
 }
+
+export async function restoreGoal(_id: string): Promise<void> {
+	throw new Error('native goals adapter not wired');
+}

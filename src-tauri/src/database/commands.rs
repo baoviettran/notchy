@@ -534,6 +534,17 @@ pub async fn goal_delete(
     }).await
 }
 
+#[tauri::command]
+pub async fn goal_restore(
+    manager: State<'_, Arc<DatabaseManager>>,
+    id: String,
+) -> Result<(), DbError> {
+    let op_id = OperationId::generate();
+    manager.data_job(move |state| {
+        domains::goals::restore_goal(state.connection_mut()?, op_id, &id)
+    }).await
+}
+
 // ===========================================================================
 // Rule commands
 // ===========================================================================

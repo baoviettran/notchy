@@ -241,6 +241,10 @@ class BrowserGoalOps implements GoalOps {
 	delete(id: string): Promise<void> {
 		return goalsRepo.deleteGoal(this.db, id);
 	}
+
+	restore(id: string): Promise<void> {
+		return goalsRepo.restoreGoal(this.db, id);
+	}
 }
 
 class BrowserRuleOps implements RuleOps {

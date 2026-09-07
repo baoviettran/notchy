@@ -136,25 +136,24 @@
 	</div>
 </Modal>
 
-{#if confirmDelete}
-	<Modal open={true} title={m.categories_delete_confirm_title()}>
-		<div class="space-y-4">
-			<p class="text-sm text-dim">
-				{#if affectedCount > 0}
-					{affectedCount === 1
-						? m.categories_delete_referenced_one({ count: affectedCount })
-						: m.categories_delete_referenced({ count: affectedCount })}
-				{:else}
-					{m.categories_delete_confirm_body()}
-				{/if}
-			</p>
-			{#if affectedCount > 0}
-				<Select label={m.categories_action()} bind:value={deleteOption} options={mergeTargetOptions(confirmDelete.id)} />
-			{/if}
-			<div class="flex justify-end gap-2 pt-2">
-				<Button variant="ghost" onclick={() => confirmDelete = null}>{m.common_cancel()}</Button>
-				<Button variant="danger" onclick={doDelete}>{m.common_delete()}</Button>
-			</div>
-		</div>
-	</Modal>
-{/if}
+<ConfirmDialog
+	open={confirmDelete !== null}
+	title={m.categories_delete_confirm_title()}
+	message={confirmDelete
+		? (affectedCount === 1
+			? m.categories_delete_referenced_one({ count: affectedCount })
+			: affectedCount > 0
+				? m.categories_delete_referenced({ count: affectedCount })
+				: m.categories_delete_confirm_body())
+		: ''}
+	confirmLabel={m.common_delete()}
+	danger={true}
+	onconfirm={doDelete}
+	onclose={() => (confirmDelete = null)}
+>
+	{#snippet children()}
+		{#if confirmDelete && affectedCount > 0}
+			<Select label={m.categories_action()} bind:value={deleteOption} options={mergeTargetOptions(confirmDelete.id)} />
+		{/if}
+	{/snippet}
+</ConfirmDialog>

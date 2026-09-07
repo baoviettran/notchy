@@ -139,6 +139,7 @@ export interface GoalOps {
 	create(input: NewGoal): Promise<string>;
 	update(id: string, patch: Partial<NewGoal> & { status?: GoalStatus }): Promise<void>;
 	delete(id: string): Promise<void>;
+	restore(id: string): Promise<void>;
 }
 
 export interface RuleOps {

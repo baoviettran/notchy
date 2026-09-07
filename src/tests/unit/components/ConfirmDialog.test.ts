@@ -2,6 +2,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/svelte';
 import ConfirmDialog from '$lib/components/primitives/ConfirmDialog.svelte';
+import ConfirmDialogChildrenProbe from './helpers/ConfirmDialogChildrenProbe.svelte';
+import ConfirmDialogReopenProbe from './helpers/ConfirmDialogReopenProbe.svelte';
+import ConfirmDialogConfirmTxProbe from './helpers/ConfirmDialogConfirmTxProbe.svelte';
+import ConfirmDialogConfirmBackupProbe from './helpers/ConfirmDialogConfirmBackupProbe.svelte';
 
 describe('ConfirmDialog', () => {
 	it('renders title and message when open', () => {
@@ -76,5 +80,91 @@ describe('ConfirmDialog', () => {
 		render(ConfirmDialog, { open: true, title: 'Delete?', message: 'Sure?' });
 		await fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
 		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+	});
+
+	it('renders optional children snippet content inside the dialog', () => {
+		// The categories delete flow passes a merge-target <Select> through the
+		// children snippet when the tag is referenced by transactions.
+		render(ConfirmDialogChildrenProbe, { open: true });
+		const extra = screen.getByTestId('merge-target');
+		expect(screen.getByRole('dialog').contains(extra)).toBe(true);
+	});
+
+	it('invokes onclose when closed via Cancel', async () => {
+		const onclose = vi.fn();
+		render(ConfirmDialog, { open: true, title: 'T', message: 'M', onclose });
+		await fireEvent.click(screen.getByText('Cancel'));
+		expect(onclose).toHaveBeenCalledOnce();
+	});
+
+	it('invokes onclose when closed via Escape', async () => {
+		const onclose = vi.fn();
+		render(ConfirmDialog, { open: true, title: 'T', message: 'M', onclose });
+		await fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+		expect(onclose).toHaveBeenCalledOnce();
+	});
+
+	it('invokes onclose when closed via the backdrop', async () => {
+		const onclose = vi.fn();
+		const { container } = render(ConfirmDialog, { open: true, title: 'T', message: 'M', onclose });
+		await fireEvent.click(container.querySelector('[role="presentation"]')!);
+		expect(onclose).toHaveBeenCalledOnce();
+	});
+
+	it('does not invoke onclose when the confirm button is clicked', async () => {
+		// Confirm has its own onconfirm callback; onclose is only for internal
+		// close paths (Cancel, Esc, backdrop).
+		const onclose = vi.fn();
+		const onconfirm = vi.fn();
+		render(ConfirmDialog, { open: true, title: 'T', message: 'M', onclose, onconfirm, confirmLabel: 'OK' });
+		await fireEvent.click(screen.getByText('OK'));
+		expect(onconfirm).toHaveBeenCalledOnce();
+		expect(onclose).not.toHaveBeenCalled();
+	});
+
+	it('reopens after an internal close when the parent chooses a new target', async () => {
+		// Regression guard: with a one-way `open={target !== null}` prop, an
+		// internal close must reach the parent (onclose), or the parent's
+		// expression never changes again and the dialog stays shut forever.
+		const onclose = vi.fn();
+		render(ConfirmDialogReopenProbe, { onclose });
+		await fireEvent.click(screen.getByTestId('open-a'));
+		expect(screen.getByRole('dialog')).toBeInTheDocument();
+		expect(screen.getByText('Tag A')).toBeInTheDocument();
+		await fireEvent.click(screen.getByText('Cancel'));
+		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+		expect(onclose).toHaveBeenCalledOnce();
+		await fireEvent.click(screen.getByTestId('open-b'));
+		expect(screen.getByRole('dialog')).toBeInTheDocument();
+		expect(screen.getByText('Tag B')).toBeInTheDocument();
+	});
+
+	it('reopens after CONFIRM when the parent chooses a new target (transactions list shape)', async () => {
+		// Regression guard: the confirm handler must reset the page's trigger
+		// state too — with a one-way open prop, a confirm handler that only
+		// clears the pending target leaves the open expression stuck at true,
+		// and the next delete click never reopens the dialog.
+		render(ConfirmDialogConfirmTxProbe);
+		await fireEvent.click(screen.getByTestId('del-1'));
+		expect(screen.getByText('Tx 1')).toBeInTheDocument();
+		await fireEvent.click(screen.getByText('OK'));
+		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+		await fireEvent.click(screen.getByTestId('del-2'));
+		expect(screen.getByText('Tx 2')).toBeInTheDocument();
+	});
+
+	it('reopens after CONFIRM when the picker was cancelled (backup shape)', async () => {
+		// Regression guard: importDb's early return (native picker cancelled)
+		// must still clear confirmImport, or the Import button is dead until
+		// reload.
+		render(ConfirmDialogConfirmBackupProbe);
+		await fireEvent.click(screen.getByTestId('import-btn'));
+		expect(screen.getByRole('dialog')).toBeInTheDocument();
+		// Confirm; the "picker" is cancelled (no path picked).
+		await fireEvent.click(screen.getByText('Confirm'));
+		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+		// Import must be alive again after the cancelled picker.
+		await fireEvent.click(screen.getByTestId('import-btn'));
+		expect(screen.getByRole('dialog')).toBeInTheDocument();
 	});
 });

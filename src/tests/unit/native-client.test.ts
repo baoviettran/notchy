@@ -131,6 +131,34 @@ describe('BrowserDatabaseClient', () => {
 		expect(accounts[0].balance).toBe(0);
 	});
 
+	it('round-trips an account lifecycle through the domain port', async () => {
+		const id = await client.accounts.create({ name: 'Wallet', type: 'cash', currency: 'VND' });
+
+		const account = await client.accounts.get(id);
+		expect(account?.name).toBe('Wallet');
+		expect(account?.archived).toBe(0);
+
+		await client.transactions.create({
+			kind: 'expense',
+			date: '2026-01-15',
+			amount: 50000,
+			account_id: id
+		});
+		expect(await client.accounts.getBalance(id)).toBe(-50000);
+		expect(await client.accounts.getBalanceAsOf(id, '2025-12-31')).toBe(0);
+		expect(await client.accounts.getBalanceAsOf(id, '2026-01-31')).toBe(-50000);
+
+		await client.accounts.update(id, { name: 'Pocket' });
+		expect((await client.accounts.get(id))?.name).toBe('Pocket');
+
+		// Soft delete hides the account; restore brings it back.
+		await client.accounts.delete(id);
+		expect(await client.accounts.get(id)).toBeNull();
+
+		await client.accounts.restore(id);
+		expect(await client.accounts.get(id)).not.toBeNull();
+	});
+
 	it('can create and list categories through domain port', async () => {
 		const bucketId = await client.categories.createBucket('Food');
 		expect(bucketId).toBeTruthy();

@@ -1,6 +1,8 @@
 import { getDb } from '$lib/db';
 import { mapError } from '$lib/utils/errors';
 import type { GoalWithProgress, NewGoal, GoalStatus } from '$lib/db/client';
+import { toast } from '$lib/stores/toast.svelte';
+import * as m from '$lib/paraglide/messages';
 
 class GoalsStore {
 	items = $state<GoalWithProgress[]>([]);
@@ -40,8 +42,23 @@ class GoalsStore {
 
 	async delete(id: string): Promise<void> {
 		const db = getDb();
+		// Capture for undo
+		const g = await db.goals.get(id);
 		await db.goals.delete(id);
 		await this.load();
+
+		if (g) {
+			toast.show(m.goals_deleted_toast(), {
+				action: m.common_undo(),
+				duration: 5000,
+				onaction: async () => {
+					const db2 = getDb();
+					await db2.goals.restore(id);
+					await this.load();
+					toast.show(m.goals_restored_toast());
+				}
+			});
+		}
 	}
 }
 

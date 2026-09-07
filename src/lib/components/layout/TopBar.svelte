@@ -4,6 +4,8 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import * as m from '$lib/paraglide/messages';
 
+	let { onOpenShortcuts }: { onOpenShortcuts: () => void } = $props();
+
 	let search = $state('');
 
 	// Locale reactivity comes from the layout shell being {#key}ed on
@@ -28,6 +30,11 @@
 			class="w-full pl-8 pr-3 py-1.5 text-sm rounded-md border border-line bg-ink text-ledger placeholder:text-dim"
 		/>
 	</label>
+	<button
+		onclick={onOpenShortcuts}
+		aria-label={m.layout_help_shortcuts()}
+		class="plate px-2 py-2 rounded border border-line text-dim hover:text-ledger"
+	>?</button>
 	<button
 		onclick={() => settings.setLocale(settings.locale === 'en' ? 'vi' : 'en')}
 		aria-label={settings.locale === 'en' ? m.layout_lang_toggle_en() : m.layout_lang_toggle_vi()}

@@ -1,4 +1,6 @@
 import { test, expect } from './fixtures/onboarded';
+import { addTransaction } from './helpers/ui';
+import type { Page } from '@playwright/test';
 
 // Motion-regression smoke: popovers must scale from their anchor (not center),
 // and the More sheet's Svelte transition must not break open/close. Runs in a
@@ -71,5 +73,57 @@ test.describe('Popover origins', () => {
 			return getComputedStyle(el).transformOrigin === `${box.offsetWidth}px 0px`;
 		});
 		expect(fromTopRight).toBe(true);
+	});
+});
+
+test.describe('prefers-reduced-motion', () => {
+	// Regression lock: app.css's @media (prefers-reduced-motion: reduce) block
+	// already kills the toast's animate-slide-up/animate-flash animations, so
+	// green is the expected outcome — the gap was that nothing asserted it.
+	// The positive control (default motion → animationName set) keeps the
+	// assertions from passing vacuously on a locator that never matches.
+
+	// Same delete flow as transactions.spec.ts: kebab menu → Delete → confirm.
+	async function deleteTransactionRow(page: Page, amount: string): Promise<void> {
+		await page.getByRole('link', { name: 'Transactions', exact: true }).click();
+		const txRow = page.getByRole('main').locator('.group', { hasText: amount });
+		await txRow.getByRole('button').last().click();
+		await page.getByRole('menuitem', { name: 'Delete' }).click();
+		await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
+	}
+
+	test('toast animations are disabled under prefers-reduced-motion', async ({ onboardedPage: page }) => {
+		// Default settings theme is light, where the flash flicker is already
+		// disabled by design (html.light .animate-flash — phosphor glow doesn't
+		// read on paper). Force dark (same classList pattern as
+		// light-contrast.spec.ts) so the flash positive control is meaningful.
+		await page.evaluate(() => {
+			document.documentElement.classList.remove('light');
+			document.documentElement.classList.add('dark');
+		});
+		await addTransaction(page, { kind: 'expense', amount: '50k' });
+		await addTransaction(page, { kind: 'expense', amount: '20k' });
+
+		// Positive control (default motion): the delete undo toast animates.
+		await deleteTransactionRow(page, '−₫50,000');
+		const toast = page.locator('.animate-slide-up');
+		await expect(toast).toBeVisible();
+		const flash = toast.locator('.animate-flash');
+		expect(await toast.evaluate((el) => getComputedStyle(el).animationName)).not.toBe('none');
+		expect(await flash.evaluate((el) => getComputedStyle(el).animationName)).not.toBe('none');
+
+		// Reduced motion applies live — a second delete fires a fresh toast,
+		// and neither the toast box nor its message span may animate.
+		await page.emulateMedia({ reducedMotion: 'reduce' });
+		await deleteTransactionRow(page, '−₫20,000');
+		const toastReduced = page.locator('.animate-slide-up');
+		await expect(toastReduced).toBeVisible();
+		const flashReduced = toastReduced.locator('.animate-flash');
+		await expect
+			.poll(async () => toastReduced.evaluate((el) => getComputedStyle(el).animationName))
+			.toBe('none');
+		await expect
+			.poll(async () => flashReduced.evaluate((el) => getComputedStyle(el).animationName))
+			.toBe('none');
 	});
 });

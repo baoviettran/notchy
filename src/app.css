@@ -138,6 +138,14 @@
 		letter-spacing: -0.01em;
 	}
 
+	/* Compact figures expand visibly — title is a mouse-only affordance and
+	   must never be the only path to the exact value. */
+	.figures-expand {
+		text-decoration: underline dotted;
+		text-underline-offset: 3px;
+		cursor: pointer;
+	}
+
 	/* Glow renders dark-only: a bloom on paper reads muddy and loses legibility.
 	   Resting state is dialed back so the digits themselves stay legible —
 	   the flash keyframe carries the bright keypress moment. */

@@ -147,6 +147,10 @@
 	async function doDelete() {
 		if (!pendingDeleteTx) return;
 		const id = pendingDeleteTx.id;
+		// Reset the dialog trigger too — with the one-way open prop, leaving
+		// it true means the next delete click sets true-over-true and the
+		// dialog never re-propagates.
+		showDeleteConfirm = false;
 		pendingDeleteTx = null;
 		await transactions.delete(id);
 		selected = selected.filter((sid) => sid !== id);
@@ -426,4 +430,5 @@
 	confirmLabel={m.common_delete()}
 	danger={true}
 	onconfirm={doDelete}
+	onclose={() => { showDeleteConfirm = false; pendingDeleteTx = null; }}
 />

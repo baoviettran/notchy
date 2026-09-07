@@ -108,6 +108,11 @@
 	}
 
 	async function importDb() {
+		// Clear the trigger up front — this function also runs when the
+		// picker is cancelled (early return below), and a stale confirmImport
+		// leaves the one-way open expression stuck at true: the Import button
+		// would be dead until reload.
+		confirmImport = false;
 		try {
 			const path = await open({
 				filters: [{ name: 'SQLite Database', extensions: ['sqlite', 'db'] }]
@@ -220,4 +225,5 @@
 	confirmLabel={m.settings_backup_confirm_label()}
 	danger={true}
 	onconfirm={importDb}
+	onclose={() => (confirmImport = false)}
 />
