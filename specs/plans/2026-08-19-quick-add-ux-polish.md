@@ -37,13 +37,15 @@
 
 ### Task 1: E2E coverage for the live parsed preview
 
+> **Deviation (executed 2026-09-08):** the plan's `.payee.empty` selector was wrong at source — `class:empty` keys on `!value && !preview` in `src/routes/quick-add/+page.svelte:211`. The test locates `.payee` with the `/payee/i` assertion instead.
+
 **Files:**
 - Test: `src/tests/e2e/tray-quick-capture.spec.ts`
 
 **Interfaces:**
 - Consumes: `.preview-kind` / `.preview-amount` / `.preview-payee` spans in `+page.svelte:212-221`; `formatCurrency(50000,'VND','en')` → `"₫50,000"`.
 
-- [ ] **Step 1: Write the failing E2E test**
+- [x] **Step 1: Write the failing E2E test**
 
 Append inside the `test.describe('quick-add route', ...)` block in `src/tests/e2e/tray-quick-capture.spec.ts`:
 
@@ -70,12 +72,12 @@ test('shows a parsed readback of the entry while typing', async ({ onboardedPage
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm exec playwright test src/tests/e2e/tray-quick-capture.spec.ts`
 Expected: likely PASS (behavior already shipped by `bbba835`) — this is a **coverage-first** test, not a strict red. If any assertion is red, fix the selector or investigate the regression before proceeding; do not proceed with a failing suite.
 
-- [ ] **Step 3: Run the full suite and commit**
+- [x] **Step 3: Run the full suite and commit**
 
 ```bash
 pnpm exec playwright test src/tests/e2e/tray-quick-capture.spec.ts && pnpm test
@@ -92,6 +94,8 @@ git commit -m "test: pin the quick-add parsed readback in E2E"
 
 ### Task 2: Skip the save pause under reduced motion
 
+> **Deviation (executed 2026-09-08):** the plan's test path `src/tests/unit/motion.test.ts` collided with an existing `$lib/transitions/motion` test; the new tests live in `src/tests/unit/utils-motion.test.ts`.
+
 **Files:**
 - Create: `src/lib/utils/motion.ts` — pure `savePauseMs` helper
 - Modify: `src/routes/quick-add/+page.svelte` — consult `matchMedia` at save time
@@ -100,7 +104,7 @@ git commit -m "test: pin the quick-add parsed readback in E2E"
 **Interfaces:**
 - Produces: `savePauseMs(prefersReducedMotion: boolean): number` — `400` normally (the flash beat), `0` under reduced motion (CSS already suppresses the flash; the delay is pure latency for a motion-sensitive user).
 
-- [ ] **Step 1: Write the failing unit test**
+- [x] **Step 1: Write the failing unit test**
 
 Create `src/tests/unit/motion.test.ts`:
 
@@ -119,12 +123,12 @@ describe('savePauseMs', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm exec vitest run src/tests/unit/motion.test.ts`
 Expected: FAIL — no such module.
 
-- [ ] **Step 3: Implement the helper**
+- [x] **Step 3: Implement the helper**
 
 Create `src/lib/utils/motion.ts`:
 
@@ -139,7 +143,7 @@ export function savePauseMs(prefersReducedMotion: boolean): number {
 }
 ```
 
-- [ ] **Step 4: Wire it into the save path**
+- [x] **Step 4: Wire it into the save path**
 
 In `src/routes/quick-add/+page.svelte`, replace the fixed delay (lines 162–164):
 
@@ -160,7 +164,7 @@ justSaved = false;
 
 and add the import next to the other `$lib/utils` imports.
 
-- [ ] **Step 5: Run the suites to verify they pass**
+- [x] **Step 5: Run the suites to verify they pass**
 
 Run: `pnpm exec playwright test src/tests/e2e/tray-quick-capture.spec.ts`
 Expected: PASS — the two pre-existing save tests confirm the pause change doesn't break saving or list surfacing.
@@ -168,16 +172,16 @@ Expected: PASS — the two pre-existing save tests confirm the pause change does
 Run: `pnpm test`
 Expected: PASS.
 
-- [ ] **Step 6: Verify visually in the desktop app**
+- [x] **Step 6: Verify visually in the desktop app**
 
 Run: `pnpm tauri dev`
 1. Trigger the global shortcut (`CmdOrCtrl+Shift+N`) to open quick-add, type `50k coffee`, press Enter.
 2. Confirm the amount line flashes bright phosphor for a beat before the window closes.
 3. Enable System Settings → Accessibility → Motion → Reduce motion and confirm the save is instant (no flash, no delay).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
-git add src/lib/utils/motion.ts src/tests/unit/motion.test.ts src/routes/quick-add/+page.svelte
+git add src/lib/utils/motion.ts src/tests/unit/utils-motion.test.ts src/routes/quick-add/+page.svelte
 git commit -m "fix: skip the quick-add save pause under reduced motion"
 ```

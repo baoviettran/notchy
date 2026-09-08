@@ -77,4 +77,27 @@ test.describe('quick-add route', () => {
 		// Income has no '-' prefix (transactions/+page.svelte:102).
 		await expect(main.getByText('₫50,000')).toBeVisible();
 	});
+
+	test('shows a parsed readback of the entry while typing', async ({ onboardedPage: page }) => {
+		await gotoClientSide(page, '/quick-add');
+
+		const input = page.locator('#qa-input');
+		await expect(input).toBeEnabled();
+
+		await input.fill('50k coffee');
+		await expect(page.locator('.preview-kind')).toHaveText('−');
+		await expect(page.locator('.preview-amount')).toHaveText('₫50,000');
+		await expect(page.locator('.preview-payee')).toHaveText('coffee');
+
+		await input.fill('+20m salary');
+		await expect(page.locator('.preview-kind')).toHaveText('+');
+		await expect(page.locator('.preview-amount')).toHaveText('₫20,000,000');
+		await expect(page.locator('.preview-payee')).toHaveText('salary');
+
+		// Unparseable input falls back to the hint instead of echoing raw text.
+		// (bbba835 keys .payee.empty on !value && !preview, so the hint renders
+		// without .empty while the input still holds text.)
+		await input.fill('abc');
+		await expect(page.locator('.payee')).toHaveText(/payee/i);
+	});
 });

@@ -9,6 +9,7 @@
 	import { formatCurrency, formatCurrencyCompact } from '$lib/utils/currency';
 	import { AppError } from '$lib/errors';
 	import { mapError } from '$lib/utils/errors';
+	import { savePauseMs } from '$lib/utils/motion';
 
 	let value = $state('');
 	let error = $state<string | null>(null);
@@ -160,7 +161,8 @@
 			// The machine registers the keypress: one phosphor flicker before the
 			// window hides, so a save never vanishes unacknowledged.
 			justSaved = true;
-			await new Promise((r) => setTimeout(r, 400));
+			const pause = savePauseMs(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+			if (pause > 0) await new Promise((r) => setTimeout(r, pause));
 			justSaved = false;
 			await hideWindow();
 		} finally {
