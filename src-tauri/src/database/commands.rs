@@ -266,6 +266,22 @@ pub async fn transaction_frequent(
         .await
 }
 
+#[tauri::command]
+pub async fn transaction_delete_many(
+    manager: State<'_, Arc<DatabaseManager>>,
+    ids: Vec<String>,
+) -> Result<(), DbError> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+    let op_id = OperationId::generate();
+    manager
+        .data_job(move |state| {
+            domains::transactions::delete_transactions(state.connection_mut()?, op_id, ids)
+        })
+        .await
+}
+
 // ===========================================================================
 // Category commands
 // ===========================================================================

@@ -119,3 +119,60 @@ fn frequent_ignores_soft_deleted_transactions() {
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].count, 1);
 }
+
+#[test]
+fn delete_many_soft_deletes_exactly_the_selected_ids() {
+    let mut conn = fresh_db("delete-many");
+    let account = account(&mut conn, "A");
+
+    let keep = transactions::create_transaction(
+        &mut conn,
+        op(),
+        expense(&account, "Keep", 1_000, "2026-02-01"),
+    )
+    .unwrap();
+    let a = transactions::create_transaction(
+        &mut conn,
+        op(),
+        expense(&account, "A", 1_000, "2026-02-02"),
+    )
+    .unwrap();
+    let b = transactions::create_transaction(
+        &mut conn,
+        op(),
+        expense(&account, "B", 1_000, "2026-02-03"),
+    )
+    .unwrap();
+
+    transactions::delete_transactions(&mut conn, op(), vec![a.clone(), b.clone()]).unwrap();
+
+    assert!(transactions::get_transaction(&conn, &a).unwrap().is_none());
+    assert!(transactions::get_transaction(&conn, &b).unwrap().is_none());
+    assert!(transactions::get_transaction(&conn, &keep).unwrap().is_some());
+}
+
+#[test]
+fn delete_many_leaves_already_deleted_rows_alone() {
+    let mut conn = fresh_db("delete-many-idempotent");
+    let account = account(&mut conn, "A");
+
+    let id = transactions::create_transaction(
+        &mut conn,
+        op(),
+        expense(&account, "A", 1_000, "2026-02-02"),
+    )
+    .unwrap();
+    transactions::delete_transactions(&mut conn, op(), vec![id.clone()]).unwrap();
+    let first = transactions::get_transaction(&conn, &id).unwrap();
+    assert!(first.is_none());
+
+    // A second call must not error on the row it already soft-deleted.
+    transactions::delete_transactions(&mut conn, op(), vec![id.clone()]).unwrap();
+    assert!(transactions::get_transaction(&conn, &id).unwrap().is_none());
+}
+
+#[test]
+fn delete_many_with_no_ids_is_a_no_op() {
+    let mut conn = fresh_db("delete-many-empty");
+    transactions::delete_transactions(&mut conn, op(), Vec::new()).unwrap();
+}

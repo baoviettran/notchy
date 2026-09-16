@@ -73,6 +73,7 @@ pub fn run() {
             transaction_restore,
             transaction_duplicate,
             transaction_frequent,
+            transaction_delete_many,
             // Category commands
             category_list_buckets,
             category_create_bucket,

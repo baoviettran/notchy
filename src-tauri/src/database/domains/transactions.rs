@@ -726,3 +726,35 @@ pub fn get_frequent(conn: &Connection, since_date: &str) -> DbResult<Vec<Frequen
 
     Ok(rows)
 }
+
+/// Soft-delete many transactions in one operation.
+///
+/// Mirrors `browser/repos/transactions.ts:271-282`: an empty id list is a
+/// no-op, and rows already soft-deleted are left alone rather than erroring.
+pub fn delete_transactions(
+    conn: &mut Connection,
+    op_id: OperationId,
+    ids: Vec<String>,
+) -> DbResult<()> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct Void {}
+
+    let request = ids.clone();
+    run_idempotent(conn, op_id, "delete_transactions", &request, |tx| {
+        let now = now_iso_utc();
+        for id in &ids {
+            tx.execute(
+                "UPDATE transactions SET deleted_at = ?1, updated_at = ?1 \
+                 WHERE id = ?2 AND deleted_at IS NULL",
+                params![now, id],
+            )
+            .map_err(map_sqlite_error)?;
+        }
+        Ok(Void {})
+    })
+    .map(|_| ())
+}
