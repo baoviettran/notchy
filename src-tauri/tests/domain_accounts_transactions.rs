@@ -868,3 +868,29 @@ fn deleting_an_account_with_linked_goals_names_them() {
         Some("Emergency fund")
     );
 }
+
+#[test]
+fn control_characters_are_stripped_according_to_the_shared_corpus() {
+    let corpus_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/control-chars.json");
+    let corpus: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&corpus_path).unwrap()).unwrap();
+
+    let mut conn = fresh_db("i6-control-chars");
+    let account = accounts::create_account(&mut conn, op(), default_account("A")).unwrap();
+
+    for case in corpus["cases"].as_array().unwrap() {
+        let input = case["input"].as_str().unwrap();
+        let expected = case["expected"].as_str().unwrap();
+
+        let id = transactions::create_transaction(&mut conn, op(), default_expense(&account, 100))
+            .unwrap();
+
+        let mut patch = no_patch();
+        patch.description = Patch::Replace { value: input.to_string() };
+        transactions::update_transaction(&mut conn, op(), &id, patch).unwrap();
+
+        let row = transactions::get_transaction(&conn, &id).unwrap().unwrap();
+        assert_eq!(row.description.as_deref(), Some(expected), "input {input:?}");
+    }
+}

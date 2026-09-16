@@ -1,0 +1,11 @@
+{
+  "stripped": ["\u0000", "\u0007", "\u001F", "\u007F", "\u0085", "\u0092", "\u009F"],
+  "preserved": ["\n", "\r", "\t", "a", "\u00E9", "\u4E2D"],
+  "cases": [
+    { "input": "Coffee\u0007Shop", "expected": "CoffeeShop" },
+    { "input": "\u0085hidden\u0092", "expected": "hidden" },
+    { "input": "line\nbreak\ttab", "expected": "line\nbreak\ttab" },
+    { "input": "caf\u00E9 \u4E2D", "expected": "caf\u00E9 \u4E2D" },
+    { "input": "a\u001Fb\u007Fc\u009Fd", "expected": "abcd" }
+  ]
+}
