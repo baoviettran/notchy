@@ -3752,12 +3752,12 @@ At review time `pnpm check` is green (0 errors, 3 pre-existing `@apply` CSS
 warnings in `quick-add/+page.svelte`), so any error it reports after Stage 0
 starts is new.
 
-- [ ] `cargo test --manifest-path src-tauri/Cargo.toml` — PASS
-- [ ] `pnpm test` — PASS
-- [ ] `pnpm check` — PASS
-- [ ] `pnpm check:db-contracts` — PASS
-- [ ] `pnpm vitest run src/tests/unit/native-boundary.test.ts` — PASS, and it fails again if any single command is removed from `generate_handler!` (verified in Task 2's red state)
-- [ ] `pnpm test:e2e` — PASS
+- [x] `cargo test --manifest-path src-tauri/Cargo.toml` — PASS
+- [x] `pnpm test` — PASS
+- [x] `pnpm check` — PASS
+- [x] `pnpm check:db-contracts` — PASS
+- [x] `pnpm vitest run src/tests/unit/native-boundary.test.ts` — PASS, and it fails again if any single command is removed from `generate_handler!` (verified in Task 2's red state)
+- [x] `pnpm test:e2e` — PASS
 - [ ] Manual: `pnpm tauri dev`, open the dashboard, confirm the "Frequent transactions" strip renders
 - [ ] Manual: bulk delete, bulk retag, and bulk move on the transactions page each take effect and survive a reload
 - [ ] Manual: attempt to delete an account linked to a goal — the message names the goal, in the active locale
@@ -3768,6 +3768,24 @@ native path actually runs, because `pnpm test:e2e` exercises the `sql.js`
 browser fallback behind `isTauri()`, not Rust. That is also why C1's four
 commands would have passed E2E while being absent on desktop — the mock answers
 for them. Do not read a green `pnpm test:e2e` as coverage of Stage 0 or Stage 1.
+
+**Addendum at close-out — the list above is incomplete, and the gap was real.**
+This list names the gates *this plan* built; it was never checked against the
+gates *CI* runs. Auditing the two against each other at the end of the phase
+found three CI steps no one had ever executed on this branch:
+
+- `cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings` (`.github/workflows/ci.yml:90`) — **was RED on this branch.** `constraint_code` in `src-tauri/src/database/error.rs` carried three redundant `as i32` casts, and the function is new here (`main` has no `constraint_code`). Fixed in `13f3675`, now exit 0.
+- `pnpm build` (`.github/workflows/ci.yml:69`) — PASS, unverified until close-out.
+- The coverage gate on touched files (`.github/workflows/ci.yml:46-64`) — PASS, unverified until close-out.
+
+Two more close-out results worth recording, both outside this list: the two
+Stage 0 gates were found to bind *hand-maintained* tables rather than the client
+surface they were meant to police, and `pnpm check:db-contracts` — the only thing
+that catches a Rust error code added without regenerating — was wired into no CI
+job at all. Both are fixed in `000fa96`. **The lesson for the next plan: a
+verification list that is written from the plan's own intent will miss every gate
+the plan did not think of. Diff it against `.github/workflows/` before declaring
+the phase done.**
 
 ---
 
