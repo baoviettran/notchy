@@ -137,7 +137,7 @@ const { invokeMock, calls } = vi.hoisted(() => {
 		// Lifecycle
 		database_retry: null,
 
-		// Tasks 9-11 land these; until then the gate is red on them by design.
+		// Ported to Rust by Tasks 9-11 (C1).
 		transaction_delete_many: null,
 		transaction_set_tag_many: null,
 		transaction_set_account_many: null,
