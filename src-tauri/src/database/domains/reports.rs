@@ -57,6 +57,19 @@ fn kind_filter(include_adjustments: bool) -> &'static str {
     }
 }
 
+/// Build the spending-only kind clause.
+///
+/// Deliberately not `kind_filter`: a spending series counts expenses and
+/// refunds, never income. The two lists look similar and are not the same
+/// concept, which is exactly why this needs a name of its own.
+fn spending_kind_filter(include_adjustments: bool) -> &'static str {
+    if include_adjustments {
+        "t.kind IN ('expense', 'refund', 'adjustment')"
+    } else {
+        "t.kind IN ('expense', 'refund')"
+    }
+}
+
 /// Compute income/expense from a set of kind+total rows.
 fn aggregate_kind_totals(rows: &[(String, i64)], include_adjustments: bool) -> (i64, i64) {
     let mut income: i64 = 0;
@@ -369,11 +382,7 @@ pub fn get_category_trend(
     tag_id: &str,
     include_adjustments: bool,
 ) -> DbResult<Vec<CategoryTrendPoint>> {
-    let kind = if include_adjustments {
-        "t.kind IN ('expense', 'refund', 'adjustment')"
-    } else {
-        "t.kind IN ('expense', 'refund')"
-    };
+    let kind = spending_kind_filter(include_adjustments);
 
     let mut points = Vec::with_capacity(months as usize);
 
@@ -447,11 +456,7 @@ pub fn get_stacked_category_series(
     months: u32,
     include_adjustments: bool,
 ) -> DbResult<Vec<StackedCategoryPoint>> {
-    let kind = if include_adjustments {
-        "t.kind IN ('expense', 'refund', 'adjustment')"
-    } else {
-        "t.kind IN ('expense', 'refund')"
-    };
+    let kind = spending_kind_filter(include_adjustments);
 
     let mut points = Vec::with_capacity(months as usize);
 
@@ -666,4 +671,30 @@ pub fn get_net_worth_series(
 
     points.reverse();
     Ok(points)
+}
+
+#[cfg(test)]
+mod kind_filter_tests {
+    use super::{kind_filter, spending_kind_filter};
+
+    /// The two filters are different concepts. Collapsing them into one would
+    /// silently make "spending" include income, and every spending series in
+    /// the app would inflate with no failing test anywhere else.
+    #[test]
+    fn a_spending_filter_never_counts_income() {
+        assert!(spending_kind_filter(false).contains("'expense'"));
+        assert!(spending_kind_filter(false).contains("'refund'"));
+        assert!(!spending_kind_filter(false).contains("'income'"));
+        assert!(!spending_kind_filter(false).contains("'adjustment'"));
+
+        assert!(spending_kind_filter(true).contains("'adjustment'"));
+        assert!(!spending_kind_filter(true).contains("'income'"));
+    }
+
+    #[test]
+    fn the_cash_flow_filter_includes_income() {
+        assert!(kind_filter(false).contains("'income'"));
+        assert!(kind_filter(true).contains("'income'"));
+        assert!(kind_filter(true).contains("'adjustment'"));
+    }
 }
