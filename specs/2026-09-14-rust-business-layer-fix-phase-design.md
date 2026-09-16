@@ -55,7 +55,7 @@ SQLite applies duplicate SET columns last-wins, so the row ends with `transfer_a
 
 `map_sqlite_error` (`error.rs:150-171`) maps the unmapped `SqliteFailure` to `ErrorCode::DatabaseCorrupt`, which `mapError` renders as the generic unknown-error string (§3).
 
-**C3 — `debt_write_off` without a tag crashes on desktop.** `[V]`
+**C3 — `debt_write_off` without a tag fails on desktop.** `[V]`
 `native/client.ts:397-398` sends `tagId: tagId ?? ''`; `domains/debts.rs:112-175` takes `tag_id: &str` and inserts it unconditionally. Verified: `tag_id=''` → `FOREIGN KEY constraint failed`; `tag_id='tag_loss'` → accepted. The TypeScript reference defaults to `'tag_loss'` (`browser/repos/debts.ts:57`). Writing off a loan without choosing a tag fails on desktop and succeeds on web.
 
 ### Important
@@ -63,8 +63,12 @@ SQLite applies duplicate SET columns last-wins, so the row ends with `transfer_a
 **I1 — `report_get_trend` accepts and silently discards `bucket_id`.** `[V]`
 `commands.rs:807-811` declares `_bucket_id: Option<String>` and never forwards it; `domains/reports.rs:192-196` has no such parameter. `native/client.ts:431` sends it, and the TypeScript reference implements the filter (`browser/repos/reports.ts:100-103`). A filter that works on web does nothing on desktop.
 
+Currently **unreachable from the UI**, which is why it survived: the only production caller, `src/lib/stores/reports.svelte.ts:43`, invokes `getTrend(this.window, this.includeAdjustments)` and never passes a `bucketId`. The bug is real but its user-visible impact today is nil — the filter is exercised only by tests that reach the port directly. Worth fixing for the same reason: a desktop/web divergence that nothing currently notices is the kind that ships.
+
 **I2 — `restore_account` / `restore_goal` place their guard outside the receipt boundary.** `[V]`
-`domains/accounts.rs:389-403` runs the `deleted_at IS NOT NULL` pre-check *before* `run_idempotent` at `:407`; `domains/goals.rs:437-449` is identical. A retry cannot return the cached result because the guard rejects first. Both UPDATEs also omit `AND deleted_at IS NOT NULL`, which the TypeScript reference has (`browser/repos/accounts.ts:229`).
+`domains/accounts.rs:394-406` runs the `deleted_at IS NOT NULL` pre-check *before* `run_idempotent` at `:411`; `domains/goals.rs:437-449` is identical. A retry cannot return the cached result because the guard rejects first.
+
+The two `UPDATE`s are **not** identical, and an earlier draft of this section said they were. `restore_account`'s `UPDATE` (`accounts.rs:413-416`) omits `AND deleted_at IS NOT NULL`, so a lost race silently rewrites `updated_at` on a row another writer already restored. `restore_goal`'s already carries the predicate (`goals.rs:457`) and needs no change. The TypeScript reference has it in both (`browser/repos/accounts.ts:229`).
 
 **I3 — `delete_account` discards the blocking-goals detail.** `[V]`
 `domains/accounts.rs:353-385` returns a bare `InvalidInput` and throws away the goal names it selected. The TypeScript reference throws `AppError('account_delete_linked_goals', { count, names })`, and `mapError` (`src/lib/utils/errors.ts:38-44`) already implements that code **including one/other plural variants**. The rendering side is complete and dead on desktop.
@@ -94,9 +98,9 @@ These land first. They fail immediately and enumerate the work; every later stag
 
 The inverse direction is checked against **all `invoke()` sites in `src/**`**, not against the table — the table only covers commands the db client exposes, and several registered commands (e.g. `quit_app`, `database_restore`) are invoked elsewhere or from Rust. The verified invariant is: every registered command is invoked somewhere, and every invoked command is registered. Both currently hold except for the 4 missing commands.
 
-**Gate 1 MUST also cover arguments, not just names.** Checking names alone leaves the same one-sidedness one level down. The table's `argKeys` is asserted only against the client's own `invoke` call — both sides TypeScript — while Tauri maps camelCase to snake_case across the boundary and nothing binds the two. `native-boundary.test.ts:297` asserts `['accountId', 'date']`; `commands.rs:116-121` declares `account_id, date`. Rename that Rust parameter to `acct_id`, or write one of the four new C1 commands with `tag_ids` where the client sends `tagId`, and every test still passes while the command fails at runtime exactly as the four missing commands do today.
+**Gate 1 MUST also cover arguments, not just names.** Checking names alone leaves the same one-sidedness one level down. The table's `argKeys` was asserted only against the client's own `invoke` call — both sides TypeScript — while Tauri maps camelCase to snake_case across the boundary and nothing binds the two. `native-boundary.test.ts:297` asserts `['accountId', 'date']`; `commands.rs:116-121` declares `account_id, date`. Rename that Rust parameter to `acct_id`, or write one of the four new C1 commands with `tag_ids` where the client sends `tagId`, and every test still passes while the command fails at runtime exactly as the four missing commands do today.
 
-So the same `lib.rs` parse must also extract each command's non-`State` parameters and assert that their camelCase projection equals the table's `argKeys`. If that proves impractical, it may be scoped out — but only by naming the residual risk here, never by leaving it unstated, since an unstated gap reads as coverage.
+So the same `lib.rs` parse also extracts each command's non-`State` parameters, and the boundary test asserts the camelCase projection of the **Rust** names. The fix that landed is stronger than what this paragraph originally asked for: the table's hand-written `argKeys` arrays are **deleted outright** (plan Task 2 Step 3), so there is no second copy left to diverge. An earlier draft hedged with "if that proves impractical, it may be scoped out" — it did not prove impractical, and the hedge is gone rather than left standing as an unstated gap.
 
 The parser **MUST fail closed**. An unreadable file, an unfindable `generate_handler![...]` block, unbalanced brackets, or an empty extracted set must throw — never degrade to an empty set that passes.
 
@@ -123,7 +127,7 @@ Supporting piece: `toAppError()` in `native/client.ts` converts the `{code, meta
 | C1 | Port 4 commands. `transaction_frequent` is a **read** — no `run_idempotent`, same shape as `transaction_list` — and must reproduce the reference SQL verbatim (§4). The three bulk ops keep the reference loop shape (early return on empty `ids`, then one guarded `UPDATE` per id inside a single transaction), and add no validation beyond the foreign key. |
 | C2 | Set `dest_handled = true` in the kind-change branch so the destination is never appended twice. In `map_sqlite_error`, map `SQLITE_CONSTRAINT_CHECK` / `FOREIGNKEY` / `NOTNULL` to `ErrorCode::InvalidInput`. |
 | C3 | `debt_write_off` takes `tag_id: Option<String>`, defaulting to `'tag_loss'`, matching `browser/repos/debts.ts:57`. `native/client.ts:398` sends `null`, not `''`. |
-| I2 | Move the `deleted_at IS NOT NULL` guard inside the `run_idempotent` closure in both `restore_account` and `restore_goal`; add the predicate to both `UPDATE`s. |
+| I2 | Move the `deleted_at IS NOT NULL` guard inside the `run_idempotent` closure in both `restore_account` and `restore_goal`; add the missing predicate to `restore_account`'s `UPDATE` only — `restore_goal`'s already has it. |
 | I4 | Malformed month returns `InvalidInput`. No signature change. |
 | I5 | `validate_money` enforces the schema's actual cap (`999_999_999_999`), so the window that currently reaches SQLite and returns `DatabaseCorrupt` is rejected up front as `AmountOutOfRange`. **The bound is a named constant in Rust with a comment naming the migration that encodes it — the migration literal is not changed.** Applied migrations are immutable; interpolating a shared symbol into one would retroactively alter a schema already deployed. Anti-drift is a test that parses the CHECK out of the migration text and asserts it equals the constant, not a shared symbol. |
 
@@ -168,7 +172,7 @@ It gets its own spec, built alongside the retry path that justifies it. Until th
 ## 6. Verification
 
 - **Gate 1** fails on entry, enumerating the 4 missing commands; passes only when all 4 exist. Its **parser self-test** — including the comment-header fixture and the malformed-input case that must throw — is part of the acceptance criteria, not just the design: it is the one test standing between this phase and a fourth instance of the scan failures recorded in §8.
-- **Gate 1's argument check** fails when a Rust parameter name diverges from the table's `argKeys` (verified by temporarily renaming one).
+- **Gate 1's argument check** fails when a Rust parameter name diverges from what the client sends. The expected keys come from the Rust parse, not from the table, so the divergence is proved by temporarily renaming a parameter in `commands.rs` — there is no `argKeys` array left to edit.
 - **Gate 2** is a compile-time property; `pnpm check:db-contracts` must pass **and** the same command must fail the build when a Rust error code is added without regenerating — otherwise the guarantee is unverified.
 - **Gate 2's dispatch** routes a browser-originated `database_corrupt` and a Rust-originated `database_corrupt` to their respective tables, proven by a test that constructs both.
 - **Fixtures exist for the four new commands.** Removing `FIXTURES[command] ?? null` means a table command with no fixture now fails rather than degrading to `null`, so the four new entries must be added alongside the ports.
@@ -176,7 +180,7 @@ It gets its own spec, built alongside the retry path that justifies it. Until th
 - **C2/C3/I5 regressions** — tests asserting each now yields `InvalidInput`, not `DatabaseCorrupt`. The C2 case is the UPDATE that currently violates the CHECK.
 - **I6** — one shared fixture read by both the Rust and TypeScript tests.
 - **C1** — `transaction_frequent` returns rows for seeded data; the three bulk ops mutate exactly the selected ids and respect `deleted_at IS NULL`; empty `ids` is a no-op.
-- `cargo test` (26 passing at review time) and `pnpm test` green at every stage boundary.
+- `cargo test` (165 `#[test]` functions across the crate at review time) and `pnpm test` green at every stage boundary.
 
 ## 7. Spec-text correction applied
 
@@ -184,13 +188,15 @@ It gets its own spec, built alongside the retry path that justifies it. Until th
 
 ## 8. Corrections to the review that produced this phase
 
-Recorded because two of them changed the plan, and all three share one cause.
+Recorded because three of them changed the plan, and all five share one cause.
 
 1. **`getFrequent` was reported as dead code, to be deleted. It is a live dashboard feature.** The conclusion came from a grep for lowercase `frequent` against camelCase symbols (`getFrequent`, `FrequentTransactions`). The scan returned an empty set and was read as a negative. Had it shipped, the phase would have deleted a documented product feature — and the review's own S3 recommendation was the deletion. It is now C1's fourth port target.
 2. **The first command-surface parse reported 15 missing commands instead of 4** — it split on commas before stripping comments. The wrong number was briefly treated as the finding.
 3. **A `sed` range clipped the `FROM transactions` line** of the reference SQL, briefly suggesting the browser query was malformed.
+4. **The duplication census was wrong in both directions.** This section's §2 S1 said "five files / eight places"; the plan written from it said the balance CASE appeared "three times" and the date block "twice". Neither is right. The balance CASE has five copies (accounts, debts, reconciliations, goals, and the net-worth loop) and the days-from-civil block has five more (four in `reports.rs`, one inline in `transactions.rs`). The plan also named `accounts::get_balance_as_of`, which does not exist — the real entry point is `accounts::get_balance`, a public function the commands have always called. The count was low, and a symbol was invented to make it read cleanly.
+5. **§2 I2 said both restore `UPDATE`s omit `AND deleted_at IS NOT NULL`. Only `restore_account`'s does.** `restore_goal`'s has carried the predicate all along (`goals.rs:457`). The finding survives — the guard genuinely sits outside `run_idempotent` in both functions — but the remedy as written would have added a predicate to a statement that already had it, and the plan's commit message asserted the false version.
 
-All three are a scan producing an empty or wrong set that was then read as a fact about the code. That is the same failure shape as `FIXTURES[command] ?? null`, which is why §3 specifies the parser must fail closed and must be fixture-tested rather than trusted. The review's remaining numeric claims (the 74/78 surface diff, the duplication counts, the bulk-op call sites) were re-derived case-exactly after this and confirmed.
+All five are a scan producing an empty or wrong set — or a plausible number nobody counted — that was then read as a fact about the code. That is the same failure shape as `FIXTURES[command] ?? null`, which is why §3 specifies the parser must fail closed and must be fixture-tested rather than trusted. The review's remaining numeric claims (the 74/78 surface diff, the bulk-op call sites) were re-derived case-exactly after this and confirmed. The duplication counts were **not** — they were re-derived during the plan review and corrected above, which is the point: item 4 is the same failure as items 1-3, caught one level later, in the plan rather than the spec.
 
 ## 9. Risks
 
