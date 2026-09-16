@@ -623,7 +623,7 @@ registered. Goes green at task 11."
   - `export const RUST_ERROR_MESSAGES: Record<ErrorCode, (params: ErrorParams) => string>`
   - `export function toAppError(error: unknown): unknown`
 
-- [ ] **Step 1: Add the origin marker**
+- [x] **Step 1: Add the origin marker**
 
 `src/lib/errors.ts` — append:
 
@@ -646,7 +646,7 @@ export class NativeAppError extends AppError {
 }
 ```
 
-- [ ] **Step 2: Write the message table**
+- [x] **Step 2: Write the message table**
 
 Add the two new keys to `messages/en.json` and `messages/vi.json`. They sit
 next to the existing `errors_*` keys:
@@ -709,7 +709,7 @@ export const RUST_ERROR_MESSAGES: Record<ErrorCode, (params: ErrorParams) => str
 };
 ```
 
-- [ ] **Step 3: Write the converter and branch the dispatch**
+- [x] **Step 3: Write the converter and branch the dispatch**
 
 Create `src/lib/native/to-app-error.ts`:
 
@@ -756,7 +756,7 @@ export function mapError(e: unknown): string {
 The rest of the function is unchanged: the browser switch keeps every case it
 has today, including its own `account_delete_linked_goals`.
 
-- [ ] **Step 4: Route every invoke through the converter**
+- [x] **Step 4: Route every invoke through the converter**
 
 `src/lib/db/native/client.ts` — rename the import and add a local wrapper with
 the original name, so all ~80 existing call sites are untouched:
@@ -779,7 +779,7 @@ async function invoke<T>(command: string, args?: Record<string, unknown>): Promi
 }
 ```
 
-- [ ] **Step 5: Write the parity test**
+- [x] **Step 5: Write the parity test**
 
 Create `src/tests/unit/rust-error-parity.test.ts`:
 
@@ -920,7 +920,7 @@ straightforward, keep the array in a hand-written
 `src/lib/native/error-codes.ts` instead and have the test import it — but do
 not leave a hand-edited generated file uncommitted-adjacent to a generator.
 
-- [ ] **Step 6: Run the tests**
+- [x] **Step 6: Run the tests**
 
 Run: `pnpm vitest run src/tests/unit/rust-error-parity.test.ts`
 Expected: PASS.
@@ -929,7 +929,7 @@ Run: `pnpm check`
 Expected: PASS. `RUST_ERROR_MESSAGES` is a `Record` over the union, so it must
 be complete.
 
-- [ ] **Step 7: Verify the compile-time property actually fires**
+- [x] **Step 7: Verify the compile-time property actually fires**
 
 Both halves of Gate 2 are conditional, so prove them rather than assuming:
 
@@ -951,7 +951,7 @@ union by hand, run `pnpm check`, confirm it fails on the missing `Record` key,
 then revert. If either half does not fire, the gate is not built and this task
 is not done.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add -A messages src/lib src/tests src-tauri/src/bin src-tauri/src/database/error.rs src/lib/native/contracts.generated.ts
@@ -994,7 +994,7 @@ ends with `transfer_account_id` populated and `transfer_pair_id` NULL — the
 exact combination the CHECK at `migrations.rs:296-321` forbids. Verified
 against the real DDL: `IntegrityError: CHECK constraint failed`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `src-tauri/tests/domain_accounts_transactions.rs`. The types import at
 lines 12-15 already carries every name this task needs
@@ -1076,7 +1076,7 @@ fn a_foreign_key_violation_reports_invalid_input_not_corruption() {
 }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_accounts_transactions`
 Expected:
@@ -1085,7 +1085,7 @@ Expected:
 
 If the FK test instead fails with "no rows"/a panic inside `create_account`, or passes, the pragma is not in effect — check that it is set on `conn` before the insert and that `accounts::create_account` did not reopen a connection.
 
-- [ ] **Step 3: Mark the destination as handled when leaving transfer**
+- [x] **Step 3: Mark the destination as handled when leaving transfer**
 
 `src-tauri/src/database/domains/transactions.rs`, in the `else if existing.kind == TransactionKind::Transfer` branch (around line 434):
 
@@ -1101,7 +1101,7 @@ If the FK test instead fails with "no rows"/a panic inside `create_account`, or 
             }
 ```
 
-- [ ] **Step 4: Map constraint violations to `InvalidInput`**
+- [x] **Step 4: Map constraint violations to `InvalidInput`**
 
 `src-tauri/src/database/error.rs`, replace `map_sqlite_error`:
 
@@ -1140,12 +1140,12 @@ pub(crate) fn map_sqlite_error(error: rusqlite::Error) -> DbError {
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml`
 Expected: PASS, the whole suite. If mapping constraint codes to `InvalidInput` broke an existing test that asserted `DatabaseCorrupt`, that test was encoding the bug — change it to `InvalidInput` and say so in the commit message.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src-tauri/src/database/domains/transactions.rs src-tauri/src/database/error.rs src-tauri/tests/domain_accounts_transactions.rs
@@ -1175,7 +1175,7 @@ FOREIGN KEY, and NOT NULL now report InvalidInput."
 **Interfaces:**
 - Produces: `debts::write_off(conn: &mut Connection, op_id: OperationId, account_id: &str, amount: i64, tag_id: Option<String>) -> DbResult<String>` — **the `tag_id` parameter changes from `&str` to `Option<String>`.**
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `src-tauri/tests/domain_reconciliation_debts.rs` (match that file's existing helper names — it already builds loan accounts):
 
@@ -1205,12 +1205,12 @@ fn write_off_without_a_tag_defaults_to_the_loss_tag() {
 }
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_reconciliation_debts`
 Expected: FAIL to compile — `write_off` takes `&str`, not `Option<String>`.
 
-- [ ] **Step 3: Take an optional tag and resolve the default**
+- [x] **Step 3: Take an optional tag and resolve the default**
 
 `src-tauri/src/database/domains/debts.rs` — change the signature and bind the
 resolved value **before** `run_idempotent`, so the request hash and the INSERT
@@ -1242,12 +1242,12 @@ The rest of the body below that point is unchanged; `&tag_id` in the
 `run_idempotent` request tuple and in `params![...]` now refer to the resolved
 `String` rather than the caller's `&str`.
 
-- [ ] **Step 4: Update the command wrapper**
+- [x] **Step 4: Update the command wrapper**
 
 `src-tauri/src/database/commands.rs` — `debt_write_off`'s `tag_id` parameter
 becomes `Option<String>`, passed straight through.
 
-- [ ] **Step 5: Update the client**
+- [x] **Step 5: Update the client**
 
 `src/lib/db/native/client.ts:398`:
 
@@ -1260,7 +1260,7 @@ becomes `Option<String>`, passed straight through.
 An explicit `null` means "not supplied"; `''` meant "tag named empty string"
 and was rejected by the foreign key.
 
-- [ ] **Step 6: Run the tests**
+- [x] **Step 6: Run the tests**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml`
 Expected: PASS.
@@ -1268,7 +1268,7 @@ Expected: PASS.
 Run: `pnpm vitest run src/tests/unit/native-boundary.test.ts`
 Expected: the `debts.writeOff` row still passes — it sends `tagId: 'tag1'`, which is unchanged.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src-tauri/src/database/domains/debts.rs src-tauri/src/database/commands.rs src/lib/db/native/client.ts src-tauri/tests/domain_reconciliation_debts.rs
@@ -1300,7 +1300,7 @@ retroactively alter a schema already in the field. So the bound is a named
 Rust constant and the anti-drift guarantee is a test that parses the bound out
 of the migration text.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `src-tauri/tests/domain_accounts_transactions.rs`:
 
@@ -1355,18 +1355,18 @@ fn the_money_bound_matches_the_migration_check() {
 }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_accounts_transactions --test migrations`
 Expected:
 - `amounts_above_the_schema_cap...` FAILS — the code is `DatabaseCorrupt` (or `InvalidInput` after Task 4), not `AmountOutOfRange`.
 - `the_money_bound_matches_the_migration_check` FAILS to compile — `MAX_AMOUNT` does not exist.
 
-- [ ] **Step 2b: Check the assertions match the migration's real DDL**
+- [x] **Step 2b: Check the assertions match the migration's real DDL**
 
 Run: `sqlite3 /tmp/probe.sqlite "SELECT sql FROM sqlite_master WHERE name='transactions'"` after bootstrapping, or simply read `src-tauri/src/database/migrations.rs:303`. If the DDL reads `amount <= 999999999999` the assertion above is right; if the migration renders it differently (a different spacing, or through a `format!`), match the real text exactly. Do not loosen the assertion to a substring that would also match a *different* number.
 
-- [ ] **Step 3: Narrow the bound**
+- [x] **Step 3: Narrow the bound**
 
 `src-tauri/src/database/error.rs`:
 
@@ -1392,12 +1392,12 @@ pub fn validate_money(value: i64) -> Result<i64, ErrorCode> {
 
 Delete the now-unused `JS_MAX_SAFE` constant.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml`
 Expected: PASS. A test that asserted a large amount succeeds must be updated — it was encoding the bug. Name it in the commit message.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src-tauri/src/database/error.rs src-tauri/tests/domain_accounts_transactions.rs src-tauri/tests/migrations.rs
