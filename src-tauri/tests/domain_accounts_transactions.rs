@@ -66,6 +66,19 @@ fn default_expense(account_id: &str, amount: i64) -> NewTransaction {
     }
 }
 
+/// An all-omitted patch, the base for the edit-mode repair cases below.
+fn no_patch() -> TransactionPatch {
+    TransactionPatch {
+        kind: None,
+        date: None,
+        amount: None,
+        transfer_account_id: None,
+        tag_id: Patch::Omitted,
+        payee: Patch::Omitted,
+        description: Patch::Omitted,
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Account tests
 // ---------------------------------------------------------------------------
@@ -504,6 +517,60 @@ fn update_transaction_kind_change() {
         },
     )
     .is_err());
+}
+
+#[test]
+fn changing_kind_away_from_transfer_clears_the_destination() {
+    let mut conn = fresh_db("c2-kind-change-away");
+    let source = accounts::create_account(&mut conn, op(), default_account("Source")).unwrap();
+    let dest = accounts::create_account(&mut conn, op(), default_account("Dest")).unwrap();
+
+    let id = transactions::create_transaction(
+        &mut conn,
+        op(),
+        NewTransaction {
+            kind: TransactionKind::Transfer,
+            date: "2026-01-15".to_string(),
+            amount: 10_000,
+            account_id: source.clone(),
+            transfer_account_id: Some(dest.clone()),
+            refund_of_id: None,
+            tag_id: None,
+            payee: None,
+            description: None,
+        },
+    )
+    .unwrap();
+
+    // Flip to expense while the patch still carries a destination. Before this
+    // fix the destination was appended twice and last-wins left it populated
+    // with a NULL pair id — the combination the schema CHECK forbids.
+    let mut patch = no_patch();
+    patch.kind = Some(TransactionKind::Expense);
+    patch.transfer_account_id = Some(dest.clone());
+    transactions::update_transaction(&mut conn, op(), &id, patch).unwrap();
+
+    let row = transactions::get_transaction(&conn, &id).unwrap().unwrap();
+    assert_eq!(row.kind, TransactionKind::Expense);
+    assert_eq!(row.transfer_account_id, None);
+    assert_eq!(row.transfer_pair_id, None);
+}
+
+#[test]
+fn a_foreign_key_violation_reports_invalid_input_not_corruption() {
+    let mut conn = fresh_db("c2-fk-mapping");
+    // fresh_db does not enable foreign keys — SQLite defaults them off and only
+    // the live-policy open path turns them on. Without this the bogus tag_id
+    // inserts cleanly, there is no error at all, and unwrap_err() panics.
+    conn.pragma_update(None, "foreign_keys", "ON").unwrap();
+    let account = accounts::create_account(&mut conn, op(), default_account("A")).unwrap();
+
+    // The business layer does not pre-validate the tag, so this reaches SQLite.
+    let mut input = default_expense(&account, 100);
+    input.tag_id = Some("tag_does_not_exist".to_string());
+    let error = transactions::create_transaction(&mut conn, op(), input).unwrap_err();
+
+    assert_eq!(error.code, ErrorCode::InvalidInput);
 }
 
 #[test]

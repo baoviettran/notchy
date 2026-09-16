@@ -434,6 +434,11 @@ pub fn update_transaction(
             } else if existing.kind == TransactionKind::Transfer {
                 sets.push("transfer_account_id = NULL".to_string());
                 sets.push("transfer_pair_id = NULL".to_string());
+                // Nulling the destination IS the handling. Without this the
+                // patch's `transfer_account_id` was appended again below and
+                // last-wins re-populated a column the CHECK requires to be NULL
+                // whenever `transfer_pair_id` is NULL.
+                dest_handled = true;
             }
         }
 

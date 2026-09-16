@@ -172,14 +172,32 @@ impl From<ErrorCode> for DbError {
 /// Result alias used across the native database boundary.
 pub type DbResult<T> = Result<T, DbError>;
 
+/// Constraint failures are caller mistakes, not corruption.
+///
+/// A CHECK, FOREIGN KEY, or NOT NULL rejection means the business layer let a
+/// value through that the schema forbids. Reporting that as
+/// `DatabaseCorrupt` told the user their database file was damaged when their
+/// input was simply invalid.
+fn constraint_code(extended_code: i32) -> Option<ErrorCode> {
+    const CHECK: i32 = rusqlite::ffi::SQLITE_CONSTRAINT_CHECK as i32;
+    const FOREIGNKEY: i32 = rusqlite::ffi::SQLITE_CONSTRAINT_FOREIGNKEY as i32;
+    const NOTNULL: i32 = rusqlite::ffi::SQLITE_CONSTRAINT_NOTNULL as i32;
+
+    matches!(extended_code, CHECK | FOREIGNKEY | NOTNULL).then_some(ErrorCode::InvalidInput)
+}
+
 /// Map a rusqlite error to the stable allowlisted envelope without leaking the
-/// raw SQLite text or parameters. Busy and locked map to their stable codes;
-/// every other failure is corruption from the caller's perspective.
+/// raw SQLite text or parameters. Busy and locked map to their stable codes,
+/// constraint violations are caller mistakes, and every other failure is
+/// corruption from the caller's perspective.
 pub(crate) fn map_sqlite_error(error: rusqlite::Error) -> DbError {
     let code = match &error {
         rusqlite::Error::SqliteFailure(sqlite_error, _) => match sqlite_error.code {
             rusqlite::ErrorCode::DatabaseBusy => ErrorCode::DatabaseBusy,
             rusqlite::ErrorCode::DatabaseLocked => ErrorCode::DatabaseLocked,
+            rusqlite::ErrorCode::ConstraintViolation => {
+                constraint_code(sqlite_error.extended_code).unwrap_or(ErrorCode::DatabaseCorrupt)
+            }
             _ => ErrorCode::DatabaseCorrupt,
         },
         _ => ErrorCode::DatabaseCorrupt,
