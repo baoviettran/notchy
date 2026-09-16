@@ -41,23 +41,7 @@ fn row_to_account(row: &rusqlite::Row<'_>) -> rusqlite::Result<AccountWithBalanc
 }
 
 /// Today's date as `YYYY-MM-DD` from the system clock (UTC).
-pub fn today_iso() -> String {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default();
-    let days = now.as_secs() / 86_400;
-    let z = days as i64 + 719_468;
-    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let y = yoe + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = doy - (153 * mp + 2) / 5 + 1;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 };
-    let yr = if m <= 2 { y + 1 } else { y };
-    format!("{yr:04}-{m:02}-{d:02}")
-}
+pub use super::civil_date::today_iso;
 
 fn validate_type_change(from: AccountType, to: AccountType) -> DbResult<()> {
     if from.is_asset() != to.is_asset() {
@@ -87,27 +71,11 @@ fn enforce_single_currency(conn: &Connection, currency: &str) -> DbResult<()> {
 }
 
 /// Compute the balance for one account as of `date` (inclusive).
+///
+/// The expression lives in [`super::balance::account_balance_as_of`]; this is
+/// the name the account commands were built against.
 pub fn get_balance(conn: &Connection, account_id: &str, date: &str) -> DbResult<i64> {
-    let total: i64 = conn
-        .query_row(
-            "SELECT COALESCE(SUM(CASE
-                WHEN kind = 'income' THEN amount
-                WHEN kind = 'adjustment' THEN amount
-                WHEN kind = 'refund' THEN amount
-                WHEN kind = 'expense' THEN -amount
-                WHEN kind = 'transfer' AND account_id = ?1 THEN -amount
-                WHEN kind = 'transfer' AND transfer_account_id = ?1 THEN amount
-                ELSE 0
-            END), 0)
-            FROM transactions
-            WHERE (account_id = ?1 OR (kind = 'transfer' AND transfer_account_id = ?1))
-              AND deleted_at IS NULL
-              AND date <= ?2",
-            params![account_id, date],
-            |row| row.get(0),
-        )
-        .map_err(map_sqlite_error)?;
-    Ok(total)
+    super::balance::account_balance_as_of(conn, account_id, date)
 }
 
 // ---------------------------------------------------------------------------

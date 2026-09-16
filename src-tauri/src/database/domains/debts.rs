@@ -4,6 +4,7 @@
 
 use rusqlite::{Connection, OptionalExtension, params};
 
+use super::{balance, civil_date};
 use crate::database::error::{DbError, DbResult, ErrorCode, map_sqlite_error};
 use crate::database::migrations::now_iso_utc;
 use crate::database::receipt::run_idempotent;
@@ -12,31 +13,6 @@ use crate::database::types::{DebtAccount, DebtSummary, OperationId};
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/// Compute the balance for an account as of today.
-fn get_balance(conn: &Connection, account_id: &str) -> DbResult<i64> {
-    let today = crate::database::domains::accounts::today_iso();
-    let total: i64 = conn
-        .query_row(
-            "SELECT COALESCE(SUM(CASE
-                WHEN kind = 'income' THEN amount
-                WHEN kind = 'adjustment' THEN amount
-                WHEN kind = 'refund' THEN amount
-                WHEN kind = 'expense' THEN -amount
-                WHEN kind = 'transfer' AND account_id = ?1 THEN -amount
-                WHEN kind = 'transfer' AND transfer_account_id = ?1 THEN amount
-                ELSE 0
-            END), 0)
-            FROM transactions
-            WHERE (account_id = ?1 OR (kind = 'transfer' AND transfer_account_id = ?1))
-              AND deleted_at IS NULL
-              AND date <= ?2",
-            params![account_id, today],
-            |row| row.get(0),
-        )
-        .map_err(map_sqlite_error)?;
-    Ok(total)
-}
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -68,7 +44,7 @@ pub fn list_debts(conn: &Connection) -> DbResult<DebtSummary> {
 
     for row in rows {
         let (id, name, acc_type, counterparty) = row.map_err(map_sqlite_error)?;
-        let balance = get_balance(conn, &id)?;
+        let balance = balance::account_balance_as_of(conn, &id, &civil_date::today_iso())?;
 
         // Most recent transaction date.
         let last_activity: Option<String> = conn

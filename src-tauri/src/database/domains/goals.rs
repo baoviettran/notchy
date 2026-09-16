@@ -4,7 +4,7 @@
 
 use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::database::domains::accounts::today_iso;
+use super::{balance, civil_date};
 use crate::database::error::{DbError, DbResult, ErrorCode, map_sqlite_error};
 use crate::database::migrations::now_iso_utc;
 use crate::database::receipt::run_idempotent;
@@ -13,31 +13,6 @@ use crate::database::types::{GoalStatus, GoalType, GoalWithProgress, OperationId
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/// Compute balance for a single account as of today.
-fn get_balance(conn: &Connection, account_id: &str) -> DbResult<i64> {
-    let today = today_iso();
-    let total: i64 = conn
-        .query_row(
-            "SELECT COALESCE(SUM(CASE
-                WHEN kind = 'income' THEN amount
-                WHEN kind = 'adjustment' THEN amount
-                WHEN kind = 'refund' THEN amount
-                WHEN kind = 'expense' THEN -amount
-                WHEN kind = 'transfer' AND account_id = ?1 THEN -amount
-                WHEN kind = 'transfer' AND transfer_account_id = ?1 THEN amount
-                ELSE 0
-            END), 0)
-            FROM transactions
-            WHERE (account_id = ?1 OR (kind = 'transfer' AND transfer_account_id = ?1))
-              AND deleted_at IS NULL
-              AND date <= ?2",
-            params![account_id, today],
-            |row| row.get(0),
-        )
-        .map_err(map_sqlite_error)?;
-    Ok(total)
-}
 
 /// Parse a goal type string into the enum.
 fn parse_goal_type(s: &str) -> DbResult<GoalType> {
@@ -74,12 +49,14 @@ fn enrich_goal(conn: &Connection, goal: &GoalWithProgress) -> DbResult<GoalWithP
             .map_err(map_sqlite_error)?;
         let mut total = 0i64;
         for id in ids {
-            total += get_balance(conn, &id)?;
+            total += balance::account_balance_as_of(conn, &id, &civil_date::today_iso())?;
         }
         total
     } else {
         match &goal.linked_account_id {
-            Some(account_id) => get_balance(conn, account_id)?,
+            Some(account_id) => {
+                balance::account_balance_as_of(conn, account_id, &civil_date::today_iso())?
+            }
             None => 0,
         }
     };
@@ -114,7 +91,7 @@ fn enrich_goal(conn: &Connection, goal: &GoalWithProgress) -> DbResult<GoalWithP
 
 /// Compute velocity status for a goal.
 fn compute_velocity_status(goal: &GoalWithProgress, current: i64) -> VelocityStatus {
-    let today = today_iso();
+    let today = civil_date::today_iso();
     let target_date = &goal.target_date;
 
     // If target date passed and goal not reached → overdue.

@@ -5,8 +5,10 @@
 //! directly. Business rules are ported 1:1 from the TypeScript repositories.
 
 pub mod accounts;
+pub mod balance;
 pub mod budgets;
 pub mod categories;
+pub mod civil_date;
 pub mod debts;
 pub mod export;
 pub mod goals;

@@ -5,6 +5,7 @@
 
 use rusqlite::{Connection, OptionalExtension, params};
 
+use super::civil_date;
 use crate::database::error::{DbError, DbResult, ErrorCode, map_sqlite_error, validate_money};
 use crate::database::migrations::now_iso_utc;
 use crate::database::receipt::run_idempotent;
@@ -595,22 +596,7 @@ pub fn duplicate_transaction(
 
     validate_account_exists(conn, &existing.account_id)?;
 
-    // Compute today's ISO date.
-    let now_duration = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default();
-    let days = now_duration.as_secs() / 86_400;
-    let z = days as i64 + 719_468;
-    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let y = yoe + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = doy - (153 * mp + 2) / 5 + 1;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 };
-    let yr = if m <= 2 { y + 1 } else { y };
-    let today = format!("{yr:04}-{m:02}-{d:02}");
+    let today = civil_date::today_iso();
 
     let input = NewTransaction {
         kind: existing.kind,

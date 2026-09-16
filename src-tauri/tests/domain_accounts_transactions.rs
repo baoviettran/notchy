@@ -894,3 +894,24 @@ fn control_characters_are_stripped_according_to_the_shared_corpus() {
         assert_eq!(row.description.as_deref(), Some(expected), "input {input:?}");
     }
 }
+
+#[test]
+fn the_shared_balance_helper_matches_the_transaction_it_moves() {
+    let mut conn = fresh_db("s1-balance-helper");
+    let account = accounts::create_account(&mut conn, op(), default_account("A")).unwrap();
+
+    transactions::create_transaction(&mut conn, op(), default_expense(&account, 2_500))
+        .unwrap();
+
+    let today = accounts::today_iso();
+    let moved = notchy_lib::database::domains::balance::account_balance_as_of(
+        &conn, &account, &today,
+    )
+    .unwrap();
+
+    // -2500 as an expense from a fresh checking account.
+    assert_eq!(moved, -2_500);
+
+    // The point of the move: the old entry point must still agree with it.
+    assert_eq!(accounts::get_balance(&conn, &account, &today).unwrap(), moved);
+}
