@@ -4,7 +4,7 @@
 
 use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::database::error::{DbError, DbResult, ErrorCode, map_sqlite_error};
+use crate::database::error::{DbError, DbResult, ErrorCode, MetaKey, map_sqlite_error};
 use crate::database::migrations::now_iso_utc;
 use crate::database::receipt::run_idempotent;
 use crate::database::types::{
@@ -363,13 +363,25 @@ pub fn delete_account(
     struct Void {}
 
     run_idempotent(conn, op_id, "delete_account", &id.to_string(), |tx| {
-        // Block if any active goal links to this account.
+        // Collect the names, not just the existence: the message names the
+        // goals the user has to unlink. Ordered so the copy is stable.
         let mut stmt = tx
-            .prepare("SELECT name FROM goals WHERE linked_account_id = ?1 AND deleted_at IS NULL AND status = 'active'")
+            .prepare(
+                "SELECT name FROM goals
+                 WHERE linked_account_id = ?1 AND deleted_at IS NULL AND status = 'active'
+                 ORDER BY name",
+            )
             .map_err(map_sqlite_error)?;
-        let mut rows = stmt.query(params![id]).map_err(map_sqlite_error)?;
-        if rows.next().map_err(map_sqlite_error)?.is_some() {
-            return Err(DbError::new(ErrorCode::InvalidInput));
+        let names: Vec<String> = stmt
+            .query_map(params![id], |row| row.get(0))
+            .map_err(map_sqlite_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(map_sqlite_error)?;
+
+        if !names.is_empty() {
+            return Err(DbError::new(ErrorCode::AccountDeleteLinkedGoals)
+                .with_meta(MetaKey::Count.as_str(), names.len().to_string())
+                .with_meta(MetaKey::Names.as_str(), names.join(", ")));
         }
 
         let now = now_iso_utc();

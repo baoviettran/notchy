@@ -6,12 +6,12 @@ use std::path::PathBuf;
 
 use rusqlite::{Connection, OpenFlags};
 
-use notchy_lib::database::domains::{accounts, transactions};
+use notchy_lib::database::domains::{accounts, goals, transactions};
 use notchy_lib::database::error::ErrorCode;
 use notchy_lib::database::migrations::{bootstrap_current, FailurePoint};
 use notchy_lib::database::types::{
-    AccountPatch, AccountType, NewAccount, NewTransaction, OperationId, Patch, TransactionFilter,
-    TransactionKind, TransactionPatch,
+    AccountPatch, AccountType, GoalType, NewAccount, NewTransaction, OperationId, Patch,
+    TransactionFilter, TransactionKind, TransactionPatch,
 };
 
 // ---------------------------------------------------------------------------
@@ -840,4 +840,31 @@ fn restoring_a_live_transaction_is_rejected() {
     // on the guard, not the driver for this task.
     let error = transactions::restore_transaction(&mut conn, op(), &id).unwrap_err();
     assert_eq!(error.code, ErrorCode::InvalidInput);
+}
+
+#[test]
+fn deleting_an_account_with_linked_goals_names_them() {
+    let mut conn = fresh_db("i3-linked-goals");
+    let account = accounts::create_account(&mut conn, op(), default_account("Savings")).unwrap();
+    goals::create_goal(
+        &mut conn,
+        op(),
+        "Emergency fund".to_string(),
+        GoalType::Savings,
+        1_000_000,
+        "2027-01-01".to_string(),
+        Some(account.clone()),
+        0,
+        1,
+    )
+    .unwrap();
+
+    let error = accounts::delete_account(&mut conn, op(), &account).unwrap_err();
+
+    assert_eq!(error.code, ErrorCode::AccountDeleteLinkedGoals);
+    assert_eq!(error.meta.get("count").map(String::as_str), Some("1"));
+    assert_eq!(
+        error.meta.get("names").map(String::as_str),
+        Some("Emergency fund")
+    );
 }

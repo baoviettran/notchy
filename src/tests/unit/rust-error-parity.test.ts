@@ -55,3 +55,16 @@ describe('toAppError', () => {
 		expect(toAppError(transport)).toBe(transport);
 	});
 });
+
+describe('native linked-goals copy', () => {
+	it('resolves a linked-goals rejection to the singular message', () => {
+		const converted = toAppError({
+			code: 'account_delete_linked_goals',
+			meta: { count: '1', names: 'Emergency fund' },
+		}) as NativeAppError;
+
+		expect(mapError(converted)).toBe(
+			m.errors_account_delete_linked_goals_one({ count: 1, names: 'Emergency fund' })
+		);
+	});
+});

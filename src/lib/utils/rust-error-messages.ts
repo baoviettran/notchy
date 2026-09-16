@@ -33,5 +33,16 @@ export const RUST_ERROR_MESSAGES: Record<ErrorCode, (params: ErrorParams) => str
 	invalid_ulid: generic,
 	invalid_date: generic,
 	invalid_input: generic,
+	// The browser switch already formats this message; the two are kept as
+	// parallel entries rather than sharing a helper because the browser path is
+	// intentionally untouched in this phase. Collapse them if a third caller
+	// appears.
+	account_delete_linked_goals: (params) => {
+		const count = Number(params.count);
+		const names = String(params.names);
+		return count === 1
+			? m.errors_account_delete_linked_goals_one({ count, names })
+			: m.errors_account_delete_linked_goals({ count, names });
+	},
 	recovery_required: generic,
 };

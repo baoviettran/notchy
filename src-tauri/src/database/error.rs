@@ -33,12 +33,13 @@ pub enum ErrorCode {
     InvalidUlid,
     InvalidDate,
     InvalidInput,
+    AccountDeleteLinkedGoals,
     RecoveryRequired,
 }
 
 impl ErrorCode {
     /// Every variant, for parity tests that must read the union at runtime.
-    pub const ALL: [ErrorCode; 17] = [
+    pub const ALL: [ErrorCode; 18] = [
         ErrorCode::DatabaseBusy,
         ErrorCode::DatabaseLocked,
         ErrorCode::DatabaseNotReady,
@@ -55,6 +56,7 @@ impl ErrorCode {
         ErrorCode::InvalidUlid,
         ErrorCode::InvalidDate,
         ErrorCode::InvalidInput,
+        ErrorCode::AccountDeleteLinkedGoals,
         ErrorCode::RecoveryRequired,
     ];
 }
@@ -79,6 +81,7 @@ impl ErrorCode {
             ErrorCode::InvalidUlid => "invalid_ulid",
             ErrorCode::InvalidDate => "invalid_date",
             ErrorCode::InvalidInput => "invalid_input",
+            ErrorCode::AccountDeleteLinkedGoals => "account_delete_linked_goals",
             ErrorCode::RecoveryRequired => "recovery_required",
         }
     }
@@ -106,6 +109,11 @@ pub enum MetaKey {
     SchemaVersion,
     /// Whether the operation can be retried as-is: `"true"` or `"false"`.
     Retryable,
+    /// How many items blocked the operation, e.g. `"2"`.
+    Count,
+    /// Names the user gave the blocking items, joined with `", "`. Free text,
+    /// but the user's own and already user-visible in the list they came from.
+    Names,
 }
 
 impl MetaKey {
@@ -115,6 +123,8 @@ impl MetaKey {
             MetaKey::Stage => "stage",
             MetaKey::SchemaVersion => "schema_version",
             MetaKey::Retryable => "retryable",
+            MetaKey::Count => "count",
+            MetaKey::Names => "names",
         }
     }
 
@@ -124,6 +134,8 @@ impl MetaKey {
             "stage" => Some(MetaKey::Stage),
             "schema_version" => Some(MetaKey::SchemaVersion),
             "retryable" => Some(MetaKey::Retryable),
+            "count" => Some(MetaKey::Count),
+            "names" => Some(MetaKey::Names),
             _ => None,
         }
     }
