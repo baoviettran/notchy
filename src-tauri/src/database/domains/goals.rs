@@ -434,24 +434,25 @@ pub fn restore_goal(
     op_id: OperationId,
     id: &str,
 ) -> DbResult<()> {
-    // Must be currently soft-deleted.
-    let found: bool = conn
-        .query_row(
-            "SELECT 1 FROM goals WHERE id = ?1 AND deleted_at IS NOT NULL",
-            params![id],
-            |_| Ok(true),
-        )
-        .optional()
-        .map_err(map_sqlite_error)?
-        .is_some();
-    if !found {
-        return Err(DbError::new(ErrorCode::InvalidInput));
-    }
-
     #[derive(serde::Serialize, serde::Deserialize)]
     struct Void {}
 
     run_idempotent(conn, op_id, "restore_goal", &id.to_string(), |tx| {
+        // Inside the receipt: outside it, a retry with the same operation ID hit
+        // this check first and got InvalidInput instead of the cached result.
+        // The UPDATE below already carries the same predicate.
+        let found: bool = tx
+            .query_row(
+                "SELECT 1 FROM goals WHERE id = ?1 AND deleted_at IS NOT NULL",
+                params![id],
+                |_| Ok(true),
+            )
+            .optional()
+            .map_err(map_sqlite_error)?
+            .is_some();
+        if !found {
+            return Err(DbError::new(ErrorCode::InvalidInput));
+        }
         let now = now_iso_utc();
         tx.execute(
             "UPDATE goals SET deleted_at = NULL, updated_at = ?1 WHERE id = ?2 AND deleted_at IS NOT NULL",
