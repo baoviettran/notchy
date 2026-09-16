@@ -85,7 +85,7 @@
   - `export function loadCommandSurface(repoRoot?: string): CommandSurface`
   - `export function expectedArgKeys(surface: CommandSurface, command: string): string[]`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/tests/unit/rust-command-surface.test.ts`:
 
@@ -198,12 +198,12 @@ describe('loadCommandSurface on the real tree', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm vitest run src/tests/unit/rust-command-surface.test.ts`
 Expected: FAIL — `Failed to resolve import "./helpers/rust-command-surface"`.
 
-- [ ] **Step 3: Write the parser**
+- [x] **Step 3: Write the parser**
 
 Create `src/tests/unit/helpers/rust-command-surface.ts`:
 
@@ -430,7 +430,7 @@ export function expectedArgKeys(surface: CommandSurface, command: string): strin
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm vitest run src/tests/unit/rust-command-surface.test.ts`
 Expected: PASS, all cases.
@@ -444,7 +444,7 @@ window parameter: `commands.rs:148` declares it as
 exist on other commands (`window: tauri::WebviewWindow<R>` and
 `_window: tauri::WebviewWindow<R>`), matched by the `WebviewWindow` arm.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/tests/unit/helpers/rust-command-surface.ts src/tests/unit/rust-command-surface.test.ts
