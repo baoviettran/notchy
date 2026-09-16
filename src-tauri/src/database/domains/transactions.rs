@@ -547,30 +547,34 @@ pub fn restore_transaction(
     op_id: OperationId,
     id: &str,
 ) -> DbResult<()> {
-    // Must be currently soft-deleted.
-    let found: bool = conn
-        .query_row(
-            "SELECT 1 FROM transactions WHERE id = ?1 AND deleted_at IS NOT NULL",
-            params![id],
-            |_| Ok(true),
-        )
-        .optional()
-        .map_err(map_sqlite_error)?
-        .is_some();
-    if !found {
-        return Err(DbError::new(ErrorCode::InvalidInput));
-    }
-
     #[derive(serde::Serialize, serde::Deserialize)]
     struct Void {}
 
     run_idempotent(conn, op_id, "restore_transaction", &id.to_string(), |tx| {
+        // Inside the receipt, and the same predicate on the write. Outside it,
+        // the check could pass and the UPDATE could then land on a row that had
+        // changed in between.
+        let found: bool = tx
+            .query_row(
+                "SELECT 1 FROM transactions WHERE id = ?1 AND deleted_at IS NOT NULL",
+                params![id],
+                |_| Ok(true),
+            )
+            .optional()
+            .map_err(map_sqlite_error)?
+            .is_some();
+        if !found {
+            return Err(DbError::new(ErrorCode::InvalidInput));
+        }
+
         let now = now_iso_utc();
         tx.execute(
-            "UPDATE transactions SET deleted_at = NULL, updated_at = ?1 WHERE id = ?2",
+            "UPDATE transactions SET deleted_at = NULL, updated_at = ?1 \
+             WHERE id = ?2 AND deleted_at IS NOT NULL",
             params![now, id],
         )
         .map_err(map_sqlite_error)?;
+
         Ok(Void {})
     })
     .map(|_| ())

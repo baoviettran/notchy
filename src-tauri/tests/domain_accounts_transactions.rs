@@ -811,3 +811,33 @@ fn restoring_a_live_account_is_rejected() {
     let error = accounts::restore_account(&mut conn, op(), &id).unwrap_err();
     assert_eq!(error.code, ErrorCode::InvalidInput);
 }
+#[test]
+fn retrying_a_transaction_restore_with_the_same_operation_id_replays_the_first_result() {
+    let mut conn = fresh_db("i2-restore-retry-tx");
+    let account = accounts::create_account(&mut conn, op(), default_account("A")).unwrap();
+    let id = transactions::create_transaction(&mut conn, op(), default_expense(&account, 5_000)).unwrap();
+    transactions::delete_transaction(&mut conn, op(), &id).unwrap();
+
+    let op_id = op();
+    transactions::restore_transaction(&mut conn, op_id.clone(), &id).unwrap();
+
+    // The row is live now. Because the guard sits outside run_idempotent, this
+    // retry hits the guard first and returns InvalidInput instead of replaying
+    // the receipt. The receipt exists precisely so that a retry is safe.
+    // THIS is the call that must fail before the fix.
+    transactions::restore_transaction(&mut conn, op_id, &id).unwrap();
+
+    assert!(transactions::get_transaction(&conn, &id).unwrap().is_some());
+}
+
+#[test]
+fn restoring_a_live_transaction_is_rejected() {
+    let mut conn = fresh_db("i2-restore-guard-tx");
+    let account = accounts::create_account(&mut conn, op(), default_account("A")).unwrap();
+    let id = transactions::create_transaction(&mut conn, op(), default_expense(&account, 5_000)).unwrap();
+
+    // Never soft-deleted. Passes before and after the fix — a regression guard
+    // on the guard, not the driver for this task.
+    let error = transactions::restore_transaction(&mut conn, op(), &id).unwrap_err();
+    assert_eq!(error.code, ErrorCode::InvalidInput);
+}
