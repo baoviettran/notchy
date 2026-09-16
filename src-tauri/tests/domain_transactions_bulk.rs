@@ -62,6 +62,34 @@ fn expense(account_id: &str, payee: &str, amount: i64, date: &str) -> NewTransac
     }
 }
 
+fn income(account_id: &str, amount: i64, date: &str) -> NewTransaction {
+    NewTransaction {
+        kind: TransactionKind::Income,
+        date: date.to_string(),
+        amount,
+        account_id: account_id.to_string(),
+        transfer_account_id: None,
+        refund_of_id: None,
+        tag_id: None,
+        payee: None,
+        description: None,
+    }
+}
+
+fn transfer(from: &str, to: &str, amount: i64, date: &str) -> NewTransaction {
+    NewTransaction {
+        kind: TransactionKind::Transfer,
+        date: date.to_string(),
+        amount,
+        account_id: from.to_string(),
+        transfer_account_id: Some(to.to_string()),
+        refund_of_id: None,
+        tag_id: None,
+        payee: None,
+        description: None,
+    }
+}
+
 #[test]
 fn frequent_returns_the_most_repeated_payees_since_a_date() {
     let mut conn = fresh_db("frequent");
@@ -370,4 +398,30 @@ fn the_bulk_commands_with_no_ids_are_no_ops() {
     let mut conn = fresh_db("bulk-empty");
     transactions::set_tag_many(&mut conn, op(), Vec::new(), Some("tag_loss".to_string())).unwrap();
     transactions::set_account_many(&mut conn, op(), Vec::new(), "acc_missing".to_string()).unwrap();
+}
+
+#[test]
+fn net_worth_equals_the_sum_of_live_account_balances() {
+    use notchy_lib::database::domains::balance;
+
+    let mut conn = fresh_db("s4-net-worth");
+    let a = account(&mut conn, "A");
+    let b = account(&mut conn, "B");
+    let gone = account(&mut conn, "Gone");
+    let today = notchy_lib::database::domains::accounts::today_iso();
+
+    transactions::create_transaction(&mut conn, op(), expense(&a, "Coffee", 2_000, &today)).unwrap();
+    transactions::create_transaction(&mut conn, op(), income(&b, 50_000, &today)).unwrap();
+    transactions::create_transaction(&mut conn, op(), transfer(&a, &b, 10_000, &today)).unwrap();
+
+    // Into an account that is then deleted: the source side still counts and
+    // the destination side does not. This is the case where a naive
+    // single-query rewrite and the per-account loop disagree.
+    transactions::create_transaction(&mut conn, op(), transfer(&a, &gone, 3_000, &today)).unwrap();
+    accounts::delete_account(&mut conn, op(), &gone).unwrap();
+
+    let expected = balance::account_balance_as_of(&conn, &a, &today).unwrap()
+        + balance::account_balance_as_of(&conn, &b, &today).unwrap();
+
+    assert_eq!(balance::net_worth_as_of(&conn, &today).unwrap(), expected);
 }

@@ -4,6 +4,7 @@
 
 use rusqlite::{Connection, params};
 
+use super::balance;
 use super::civil_date;
 use crate::database::error::{DbResult, map_sqlite_error};
 use crate::database::types::{
@@ -551,17 +552,6 @@ pub fn get_net_worth_series(
     months: u32,
     _include_adjustments: bool,
 ) -> DbResult<Vec<NetWorthPoint>> {
-    // Collect all account IDs
-    let mut stmt = conn
-        .prepare("SELECT id FROM accounts WHERE deleted_at IS NULL")
-        .map_err(map_sqlite_error)?;
-    let account_ids: Vec<String> = stmt
-        .query_map([], |row| row.get(0))
-        .map_err(map_sqlite_error)?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(map_sqlite_error)?;
-    drop(stmt);
-
     let mut points = Vec::with_capacity(months as usize);
 
     let (mut cur_year, mut cur_month_i) = civil_date::current_year_month();
@@ -570,29 +560,8 @@ pub fn get_net_worth_series(
         let month_str = format!("{:04}-{:02}", cur_year, cur_month_i);
         let end_date = month_end(&month_str);
 
-        let mut net_worth: i64 = 0;
-        for acc_id in &account_ids {
-            let balance: i64 = conn
-                .query_row(
-                    "SELECT COALESCE(SUM(CASE
-                        WHEN kind = 'income' THEN amount
-                        WHEN kind = 'adjustment' THEN amount
-                        WHEN kind = 'refund' THEN amount
-                        WHEN kind = 'expense' THEN -amount
-                        WHEN kind = 'transfer' AND account_id = ?1 THEN -amount
-                        WHEN kind = 'transfer' AND transfer_account_id = ?1 THEN amount
-                        ELSE 0
-                    END), 0)
-                    FROM transactions
-                    WHERE (account_id = ?1 OR (kind = 'transfer' AND transfer_account_id = ?1))
-                      AND deleted_at IS NULL
-                      AND date <= ?2",
-                    params![acc_id, end_date],
-                    |row| row.get(0),
-                )
-                .map_err(map_sqlite_error)?;
-            net_worth += balance;
-        }
+        // One query per month instead of one per account per month.
+        let net_worth = balance::net_worth_as_of(conn, &end_date)?;
 
         points.push(NetWorthPoint {
             month: month_str,

@@ -38,20 +38,7 @@ fn parse_goal_status(s: &str) -> DbResult<GoalStatus> {
 /// Enrich a goal with progress and velocity status.
 fn enrich_goal(conn: &Connection, goal: &GoalWithProgress) -> DbResult<GoalWithProgress> {
     let current_amount = if goal.goal_type == GoalType::NetWorth {
-        // Sum all account balances.
-        let mut stmt = conn
-            .prepare("SELECT id FROM accounts WHERE deleted_at IS NULL")
-            .map_err(map_sqlite_error)?;
-        let ids: Vec<String> = stmt
-            .query_map([], |row| row.get(0))
-            .map_err(map_sqlite_error)?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(map_sqlite_error)?;
-        let mut total = 0i64;
-        for id in ids {
-            total += balance::account_balance_as_of(conn, &id, &civil_date::today_iso())?;
-        }
-        total
+        balance::net_worth_as_of(conn, &civil_date::today_iso())?
     } else {
         match &goal.linked_account_id {
             Some(account_id) => {
