@@ -476,7 +476,7 @@ commands the client invokes and Rust does not register, plus any argument-name
 drift. That red state is the point: it enumerates the work Tasks 9–11 close.
 The branch stays red until Task 11.
 
-- [ ] **Step 1: Replace the mock's fixture fallback with a required lookup**
+- [x] **Step 1: Replace the mock's fixture fallback with a required lookup**
 
 In `src/tests/unit/native-boundary.test.ts`, replace the `invokeMock` body:
 
@@ -494,7 +494,7 @@ In `src/tests/unit/native-boundary.test.ts`, replace the `invokeMock` body:
 	});
 ```
 
-- [ ] **Step 2: Add the required fixture entries**
+- [x] **Step 2: Add the required fixture entries**
 
 Run: `pnpm vitest run src/tests/unit/native-boundary.test.ts`
 
@@ -517,7 +517,7 @@ The four commands added in Tasks 9–11 must land with:
 		transaction_set_account_many: null,
 ```
 
-- [ ] **Step 3: Delete the hand-written `argKeys` third copy**
+- [x] **Step 3: Delete the hand-written `argKeys` third copy**
 
 Every row in the op table carries an `argKeys` array (e.g. `argKeys: ['accountId', 'date']`). **Delete the `argKeys:` property from every row.** It is the third copy of the surface and the only one that was verified; the expected keys now come from Rust.
 
@@ -539,7 +539,7 @@ property from every row makes the array no longer assignable to `Row[]`.
 below removes the last reader of the field (`it.each`'s 4-tuple); the interface
 line is the only remaining trace.
 
-- [ ] **Step 4: Assert against the parsed surface**
+- [x] **Step 4: Assert against the parsed surface**
 
 Add to the imports at the top of the file:
 
@@ -575,7 +575,7 @@ Replace the table-driven test with:
 	);
 ```
 
-- [ ] **Step 5: Run the gate and record the red state**
+- [x] **Step 5: Run the gate and record the red state**
 
 Run: `pnpm vitest run src/tests/unit/native-boundary.test.ts`
 Expected: FAIL, naming exactly four unregistered commands —
@@ -587,7 +587,7 @@ Any *fifth* failure is argument drift, which is a real finding: fix the Rust
 parameter name in `src-tauri/src/database/commands.rs` to match what the client
 sends, in this task, and note it.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/tests/unit/native-boundary.test.ts
