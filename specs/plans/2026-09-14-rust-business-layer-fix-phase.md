@@ -2196,7 +2196,7 @@ empty id list is a no-op."
 
 **This task turns Gate 1 green.**
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `src-tauri/tests/domain_transactions_bulk.rs`:
 
@@ -2320,12 +2320,12 @@ fn the_bulk_commands_with_no_ids_are_no_ops() {
 }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_transactions_bulk`
 Expected: FAIL to compile — neither function exists.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src-tauri/src/database/domains/transactions.rs`:
 
@@ -2398,7 +2398,7 @@ pub fn set_account_many(
 }
 ```
 
-- [ ] **Step 4: Re-export, wrap, register, fixture**
+- [x] **Step 4: Re-export, wrap, register, fixture**
 
 `domains/mod.rs` — add `set_account_many, set_tag_many` to the re-export list.
 
@@ -2449,7 +2449,7 @@ pub async fn transaction_set_account_many(
 		transaction_set_account_many: null,
 ```
 
-- [ ] **Step 5: Run Gate 1 and confirm it is green**
+- [x] **Step 5: Run Gate 1 and confirm it is green**
 
 Run: `pnpm vitest run src/tests/unit/native-boundary.test.ts`
 Expected: **PASS**, every row. This is the first green run of the gate; the
@@ -2461,7 +2461,7 @@ Expected: PASS.
 Run: `pnpm test && pnpm check`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src-tauri/src/database/domains/transactions.rs src-tauri/src/database/domains/mod.rs src-tauri/src/database/commands.rs src-tauri/src/lib.rs src-tauri/tests/domain_transactions_bulk.rs src/tests/unit/native-boundary.test.ts
