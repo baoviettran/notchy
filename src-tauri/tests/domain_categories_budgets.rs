@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use rusqlite::{Connection, OpenFlags};
 
 use notchy_lib::database::domains::{budgets, categories};
+use notchy_lib::database::error::ErrorCode;
 use notchy_lib::database::migrations::{bootstrap_current, FailurePoint};
 use notchy_lib::database::types::OperationId;
 
@@ -408,4 +409,14 @@ fn rollover_captures_prior_surplus() {
     assert_eq!(summaries[0].allocated, 2000);
     assert_eq!(summaries[0].rolled_over, 600);
     assert_eq!(summaries[0].available, 2600);
+}
+
+#[test]
+fn a_malformed_month_is_invalid_input() {
+    let conn = fresh_db("i4-bad-month");
+
+    for month in ["2026-13", "2026-00", "2026", "2026-1", "not-a-month", ""] {
+        let error = budgets::get_budgets_for_month(&conn, month).unwrap_err();
+        assert_eq!(error.code, ErrorCode::InvalidInput, "month {month:?}");
+    }
 }

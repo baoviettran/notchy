@@ -4,7 +4,7 @@
 
 use rusqlite::{Connection, params, OptionalExtension};
 
-use crate::database::error::{DbResult, map_sqlite_error};
+use crate::database::error::{DbError, DbResult, ErrorCode, map_sqlite_error};
 use crate::database::migrations::now_iso_utc;
 use crate::database::receipt::run_idempotent;
 use crate::database::types::{Budget, BudgetSummary, OperationId};
@@ -13,32 +13,49 @@ use crate::database::types::{Budget, BudgetSummary, OperationId};
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// Increment a `YYYY-MM` month string by one.
-fn next_month(month: &str) -> String {
-    let parts: Vec<i32> = month.split('-').map(|s| s.parse().unwrap_or(1)).collect();
-    let (y, m) = (parts[0], parts[1]);
-    if m == 12 {
-        format!("{:04}-01", y + 1)
-    } else {
-        format!("{:04}-{:02}", y, m + 1)
+/// Split a `YYYY-MM` month string, rejecting anything the schema would not
+/// accept. `next_month` and `previous_month` used to `unwrap_or(1)` every
+/// segment and index the result, so a month with no `-` panicked and a
+/// non-numeric one silently became January.
+fn parse_month(month: &str) -> DbResult<(i32, i32)> {
+    let invalid = || DbError::new(ErrorCode::InvalidInput);
+
+    let parts: Vec<&str> = month.split('-').collect();
+    if parts.len() != 2 || parts[0].len() != 4 || parts[1].len() != 2 {
+        return Err(invalid());
     }
+    let year: i32 = parts[0].parse().map_err(|_| invalid())?;
+    let month_number: i32 = parts[1].parse().map_err(|_| invalid())?;
+    if !(1..=12).contains(&month_number) {
+        return Err(invalid());
+    }
+    Ok((year, month_number))
+}
+
+/// Increment a `YYYY-MM` month string by one.
+fn next_month(month: &str) -> DbResult<String> {
+    let (year, month_number) = parse_month(month)?;
+    Ok(if month_number == 12 {
+        format!("{:04}-01", year + 1)
+    } else {
+        format!("{:04}-{:02}", year, month_number + 1)
+    })
 }
 
 /// Decrement a `YYYY-MM` month string by one.
-fn previous_month(month: &str) -> String {
-    let parts: Vec<i32> = month.split('-').map(|s| s.parse().unwrap_or(1)).collect();
-    let (y, m) = (parts[0], parts[1]);
-    if m == 1 {
-        format!("{:04}-12", y - 1)
+fn previous_month(month: &str) -> DbResult<String> {
+    let (year, month_number) = parse_month(month)?;
+    Ok(if month_number == 1 {
+        format!("{:04}-12", year - 1)
     } else {
-        format!("{:04}-{:02}", y, m - 1)
-    }
+        format!("{:04}-{:02}", year, month_number - 1)
+    })
 }
 
 /// Compute the total spent for a bucket in a given month.
 /// Expenses add, refunds subtract.
 pub fn get_spent_for_bucket(conn: &Connection, type_id: &str, month: &str) -> DbResult<i64> {
-    let next = next_month(month);
+    let next = next_month(month)?;
     let total: i64 = conn
         .query_row(
             "SELECT COALESCE(SUM(
@@ -91,6 +108,11 @@ pub fn get_rolled_over(conn: &Connection, type_id: &str, month: &str) -> DbResul
 
 /// Get budget summaries for a month, with spending and rollover.
 pub fn get_budgets_for_month(conn: &Connection, month: &str) -> DbResult<Vec<BudgetSummary>> {
+    // Validate the month before the SELECT: a malformed month matches no row,
+    // and without this the `is_empty()` early return below would report an
+    // empty month rather than rejecting bad input.
+    parse_month(month)?;
+
     let mut stmt = conn
         .prepare(
             "SELECT id, type_id, month, allocated, created_at, updated_at
@@ -212,7 +234,7 @@ pub fn copy_from_previous_month(
     op_id: OperationId,
     target_month: &str,
 ) -> DbResult<()> {
-    let prev = previous_month(target_month);
+    let prev = previous_month(target_month)?;
 
     // Collect the previous budgets first (immutable borrow ends here).
     let prev_budgets: Vec<(String, i64)> = {
