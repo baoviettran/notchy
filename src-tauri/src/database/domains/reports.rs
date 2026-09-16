@@ -193,8 +193,20 @@ pub fn get_trend(
     conn: &Connection,
     months: u32,
     include_adjustments: bool,
+    bucket_id: Option<&str>,
 ) -> DbResult<Vec<TrendPoint>> {
     let kind = kind_filter(include_adjustments);
+
+    // Bucket scoping mirrors the browser repo: join the tag table and restrict
+    // on the tag's bucket. An inner join is deliberate — it drops rows with no
+    // tag, which is what a bucket-scoped trend means.
+    let (bucket_join, bucket_clause) = match bucket_id {
+        Some(_) => (
+            "JOIN category_tags ct ON t.tag_id = ct.id",
+            "AND ct.type_id = ?3",
+        ),
+        None => ("", ""),
+    };
     let mut points = Vec::with_capacity(months as usize);
 
     let now = std::time::SystemTime::now()
@@ -222,17 +234,27 @@ pub fn get_trend(
 
         let sql = format!(
             "SELECT t.kind, SUM(t.amount) AS total FROM transactions t
+             {bucket_join}
              WHERE {kind} AND t.date >= ?1 AND t.date < ?2 AND t.deleted_at IS NULL
+             {bucket_clause}
              GROUP BY t.kind"
         );
         let mut stmt = conn.prepare(&sql).map_err(map_sqlite_error)?;
-        let rows: Vec<(String, i64)> = stmt
-            .query_map(params![start, end], |row| {
-                Ok((row.get(0)?, row.get(1)?))
-            })
-            .map_err(map_sqlite_error)?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(map_sqlite_error)?;
+
+        let rows: Vec<(String, i64)> = match bucket_id {
+            Some(bucket) => stmt
+                .query_map(params![start, end, bucket], |row| {
+                    Ok((row.get(0)?, row.get(1)?))
+                })
+                .map_err(map_sqlite_error)?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(map_sqlite_error)?,
+            None => stmt
+                .query_map(params![start, end], |row| Ok((row.get(0)?, row.get(1)?)))
+                .map_err(map_sqlite_error)?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(map_sqlite_error)?,
+        };
 
         let (income, expense) = aggregate_kind_totals(&rows, include_adjustments);
         points.push(TrendPoint {

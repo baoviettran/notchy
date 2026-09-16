@@ -866,11 +866,11 @@ pub async fn report_get_trend(
     manager: State<'_, Arc<DatabaseManager>>,
     months: u32,
     include_adjustments: Option<bool>,
-    _bucket_id: Option<String>,
+    bucket_id: Option<String>,
 ) -> Result<Vec<TrendPoint>, DbError> {
     let inc = include_adjustments.unwrap_or(false);
     manager.data_job(move |state| {
-        domains::reports::get_trend(state.connection()?, months, inc)
+        domains::reports::get_trend(state.connection()?, months, inc, bucket_id.as_deref())
     }).await
 }
 
