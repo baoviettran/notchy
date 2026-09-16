@@ -3079,7 +3079,7 @@ are enough — nothing in Stage 0–2 depends on any task here.
 
 **Interfaces:** none.
 
-- [ ] **Step 1: Confirm nothing imports it**
+- [x] **Step 1: Confirm nothing imports it**
 
 ```bash
 grep -rn "native/reports" src --include="*.ts" --include="*.svelte"
@@ -3088,13 +3088,13 @@ grep -rn "native/reports" src --include="*.ts" --include="*.svelte"
 Expected: no output. If there is a hit, stop and reassess — this task's premise
 is that there is not.
 
-- [ ] **Step 2: Confirm what it is**
+- [x] **Step 2: Confirm what it is**
 
 Read the file. Every export throws `native reports adapter not wired`. The live
 report port is in `native/client.ts`. An inactive adapter that throws is not a
 seam; it is a second copy of the interface that no one compiles against.
 
-- [ ] **Step 3: Delete and verify**
+- [x] **Step 3: Delete and verify**
 
 ```bash
 git rm src/lib/db/native/reports.ts
@@ -3103,7 +3103,7 @@ pnpm check && pnpm test
 
 Expected: PASS.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git commit -m "chore: delete the dead native reports stub
