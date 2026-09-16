@@ -2506,7 +2506,7 @@ user-visible web/desktop difference today. It is still worth fixing, precisely
 because the moment a caller passes a bucket the failure is silent. Same
 epistemic status spec §2 I4 is honest about.
 
-- [ ] **Step 1: Make `today_iso` reachable from integration tests**
+- [x] **Step 1: Make `today_iso` reachable from integration tests**
 
 `src-tauri/src/database/domains/accounts.rs:44` is `pub(crate) fn today_iso()`.
 Integration tests are a separate crate, so `pub(crate)` is invisible to them and
@@ -2527,7 +2527,7 @@ public door onto the civil-date derivation; `debts.rs:18` and
 already. It being `pub(crate)` is why `transactions.rs:581-595` re-implements
 the same block inline instead of calling it — see Task 17.
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Add to `src-tauri/tests/domain_transactions_bulk.rs` — it already has `fresh_db`, `op`, `account`, and `expense` from Task 9, and this test needs exactly those. Add one import at the top:
 
@@ -2573,12 +2573,12 @@ Check the `TrendPoint` field names in `src-tauri/src/database/types.rs` before
 running this; if the spending field is named something other than `expense`,
 use the real name.
 
-- [ ] **Step 3: Run the test to verify it fails**
+- [x] **Step 3: Run the test to verify it fails**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_transactions_bulk`
 Expected: FAIL to compile — `get_trend` takes three arguments.
 
-- [ ] **Step 4: Thread the filter**
+- [x] **Step 4: Thread the filter**
 
 `src-tauri/src/database/domains/reports.rs`, at the top of `get_trend`:
 
@@ -2626,7 +2626,7 @@ list:
         };
 ```
 
-- [ ] **Step 5: Stop dropping it in the command**
+- [x] **Step 5: Stop dropping it in the command**
 
 `src-tauri/src/database/commands.rs`, `report_get_trend`:
 
@@ -2650,7 +2650,7 @@ pub async fn report_get_trend(
 The parameter is renamed from `_bucket_id` to `bucket_id`; the IPC argument key
 stays `bucketId` either way, so the boundary test's expectation is unchanged.
 
-- [ ] **Step 6: Update the other callers**
+- [x] **Step 6: Update the other callers**
 
 `reports::get_trend` is called with three arguments in two places in
 `src-tauri/tests/domain_reports_export.rs` — line 237 (`get_trend(&db, 3, false)`)
@@ -2662,12 +2662,12 @@ and line 250 (`get_trend(&db, 2, false)`). Both take `None` for the bucket:
 
 Any other call site the compiler names also passes `None`.
 
-- [ ] **Step 7: Run the tests**
+- [x] **Step 7: Run the tests**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml`
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src-tauri/src/database/domains/accounts.rs src-tauri/src/database/domains/reports.rs src-tauri/src/database/commands.rs src-tauri/tests/domain_reports_export.rs src-tauri/tests/domain_transactions_bulk.rs
