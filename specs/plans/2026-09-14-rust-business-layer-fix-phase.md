@@ -3595,7 +3595,7 @@ pre-Task-17 tree reports: the reports loop is the `for acc_id in &account_ids`
 loop, and the goal arm is the `GoalType::NetWorth` branch. Nothing here re-adds
 `get_balance`; this task collapses loops, it does not undo Task 17.
 
-- [ ] **Step 1: Add the transaction helpers this test needs**
+- [x] **Step 1: Add the transaction helpers this test needs**
 
 `src-tauri/tests/domain_transactions_bulk.rs` has `account` and `expense` from
 Task 9. Add two more next to `expense`:
@@ -3630,7 +3630,7 @@ fn transfer(from: &str, to: &str, amount: i64, date: &str) -> NewTransaction {
 }
 ```
 
-- [ ] **Step 2: Write the equivalence test**
+- [x] **Step 2: Write the equivalence test**
 
 This test pins Task 17's `balance::net_worth_as_of` rather than anything this
 task writes — Step 3 says as much. That is deliberate: the helper is the single
@@ -3670,13 +3670,13 @@ fn net_worth_equals_the_sum_of_live_account_balances() {
 }
 ```
 
-- [ ] **Step 3: Run it**
+- [x] **Step 3: Run it**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_transactions_bulk`
 Expected: PASS if Task 17's helper is correct. If it fails, the join is wrong
 and this task is not done — the helper is the thing being relied on.
 
-- [ ] **Step 4: Collapse the reports loop**
+- [x] **Step 4: Collapse the reports loop**
 
 `src-tauri/src/database/domains/reports.rs` — the inner
 `for acc_id in &account_ids { ... }` loop that follows the
@@ -3694,7 +3694,7 @@ balance;`) with:
 Delete the now-unused `account_ids` fetch if nothing else uses it. Add
 `use super::balance;` to the file's imports if it is not already there.
 
-- [ ] **Step 5: Collapse the goal path**
+- [x] **Step 5: Collapse the goal path**
 
 `src-tauri/src/database/domains/goals.rs` — the `GoalType::NetWorth` arm of
 `enrich_goal`, the branch that currently fetches every live account id and sums
@@ -3713,7 +3713,7 @@ not look for a `get_balance` to delete here: Task 17 removed it. Add
 re-add an import of `accounts::today_iso`: Task 17 removed that line and the bare
 `today_iso()` would no longer resolve.
 
-- [ ] **Step 6: Run the tests**
+- [x] **Step 6: Run the tests**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml`
 Expected: PASS. The four existing net-worth tests named in Step 2 are the real
@@ -3722,7 +3722,7 @@ the loop it replaces, they move. Step 2's equivalence test is the one that
 isolates *which* case broke: a plain transfer between live accounts nets to zero
 under the join, and a transfer into a deleted account still counts its source.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src-tauri/src/database/domains/reports.rs src-tauri/src/database/domains/goals.rs src-tauri/tests/domain_transactions_bulk.rs
