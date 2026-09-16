@@ -2703,7 +2703,7 @@ integration tests in this task, task 17, and task 18 all need."
 (en + vi, singular and plural) was dead on desktop. The meta keys are the
 transport for the count and the names.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Rust — add to `src-tauri/tests/domain_accounts_transactions.rs`:
 
@@ -2753,7 +2753,7 @@ TypeScript — add to `src/tests/unit/rust-error-parity.test.ts`:
 	});
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_accounts_transactions`
 Expected: FAIL to compile — no `AccountDeleteLinkedGoals`.
@@ -2761,7 +2761,7 @@ Expected: FAIL to compile — no `AccountDeleteLinkedGoals`.
 Run: `pnpm vitest run src/tests/unit/rust-error-parity.test.ts`
 Expected: FAIL — the code is not in the `ErrorCode` union, so the `toAppError` cast is wrong and `mapError` falls through to `errors_unknown()`.
 
-- [ ] **Step 3: Add the code and its meta keys**
+- [x] **Step 3: Add the code and its meta keys**
 
 `src-tauri/src/database/error.rs` — add `AccountDeleteLinkedGoals,` to the
 `ErrorCode` enum (after `InvalidInput`), `ErrorCode::AccountDeleteLinkedGoals => "account_delete_linked_goals",`
@@ -2781,7 +2781,7 @@ through the same interpolation path `mapError` uses for every other parameter.
 If a future key wants to carry a financial row or a free-text field wider than
 a name, that is a new decision and belongs in a spec, not in this list.
 
-- [ ] **Step 4: Return it with its meta**
+- [x] **Step 4: Return it with its meta**
 
 `src-tauri/src/database/domains/accounts.rs`, inside `delete_account`'s
 `run_idempotent` closure — replace the "Block if any active goal links" block:
@@ -2830,7 +2830,7 @@ enum.
 `MetaKey` is already imported in `commands.rs`; add it to the `error` import in
 `accounts.rs` if it is not there.
 
-- [ ] **Step 5: Regenerate the bindings and add the message**
+- [x] **Step 5: Regenerate the bindings and add the message**
 
 ```bash
 pnpm generate:db-contracts
@@ -2860,7 +2860,7 @@ key. That failure is Gate 2 doing its job. Fix it:
 	recovery_required: generic,
 ```
 
-- [ ] **Step 6: Run the tests**
+- [x] **Step 6: Run the tests**
 
 Run: `pnpm check && pnpm vitest run src/tests/unit/rust-error-parity.test.ts`
 Expected: PASS.
@@ -2868,7 +2868,7 @@ Expected: PASS.
 Run: `cargo test --manifest-path src-tauri/Cargo.toml`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src-tauri/src/database/error.rs src-tauri/src/database/domains/accounts.rs src-tauri/tests/domain_accounts_transactions.rs src/lib/native/contracts.generated.ts src/lib/utils/rust-error-messages.ts src/tests/unit/rust-error-parity.test.ts
