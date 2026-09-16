@@ -191,9 +191,9 @@ pub type DbResult<T> = Result<T, DbError>;
 /// `DatabaseCorrupt` told the user their database file was damaged when their
 /// input was simply invalid.
 fn constraint_code(extended_code: i32) -> Option<ErrorCode> {
-    const CHECK: i32 = rusqlite::ffi::SQLITE_CONSTRAINT_CHECK as i32;
-    const FOREIGNKEY: i32 = rusqlite::ffi::SQLITE_CONSTRAINT_FOREIGNKEY as i32;
-    const NOTNULL: i32 = rusqlite::ffi::SQLITE_CONSTRAINT_NOTNULL as i32;
+    const CHECK: i32 = rusqlite::ffi::SQLITE_CONSTRAINT_CHECK;
+    const FOREIGNKEY: i32 = rusqlite::ffi::SQLITE_CONSTRAINT_FOREIGNKEY;
+    const NOTNULL: i32 = rusqlite::ffi::SQLITE_CONSTRAINT_NOTNULL;
 
     matches!(extended_code, CHECK | FOREIGNKEY | NOTNULL).then_some(ErrorCode::InvalidInput)
 }
