@@ -1443,7 +1443,7 @@ keeping as a regression guard, but the test that drives this task is a
 **retry with the same operation ID**, which is exactly what the pre-check
 breaks.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `src-tauri/tests/domain_accounts_transactions.rs` (imports there already
 carry `accounts` and `ErrorCode`):
@@ -1531,7 +1531,7 @@ fn restoring_a_live_goal_is_rejected() {
 `OperationId` is `Clone` — the retry tests depend on it, and
 `domain_accounts_transactions.rs:577-591` already relies on the same thing.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml`
 Expected:
@@ -1542,7 +1542,7 @@ Expected:
 If the two retry tests pass at this step, stop: they are not exercising the
 guard placement and this task has no signal.
 
-- [ ] **Step 3: Move the guard and add the predicate**
+- [x] **Step 3: Move the guard and add the predicate**
 
 `src-tauri/src/database/domains/accounts.rs` — replace `restore_account`'s body:
 
@@ -1593,12 +1593,12 @@ Apply the same guard move to `goals::restore_goal`
 statement as it is. Only `accounts::restore_account`'s `UPDATE` is missing the
 predicate.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml`
 Expected: PASS. The existing restore round-trip tests must still pass — a real restore is unchanged.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src-tauri/src/database/domains/accounts.rs src-tauri/src/database/domains/goals.rs src-tauri/tests
