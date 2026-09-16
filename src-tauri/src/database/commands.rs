@@ -281,6 +281,38 @@ pub async fn transaction_delete_many(
         })
         .await
 }
+#[tauri::command]
+pub async fn transaction_set_tag_many(
+    manager: State<'_, Arc<DatabaseManager>>,
+    ids: Vec<String>,
+    tag_id: Option<String>,
+) -> Result<(), DbError> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+    let op_id = OperationId::generate();
+    manager
+        .data_job(move |state| {
+            domains::transactions::set_tag_many(state.connection_mut()?, op_id, ids, tag_id)
+        })
+        .await
+}
+#[tauri::command]
+pub async fn transaction_set_account_many(
+    manager: State<'_, Arc<DatabaseManager>>,
+    ids: Vec<String>,
+    account_id: String,
+) -> Result<(), DbError> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+    let op_id = OperationId::generate();
+    manager
+        .data_job(move |state| {
+            domains::transactions::set_account_many(state.connection_mut()?, op_id, ids, account_id)
+        })
+        .await
+}
 
 // ===========================================================================
 // Category commands

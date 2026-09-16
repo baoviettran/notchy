@@ -176,3 +176,121 @@ fn delete_many_with_no_ids_is_a_no_op() {
     let mut conn = fresh_db("delete-many-empty");
     transactions::delete_transactions(&mut conn, op(), Vec::new()).unwrap();
 }
+
+#[test]
+fn set_tag_many_retags_exactly_the_selected_ids() {
+    let mut conn = fresh_db("set-tag-many");
+    let account = account(&mut conn, "A");
+
+    let a = transactions::create_transaction(
+        &mut conn,
+        op(),
+        expense(&account, "A", 1_000, "2026-02-02"),
+    )
+    .unwrap();
+    let b = transactions::create_transaction(
+        &mut conn,
+        op(),
+        expense(&account, "B", 1_000, "2026-02-03"),
+    )
+    .unwrap();
+    let keep = transactions::create_transaction(
+        &mut conn,
+        op(),
+        expense(&account, "Keep", 1_000, "2026-02-04"),
+    )
+    .unwrap();
+
+    transactions::set_tag_many(
+        &mut conn,
+        op(),
+        vec![a.clone(), b.clone()],
+        Some("tag_loss".to_string()),
+    )
+    .unwrap();
+
+    assert_eq!(
+        transactions::get_transaction(&conn, &a).unwrap().unwrap().tag_id.as_deref(),
+        Some("tag_loss")
+    );
+    assert_eq!(
+        transactions::get_transaction(&conn, &b).unwrap().unwrap().tag_id.as_deref(),
+        Some("tag_loss")
+    );
+    assert_eq!(
+        transactions::get_transaction(&conn, &keep).unwrap().unwrap().tag_id,
+        None
+    );
+}
+
+#[test]
+fn set_tag_many_can_clear_the_tag() {
+    let mut conn = fresh_db("set-tag-many-null");
+    let account = account(&mut conn, "A");
+
+    let mut input = expense(&account, "A", 1_000, "2026-02-02");
+    input.tag_id = Some("tag_loss".to_string());
+    let id = transactions::create_transaction(&mut conn, op(), input).unwrap();
+
+    transactions::set_tag_many(&mut conn, op(), vec![id.clone()], None).unwrap();
+
+    assert_eq!(transactions::get_transaction(&conn, &id).unwrap().unwrap().tag_id, None);
+}
+
+#[test]
+fn set_tag_many_skips_soft_deleted_rows() {
+    let mut conn = fresh_db("set-tag-many-deleted");
+    let account = account(&mut conn, "A");
+
+    let id = transactions::create_transaction(
+        &mut conn,
+        op(),
+        expense(&account, "A", 1_000, "2026-02-02"),
+    )
+    .unwrap();
+    transactions::delete_transaction(&mut conn, op(), &id).unwrap();
+
+    transactions::set_tag_many(&mut conn, op(), vec![id.clone()], Some("tag_loss".to_string()))
+        .unwrap();
+
+    // Still soft-deleted, and get_transaction filters those out.
+    assert!(transactions::get_transaction(&conn, &id).unwrap().is_none());
+}
+
+#[test]
+fn set_account_many_moves_exactly_the_selected_ids() {
+    let mut conn = fresh_db("set-account-many");
+    let from = account(&mut conn, "From");
+    let to = account(&mut conn, "To");
+
+    let a = transactions::create_transaction(
+        &mut conn,
+        op(),
+        expense(&from, "A", 1_000, "2026-02-02"),
+    )
+    .unwrap();
+    let keep = transactions::create_transaction(
+        &mut conn,
+        op(),
+        expense(&from, "Keep", 1_000, "2026-02-03"),
+    )
+    .unwrap();
+
+    transactions::set_account_many(&mut conn, op(), vec![a.clone()], to.clone()).unwrap();
+
+    assert_eq!(
+        transactions::get_transaction(&conn, &a).unwrap().unwrap().account_id,
+        to
+    );
+    assert_eq!(
+        transactions::get_transaction(&conn, &keep).unwrap().unwrap().account_id,
+        from
+    );
+}
+
+#[test]
+fn the_bulk_commands_with_no_ids_are_no_ops() {
+    let mut conn = fresh_db("bulk-empty");
+    transactions::set_tag_many(&mut conn, op(), Vec::new(), Some("tag_loss".to_string())).unwrap();
+    transactions::set_account_many(&mut conn, op(), Vec::new(), "acc_missing".to_string()).unwrap();
+}

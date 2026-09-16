@@ -758,3 +758,70 @@ pub fn delete_transactions(
     })
     .map(|_| ())
 }
+
+/// Retag many transactions in one operation.
+///
+/// Mirrors `browser/repos/transactions.ts:284-295`. `None` clears the tag, the
+/// same way the browser sets the column to NULL rather than to an empty string.
+pub fn set_tag_many(
+    conn: &mut Connection,
+    op_id: OperationId,
+    ids: Vec<String>,
+    tag_id: Option<String>,
+) -> DbResult<()> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct Void {}
+
+    let request = (&ids, &tag_id);
+    run_idempotent(conn, op_id, "set_tag_many", &request, |tx| {
+        let now = now_iso_utc();
+        for id in &ids {
+            tx.execute(
+                "UPDATE transactions SET tag_id = ?1, updated_at = ?2 \
+                 WHERE id = ?3 AND deleted_at IS NULL",
+                params![tag_id.as_deref(), now, id],
+            )
+            .map_err(map_sqlite_error)?;
+        }
+        Ok(Void {})
+    })
+    .map(|_| ())
+}
+
+/// Move many transactions to another account in one operation.
+///
+/// Mirrors `browser/repos/transactions.ts:297-308`. The destination account is
+/// not pre-validated — the browser relies on the foreign key, and a bad
+/// account id now surfaces as `InvalidInput` rather than as corruption.
+pub fn set_account_many(
+    conn: &mut Connection,
+    op_id: OperationId,
+    ids: Vec<String>,
+    account_id: String,
+) -> DbResult<()> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct Void {}
+
+    let request = (&ids, &account_id);
+    run_idempotent(conn, op_id, "set_account_many", &request, |tx| {
+        let now = now_iso_utc();
+        for id in &ids {
+            tx.execute(
+                "UPDATE transactions SET account_id = ?1, updated_at = ?2 \
+                 WHERE id = ?3 AND deleted_at IS NULL",
+                params![&account_id, now, id],
+            )
+            .map_err(map_sqlite_error)?;
+        }
+        Ok(Void {})
+    })
+    .map(|_| ())
+}
