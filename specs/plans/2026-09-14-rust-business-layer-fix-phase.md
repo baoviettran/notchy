@@ -1748,7 +1748,7 @@ camelCase symbols. It is a documented product feature
 On desktop it does not fail loudly — the component degrades silently by design,
 so the strip simply never appears.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src-tauri/tests/domain_transactions_bulk.rs`:
 
@@ -1877,12 +1877,12 @@ fn frequent_ignores_soft_deleted_transactions() {
 }
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_transactions_bulk`
 Expected: FAIL to compile — `transactions::get_frequent` does not exist.
 
-- [ ] **Step 3: Add the DTO**
+- [x] **Step 3: Add the DTO**
 
 `src-tauri/src/database/types.rs`, near the transaction types:
 
@@ -1900,7 +1900,7 @@ pub struct FrequentTx {
 }
 ```
 
-- [ ] **Step 4: Port the query**
+- [x] **Step 4: Port the query**
 
 `src-tauri/src/database/domains/transactions.rs`:
 
@@ -1946,7 +1946,7 @@ pub fn get_frequent(conn: &Connection, since_date: &str) -> DbResult<Vec<Frequen
 
 Add `FrequentTx` to the `use crate::database::types::{...}` list at the top.
 
-- [ ] **Step 5: Re-export, wrap, and register**
+- [x] **Step 5: Re-export, wrap, and register**
 
 `src-tauri/src/database/domains/mod.rs`:
 
@@ -1978,7 +1978,7 @@ pub async fn transaction_frequent(
             transaction_frequent,
 ```
 
-- [ ] **Step 6: Add the boundary-test fixture**
+- [x] **Step 6: Add the boundary-test fixture**
 
 `src/tests/unit/native-boundary.test.ts`, in `FIXTURES`:
 
@@ -1986,7 +1986,7 @@ pub async fn transaction_frequent(
 		transaction_frequent: [],
 ```
 
-- [ ] **Step 7: Run the tests**
+- [x] **Step 7: Run the tests**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_transactions_bulk`
 Expected: PASS.
@@ -1994,7 +1994,7 @@ Expected: PASS.
 Run: `pnpm vitest run src/tests/unit/native-boundary.test.ts`
 Expected: the `transaction_frequent` row now passes; three failures remain (the other C1 commands).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src-tauri/src/database/types.rs src-tauri/src/database/domains/transactions.rs src-tauri/src/database/domains/mod.rs src-tauri/src/database/commands.rs src-tauri/src/lib.rs src-tauri/tests/domain_transactions_bulk.rs src/tests/unit/native-boundary.test.ts
