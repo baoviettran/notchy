@@ -1626,7 +1626,7 @@ already had."
 
 **The defect.** `next_month` does `month.split('-').map(|s| s.parse().unwrap_or(1))` and then indexes `parts[0]` and `parts[1]`. A month string with no `-` panics on the index; a non-numeric segment silently becomes month 1.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `src-tauri/tests/domain_categories_budgets.rs`:
 
@@ -1645,12 +1645,12 @@ fn a_malformed_month_is_invalid_input() {
 Adjust `fresh_db` to the helper that file already uses if its name differs; the
 test needs a `Connection`, not a mutable one.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_categories_budgets`
 Expected: FAIL — `2026` and `""` panic on `parts[1]`; `2026-13` and `not-a-month` return without error.
 
-- [ ] **Step 3: Parse the month once, rejecting anything malformed**
+- [x] **Step 3: Parse the month once, rejecting anything malformed**
 
 `src-tauri/src/database/domains/budgets.rs`:
 
@@ -1697,7 +1697,7 @@ fn previous_month(month: &str) -> DbResult<String> {
 
 Add `DbError` and `ErrorCode` to the imports from `crate::database::error`.
 
-- [ ] **Step 4: Propagate at the call sites**
+- [x] **Step 4: Propagate at the call sites**
 
 `get_spent_for_bucket` (line 41), `get_rolled_over`, `get_budgets_for_month`,
 `copy_from_previous_month` (line 215), and any other caller now use `?`.
@@ -1705,12 +1705,12 @@ Add `DbError` and `ErrorCode` to the imports from `crate::database::error`.
 Run: `cargo build --manifest-path src-tauri/Cargo.toml` and fix each call site
 the compiler names.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src-tauri/src/database/domains/budgets.rs src-tauri/tests/domain_categories_budgets.rs
