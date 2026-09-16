@@ -3133,7 +3133,7 @@ These are **not** the same list, so do not route them through `kind_filter` —
 that would start counting income as spending. The fix is a second named helper
 for the second concept.
 
-- [ ] **Step 1: Write the guard test**
+- [x] **Step 1: Write the guard test**
 
 This is a literal-preserving extraction, so the guard is a unit test on the
 private helpers rather than an integration test. Add at the bottom of
@@ -3167,12 +3167,12 @@ mod kind_filter_tests {
 }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --lib kind_filter_tests`
 Expected: FAIL to compile — `spending_kind_filter` does not exist.
 
-- [ ] **Step 3: Extract the helper**
+- [x] **Step 3: Extract the helper**
 
 `src-tauri/src/database/domains/reports.rs`, below `kind_filter`:
 
@@ -3195,19 +3195,19 @@ Replace both inline `if include_adjustments { "t.kind IN (...)" } else { ... }`
 blocks (around lines 350 and 428) with
 `let kind = spending_kind_filter(include_adjustments);`.
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml`
 Expected: PASS, including `kind_filter_tests` and the existing reports suite.
 
-- [ ] **Step 5: Confirm the extraction changed no literal**
+- [x] **Step 5: Confirm the extraction changed no literal**
 
 Diff the two removed blocks against the new helper by eye before committing —
 the entire risk in this task is a typo in a copied SQL literal, and the guard
 in Step 1 checks the shape, not the spelling. Confirm each of the four strings
 matches exactly.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src-tauri/src/database/domains/reports.rs
