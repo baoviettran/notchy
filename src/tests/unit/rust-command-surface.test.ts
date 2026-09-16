@@ -19,6 +19,7 @@ import {
 	loadCommandSurface,
 	parseCommandSignatures,
 	parseRegisteredCommands,
+	unusedCommandParams,
 } from './helpers/rust-command-surface';
 
 function tempLibRs(body: string): string {
@@ -245,5 +246,112 @@ pub fn broken(id_string) -> Result<(), String> {
 		expect(() => parseCommandSignatures(join(root, 'src-tauri/src'))).toThrow(
 			/unparsable parameter declaration: id_string/
 		);
+	});
+});
+
+/**
+ * The rule that closes I1's blind spot. `camelCase()` strips the leading
+ * underscore by design, so the wire-key check cannot see that `_bucket_id` is
+ * an unused binding. These run over synthetic source — a test that only asserts
+ * "the real tree is clean" cannot show the rule has any signal.
+ */
+describe('unusedCommandParams', () => {
+	it('flags a declared parameter that the command body never references', () => {
+		const source = `
+#[tauri::command]
+pub async fn report_get_trend(
+	state: State<'_, Arc<DatabaseManager>>,
+	months: u32,
+	_bucket_id: Option<String>,
+) -> Result<Vec<TrendPoint>, DbError> {
+	let conn = state.connection()?;
+	domains::reports::get_trend(conn, months, false)
+}
+`;
+		const offenders = unusedCommandParams(source);
+		expect(offenders).toEqual([{ command: 'report_get_trend', param: '_bucket_id' }]);
+	});
+
+	it('does not flag a parameter the body references', () => {
+		const source = `
+#[tauri::command]
+pub async fn report_get_trend(
+	state: State<'_, Arc<DatabaseManager>>,
+	months: u32,
+	bucket_id: Option<String>,
+) -> Result<Vec<TrendPoint>, DbError> {
+	let conn = state.connection()?;
+	domains::reports::get_trend(conn, months, false, bucket_id.as_deref())
+}
+`;
+		expect(unusedCommandParams(source)).toEqual([]);
+	});
+
+	it('exempts a Tauri-injected parameter the body never names', () => {
+		// `state` is supplied by the invocation context, so the client never sends
+		// it and there is nothing to drop. It must stay exempt.
+		const source = `
+#[tauri::command]
+pub async fn account_list(
+	state: State<'_, Arc<DatabaseManager>>,
+	window: WebviewWindow,
+) -> Result<Vec<Account>, DbError> {
+	Ok(Vec::new())
+}
+`;
+		expect(unusedCommandParams(source)).toEqual([]);
+	});
+
+	it('searches the body through nested braces and closures', () => {
+		// Braces are matched, not truncated at the first `}`: a body that closes a
+		// block before the parameter's real use must not read as unused.
+		const source = `
+#[tauri::command]
+pub async fn budget_set(
+	state: State<'_, Arc<DatabaseManager>>,
+	amount: i64,
+) -> Result<(), DbError> {
+	let conn = state.connection()?;
+	if amount > 0 {
+		conn.transaction(|tx| {
+			tx.execute("UPDATE budget SET amount = ?", [amount])?;
+			Ok(())
+		})?;
+	}
+	Ok(())
+}
+`;
+		expect(unusedCommandParams(source)).toEqual([]);
+	});
+
+	it('matches on the word boundary, so a longer identifier is not a use', () => {
+		// `bucket_id` inside `bucket_id_cached` is a different name; `\b` is what
+		// keeps a near-miss from reading as a reference.
+		const source = `
+#[tauri::command]
+pub fn report_get_trend(
+	months: u32,
+	bucket_id: Option<String>,
+) -> Result<(), DbError> {
+	let span = months * 30;
+	let bucket_id_cached = Some("month");
+	Ok(())
+}
+`;
+		expect(unusedCommandParams(source)).toEqual([
+			{ command: 'report_get_trend', param: 'bucket_id' },
+		]);
+	});
+
+	it('throws rather than reporting nothing when there is no command to check', () => {
+		// The §8 shape: an empty scan reading as a passing assertion. A source with
+		// no #[tauri::command] must never come back as "no offenders".
+		expect(() => unusedCommandParams('pub fn plain() {}\n')).toThrow(
+			/no #\[tauri::command\] signatures to check/
+		);
+	});
+
+	it('finds no unused parameter in the real tree', () => {
+		expect(unusedCommandParams(loadCommandSurface())).toEqual([]);
 	});
 });
