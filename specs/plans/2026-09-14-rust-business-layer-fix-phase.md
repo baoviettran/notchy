@@ -2023,7 +2023,7 @@ desktop and web disagree."
 **Interfaces:**
 - Produces: `pub fn delete_transactions(conn: &mut Connection, op_id: OperationId, ids: Vec<String>) -> DbResult<()>`; command `transaction_delete_many(ids: Vec<String>) -> Result<(), DbError>`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `src-tauri/tests/domain_transactions_bulk.rs`:
 
@@ -2086,12 +2086,12 @@ fn delete_many_with_no_ids_is_a_no_op() {
 }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_transactions_bulk`
 Expected: FAIL to compile — `delete_transactions` does not exist.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `src-tauri/src/database/domains/transactions.rs`:
 
@@ -2129,7 +2129,7 @@ pub fn delete_transactions(
 }
 ```
 
-- [ ] **Step 4: Re-export, wrap, register, fixture**
+- [x] **Step 4: Re-export, wrap, register, fixture**
 
 `domains/mod.rs` — add `delete_transactions` to the `transactions::` re-export list.
 
@@ -2158,7 +2158,7 @@ pub async fn transaction_delete_many(
 `native-boundary.test.ts` — add `transaction_delete_many: null,` to `FIXTURES`
 with a comment noting the return value is not asserted there.
 
-- [ ] **Step 5: Run the tests**
+- [x] **Step 5: Run the tests**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml`
 Expected: PASS.
@@ -2166,7 +2166,7 @@ Expected: PASS.
 Run: `pnpm vitest run src/tests/unit/native-boundary.test.ts`
 Expected: the `deleteMany` op row passes; two failures remain.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src-tauri/src/database/domains/transactions.rs src-tauri/src/database/domains/mod.rs src-tauri/src/database/commands.rs src-tauri/src/lib.rs src-tauri/tests/domain_transactions_bulk.rs src/tests/unit/native-boundary.test.ts
