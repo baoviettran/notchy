@@ -2906,7 +2906,7 @@ and there is no `src/tests/unit/sanitize.test.ts` today — `stripControlChars` 
 covered only indirectly, through `transactions.test.ts`. The steps below name
 the real symbol and create the new test file.
 
-- [ ] **Step 1: Write the shared corpus**
+- [x] **Step 1: Write the shared corpus**
 
 Create `src-tauri/tests/fixtures/control-chars.json`. **Every character must be
 a `\uXXXX` escape, never a literal.**
@@ -2945,7 +2945,7 @@ needs no new dev-dependency — `serde_json` is a normal dependency
 path. One file, read by both: a corpus that lives inside either implementation
 cannot catch the two drifting apart.
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 Rust — add to `src-tauri/tests/domain_accounts_transactions.rs`:
 
@@ -3004,7 +3004,7 @@ Three things that must be right for this to run:
   `JSON.parse(readFileSync(resolve(process.cwd(), 'src-tauri/tests/fixtures/control-chars.json'), 'utf8'))`.
   Do not inline a second copy of the corpus — the shared file is the mechanism.
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_accounts_transactions`
 Expected: PASS — Rust already strips C1. This side is the control.
@@ -3012,7 +3012,7 @@ Expected: PASS — Rust already strips C1. This side is the control.
 Run: `pnpm vitest run src/tests/unit/sanitize.test.ts`
 Expected: FAIL on the C1 cases — the browser keeps `\u0085`, `\u0092`, and `\u009F`.
 
-- [ ] **Step 4: Widen the browser regex, and correct the comment that overstates it**
+- [x] **Step 4: Widen the browser regex, and correct the comment that overstates it**
 
 `src/lib/utils/sanitize.ts`, line 13:
 
@@ -3041,7 +3041,7 @@ the comment is the part a reader trusts. Rewrite it to say what the character
 class now covers: Cc minus `\n`, `\r`, and `\t`. Format characters (`Cf`, e.g.
 U+200B zero-width space) are **not** in scope — do not claim them.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pnpm vitest run src/tests/unit/sanitize.test.ts`
 Expected: PASS.
@@ -3049,7 +3049,7 @@ Expected: PASS.
 Run: `pnpm test`
 Expected: PASS. If another test asserted that a C1 character survives, it was encoding the divergence — update it and name it in the commit message.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src-tauri/tests/fixtures/control-chars.json src-tauri/tests/domain_accounts_transactions.rs src/lib/utils/sanitize.ts src/tests/unit/sanitize.test.ts
