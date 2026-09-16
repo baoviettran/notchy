@@ -409,7 +409,7 @@ class NativeDebtOps implements DebtOps {
 	}
 
 	writeOff(accountId: string, amount: number, tagId?: string): Promise<string> {
-		return invoke<string>('debt_write_off', { accountId, amount, tagId: tagId ?? '' });
+		return invoke<string>('debt_write_off', { accountId, amount, tagId: tagId ?? null });
 	}
 }
 

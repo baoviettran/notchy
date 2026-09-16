@@ -749,11 +749,11 @@ pub async fn debt_write_off(
     manager: State<'_, Arc<DatabaseManager>>,
     account_id: String,
     amount: i64,
-    tag_id: String,
+    tag_id: Option<String>,
 ) -> Result<String, DbError> {
     let op_id = OperationId::generate();
     manager.data_job(move |state| {
-        domains::debts::write_off(state.connection_mut()?, op_id, &account_id, amount, &tag_id)
+        domains::debts::write_off(state.connection_mut()?, op_id, &account_id, amount, tag_id)
     }).await
 }
 

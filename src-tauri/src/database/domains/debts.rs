@@ -109,13 +109,19 @@ pub fn list_debts(conn: &Connection) -> DbResult<DebtSummary> {
 
 /// Write off a debt amount. Creates an expense (loan_to_person) or
 /// income (loan_from_person) transaction. Returns the new transaction ID.
+///
+/// A missing tag resolves to the seeded `tag_loss` here rather than at the
+/// caller: `tag_id` is a foreign key, so an empty string is rejected by SQLite
+/// as corruption instead of being read as "no tag chosen". The TypeScript
+/// reference defaults the same way (`src/lib/db/browser/repos/debts.ts:57`).
 pub fn write_off(
     conn: &mut Connection,
     op_id: OperationId,
     account_id: &str,
     amount: i64,
-    tag_id: &str,
+    tag_id: Option<String>,
 ) -> DbResult<String> {
+    let tag_id = tag_id.unwrap_or_else(|| "tag_loss".to_string());
     // Validate account exists and is a loan type.
     let acc_type: Option<String> = conn
         .query_row(
