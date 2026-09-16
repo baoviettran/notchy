@@ -3274,7 +3274,7 @@ new function. There is no `accounts::get_balance_as_of`; the two commands that
 sound like it are `account_get_balance` and `account_get_balance_as_of`
 (`commands.rs:107`, `:116`), and both call the same `accounts::get_balance`.
 
-- [ ] **Step 1: Write the characterization tests**
+- [x] **Step 1: Write the characterization tests**
 
 Add to `src-tauri/tests/domain_accounts_transactions.rs`:
 
@@ -3304,12 +3304,12 @@ fn the_shared_balance_helper_matches_the_transaction_it_moves() {
 `accounts::today_iso()` is `pub` as of Task 12, which is what makes this — and
 Task 18's test — compile.
 
-- [ ] **Step 2: Run it**
+- [x] **Step 2: Run it**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_accounts_transactions`
 Expected: FAIL to compile — the module does not exist.
 
-- [ ] **Step 3: Move the balance expression into its own module**
+- [x] **Step 3: Move the balance expression into its own module**
 
 Create `src-tauri/src/database/domains/balance.rs`:
 
@@ -3379,7 +3379,7 @@ pub fn net_worth_as_of(conn: &Connection, as_of: &str) -> DbResult<i64> {
 }
 ```
 
-- [ ] **Step 4: Create the civil-date module**
+- [x] **Step 4: Create the civil-date module**
 
 Create `src-tauri/src/database/domains/civil_date.rs`. Note the two public
 functions share one private derivation — `current_year_month` was discarding
@@ -3436,7 +3436,7 @@ The arithmetic is unchanged from what the four copies already do — same
 `719_468`, same `146_097`, same term order. This is a move, and any deviation
 here silently shifts every month boundary in every report.
 
-- [ ] **Step 5: Register the modules and route `accounts` through them**
+- [x] **Step 5: Register the modules and route `accounts` through them**
 
 `src-tauri/src/database/domains/mod.rs` — add in alphabetical position:
 
@@ -3476,7 +3476,7 @@ pub fn get_balance(conn: &Connection, account_id: &str, date: &str) -> DbResult<
 - Leave `list_accounts`' `UNION ALL` subquery alone, for the reason in the
   census table.
 
-- [ ] **Step 6: Replace every remaining copy**
+- [x] **Step 6: Replace every remaining copy**
 
 **The three private `get_balance` helpers** — delete each one and call the
 shared helper at its call sites:
@@ -3531,7 +3531,7 @@ and a month is never below 1, so the subtraction cannot underflow before the
 **The inline `today_iso` in `transactions.rs:581-595`** — it recomputes the same
 block to get today's date. Replace it with `civil_date::today_iso()`.
 
-- [ ] **Step 7: Run the tests**
+- [x] **Step 7: Run the tests**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml`
 Expected: PASS. The reports suite is the real check here: a wrong month
@@ -3539,7 +3539,7 @@ derivation changes which months appear in every trend, and the balance move is
 covered by the characterization test from Step 1 plus the existing account,
 goal, debt, and reconciliation suites.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src-tauri/src/database/domains/balance.rs \
