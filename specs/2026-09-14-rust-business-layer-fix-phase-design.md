@@ -1,6 +1,7 @@
 # Rust business-layer fix phase — design
+**Serves:** STORY-001
 
-**Status:** Draft — awaiting review
+**Status:** Implemented — plan 18/18 complete, pending merge
 **Date:** 2026-09-14
 **Predecessor:** `specs/2026-08-17-rust-database-integrity-boundary-design.md` (implemented, plan closed)
 **Trigger:** Code review of `src-tauri/src/database/domains/` (12 files, 3819 lines), cross-checked against the TypeScript reference in `src/lib/db/browser/repos/`.
