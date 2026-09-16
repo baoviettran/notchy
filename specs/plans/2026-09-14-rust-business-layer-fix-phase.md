@@ -3458,7 +3458,6 @@ pub use super::civil_date::today_iso;
 The three references inside the private `get_balance` helpers
 (`debts.rs:18`, `reconciliations.rs:19`, `goals.rs:19`) go away with those
 helpers; they are not callers this re-export exists to serve.
-```
 
 - Replace `get_balance`'s body (lines 89-111) with a delegation, keeping the
   signature that `commands.rs:112`, `commands.rs:121`, and `accounts.rs:203`
