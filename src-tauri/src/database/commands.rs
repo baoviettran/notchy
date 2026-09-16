@@ -256,6 +256,16 @@ pub async fn transaction_duplicate(
     }).await
 }
 
+#[tauri::command]
+pub async fn transaction_frequent(
+    manager: State<'_, Arc<DatabaseManager>>,
+    since_date: String,
+) -> Result<Vec<FrequentTx>, DbError> {
+    manager
+        .data_job(move |state| domains::transactions::get_frequent(state.connection()?, &since_date))
+        .await
+}
+
 // ===========================================================================
 // Category commands
 // ===========================================================================

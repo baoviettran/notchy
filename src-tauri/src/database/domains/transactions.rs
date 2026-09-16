@@ -9,8 +9,8 @@ use crate::database::error::{DbError, DbResult, ErrorCode, map_sqlite_error, val
 use crate::database::migrations::now_iso_utc;
 use crate::database::receipt::run_idempotent;
 use crate::database::types::{
-    NewTransaction, OperationId, Patch, Transaction, TransactionFilter, TransactionKind,
-    TransactionPatch,
+    FrequentTx, NewTransaction, OperationId, Patch, Transaction, TransactionFilter,
+    TransactionKind, TransactionPatch,
 };
 
 // ---------------------------------------------------------------------------
@@ -687,4 +687,42 @@ pub fn duplicate_transaction(
         })
     })
     .map(|r| r.transaction_id)
+}
+
+/// Recurring payees since `since_date`, most frequent first.
+///
+/// Ported verbatim from `browser/client.ts:133-141`. Fidelity caveat:
+/// `amount` and `kind` are bare columns under `GROUP BY payee, tag_id,
+/// account_id`, so SQLite returns an arbitrary row from each group. The browser
+/// layer relies on that; matching it is correct and diverging would make
+/// desktop and web disagree. Do not "fix" it.
+pub fn get_frequent(conn: &Connection, since_date: &str) -> DbResult<Vec<FrequentTx>> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT payee, tag_id, account_id, amount, kind, COUNT(*) as count
+             FROM transactions
+             WHERE deleted_at IS NULL AND date >= ?1 AND payee IS NOT NULL
+               AND kind IN ('expense', 'income')
+             GROUP BY payee, tag_id, account_id
+             ORDER BY count DESC, date DESC
+             LIMIT 5",
+        )
+        .map_err(map_sqlite_error)?;
+
+    let rows = stmt
+        .query_map([since_date], |row| {
+            Ok(FrequentTx {
+                payee: row.get(0)?,
+                tag_id: row.get(1)?,
+                account_id: row.get(2)?,
+                amount: row.get(3)?,
+                kind: row.get(4)?,
+                count: row.get(5)?,
+            })
+        })
+        .map_err(map_sqlite_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(map_sqlite_error)?;
+
+    Ok(rows)
 }

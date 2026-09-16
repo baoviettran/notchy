@@ -38,5 +38,5 @@ pub use rules::{
 };
 pub use transactions::{
     create_transaction, create_transactions_batch, delete_transaction, duplicate_transaction,
-    get_transaction, list_transactions, restore_transaction, update_transaction,
+    get_frequent, get_transaction, list_transactions, restore_transaction, update_transaction,
 };
