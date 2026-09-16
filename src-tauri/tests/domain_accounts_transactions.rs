@@ -715,3 +715,71 @@ fn description_strips_control_chars() {
     // Control chars stripped, newline preserved
     assert_eq!(txn.description.as_deref(), Some("Hello\nWorld"));
 }
+
+// ---------------------------------------------------------------------------
+// I5 — amounts the schema cannot store are rejected by the business layer
+// ---------------------------------------------------------------------------
+
+#[test]
+fn amounts_above_the_schema_cap_are_rejected_before_sqlite() {
+    let mut conn = fresh_db("i5-amount-cap");
+    let account = accounts::create_account(&mut conn, op(), default_account("A")).unwrap();
+
+    // All three pass the JS-safe-range check and fail the schema CHECK.
+    for amount in [1_000_000_000_000_i64, 1_400_000_000_000, 9_007_199_254_740_991] {
+        let error = transactions::create_transaction(&mut conn, op(), default_expense(&account, amount))
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::AmountOutOfRange, "amount {amount}");
+    }
+}
+
+#[test]
+fn the_largest_storable_amount_is_accepted() {
+    let mut conn = fresh_db("i5-amount-boundary");
+    let account = accounts::create_account(&mut conn, op(), default_account("A")).unwrap();
+
+    transactions::create_transaction(&mut conn, op(), default_expense(&account, 999_999_999_999))
+        .unwrap();
+}
+
+#[test]
+fn batch_import_rejects_amounts_above_the_schema_cap() {
+    let mut conn = fresh_db("i5-batch-cap");
+    let account = accounts::create_account(&mut conn, op(), default_account("A")).unwrap();
+
+    // One good row and one over-cap row: the batch validates up front, so the
+    // whole import fails and nothing is written — the same shape as an
+    // unknown `account_id` in the existing validation loop.
+    let inputs = vec![
+        default_expense(&account, 100),
+        default_expense(&account, 1_400_000_000_000),
+    ];
+    let error = transactions::create_transactions_batch(&mut conn, op(), inputs).unwrap_err();
+    assert_eq!(error.code, ErrorCode::AmountOutOfRange);
+
+    let list = transactions::list_transactions(&conn, TransactionFilter::default()).unwrap();
+    assert!(list.is_empty(), "the whole batch must be rejected, wrote {}", list.len());
+}
+
+#[test]
+fn update_rejects_amounts_above_the_schema_cap() {
+    let mut conn = fresh_db("i5-update-cap");
+    let account = accounts::create_account(&mut conn, op(), default_account("A")).unwrap();
+    let txn_id = transactions::create_transaction(&mut conn, op(), default_expense(&account, 100))
+        .unwrap();
+
+    let error = transactions::update_transaction(
+        &mut conn,
+        op(),
+        &txn_id,
+        TransactionPatch {
+            amount: Some(1_400_000_000_000),
+            ..no_patch()
+        },
+    )
+    .unwrap_err();
+    assert_eq!(error.code, ErrorCode::AmountOutOfRange);
+
+    let txn = transactions::get_transaction(&conn, &txn_id).unwrap().unwrap();
+    assert_eq!(txn.amount, 100, "the rejected update must not be applied");
+}

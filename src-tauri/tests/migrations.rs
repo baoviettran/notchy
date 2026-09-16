@@ -476,3 +476,26 @@ fn schema_version_constants() {
     assert_eq!(LATEST_SCHEMA_VERSION, 6);
     assert_eq!(MIN_SUPPORTED_SCHEMA_VERSION, 3);
 }
+
+#[test]
+fn the_money_bound_matches_the_migration_check() {
+    let path = fresh_path("money-bound");
+    bootstrap_current(&path, FailurePoint::None).unwrap();
+    let conn = Connection::open(&path).unwrap();
+
+    let ddl: String = conn
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'transactions'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+
+    // The bound is read out of the migration that encodes it, so a migration
+    // that changes the cap and a constant that does not cannot both be green.
+    let expected = format!("amount <= {}", notchy_lib::database::error::MAX_AMOUNT);
+    assert!(
+        ddl.contains(&expected),
+        "transactions DDL no longer carries `{expected}`:\n{ddl}"
+    );
+}

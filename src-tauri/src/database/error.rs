@@ -205,8 +205,25 @@ pub(crate) fn map_sqlite_error(error: rusqlite::Error) -> DbError {
     DbError::new(code)
 }
 
-/// Reject monetary values outside JavaScript's safe integer range.
+/// Largest amount the schema will store.
+///
+/// `transactions.amount` carries `CHECK (amount > 0 AND amount <= 999999999999)`
+/// in migration 006. That migration is applied and immutable, so this is a copy
+/// of the literal rather than a shared symbol — interpolating a constant into a
+/// deployed migration would retroactively alter a schema already in the field.
+/// `the_money_bound_matches_the_migration_check` in `tests/migrations.rs` keeps
+/// the copy honest.
+pub const MAX_AMOUNT: u64 = 999_999_999_999;
+
+/// Reject monetary values outside the range the schema can store.
+///
+/// The window this closes: everything from `MAX_AMOUNT + 1` up to
+/// `9_007_199_254_740_991` used to pass here and then be rejected by SQLite.
+///
+/// Note this bound is one-sided: the `CHECK`'s other clause is `amount > 0`,
+/// and this accepts `0` and negatives. Its rejections are therefore a strict
+/// subset of the schema's, so adding it to a write path can only reclassify an
+/// error the schema would already raise.
 pub fn validate_money(value: i64) -> Result<i64, ErrorCode> {
-    const JS_MAX_SAFE: u64 = 9_007_199_254_740_991;
-    (value.unsigned_abs() <= JS_MAX_SAFE).then_some(value).ok_or(ErrorCode::AmountOutOfRange)
+    (value.unsigned_abs() <= MAX_AMOUNT).then_some(value).ok_or(ErrorCode::AmountOutOfRange)
 }

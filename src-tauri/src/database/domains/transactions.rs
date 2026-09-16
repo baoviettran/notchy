@@ -5,7 +5,7 @@
 
 use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::database::error::{DbError, DbResult, ErrorCode, map_sqlite_error};
+use crate::database::error::{DbError, DbResult, ErrorCode, map_sqlite_error, validate_money};
 use crate::database::migrations::now_iso_utc;
 use crate::database::receipt::run_idempotent;
 use crate::database::types::{
@@ -188,13 +188,15 @@ pub fn get_transaction(conn: &Connection, id: &str) -> DbResult<Option<Transacti
 /// Create a single transaction. Handles transfers (single-row model) and
 /// refunds (validates that the target is an existing non-deleted expense).
 ///
-/// Validates that `account_id` exists and is not deleted.
+/// Validates that `account_id` exists and is not deleted, and that the amount
+/// is within the range the schema can store.
 pub fn create_transaction(
     conn: &mut Connection,
     op_id: OperationId,
     input: NewTransaction,
 ) -> DbResult<String> {
     validate_account_exists(conn, &input.account_id)?;
+    validate_money(input.amount)?;
 
     // Transfers require a destination account that differs from the source.
     if input.kind == TransactionKind::Transfer {
@@ -316,6 +318,7 @@ pub fn create_transactions_batch(
             return Err(DbError::new(ErrorCode::InvalidInput));
         }
         validate_account_exists(conn, &input.account_id)?;
+        validate_money(input.amount)?;
     }
 
     #[derive(serde::Serialize, serde::Deserialize)]
@@ -382,6 +385,12 @@ pub fn update_transaction(
         if *dest == existing.account_id {
             return Err(DbError::new(ErrorCode::InvalidInput));
         }
+    }
+
+    // Rejected before the SET list is built, so an unstoreable amount never
+    // reaches SQLite as a CHECK violation.
+    if let Some(amount) = patch.amount {
+        validate_money(amount)?;
     }
 
     // Kind changes are the edit-mode repair path. Transfer conversions carry

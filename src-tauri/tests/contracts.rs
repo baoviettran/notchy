@@ -5,7 +5,7 @@
 
 use std::path::PathBuf;
 
-use notchy_lib::database::error::{validate_money, DbError, ErrorCode};
+use notchy_lib::database::error::{validate_money, DbError, ErrorCode, MAX_AMOUNT};
 use notchy_lib::database::generate_bindings;
 use notchy_lib::database::types::{
     validate_bounded_list, validate_bounded_text, IsoDate, LifecycleState, OperationId, Page,
@@ -35,11 +35,21 @@ fn unsafe_amounts_are_rejected() {
     assert_eq!(validate_money(i64::MIN), Err(ErrorCode::AmountOutOfRange));
 }
 
+/// The criterion is the schema's storage cap, not JavaScript's safe-integer
+/// range — `transactions.amount` carries `CHECK (amount <= 999999999999)`.
 #[test]
-fn safe_amounts_are_accepted() {
+fn amounts_within_the_schema_cap_are_accepted() {
     assert_eq!(validate_money(0), Ok(0));
-    assert_eq!(validate_money(9_007_199_254_740_991), Ok(9_007_199_254_740_991));
-    assert_eq!(validate_money(-9_007_199_254_740_991), Ok(-9_007_199_254_740_991));
+    assert_eq!(validate_money(MAX_AMOUNT as i64), Ok(MAX_AMOUNT as i64));
+    assert_eq!(validate_money(-(MAX_AMOUNT as i64)), Ok(-(MAX_AMOUNT as i64)));
+    assert_eq!(
+        validate_money(MAX_AMOUNT as i64 - 1),
+        Ok(MAX_AMOUNT as i64 - 1)
+    );
+    assert_eq!(
+        validate_money(MAX_AMOUNT as i64 + 1),
+        Err(ErrorCode::AmountOutOfRange)
+    );
 }
 
 #[test]
