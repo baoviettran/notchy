@@ -1,5 +1,6 @@
 import * as m from '$lib/paraglide/messages';
-import { AppError } from '$lib/errors';
+import { AppError, NativeAppError } from '$lib/errors';
+import { RUST_ERROR_MESSAGES } from './rust-error-messages';
 
 /**
  * Map a caught error to a localized user-facing string. AppErrors resolve to
@@ -11,6 +12,9 @@ import { AppError } from '$lib/errors';
  * Static switch (not dynamic `m[key]()`) so the call sites stay type-checked.
  */
 export function mapError(e: unknown): string {
+	if (e instanceof NativeAppError) {
+		return RUST_ERROR_MESSAGES[e.code](e.params);
+	}
 	if (e instanceof AppError) {
 		const p = e.params;
 		switch (e.code) {

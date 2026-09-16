@@ -37,6 +37,29 @@ pub enum ErrorCode {
 }
 
 impl ErrorCode {
+    /// Every variant, for parity tests that must read the union at runtime.
+    pub const ALL: [ErrorCode; 17] = [
+        ErrorCode::DatabaseBusy,
+        ErrorCode::DatabaseLocked,
+        ErrorCode::DatabaseNotReady,
+        ErrorCode::DatabaseUpdateRequired,
+        ErrorCode::UnauthorizedCaller,
+        ErrorCode::SchemaTooOld,
+        ErrorCode::SchemaTooNew,
+        ErrorCode::DatabaseInvalid,
+        ErrorCode::DatabaseCorrupt,
+        ErrorCode::BackupUnavailable,
+        ErrorCode::RestoreFailed,
+        ErrorCode::OperationIdConflict,
+        ErrorCode::AmountOutOfRange,
+        ErrorCode::InvalidUlid,
+        ErrorCode::InvalidDate,
+        ErrorCode::InvalidInput,
+        ErrorCode::RecoveryRequired,
+    ];
+}
+
+impl ErrorCode {
     /// Stable snake_case identifier, matching the serialized form.
     pub fn as_str(&self) -> &'static str {
         match self {

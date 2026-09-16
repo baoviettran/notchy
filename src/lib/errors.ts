@@ -1,3 +1,5 @@
+import type { ErrorCode } from '$lib/native/contracts.generated';
+
 export type ErrorParams = Record<string, string | number>;
 
 /**
@@ -14,5 +16,20 @@ export class AppError extends Error {
 		this.name = 'AppError';
 		this.code = code;
 		this.params = params;
+	}
+}
+
+/**
+ * Marker for an error that came from the Rust boundary rather than the browser
+ * layer. The two code namespaces overlap — `database_corrupt` exists on both
+ * sides — so dispatch must key on origin, not on the code string. A rule like
+ * `code in RUST_ERRORS ? rustTable[code] : switch(code)` would silently route
+ * a browser-originated `database_corrupt` through the Rust table.
+ */
+export class NativeAppError extends AppError {
+	declare readonly code: ErrorCode;
+	constructor(code: ErrorCode, params: ErrorParams = {}) {
+		super(code, params);
+		this.name = 'NativeAppError';
 	}
 }

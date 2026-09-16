@@ -2,6 +2,25 @@
 // types in src-tauri/src/database/{error,types}.rs. Do not edit by hand.
 
 export type ErrorCode = "database_busy" | "database_locked" | "database_not_ready" | "database_update_required" | "unauthorized_caller" | "schema_too_old" | "schema_too_new" | "database_invalid" | "database_corrupt" | "backup_unavailable" | "restore_failed" | "operation_id_conflict" | "amount_out_of_range" | "invalid_ulid" | "invalid_date" | "invalid_input" | "recovery_required";
+export const ErrorCodeValues = [
+	'database_busy',
+	'database_locked',
+	'database_not_ready',
+	'database_update_required',
+	'unauthorized_caller',
+	'schema_too_old',
+	'schema_too_new',
+	'database_invalid',
+	'database_corrupt',
+	'backup_unavailable',
+	'restore_failed',
+	'operation_id_conflict',
+	'amount_out_of_range',
+	'invalid_ulid',
+	'invalid_date',
+	'invalid_input',
+	'recovery_required',
+] as const satisfies readonly ErrorCode[];
 export type MetaKey = "stage" | "schema_version" | "retryable";
 export type DbError = { code: ErrorCode, meta: { [key in string]: string }, };
 export type LifecycleState = "uninitialized" | "initializing" | "ready" | "recovery_required" | "restoring";

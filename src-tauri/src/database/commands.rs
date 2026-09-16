@@ -900,6 +900,7 @@ pub fn generate_bindings() -> String {
     let cfg = Config::default().with_large_int("number");
 
     push_decl(&mut out, ErrorCode::decl(&cfg));
+    push_error_code_values(&mut out);
     push_decl(&mut out, MetaKey::decl(&cfg));
     push_decl(&mut out, DbError::decl(&cfg));
     push_decl(&mut out, LifecycleState::decl(&cfg));
@@ -964,4 +965,18 @@ fn push_decl(out: &mut String, decl: String) {
     out.push_str("export ");
     out.push_str(decl.trim());
     out.push('\n');
+}
+/// Append the runtime list of every error code.
+///
+/// `ErrorCodeValues` is not a ts_rs type, so it is emitted by hand — but the
+/// iteration is driven by [`ErrorCode::ALL`], which keeps the enum, the
+/// generated union, and this array from drifting independently.
+fn push_error_code_values(out: &mut String) {
+    out.push_str("export const ErrorCodeValues = [\n");
+    for code in ErrorCode::ALL {
+        out.push_str("\t'");
+        out.push_str(code.as_str());
+        out.push_str("',\n");
+    }
+    out.push_str("] as const satisfies readonly ErrorCode[];\n");
 }

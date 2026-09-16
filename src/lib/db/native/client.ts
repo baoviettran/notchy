@@ -5,7 +5,8 @@
  * Mutations generate an operation ULID once per user intent; retry paths reuse
  * the same ULID for idempotency.
  */
-import { invoke } from '@tauri-apps/api/core';
+import { invoke as tauriInvoke } from '@tauri-apps/api/core';
+import { toAppError } from '$lib/native/to-app-error';
 import type {
 	AppDatabase,
 	AccountOps,
@@ -36,6 +37,19 @@ import type {
 	YearOverYearPoint,
 	NetWorthPoint,
 } from '../client';
+
+/**
+ * Every command goes through here: a Rust rejection is a `{code, meta}`
+ * envelope, not an AppError, and would otherwise fall through to
+ * `errors_unknown()`.
+ */
+async function invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+	try {
+		return await tauriInvoke<T>(command, args);
+	} catch (error) {
+		throw toAppError(error);
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Lifecycle commands (main-window only)
