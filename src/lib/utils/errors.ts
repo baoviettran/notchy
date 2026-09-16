@@ -6,14 +6,19 @@ import { RUST_ERROR_MESSAGES } from './rust-error-messages';
  * Map a caught error to a localized user-facing string. AppErrors resolve to
  * their `errors_<code>` message (reusing `validation_invalid_amount` for the
  * `invalid_amount` code — single source of truth for "Invalid amount"); any
- * other exception (unknown AppError code, plain Error, or non-Error value)
- * resolves to a generic `errors_unknown` message.
+ * other exception (an unknown AppError code, a native code with no copy entry —
+ * a stale generated union — a plain Error, or a non-Error value) resolves to a
+ * generic `errors_unknown` message.
  *
  * Static switch (not dynamic `m[key]()`) so the call sites stay type-checked.
  */
 export function mapError(e: unknown): string {
 	if (e instanceof NativeAppError) {
-		return RUST_ERROR_MESSAGES[e.code](e.params);
+		// The table is typed exhaustive over the *generated* union, which a Rust
+		// code added without regenerating leaves stale. The lookup is then
+		// `undefined`, so calling it would throw from inside the mapper — the one
+		// path built to stop a Rust rejection falling through to generic copy.
+		return RUST_ERROR_MESSAGES[e.code]?.(e.params) ?? m.errors_unknown();
 	}
 	if (e instanceof AppError) {
 		const p = e.params;

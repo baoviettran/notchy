@@ -10,12 +10,16 @@
  * parsed surface, on names AND on the camelCase argument keys Tauri derives
  * from each command's parameter list.
  *
+ * The client side is parsed here too ({@link invokeSites}): the table can only
+ * catch a command it already lists, so the direction that catches a *de*
+ * registered command is a scan of the `invoke()` call sites themselves.
+ *
  * Every failure mode throws. A scan that degrades to an empty set is exactly
  * how the §8 miscounts happened; an empty or partial set must never read as a
  * passing assertion.
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 
 export interface RustCommand {
 	name: string;
@@ -332,4 +336,139 @@ export function unusedCommandParams(input: string | CommandSurface): UnusedParam
 		}
 	}
 	return offenders;
+}
+
+/** A production `invoke()` call site, resolved to the command it sends. */
+export interface InvokeSite {
+	command: string;
+	/** Path relative to the repo root, so a failure names the site. */
+	file: string;
+	line: number;
+}
+
+/**
+ * Directories that hold no production invoke site: `src/tests` is fixtures
+ * (scanning it would grade the scan against its own inputs), and `paraglide` is
+ * generated and gitignored — a site found there could not be fixed by editing.
+ */
+const NOT_PRODUCTION = /^(?:src\/tests\/)|(?:^|\/)paraglide\//;
+
+/** TypeScript and Svelte sources under `dir`; a `.ts`-only pass misses `quit_app`. */
+function tsSources(dir: string, root: string, out: string[] = []): string[] {
+	if (!existsSync(dir)) {
+		throw new Error(`production source directory not found: ${dir}`);
+	}
+	for (const entry of readdirSync(dir, { withFileTypes: true })) {
+		const full = join(dir, entry.name);
+		if (entry.isDirectory()) {
+			if (NOT_PRODUCTION.test(`${relative(root, full)}/`)) continue;
+			tsSources(full, root, out);
+		} else if (/\.(ts|svelte)$/.test(entry.name)) {
+			out.push(full);
+		}
+	}
+	return out;
+}
+
+function skipBlanks(source: string, from: number): number {
+	let i = from;
+	while (i < source.length && /\s/.test(source[i])) i += 1;
+	return i;
+}
+
+function lineAt(source: string, index: number): number {
+	let line = 1;
+	for (let i = 0; i < index; i += 1) {
+		if (source[i] === '\n') line += 1;
+	}
+	return line;
+}
+
+/** Index just past the `>` that closes the type arguments opened at `open`. */
+function afterTypeArgs(source: string, open: number, file: string, at: number): number {
+	let depth = 0;
+	for (let i = open; i < source.length; i += 1) {
+		const ch = source[i];
+		// A function type's `=>` is not a closing angle bracket.
+		if (ch === '=' && source[i + 1] === '>') {
+			i += 1;
+			continue;
+		}
+		if (ch === '<') depth += 1;
+		else if (ch === '>') {
+			depth -= 1;
+			if (depth === 0) return i + 1;
+		}
+	}
+	throw new Error(`unbalanced type arguments in invoke<...> at ${file}:${lineAt(source, at)}`);
+}
+
+/**
+ * Every command one source text invokes, with its position.
+ *
+ * Fails closed. An `invoke()` whose first argument is not a string literal is a
+ * name this scan cannot read, so it throws rather than dropping the site. The
+ * two things read as "not a call site" are structural, never name-based: a
+ * declaration (`function invoke<T>(`), and an empty argument list — the shape
+ * the prose in `db/client.ts`, `db/index.ts` and `db/native/client.ts` has.
+ */
+function invokeSitesIn(source: string, file: string): InvokeSite[] {
+	const sites: InvokeSite[] = [];
+	for (const match of source.matchAll(/\binvoke\b/g)) {
+		const start = match.index;
+		if (/\bfunction\s+$/.test(source.slice(0, start))) continue;
+
+		let cursor = skipBlanks(source, start + match[0].length);
+		if (source[cursor] === '<') {
+			cursor = skipBlanks(source, afterTypeArgs(source, cursor, file, start));
+		}
+		if (source[cursor] !== '(') continue;
+
+		cursor = skipBlanks(source, cursor + 1);
+		const quote = source[cursor];
+		if (quote !== "'" && quote !== '"' && quote !== '`') {
+			if (quote === ')') continue;
+			throw new Error(
+				`invoke() whose command name is not a string literal at ${file}:${lineAt(source, start)}`
+			);
+		}
+		const close = source.indexOf(quote, cursor + 1);
+		if (close === -1) {
+			throw new Error(`unterminated command name at ${file}:${lineAt(source, start)}`);
+		}
+		const command = source.slice(cursor + 1, close);
+
+		// Tauri's own APIs are namespaced (`plugin:sql|execute`,
+		// `core:event|listen`) and registered by their plugin, not by this app's
+		// `generate_handler!`. This app's surface is the bare snake_case form.
+		// Anything else is a shape the scan does not know, so it throws.
+		if (command.includes(':')) continue;
+		if (!/^[a-z][a-z0-9_]*$/.test(command)) {
+			throw new Error(
+				`unrecognised invoke() target "${command}" at ${file}:${lineAt(source, start)}`
+			);
+		}
+		sites.push({ command, file, line: lineAt(source, start) });
+	}
+	return sites;
+}
+
+/**
+ * Every app command the production sources invoke, in walk order. Throws when
+ * the scan finds nothing: an empty set must never read as a clean bill of
+ * health.
+ */
+export function invokeSites(repoRoot: string = process.cwd()): InvokeSite[] {
+	const root = resolve(repoRoot);
+	const srcRoot = resolve(root, 'src');
+
+	const sites: InvokeSite[] = [];
+	for (const file of tsSources(srcRoot, root)) {
+		const source = stripLineComments(readFileSync(file, 'utf8'));
+		sites.push(...invokeSitesIn(source, relative(root, file)));
+	}
+	if (sites.length === 0) {
+		throw new Error(`no invoke() call sites found under ${srcRoot}`);
+	}
+	return sites;
 }

@@ -164,7 +164,11 @@ vi.mock('@tauri-apps/api/core', () => ({
 
 import { invoke } from '@tauri-apps/api/core';
 import { NativeDatabaseClient, databaseStatus, databaseRetry } from '$lib/db/native/client';
-import { expectedArgKeys, loadCommandSurface } from './helpers/rust-command-surface';
+import {
+	expectedArgKeys,
+	invokeSites,
+	loadCommandSurface,
+} from './helpers/rust-command-surface';
 
 function lastCall() {
 	return calls[calls.length - 1];
@@ -494,4 +498,28 @@ describe('NativeDatabaseClient: full surface sweep (command name + camelCase arg
 			expect(actualKeys).toEqual(expectedArgKeys(surface, command).sort());
 		}
 	);
+});
+
+describe('NativeDatabaseClient: every production invoke() site names a registered command', () => {
+	// Gate 1's inverse direction (spec §3: "every invoked command is registered").
+	// The sweep above is driven by a hand-written `rows` table, so it can only
+	// catch a command it already lists; the client invokes commands the table has
+	// no row for (the reviewer found 12). This reads the call sites themselves —
+	// de-registering `database_initialize`, which the client really invokes at
+	// `db/native/client.ts:78`, fails here instead of leaving the suite green.
+	it('resolves every invoke() call site in src/ to a command in generate_handler!', () => {
+		const sites = invokeSites();
+
+		// Non-vacuity (spec §8: a scan that returns an empty set and is read as a
+		// negative). The floor is coarse on purpose — 78 sites when this landed —
+		// because its only job is to fail when the walk or the parse degrades, not
+		// to pin the exact surface size.
+		expect(sites.length).toBeGreaterThanOrEqual(60);
+
+		const unregistered = sites
+			.filter((site) => !surface.registered.includes(site.command))
+			.map((site) => `${site.command} invoked at ${site.file}:${site.line}`);
+
+		expect(unregistered).toEqual([]);
+	});
 });

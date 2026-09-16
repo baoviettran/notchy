@@ -6,7 +6,7 @@
 use rusqlite::{Connection, params};
 
 use super::{balance, civil_date};
-use crate::database::error::{DbResult, map_sqlite_error};
+use crate::database::error::{DbResult, map_sqlite_error, validate_money};
 use crate::database::migrations::now_iso_utc;
 use crate::database::receipt::run_idempotent;
 use crate::database::types::{OperationId, ReconcileResult, Reconciliation};
@@ -96,6 +96,11 @@ pub fn reconcile(
             let recon_id = OperationId::generate().as_str().to_string();
 
             let adj_id = if create_adjustment && discrepancy != 0 {
+                // The adjustment's amount IS the discrepancy. Signed, so the
+                // guard also rejects `i64::MIN` — which `abs()` below cannot
+                // represent — before that call can overflow. Only this branch
+                // writes an amount, so only this branch is guarded.
+                validate_money(discrepancy)?;
                 let txn_id = OperationId::generate().as_str().to_string();
                 let kind = if discrepancy > 0 {
                     "adjustment"

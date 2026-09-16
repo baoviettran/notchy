@@ -7,6 +7,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import * as m from '$lib/paraglide/messages';
+import type { ErrorCode } from '$lib/native/contracts.generated';
 import { AppError, NativeAppError } from '$lib/errors';
 import { RUST_ERROR_MESSAGES } from '$lib/utils/rust-error-messages';
 import { mapError } from '$lib/utils/errors';
@@ -20,6 +21,10 @@ describe('RUST_ERROR_MESSAGES', () => {
 		for (const code of codes) {
 			expect(RUST_ERROR_MESSAGES[code]).toBeTypeOf('function');
 		}
+		// Both directions. The generated list is emitted from `ErrorCode::ALL`, a
+		// hand-maintained array: truncated there, the loop above still passes
+		// while a real code has no copy entry.
+		expect(new Set(codes)).toEqual(new Set(Object.keys(RUST_ERROR_MESSAGES)));
 	});
 
 	it('returns a non-empty string for every code', () => {
@@ -40,6 +45,18 @@ describe('mapError dispatch keys on origin, not on the code string', () => {
 		// The one string present in both namespaces. If dispatch keyed on the
 		// string, this would land in the Rust table.
 		expect(mapError(new AppError('database_corrupt'))).toBe(m.errors_unknown());
+	});
+});
+
+describe('mapError fallback for a code with no copy entry', () => {
+	it('resolves an unknown native code to the generic message instead of throwing', () => {
+		// A Rust code added without regenerating the bindings, or a truncated
+		// `ErrorCode::ALL`: the lookup is `undefined`, and calling it threw a
+		// TypeError from inside the mapper — on the one path built to stop Rust
+		// rejections falling through to generic copy.
+		const stale = new NativeAppError('not_a_generated_code' as ErrorCode);
+
+		expect(mapError(stale)).toBe(m.errors_unknown());
 	});
 });
 

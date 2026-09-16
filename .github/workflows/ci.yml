@@ -92,6 +92,14 @@ jobs:
       - name: Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
+      # `pnpm check:db-contracts`, spelled out: this job has the Rust toolchain
+      # and the webkit deps the bindings binary needs to compile, and no pnpm.
+      # Gate 2's exhaustiveness is typed against the *generated* union, so a
+      # Rust ErrorCode added without regenerating leaves the build green and the
+      # new code falling through — this is the only step that catches that.
+      - name: Bindings are current
+        run: cargo run --manifest-path src-tauri/Cargo.toml --bin export_bindings -- --check
+
   e2e:
     runs-on: ubuntu-latest
     needs: quality

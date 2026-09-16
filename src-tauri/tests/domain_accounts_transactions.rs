@@ -785,6 +785,20 @@ fn update_rejects_amounts_above_the_schema_cap() {
 }
 
 #[test]
+fn an_initial_balance_above_the_schema_cap_is_rejected() {
+    // The opening balance is written straight to `transactions.amount` by a
+    // path that never went through the money guard, so an over-cap amount came
+    // back from SQLite's CHECK as `InvalidInput`.
+    let mut conn = fresh_db("i5-initial-balance-cap");
+    let mut input = default_account("A");
+    input.initial_balance = Some(1_400_000_000_000);
+
+    let error = accounts::create_account(&mut conn, op(), input).unwrap_err();
+
+    assert_eq!(error.code, ErrorCode::AmountOutOfRange);
+}
+
+#[test]
 fn retrying_a_restore_with_the_same_operation_id_replays_the_first_result() {
     let mut conn = fresh_db("i2-restore-retry");
     let id = accounts::create_account(&mut conn, op(), default_account("A")).unwrap();

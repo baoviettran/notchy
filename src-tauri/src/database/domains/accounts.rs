@@ -4,7 +4,9 @@
 
 use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::database::error::{DbError, DbResult, ErrorCode, MetaKey, map_sqlite_error};
+use crate::database::error::{
+    DbError, DbResult, ErrorCode, MetaKey, map_sqlite_error, validate_money,
+};
 use crate::database::migrations::now_iso_utc;
 use crate::database::receipt::run_idempotent;
 use crate::database::types::{
@@ -192,6 +194,12 @@ pub fn create_account(
 
     // Single-currency rule: must match existing accounts.
     enforce_single_currency(conn, &input.currency)?;
+    // The opening balance is written to `transactions.amount` below; validate it
+    // with the other inputs, rather than letting SQLite's CHECK reclassify an
+    // over-cap value as `InvalidInput`.
+    if let Some(balance) = input.initial_balance {
+        validate_money(balance)?;
+    }
 
     #[derive(serde::Serialize, serde::Deserialize)]
     struct AccountCreated {

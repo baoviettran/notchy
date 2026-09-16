@@ -5,7 +5,7 @@
 use rusqlite::{Connection, OptionalExtension, params};
 
 use super::{balance, civil_date};
-use crate::database::error::{DbError, DbResult, ErrorCode, map_sqlite_error};
+use crate::database::error::{DbError, DbResult, ErrorCode, map_sqlite_error, validate_money};
 use crate::database::migrations::now_iso_utc;
 use crate::database::receipt::run_idempotent;
 use crate::database::types::{DebtAccount, DebtSummary, OperationId};
@@ -121,6 +121,11 @@ pub fn write_off(
     } else {
         "income"
     };
+
+    // The write-off amount goes straight to `transactions.amount`; without this
+    // guard an over-cap value is rejected by SQLite's CHECK, and surfaces as
+    // `InvalidInput` rather than `AmountOutOfRange`.
+    validate_money(amount)?;
 
     #[derive(serde::Serialize, serde::Deserialize)]
     struct Created { id: String }

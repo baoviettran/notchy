@@ -16,6 +16,7 @@ import { dirname, join } from 'node:path';
 import {
 	camelCase,
 	expectedArgKeys,
+	invokeSites,
 	loadCommandSurface,
 	parseCommandSignatures,
 	parseRegisteredCommands,
@@ -353,5 +354,66 @@ pub fn report_get_trend(
 
 	it('finds no unused parameter in the real tree', () => {
 		expect(unusedCommandParams(loadCommandSurface())).toEqual([]);
+	});
+});
+
+describe('invokeSites', () => {
+	it('reads the command literal from every call-site shape and skips prose', () => {
+		const root = tempTree({
+			'src/lib/a.ts': [
+				"import { invoke } from '@tauri-apps/api/core';",
+				"// invoke('database_restore');",
+				'/**',
+				' * Wraps Tauri invoke() calls — an empty argument list is prose.',
+				' */',
+				"export const one = () => invoke<number>('account_get_balance', { accountId });",
+				'export const two = () => invoke(',
+				"\t'database_status'",
+				');',
+			].join('\n'),
+		});
+
+		expect(invokeSites(root).map((site) => site.command)).toEqual([
+			'account_get_balance',
+			'database_status',
+		]);
+	});
+
+	it('excludes the namespaced Tauri plugin and core APIs', () => {
+		// `plugin:sql|execute` is registered by tauri-plugin-sql, not by this
+		// app's generate_handler!, so it is neither a failure nor a command here.
+		const root = tempTree({
+			'src/lib/sql.ts': [
+				"invoke('plugin:sql|execute', { db, query });",
+				"invoke('core:event|listen', { event });",
+				"invoke('quit_app');",
+			].join('\n'),
+		});
+
+		expect(invokeSites(root).map((site) => site.command)).toEqual(['quit_app']);
+	});
+
+	it('does not scan src/tests, whose fixtures would grade the scan on itself', () => {
+		const root = tempTree({
+			'src/lib/a.ts': "invoke('quit_app');",
+			'src/tests/unit/a.test.ts': "invoke('not_a_command');",
+		});
+
+		expect(invokeSites(root).map((site) => site.command)).toEqual(['quit_app']);
+	});
+
+	it('throws when a call site names its command with a variable, not a literal', () => {
+		const root = tempTree({
+			'src/lib/a.ts': 'export const run = (command: string) => invoke(command);',
+		});
+
+		expect(() => invokeSites(root)).toThrow(/not a string literal/);
+	});
+
+	it('throws when the walk finds no call site at all', () => {
+		// The §8 shape again: an empty scan must not read as "nothing to check".
+		const root = tempTree({ 'src/lib/a.ts': 'export const x = 1;\n' });
+
+		expect(() => invokeSites(root)).toThrow(/no invoke\(\) call sites/);
 	});
 });
