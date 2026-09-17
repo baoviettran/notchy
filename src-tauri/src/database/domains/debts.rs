@@ -4,7 +4,8 @@
 
 use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::database::error::{DbError, DbResult, ErrorCode, map_sqlite_error};
+use super::{balance, civil_date};
+use crate::database::error::{DbError, DbResult, ErrorCode, map_sqlite_error, validate_money};
 use crate::database::migrations::now_iso_utc;
 use crate::database::receipt::run_idempotent;
 use crate::database::types::{DebtAccount, DebtSummary, OperationId};
@@ -12,31 +13,6 @@ use crate::database::types::{DebtAccount, DebtSummary, OperationId};
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/// Compute the balance for an account as of today.
-fn get_balance(conn: &Connection, account_id: &str) -> DbResult<i64> {
-    let today = crate::database::domains::accounts::today_iso();
-    let total: i64 = conn
-        .query_row(
-            "SELECT COALESCE(SUM(CASE
-                WHEN kind = 'income' THEN amount
-                WHEN kind = 'adjustment' THEN amount
-                WHEN kind = 'refund' THEN amount
-                WHEN kind = 'expense' THEN -amount
-                WHEN kind = 'transfer' AND account_id = ?1 THEN -amount
-                WHEN kind = 'transfer' AND transfer_account_id = ?1 THEN amount
-                ELSE 0
-            END), 0)
-            FROM transactions
-            WHERE (account_id = ?1 OR (kind = 'transfer' AND transfer_account_id = ?1))
-              AND deleted_at IS NULL
-              AND date <= ?2",
-            params![account_id, today],
-            |row| row.get(0),
-        )
-        .map_err(map_sqlite_error)?;
-    Ok(total)
-}
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -68,7 +44,7 @@ pub fn list_debts(conn: &Connection) -> DbResult<DebtSummary> {
 
     for row in rows {
         let (id, name, acc_type, counterparty) = row.map_err(map_sqlite_error)?;
-        let balance = get_balance(conn, &id)?;
+        let balance = balance::account_balance_as_of(conn, &id, &civil_date::today_iso())?;
 
         // Most recent transaction date.
         let last_activity: Option<String> = conn
@@ -109,13 +85,19 @@ pub fn list_debts(conn: &Connection) -> DbResult<DebtSummary> {
 
 /// Write off a debt amount. Creates an expense (loan_to_person) or
 /// income (loan_from_person) transaction. Returns the new transaction ID.
+///
+/// A missing tag resolves to the seeded `tag_loss` here rather than at the
+/// caller: `tag_id` is a foreign key, so an empty string is rejected by SQLite
+/// as corruption instead of being read as "no tag chosen". The TypeScript
+/// reference defaults the same way (`src/lib/db/browser/repos/debts.ts:57`).
 pub fn write_off(
     conn: &mut Connection,
     op_id: OperationId,
     account_id: &str,
     amount: i64,
-    tag_id: &str,
+    tag_id: Option<String>,
 ) -> DbResult<String> {
+    let tag_id = tag_id.unwrap_or_else(|| "tag_loss".to_string());
     // Validate account exists and is a loan type.
     let acc_type: Option<String> = conn
         .query_row(
@@ -139,6 +121,11 @@ pub fn write_off(
     } else {
         "income"
     };
+
+    // The write-off amount goes straight to `transactions.amount`; without this
+    // guard an over-cap value is rejected by SQLite's CHECK, and surfaces as
+    // `InvalidInput` rather than `AmountOutOfRange`.
+    validate_money(amount)?;
 
     #[derive(serde::Serialize, serde::Deserialize)]
     struct Created { id: String }

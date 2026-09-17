@@ -256,6 +256,64 @@ pub async fn transaction_duplicate(
     }).await
 }
 
+#[tauri::command]
+pub async fn transaction_frequent(
+    manager: State<'_, Arc<DatabaseManager>>,
+    since_date: String,
+) -> Result<Vec<FrequentTx>, DbError> {
+    manager
+        .data_job(move |state| domains::transactions::get_frequent(state.connection()?, &since_date))
+        .await
+}
+
+#[tauri::command]
+pub async fn transaction_delete_many(
+    manager: State<'_, Arc<DatabaseManager>>,
+    ids: Vec<String>,
+) -> Result<(), DbError> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+    let op_id = OperationId::generate();
+    manager
+        .data_job(move |state| {
+            domains::transactions::delete_transactions(state.connection_mut()?, op_id, ids)
+        })
+        .await
+}
+#[tauri::command]
+pub async fn transaction_set_tag_many(
+    manager: State<'_, Arc<DatabaseManager>>,
+    ids: Vec<String>,
+    tag_id: Option<String>,
+) -> Result<(), DbError> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+    let op_id = OperationId::generate();
+    manager
+        .data_job(move |state| {
+            domains::transactions::set_tag_many(state.connection_mut()?, op_id, ids, tag_id)
+        })
+        .await
+}
+#[tauri::command]
+pub async fn transaction_set_account_many(
+    manager: State<'_, Arc<DatabaseManager>>,
+    ids: Vec<String>,
+    account_id: String,
+) -> Result<(), DbError> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+    let op_id = OperationId::generate();
+    manager
+        .data_job(move |state| {
+            domains::transactions::set_account_many(state.connection_mut()?, op_id, ids, account_id)
+        })
+        .await
+}
+
 // ===========================================================================
 // Category commands
 // ===========================================================================
@@ -749,11 +807,11 @@ pub async fn debt_write_off(
     manager: State<'_, Arc<DatabaseManager>>,
     account_id: String,
     amount: i64,
-    tag_id: String,
+    tag_id: Option<String>,
 ) -> Result<String, DbError> {
     let op_id = OperationId::generate();
     manager.data_job(move |state| {
-        domains::debts::write_off(state.connection_mut()?, op_id, &account_id, amount, &tag_id)
+        domains::debts::write_off(state.connection_mut()?, op_id, &account_id, amount, tag_id)
     }).await
 }
 
@@ -808,11 +866,11 @@ pub async fn report_get_trend(
     manager: State<'_, Arc<DatabaseManager>>,
     months: u32,
     include_adjustments: Option<bool>,
-    _bucket_id: Option<String>,
+    bucket_id: Option<String>,
 ) -> Result<Vec<TrendPoint>, DbError> {
     let inc = include_adjustments.unwrap_or(false);
     manager.data_job(move |state| {
-        domains::reports::get_trend(state.connection()?, months, inc)
+        domains::reports::get_trend(state.connection()?, months, inc, bucket_id.as_deref())
     }).await
 }
 
@@ -900,6 +958,7 @@ pub fn generate_bindings() -> String {
     let cfg = Config::default().with_large_int("number");
 
     push_decl(&mut out, ErrorCode::decl(&cfg));
+    push_error_code_values(&mut out);
     push_decl(&mut out, MetaKey::decl(&cfg));
     push_decl(&mut out, DbError::decl(&cfg));
     push_decl(&mut out, LifecycleState::decl(&cfg));
@@ -964,4 +1023,18 @@ fn push_decl(out: &mut String, decl: String) {
     out.push_str("export ");
     out.push_str(decl.trim());
     out.push('\n');
+}
+/// Append the runtime list of every error code.
+///
+/// `ErrorCodeValues` is not a ts_rs type, so it is emitted by hand — but the
+/// iteration is driven by [`ErrorCode::ALL`], which keeps the enum, the
+/// generated union, and this array from drifting independently.
+fn push_error_code_values(out: &mut String) {
+    out.push_str("export const ErrorCodeValues = [\n");
+    for code in ErrorCode::ALL {
+        out.push_str("\t'");
+        out.push_str(code.as_str());
+        out.push_str("',\n");
+    }
+    out.push_str("] as const satisfies readonly ErrorCode[];\n");
 }

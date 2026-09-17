@@ -234,7 +234,7 @@ fn trend_multiple_months() {
     make_tx(&mut db, "income", 6_000_000, &format!("{m1}-05"), &acc, None);
     make_tx(&mut db, "expense", 3_000_000, &format!("{m1}-10"), &acc, None);
 
-    let points = reports::get_trend(&db, 3, false).unwrap();
+    let points = reports::get_trend(&db, 3, false, None).unwrap();
     assert_eq!(points.len(), 3);
     // Oldest month first
     assert_eq!(points[0].month, m2);
@@ -247,7 +247,7 @@ fn trend_multiple_months() {
 #[test]
 fn trend_empty_months_return_zeros() {
     let db = fresh_db("trend_empty");
-    let points = reports::get_trend(&db, 2, false).unwrap();
+    let points = reports::get_trend(&db, 2, false, None).unwrap();
     assert_eq!(points.len(), 2);
     assert!(points.iter().all(|p| p.income == 0 && p.expense == 0));
 }

@@ -5,7 +5,8 @@
 
 use rusqlite::{Connection, params};
 
-use crate::database::error::{DbResult, map_sqlite_error};
+use super::{balance, civil_date};
+use crate::database::error::{DbResult, map_sqlite_error, validate_money};
 use crate::database::migrations::now_iso_utc;
 use crate::database::receipt::run_idempotent;
 use crate::database::types::{OperationId, ReconcileResult, Reconciliation};
@@ -13,31 +14,6 @@ use crate::database::types::{OperationId, ReconcileResult, Reconciliation};
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/// Compute the balance for an account as of today (same formula as accounts domain).
-fn get_balance(conn: &Connection, account_id: &str) -> DbResult<i64> {
-    let today = crate::database::domains::accounts::today_iso();
-    let total: i64 = conn
-        .query_row(
-            "SELECT COALESCE(SUM(CASE
-                WHEN kind = 'income' THEN amount
-                WHEN kind = 'adjustment' THEN amount
-                WHEN kind = 'refund' THEN amount
-                WHEN kind = 'expense' THEN -amount
-                WHEN kind = 'transfer' AND account_id = ?1 THEN -amount
-                WHEN kind = 'transfer' AND transfer_account_id = ?1 THEN amount
-                ELSE 0
-            END), 0)
-            FROM transactions
-            WHERE (account_id = ?1 OR (kind = 'transfer' AND transfer_account_id = ?1))
-              AND deleted_at IS NULL
-              AND date <= ?2",
-            params![account_id, today],
-            |row| row.get(0),
-        )
-        .map_err(map_sqlite_error)?;
-    Ok(total)
-}
 
 /// Large-discrepancy threshold — matching the frontend constant.
 pub const LARGE_DISCREPANCY_THRESHOLD: i64 = 1_000_000;
@@ -99,7 +75,8 @@ pub fn reconcile(
     create_adjustment: bool,
     notes: Option<String>,
 ) -> DbResult<ReconcileResult> {
-    let expected_balance = get_balance(conn, account_id)?;
+    let expected_balance =
+        balance::account_balance_as_of(conn, account_id, &civil_date::today_iso())?;
     let discrepancy = actual_balance - expected_balance;
 
     #[derive(serde::Serialize, serde::Deserialize)]
@@ -119,6 +96,11 @@ pub fn reconcile(
             let recon_id = OperationId::generate().as_str().to_string();
 
             let adj_id = if create_adjustment && discrepancy != 0 {
+                // The adjustment's amount IS the discrepancy. Signed, so the
+                // guard also rejects `i64::MIN` — which `abs()` below cannot
+                // represent — before that call can overflow. Only this branch
+                // writes an amount, so only this branch is guarded.
+                validate_money(discrepancy)?;
                 let txn_id = OperationId::generate().as_str().to_string();
                 let kind = if discrepancy > 0 {
                     "adjustment"

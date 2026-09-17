@@ -358,6 +358,18 @@ pub struct TransactionPatch {
     pub description: Patch<String>,
 }
 
+/// A recurring payee for the dashboard strip.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct FrequentTx {
+    /// Nullable in the schema; the query filters `payee IS NOT NULL`.
+    pub payee: Option<String>,
+    pub tag_id: Option<String>,
+    pub account_id: String,
+    pub amount: i64,
+    pub kind: String,
+    pub count: i64,
+}
+
 // ---------------------------------------------------------------------------
 // Category types
 // ---------------------------------------------------------------------------

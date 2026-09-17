@@ -4,6 +4,8 @@
 
 use rusqlite::{Connection, params};
 
+use super::balance;
+use super::civil_date;
 use crate::database::error::{DbResult, map_sqlite_error};
 use crate::database::types::{
     BucketSpending, CategoryTrendPoint, CompareRow, NetWorthPoint, OverviewReport,
@@ -54,6 +56,19 @@ fn kind_filter(include_adjustments: bool) -> &'static str {
         "t.kind IN ('expense', 'income', 'refund', 'adjustment')"
     } else {
         "t.kind IN ('expense', 'income', 'refund')"
+    }
+}
+
+/// Build the spending-only kind clause.
+///
+/// Deliberately not `kind_filter`: a spending series counts expenses and
+/// refunds, never income. The two lists look similar and are not the same
+/// concept, which is exactly why this needs a name of its own.
+fn spending_kind_filter(include_adjustments: bool) -> &'static str {
+    if include_adjustments {
+        "t.kind IN ('expense', 'refund', 'adjustment')"
+    } else {
+        "t.kind IN ('expense', 'refund')"
     }
 }
 
@@ -193,27 +208,23 @@ pub fn get_trend(
     conn: &Connection,
     months: u32,
     include_adjustments: bool,
+    bucket_id: Option<&str>,
 ) -> DbResult<Vec<TrendPoint>> {
     let kind = kind_filter(include_adjustments);
+
+    // Bucket scoping mirrors the browser repo: join the tag table and restrict
+    // on the tag's bucket. An inner join is deliberate — it drops rows with no
+    // tag, which is what a bucket-scoped trend means.
+    let (bucket_join, bucket_clause) = match bucket_id {
+        Some(_) => (
+            "JOIN category_tags ct ON t.tag_id = ct.id",
+            "AND ct.type_id = ?3",
+        ),
+        None => ("", ""),
+    };
     let mut points = Vec::with_capacity(months as usize);
 
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default();
-    let days = now.as_secs() / 86_400;
-    let z = days as i64 + 719_468;
-    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let y = yoe + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let _d = doy - (153 * mp + 2) / 5 + 1;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 };
-    let yr = if m <= 2 { y + 1 } else { y };
-
-    let mut cur_month_i = m as i32;
-    let mut cur_year = yr;
+    let (mut cur_year, mut cur_month_i) = civil_date::current_year_month();
 
     for _ in 0..months {
         let month_str = format!("{:04}-{:02}", cur_year, cur_month_i);
@@ -222,17 +233,27 @@ pub fn get_trend(
 
         let sql = format!(
             "SELECT t.kind, SUM(t.amount) AS total FROM transactions t
+             {bucket_join}
              WHERE {kind} AND t.date >= ?1 AND t.date < ?2 AND t.deleted_at IS NULL
+             {bucket_clause}
              GROUP BY t.kind"
         );
         let mut stmt = conn.prepare(&sql).map_err(map_sqlite_error)?;
-        let rows: Vec<(String, i64)> = stmt
-            .query_map(params![start, end], |row| {
-                Ok((row.get(0)?, row.get(1)?))
-            })
-            .map_err(map_sqlite_error)?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(map_sqlite_error)?;
+
+        let rows: Vec<(String, i64)> = match bucket_id {
+            Some(bucket) => stmt
+                .query_map(params![start, end, bucket], |row| {
+                    Ok((row.get(0)?, row.get(1)?))
+                })
+                .map_err(map_sqlite_error)?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(map_sqlite_error)?,
+            None => stmt
+                .query_map(params![start, end], |row| Ok((row.get(0)?, row.get(1)?)))
+                .map_err(map_sqlite_error)?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(map_sqlite_error)?,
+        };
 
         let (income, expense) = aggregate_kind_totals(&rows, include_adjustments);
         points.push(TrendPoint {
@@ -347,31 +368,11 @@ pub fn get_category_trend(
     tag_id: &str,
     include_adjustments: bool,
 ) -> DbResult<Vec<CategoryTrendPoint>> {
-    let kind = if include_adjustments {
-        "t.kind IN ('expense', 'refund', 'adjustment')"
-    } else {
-        "t.kind IN ('expense', 'refund')"
-    };
+    let kind = spending_kind_filter(include_adjustments);
 
     let mut points = Vec::with_capacity(months as usize);
 
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default();
-    let days = now.as_secs() / 86_400;
-    let z = days as i64 + 719_468;
-    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let y = yoe + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let _d = doy - (153 * mp + 2) / 5 + 1;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 };
-    let yr = if m <= 2 { y + 1 } else { y };
-
-    let mut cur_month_i = m as i32;
-    let mut cur_year = yr;
+    let (mut cur_year, mut cur_month_i) = civil_date::current_year_month();
 
     let sql = format!(
         "SELECT t.kind, SUM(t.amount) AS total FROM transactions t
@@ -425,31 +426,11 @@ pub fn get_stacked_category_series(
     months: u32,
     include_adjustments: bool,
 ) -> DbResult<Vec<StackedCategoryPoint>> {
-    let kind = if include_adjustments {
-        "t.kind IN ('expense', 'refund', 'adjustment')"
-    } else {
-        "t.kind IN ('expense', 'refund')"
-    };
+    let kind = spending_kind_filter(include_adjustments);
 
     let mut points = Vec::with_capacity(months as usize);
 
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default();
-    let days = now.as_secs() / 86_400;
-    let z = days as i64 + 719_468;
-    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let y = yoe + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let _d = doy - (153 * mp + 2) / 5 + 1;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 };
-    let yr = if m <= 2 { y + 1 } else { y };
-
-    let mut cur_month_i = m as i32;
-    let mut cur_year = yr;
+    let (mut cur_year, mut cur_month_i) = civil_date::current_year_month();
 
     let sql = format!(
         "SELECT t.tag_id, COALESCE(ct.name, 'Uncategorised') AS name, t.kind, SUM(t.amount) AS total
@@ -571,64 +552,16 @@ pub fn get_net_worth_series(
     months: u32,
     _include_adjustments: bool,
 ) -> DbResult<Vec<NetWorthPoint>> {
-    // Collect all account IDs
-    let mut stmt = conn
-        .prepare("SELECT id FROM accounts WHERE deleted_at IS NULL")
-        .map_err(map_sqlite_error)?;
-    let account_ids: Vec<String> = stmt
-        .query_map([], |row| row.get(0))
-        .map_err(map_sqlite_error)?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(map_sqlite_error)?;
-    drop(stmt);
-
     let mut points = Vec::with_capacity(months as usize);
 
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default();
-    let days = now.as_secs() / 86_400;
-    let z = days as i64 + 719_468;
-    let era = if z >= 0 { z } else { z - 146_097 } / 146_097;
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let y = yoe + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let _d = doy - (153 * mp + 2) / 5 + 1;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 };
-    let yr = if m <= 2 { y + 1 } else { y };
-
-    let mut cur_month_i = m as i32;
-    let mut cur_year = yr;
+    let (mut cur_year, mut cur_month_i) = civil_date::current_year_month();
 
     for _ in 0..months {
         let month_str = format!("{:04}-{:02}", cur_year, cur_month_i);
         let end_date = month_end(&month_str);
 
-        let mut net_worth: i64 = 0;
-        for acc_id in &account_ids {
-            let balance: i64 = conn
-                .query_row(
-                    "SELECT COALESCE(SUM(CASE
-                        WHEN kind = 'income' THEN amount
-                        WHEN kind = 'adjustment' THEN amount
-                        WHEN kind = 'refund' THEN amount
-                        WHEN kind = 'expense' THEN -amount
-                        WHEN kind = 'transfer' AND account_id = ?1 THEN -amount
-                        WHEN kind = 'transfer' AND transfer_account_id = ?1 THEN amount
-                        ELSE 0
-                    END), 0)
-                    FROM transactions
-                    WHERE (account_id = ?1 OR (kind = 'transfer' AND transfer_account_id = ?1))
-                      AND deleted_at IS NULL
-                      AND date <= ?2",
-                    params![acc_id, end_date],
-                    |row| row.get(0),
-                )
-                .map_err(map_sqlite_error)?;
-            net_worth += balance;
-        }
+        // One query per month instead of one per account per month.
+        let net_worth = balance::net_worth_as_of(conn, &end_date)?;
 
         points.push(NetWorthPoint {
             month: month_str,
@@ -644,4 +577,30 @@ pub fn get_net_worth_series(
 
     points.reverse();
     Ok(points)
+}
+
+#[cfg(test)]
+mod kind_filter_tests {
+    use super::{kind_filter, spending_kind_filter};
+
+    /// The two filters are different concepts. Collapsing them into one would
+    /// silently make "spending" include income, and every spending series in
+    /// the app would inflate with no failing test anywhere else.
+    #[test]
+    fn a_spending_filter_never_counts_income() {
+        assert!(spending_kind_filter(false).contains("'expense'"));
+        assert!(spending_kind_filter(false).contains("'refund'"));
+        assert!(!spending_kind_filter(false).contains("'income'"));
+        assert!(!spending_kind_filter(false).contains("'adjustment'"));
+
+        assert!(spending_kind_filter(true).contains("'adjustment'"));
+        assert!(!spending_kind_filter(true).contains("'income'"));
+    }
+
+    #[test]
+    fn the_cash_flow_filter_includes_income() {
+        assert!(kind_filter(false).contains("'income'"));
+        assert!(kind_filter(true).contains("'income'"));
+        assert!(kind_filter(true).contains("'adjustment'"));
+    }
 }

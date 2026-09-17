@@ -6,12 +6,12 @@ use std::path::PathBuf;
 
 use rusqlite::{Connection, OpenFlags};
 
-use notchy_lib::database::domains::{accounts, transactions};
+use notchy_lib::database::domains::{accounts, goals, transactions};
 use notchy_lib::database::error::ErrorCode;
 use notchy_lib::database::migrations::{bootstrap_current, FailurePoint};
 use notchy_lib::database::types::{
-    AccountPatch, AccountType, NewAccount, NewTransaction, OperationId, Patch, TransactionFilter,
-    TransactionKind, TransactionPatch,
+    AccountPatch, AccountType, GoalType, NewAccount, NewTransaction, OperationId, Patch,
+    TransactionFilter, TransactionKind, TransactionPatch,
 };
 
 // ---------------------------------------------------------------------------
@@ -63,6 +63,19 @@ fn default_expense(account_id: &str, amount: i64) -> NewTransaction {
         tag_id: None,
         payee: None,
         description: None,
+    }
+}
+
+/// An all-omitted patch, the base for the edit-mode repair cases below.
+fn no_patch() -> TransactionPatch {
+    TransactionPatch {
+        kind: None,
+        date: None,
+        amount: None,
+        transfer_account_id: None,
+        tag_id: Patch::Omitted,
+        payee: Patch::Omitted,
+        description: Patch::Omitted,
     }
 }
 
@@ -507,6 +520,60 @@ fn update_transaction_kind_change() {
 }
 
 #[test]
+fn changing_kind_away_from_transfer_clears_the_destination() {
+    let mut conn = fresh_db("c2-kind-change-away");
+    let source = accounts::create_account(&mut conn, op(), default_account("Source")).unwrap();
+    let dest = accounts::create_account(&mut conn, op(), default_account("Dest")).unwrap();
+
+    let id = transactions::create_transaction(
+        &mut conn,
+        op(),
+        NewTransaction {
+            kind: TransactionKind::Transfer,
+            date: "2026-01-15".to_string(),
+            amount: 10_000,
+            account_id: source.clone(),
+            transfer_account_id: Some(dest.clone()),
+            refund_of_id: None,
+            tag_id: None,
+            payee: None,
+            description: None,
+        },
+    )
+    .unwrap();
+
+    // Flip to expense while the patch still carries a destination. Before this
+    // fix the destination was appended twice and last-wins left it populated
+    // with a NULL pair id — the combination the schema CHECK forbids.
+    let mut patch = no_patch();
+    patch.kind = Some(TransactionKind::Expense);
+    patch.transfer_account_id = Some(dest.clone());
+    transactions::update_transaction(&mut conn, op(), &id, patch).unwrap();
+
+    let row = transactions::get_transaction(&conn, &id).unwrap().unwrap();
+    assert_eq!(row.kind, TransactionKind::Expense);
+    assert_eq!(row.transfer_account_id, None);
+    assert_eq!(row.transfer_pair_id, None);
+}
+
+#[test]
+fn a_foreign_key_violation_reports_invalid_input_not_corruption() {
+    let mut conn = fresh_db("c2-fk-mapping");
+    // fresh_db does not enable foreign keys — SQLite defaults them off and only
+    // the live-policy open path turns them on. Without this the bogus tag_id
+    // inserts cleanly, there is no error at all, and unwrap_err() panics.
+    conn.pragma_update(None, "foreign_keys", "ON").unwrap();
+    let account = accounts::create_account(&mut conn, op(), default_account("A")).unwrap();
+
+    // The business layer does not pre-validate the tag, so this reaches SQLite.
+    let mut input = default_expense(&account, 100);
+    input.tag_id = Some("tag_does_not_exist".to_string());
+    let error = transactions::create_transaction(&mut conn, op(), input).unwrap_err();
+
+    assert_eq!(error.code, ErrorCode::InvalidInput);
+}
+
+#[test]
 fn delete_and_restore_transaction() {
     let mut db = fresh_db("delete_restore");
     let acct = accounts::create_account(&mut db, op(), default_account("A")).unwrap();
@@ -647,4 +714,218 @@ fn description_strips_control_chars() {
     let txn = transactions::get_transaction(&db, &txn_id).unwrap().unwrap();
     // Control chars stripped, newline preserved
     assert_eq!(txn.description.as_deref(), Some("Hello\nWorld"));
+}
+
+// ---------------------------------------------------------------------------
+// I5 — amounts the schema cannot store are rejected by the business layer
+// ---------------------------------------------------------------------------
+
+#[test]
+fn amounts_above_the_schema_cap_are_rejected_before_sqlite() {
+    let mut conn = fresh_db("i5-amount-cap");
+    let account = accounts::create_account(&mut conn, op(), default_account("A")).unwrap();
+
+    // All three pass the JS-safe-range check and fail the schema CHECK.
+    for amount in [1_000_000_000_000_i64, 1_400_000_000_000, 9_007_199_254_740_991] {
+        let error = transactions::create_transaction(&mut conn, op(), default_expense(&account, amount))
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::AmountOutOfRange, "amount {amount}");
+    }
+}
+
+#[test]
+fn the_largest_storable_amount_is_accepted() {
+    let mut conn = fresh_db("i5-amount-boundary");
+    let account = accounts::create_account(&mut conn, op(), default_account("A")).unwrap();
+
+    transactions::create_transaction(&mut conn, op(), default_expense(&account, 999_999_999_999))
+        .unwrap();
+}
+
+#[test]
+fn batch_import_rejects_amounts_above_the_schema_cap() {
+    let mut conn = fresh_db("i5-batch-cap");
+    let account = accounts::create_account(&mut conn, op(), default_account("A")).unwrap();
+
+    // One good row and one over-cap row: the batch validates up front, so the
+    // whole import fails and nothing is written — the same shape as an
+    // unknown `account_id` in the existing validation loop.
+    let inputs = vec![
+        default_expense(&account, 100),
+        default_expense(&account, 1_400_000_000_000),
+    ];
+    let error = transactions::create_transactions_batch(&mut conn, op(), inputs).unwrap_err();
+    assert_eq!(error.code, ErrorCode::AmountOutOfRange);
+
+    let list = transactions::list_transactions(&conn, TransactionFilter::default()).unwrap();
+    assert!(list.is_empty(), "the whole batch must be rejected, wrote {}", list.len());
+}
+
+#[test]
+fn update_rejects_amounts_above_the_schema_cap() {
+    let mut conn = fresh_db("i5-update-cap");
+    let account = accounts::create_account(&mut conn, op(), default_account("A")).unwrap();
+    let txn_id = transactions::create_transaction(&mut conn, op(), default_expense(&account, 100))
+        .unwrap();
+
+    let error = transactions::update_transaction(
+        &mut conn,
+        op(),
+        &txn_id,
+        TransactionPatch {
+            amount: Some(1_400_000_000_000),
+            ..no_patch()
+        },
+    )
+    .unwrap_err();
+    assert_eq!(error.code, ErrorCode::AmountOutOfRange);
+
+    let txn = transactions::get_transaction(&conn, &txn_id).unwrap().unwrap();
+    assert_eq!(txn.amount, 100, "the rejected update must not be applied");
+}
+
+#[test]
+fn an_initial_balance_above_the_schema_cap_is_rejected() {
+    // The opening balance is written straight to `transactions.amount` by a
+    // path that never went through the money guard, so an over-cap amount came
+    // back from SQLite's CHECK as `InvalidInput`.
+    let mut conn = fresh_db("i5-initial-balance-cap");
+    let mut input = default_account("A");
+    input.initial_balance = Some(1_400_000_000_000);
+
+    let error = accounts::create_account(&mut conn, op(), input).unwrap_err();
+
+    assert_eq!(error.code, ErrorCode::AmountOutOfRange);
+}
+
+#[test]
+fn retrying_a_restore_with_the_same_operation_id_replays_the_first_result() {
+    let mut conn = fresh_db("i2-restore-retry");
+    let id = accounts::create_account(&mut conn, op(), default_account("A")).unwrap();
+    accounts::delete_account(&mut conn, op(), &id).unwrap();
+
+    let op_id = op();
+    accounts::restore_account(&mut conn, op_id.clone(), &id).unwrap();
+
+    // The row is live now. Because the guard sits outside run_idempotent, this
+    // retry hits the guard first and returns InvalidInput instead of replaying
+    // the receipt. The receipt exists precisely so that a retry is safe.
+    accounts::restore_account(&mut conn, op_id, &id).unwrap();
+
+    assert!(accounts::get_account(&conn, &id).unwrap().is_some());
+}
+
+#[test]
+fn restoring_a_live_account_is_rejected() {
+    let mut conn = fresh_db("i2-restore-guard");
+    let id = accounts::create_account(&mut conn, op(), default_account("A")).unwrap();
+
+    // Never soft-deleted. Passes before and after the fix — a regression guard
+    // on the guard, not the driver for this task.
+    let error = accounts::restore_account(&mut conn, op(), &id).unwrap_err();
+    assert_eq!(error.code, ErrorCode::InvalidInput);
+}
+#[test]
+fn retrying_a_transaction_restore_with_the_same_operation_id_replays_the_first_result() {
+    let mut conn = fresh_db("i2-restore-retry-tx");
+    let account = accounts::create_account(&mut conn, op(), default_account("A")).unwrap();
+    let id = transactions::create_transaction(&mut conn, op(), default_expense(&account, 5_000)).unwrap();
+    transactions::delete_transaction(&mut conn, op(), &id).unwrap();
+
+    let op_id = op();
+    transactions::restore_transaction(&mut conn, op_id.clone(), &id).unwrap();
+
+    // The row is live now. Because the guard sits outside run_idempotent, this
+    // retry hits the guard first and returns InvalidInput instead of replaying
+    // the receipt. The receipt exists precisely so that a retry is safe.
+    // THIS is the call that must fail before the fix.
+    transactions::restore_transaction(&mut conn, op_id, &id).unwrap();
+
+    assert!(transactions::get_transaction(&conn, &id).unwrap().is_some());
+}
+
+#[test]
+fn restoring_a_live_transaction_is_rejected() {
+    let mut conn = fresh_db("i2-restore-guard-tx");
+    let account = accounts::create_account(&mut conn, op(), default_account("A")).unwrap();
+    let id = transactions::create_transaction(&mut conn, op(), default_expense(&account, 5_000)).unwrap();
+
+    // Never soft-deleted. Passes before and after the fix — a regression guard
+    // on the guard, not the driver for this task.
+    let error = transactions::restore_transaction(&mut conn, op(), &id).unwrap_err();
+    assert_eq!(error.code, ErrorCode::InvalidInput);
+}
+
+#[test]
+fn deleting_an_account_with_linked_goals_names_them() {
+    let mut conn = fresh_db("i3-linked-goals");
+    let account = accounts::create_account(&mut conn, op(), default_account("Savings")).unwrap();
+    goals::create_goal(
+        &mut conn,
+        op(),
+        "Emergency fund".to_string(),
+        GoalType::Savings,
+        1_000_000,
+        "2027-01-01".to_string(),
+        Some(account.clone()),
+        0,
+        1,
+    )
+    .unwrap();
+
+    let error = accounts::delete_account(&mut conn, op(), &account).unwrap_err();
+
+    assert_eq!(error.code, ErrorCode::AccountDeleteLinkedGoals);
+    assert_eq!(error.meta.get("count").map(String::as_str), Some("1"));
+    assert_eq!(
+        error.meta.get("names").map(String::as_str),
+        Some("Emergency fund")
+    );
+}
+
+#[test]
+fn control_characters_are_stripped_according_to_the_shared_corpus() {
+    let corpus_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/control-chars.json");
+    let corpus: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&corpus_path).unwrap()).unwrap();
+
+    let mut conn = fresh_db("i6-control-chars");
+    let account = accounts::create_account(&mut conn, op(), default_account("A")).unwrap();
+
+    for case in corpus["cases"].as_array().unwrap() {
+        let input = case["input"].as_str().unwrap();
+        let expected = case["expected"].as_str().unwrap();
+
+        let id = transactions::create_transaction(&mut conn, op(), default_expense(&account, 100))
+            .unwrap();
+
+        let mut patch = no_patch();
+        patch.description = Patch::Replace { value: input.to_string() };
+        transactions::update_transaction(&mut conn, op(), &id, patch).unwrap();
+
+        let row = transactions::get_transaction(&conn, &id).unwrap().unwrap();
+        assert_eq!(row.description.as_deref(), Some(expected), "input {input:?}");
+    }
+}
+
+#[test]
+fn the_shared_balance_helper_matches_the_transaction_it_moves() {
+    let mut conn = fresh_db("s1-balance-helper");
+    let account = accounts::create_account(&mut conn, op(), default_account("A")).unwrap();
+
+    transactions::create_transaction(&mut conn, op(), default_expense(&account, 2_500))
+        .unwrap();
+
+    let today = accounts::today_iso();
+    let moved = notchy_lib::database::domains::balance::account_balance_as_of(
+        &conn, &account, &today,
+    )
+    .unwrap();
+
+    // -2500 as an expense from a fresh checking account.
+    assert_eq!(moved, -2_500);
+
+    // The point of the move: the old entry point must still agree with it.
+    assert_eq!(accounts::get_balance(&conn, &account, &today).unwrap(), moved);
 }

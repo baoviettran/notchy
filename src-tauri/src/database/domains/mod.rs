@@ -5,8 +5,10 @@
 //! directly. Business rules are ported 1:1 from the TypeScript repositories.
 
 pub mod accounts;
+pub mod balance;
 pub mod budgets;
 pub mod categories;
+pub mod civil_date;
 pub mod debts;
 pub mod export;
 pub mod goals;
@@ -37,6 +39,7 @@ pub use rules::{
     create_rule, delete_rule, get_rule, list_all_rules, list_rules, update_rule, upsert_learned,
 };
 pub use transactions::{
-    create_transaction, create_transactions_batch, delete_transaction, duplicate_transaction,
-    get_transaction, list_transactions, restore_transaction, update_transaction,
+    create_transaction, create_transactions_batch, delete_transaction, delete_transactions,
+    duplicate_transaction, get_frequent, get_transaction, list_transactions, restore_transaction,
+    set_account_many, set_tag_many, update_transaction,
 };

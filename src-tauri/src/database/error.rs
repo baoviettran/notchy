@@ -33,7 +33,32 @@ pub enum ErrorCode {
     InvalidUlid,
     InvalidDate,
     InvalidInput,
+    AccountDeleteLinkedGoals,
     RecoveryRequired,
+}
+
+impl ErrorCode {
+    /// Every variant, for parity tests that must read the union at runtime.
+    pub const ALL: [ErrorCode; 18] = [
+        ErrorCode::DatabaseBusy,
+        ErrorCode::DatabaseLocked,
+        ErrorCode::DatabaseNotReady,
+        ErrorCode::DatabaseUpdateRequired,
+        ErrorCode::UnauthorizedCaller,
+        ErrorCode::SchemaTooOld,
+        ErrorCode::SchemaTooNew,
+        ErrorCode::DatabaseInvalid,
+        ErrorCode::DatabaseCorrupt,
+        ErrorCode::BackupUnavailable,
+        ErrorCode::RestoreFailed,
+        ErrorCode::OperationIdConflict,
+        ErrorCode::AmountOutOfRange,
+        ErrorCode::InvalidUlid,
+        ErrorCode::InvalidDate,
+        ErrorCode::InvalidInput,
+        ErrorCode::AccountDeleteLinkedGoals,
+        ErrorCode::RecoveryRequired,
+    ];
 }
 
 impl ErrorCode {
@@ -56,6 +81,7 @@ impl ErrorCode {
             ErrorCode::InvalidUlid => "invalid_ulid",
             ErrorCode::InvalidDate => "invalid_date",
             ErrorCode::InvalidInput => "invalid_input",
+            ErrorCode::AccountDeleteLinkedGoals => "account_delete_linked_goals",
             ErrorCode::RecoveryRequired => "recovery_required",
         }
     }
@@ -83,6 +109,11 @@ pub enum MetaKey {
     SchemaVersion,
     /// Whether the operation can be retried as-is: `"true"` or `"false"`.
     Retryable,
+    /// How many items blocked the operation, e.g. `"2"`.
+    Count,
+    /// Names the user gave the blocking items, joined with `", "`. Free text,
+    /// but the user's own and already user-visible in the list they came from.
+    Names,
 }
 
 impl MetaKey {
@@ -92,6 +123,8 @@ impl MetaKey {
             MetaKey::Stage => "stage",
             MetaKey::SchemaVersion => "schema_version",
             MetaKey::Retryable => "retryable",
+            MetaKey::Count => "count",
+            MetaKey::Names => "names",
         }
     }
 
@@ -101,6 +134,8 @@ impl MetaKey {
             "stage" => Some(MetaKey::Stage),
             "schema_version" => Some(MetaKey::SchemaVersion),
             "retryable" => Some(MetaKey::Retryable),
+            "count" => Some(MetaKey::Count),
+            "names" => Some(MetaKey::Names),
             _ => None,
         }
     }
@@ -149,14 +184,32 @@ impl From<ErrorCode> for DbError {
 /// Result alias used across the native database boundary.
 pub type DbResult<T> = Result<T, DbError>;
 
+/// Constraint failures are caller mistakes, not corruption.
+///
+/// A CHECK, FOREIGN KEY, or NOT NULL rejection means the business layer let a
+/// value through that the schema forbids. Reporting that as
+/// `DatabaseCorrupt` told the user their database file was damaged when their
+/// input was simply invalid.
+fn constraint_code(extended_code: i32) -> Option<ErrorCode> {
+    const CHECK: i32 = rusqlite::ffi::SQLITE_CONSTRAINT_CHECK;
+    const FOREIGNKEY: i32 = rusqlite::ffi::SQLITE_CONSTRAINT_FOREIGNKEY;
+    const NOTNULL: i32 = rusqlite::ffi::SQLITE_CONSTRAINT_NOTNULL;
+
+    matches!(extended_code, CHECK | FOREIGNKEY | NOTNULL).then_some(ErrorCode::InvalidInput)
+}
+
 /// Map a rusqlite error to the stable allowlisted envelope without leaking the
-/// raw SQLite text or parameters. Busy and locked map to their stable codes;
-/// every other failure is corruption from the caller's perspective.
+/// raw SQLite text or parameters. Busy and locked map to their stable codes,
+/// constraint violations are caller mistakes, and every other failure is
+/// corruption from the caller's perspective.
 pub(crate) fn map_sqlite_error(error: rusqlite::Error) -> DbError {
     let code = match &error {
         rusqlite::Error::SqliteFailure(sqlite_error, _) => match sqlite_error.code {
             rusqlite::ErrorCode::DatabaseBusy => ErrorCode::DatabaseBusy,
             rusqlite::ErrorCode::DatabaseLocked => ErrorCode::DatabaseLocked,
+            rusqlite::ErrorCode::ConstraintViolation => {
+                constraint_code(sqlite_error.extended_code).unwrap_or(ErrorCode::DatabaseCorrupt)
+            }
             _ => ErrorCode::DatabaseCorrupt,
         },
         _ => ErrorCode::DatabaseCorrupt,
@@ -164,8 +217,25 @@ pub(crate) fn map_sqlite_error(error: rusqlite::Error) -> DbError {
     DbError::new(code)
 }
 
-/// Reject monetary values outside JavaScript's safe integer range.
+/// Largest amount the schema will store.
+///
+/// `transactions.amount` carries `CHECK (amount > 0 AND amount <= 999999999999)`
+/// in migration 006. That migration is applied and immutable, so this is a copy
+/// of the literal rather than a shared symbol — interpolating a constant into a
+/// deployed migration would retroactively alter a schema already in the field.
+/// `the_money_bound_matches_the_migration_check` in `tests/migrations.rs` keeps
+/// the copy honest.
+pub const MAX_AMOUNT: u64 = 999_999_999_999;
+
+/// Reject monetary values outside the range the schema can store.
+///
+/// The window this closes: everything from `MAX_AMOUNT + 1` up to
+/// `9_007_199_254_740_991` used to pass here and then be rejected by SQLite.
+///
+/// Note this bound is one-sided: the `CHECK`'s other clause is `amount > 0`,
+/// and this accepts `0` and negatives. Its rejections are therefore a strict
+/// subset of the schema's, so adding it to a write path can only reclassify an
+/// error the schema would already raise.
 pub fn validate_money(value: i64) -> Result<i64, ErrorCode> {
-    const JS_MAX_SAFE: u64 = 9_007_199_254_740_991;
-    (value.unsigned_abs() <= JS_MAX_SAFE).then_some(value).ok_or(ErrorCode::AmountOutOfRange)
+    (value.unsigned_abs() <= MAX_AMOUNT).then_some(value).ok_or(ErrorCode::AmountOutOfRange)
 }

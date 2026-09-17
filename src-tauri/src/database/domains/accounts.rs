@@ -4,7 +4,9 @@
 
 use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::database::error::{DbError, DbResult, ErrorCode, map_sqlite_error};
+use crate::database::error::{
+    DbError, DbResult, ErrorCode, MetaKey, map_sqlite_error, validate_money,
+};
 use crate::database::migrations::now_iso_utc;
 use crate::database::receipt::run_idempotent;
 use crate::database::types::{
@@ -41,23 +43,7 @@ fn row_to_account(row: &rusqlite::Row<'_>) -> rusqlite::Result<AccountWithBalanc
 }
 
 /// Today's date as `YYYY-MM-DD` from the system clock (UTC).
-pub(crate) fn today_iso() -> String {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default();
-    let days = now.as_secs() / 86_400;
-    let z = days as i64 + 719_468;
-    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let y = yoe + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = doy - (153 * mp + 2) / 5 + 1;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 };
-    let yr = if m <= 2 { y + 1 } else { y };
-    format!("{yr:04}-{m:02}-{d:02}")
-}
+pub use super::civil_date::today_iso;
 
 fn validate_type_change(from: AccountType, to: AccountType) -> DbResult<()> {
     if from.is_asset() != to.is_asset() {
@@ -87,27 +73,11 @@ fn enforce_single_currency(conn: &Connection, currency: &str) -> DbResult<()> {
 }
 
 /// Compute the balance for one account as of `date` (inclusive).
+///
+/// The expression lives in [`super::balance::account_balance_as_of`]; this is
+/// the name the account commands were built against.
 pub fn get_balance(conn: &Connection, account_id: &str, date: &str) -> DbResult<i64> {
-    let total: i64 = conn
-        .query_row(
-            "SELECT COALESCE(SUM(CASE
-                WHEN kind = 'income' THEN amount
-                WHEN kind = 'adjustment' THEN amount
-                WHEN kind = 'refund' THEN amount
-                WHEN kind = 'expense' THEN -amount
-                WHEN kind = 'transfer' AND account_id = ?1 THEN -amount
-                WHEN kind = 'transfer' AND transfer_account_id = ?1 THEN amount
-                ELSE 0
-            END), 0)
-            FROM transactions
-            WHERE (account_id = ?1 OR (kind = 'transfer' AND transfer_account_id = ?1))
-              AND deleted_at IS NULL
-              AND date <= ?2",
-            params![account_id, date],
-            |row| row.get(0),
-        )
-        .map_err(map_sqlite_error)?;
-    Ok(total)
+    super::balance::account_balance_as_of(conn, account_id, date)
 }
 
 // ---------------------------------------------------------------------------
@@ -224,6 +194,12 @@ pub fn create_account(
 
     // Single-currency rule: must match existing accounts.
     enforce_single_currency(conn, &input.currency)?;
+    // The opening balance is written to `transactions.amount` below; validate it
+    // with the other inputs, rather than letting SQLite's CHECK reclassify an
+    // over-cap value as `InvalidInput`.
+    if let Some(balance) = input.initial_balance {
+        validate_money(balance)?;
+    }
 
     #[derive(serde::Serialize, serde::Deserialize)]
     struct AccountCreated {
@@ -363,13 +339,25 @@ pub fn delete_account(
     struct Void {}
 
     run_idempotent(conn, op_id, "delete_account", &id.to_string(), |tx| {
-        // Block if any active goal links to this account.
+        // Collect the names, not just the existence: the message names the
+        // goals the user has to unlink. Ordered so the copy is stable.
         let mut stmt = tx
-            .prepare("SELECT name FROM goals WHERE linked_account_id = ?1 AND deleted_at IS NULL AND status = 'active'")
+            .prepare(
+                "SELECT name FROM goals
+                 WHERE linked_account_id = ?1 AND deleted_at IS NULL AND status = 'active'
+                 ORDER BY name",
+            )
             .map_err(map_sqlite_error)?;
-        let mut rows = stmt.query(params![id]).map_err(map_sqlite_error)?;
-        if rows.next().map_err(map_sqlite_error)?.is_some() {
-            return Err(DbError::new(ErrorCode::InvalidInput));
+        let names: Vec<String> = stmt
+            .query_map(params![id], |row| row.get(0))
+            .map_err(map_sqlite_error)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(map_sqlite_error)?;
+
+        if !names.is_empty() {
+            return Err(DbError::new(ErrorCode::AccountDeleteLinkedGoals)
+                .with_meta(MetaKey::Count.as_str(), names.len().to_string())
+                .with_meta(MetaKey::Names.as_str(), names.join(", ")));
         }
 
         let now = now_iso_utc();
@@ -391,27 +379,29 @@ pub fn restore_account(
     op_id: OperationId,
     id: &str,
 ) -> DbResult<()> {
-    // Must be currently soft-deleted.
-    let found: bool = conn
-        .query_row(
-            "SELECT 1 FROM accounts WHERE id = ?1 AND deleted_at IS NOT NULL",
-            params![id],
-            |_| Ok(true),
-        )
-        .optional()
-        .map_err(map_sqlite_error)?
-        .is_some();
-    if !found {
-        return Err(DbError::new(ErrorCode::InvalidInput));
-    }
-
     #[derive(serde::Serialize, serde::Deserialize)]
     struct Void {}
 
     run_idempotent(conn, op_id, "restore_account", &id.to_string(), |tx| {
+        // Inside the receipt, and the same predicate on the write. Outside it,
+        // the check could pass and the UPDATE could then land on a row that had
+        // changed in between.
+        let found: bool = tx
+            .query_row(
+                "SELECT 1 FROM accounts WHERE id = ?1 AND deleted_at IS NOT NULL",
+                params![id],
+                |_| Ok(true),
+            )
+            .optional()
+            .map_err(map_sqlite_error)?
+            .is_some();
+        if !found {
+            return Err(DbError::new(ErrorCode::InvalidInput));
+        }
         let now = now_iso_utc();
         tx.execute(
-            "UPDATE accounts SET deleted_at = NULL, updated_at = ?1 WHERE id = ?2",
+            "UPDATE accounts SET deleted_at = NULL, updated_at = ?1 \
+             WHERE id = ?2 AND deleted_at IS NOT NULL",
             params![now, id],
         )
         .map_err(map_sqlite_error)?;

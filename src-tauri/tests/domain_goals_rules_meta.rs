@@ -491,3 +491,48 @@ fn quick_account_set_clear() {
     let acct = meta::get_default_quick_account(&db).unwrap();
     assert!(acct.is_none());
 }
+
+#[test]
+fn retrying_a_goal_restore_with_the_same_operation_id_replays_the_first_result() {
+    let mut conn = fresh_db("i2-restore-retry-goal");
+    let id = goals::create_goal(
+        &mut conn,
+        op(),
+        "Emergency fund".to_string(),
+        GoalType::Savings,
+        1_000_000,
+        "2027-01-01".to_string(),
+        None,
+        0,
+        1,
+    )
+    .unwrap();
+    goals::delete_goal(&mut conn, op(), &id).unwrap();
+
+    let op_id = op();
+    goals::restore_goal(&mut conn, op_id.clone(), &id).unwrap();
+
+    goals::restore_goal(&mut conn, op_id, &id).unwrap();
+
+    assert!(goals::get_goal(&conn, &id).unwrap().is_some());
+}
+
+#[test]
+fn restoring_a_live_goal_is_rejected() {
+    let mut conn = fresh_db("i2-restore-guard-goal");
+    let id = goals::create_goal(
+        &mut conn,
+        op(),
+        "Emergency fund".to_string(),
+        GoalType::Savings,
+        1_000_000,
+        "2027-01-01".to_string(),
+        None,
+        0,
+        1,
+    )
+    .unwrap();
+
+    let error = goals::restore_goal(&mut conn, op(), &id).unwrap_err();
+    assert_eq!(error.code, ErrorCode::InvalidInput);
+}

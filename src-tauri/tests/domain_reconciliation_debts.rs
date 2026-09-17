@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 
 use notchy_lib::database::domains::{debts, reconciliations};
+use notchy_lib::database::error::ErrorCode;
 use notchy_lib::database::migrations::{bootstrap_current, FailurePoint};
 use notchy_lib::database::types::{OperationId};
 use rusqlite::{Connection, OpenFlags};
@@ -187,6 +188,25 @@ fn reconcile_nonexistent_account_returns_invalid_input() {
     let result = reconciliations::reconcile(&mut conn, op_id, "nonexistent", 100_000, false, None);
     assert!(result.is_err());
 }
+#[test]
+fn reconcile_rejects_an_adjustment_above_the_schema_cap() {
+    let conn = fresh_db("recon-cap");
+    seed_account(&conn, "acct_001", "Cash", "checking");
+    let mut conn = conn;
+    // The adjustment transaction stores the discrepancy, so that is the value
+    // the money guard is about: this one used to reach SQLite's CHECK and come
+    // back as `InvalidInput`.
+    let error = reconciliations::reconcile(
+        &mut conn,
+        OperationId::generate(),
+        "acct_001",
+        1_400_000_000_000,
+        true,
+        None,
+    )
+    .unwrap_err();
+    assert_eq!(error.code, ErrorCode::AmountOutOfRange);
+}
 
 // ---------------------------------------------------------------------------
 // Debt tests
@@ -238,7 +258,7 @@ fn write_off_loan_to_person_creates_expense() {
 
     let mut conn = conn;
     let op_id = OperationId::generate();
-    let txn_id = debts::write_off(&mut conn, op_id, "loan_to_001", 500_000, "tag_loss").unwrap();
+    let txn_id = debts::write_off(&mut conn, op_id, "loan_to_001", 500_000, Some("tag_loss".to_string())).unwrap();
     assert!(!txn_id.is_empty());
 
     let kind: String = conn
@@ -255,7 +275,7 @@ fn write_off_loan_from_person_creates_income() {
 
     let mut conn = conn;
     let op_id = OperationId::generate();
-    let txn_id = debts::write_off(&mut conn, op_id, "loan_from_001", 300_000, "tag_gift").unwrap();
+    let txn_id = debts::write_off(&mut conn, op_id, "loan_from_001", 300_000, Some("tag_gift".to_string())).unwrap();
 
     let kind: String = conn
         .query_row("SELECT kind FROM transactions WHERE id = ?1", [&txn_id], |r| r.get(0))
@@ -268,7 +288,7 @@ fn write_off_nonexistent_account_returns_error() {
     let conn = fresh_db("debts-writeoff-none");
     let mut conn = conn;
     let op_id = OperationId::generate();
-    let result = debts::write_off(&mut conn, op_id, "nonexistent", 100_000, "tag_gift");
+    let result = debts::write_off(&mut conn, op_id, "nonexistent", 100_000, Some("tag_gift".to_string()));
     assert!(result.is_err());
 }
 
@@ -278,8 +298,46 @@ fn write_off_non_loan_account_returns_error() {
     seed_account(&conn, "chk_001", "Main", "checking");
     let mut conn = conn;
     let op_id = OperationId::generate();
-    let result = debts::write_off(&mut conn, op_id, "chk_001", 100_000, "tag_gift");
+    let result = debts::write_off(&mut conn, op_id, "chk_001", 100_000, Some("tag_gift".to_string()));
     assert!(result.is_err());
+}
+
+#[test]
+fn write_off_rejects_amounts_above_the_schema_cap() {
+    let conn = fresh_db("debts-writeoff-cap");
+    seed_account(&conn, "loan_to_001", "Loan to An", "loan_to_person");
+    let mut conn = conn;
+    // No initial-balance or import path reaches this one: the write-off amount
+    // is written straight to `transactions.amount`, which the schema caps.
+    let error = debts::write_off(
+        &mut conn,
+        OperationId::generate(),
+        "loan_to_001",
+        1_400_000_000_000,
+        None,
+    )
+    .unwrap_err();
+    assert_eq!(error.code, ErrorCode::AmountOutOfRange);
+}
+
+#[test]
+fn write_off_without_a_tag_defaults_to_the_loss_tag() {
+    let conn = fresh_db("c3-write-off-default");
+    seed_account(&conn, "loan_to_001", "Loan to An", "loan_to_person");
+
+    let mut conn = conn;
+    let op_id = OperationId::generate();
+    let txn_id = debts::write_off(&mut conn, op_id, "loan_to_001", 5_000, None).unwrap();
+
+    let kind: String = conn
+        .query_row("SELECT kind FROM transactions WHERE id = ?1", [&txn_id], |r| r.get(0))
+        .unwrap();
+    assert_eq!(kind, "expense");
+
+    let tag_id: Option<String> = conn
+        .query_row("SELECT tag_id FROM transactions WHERE id = ?1", [&txn_id], |r| r.get(0))
+        .unwrap();
+    assert_eq!(tag_id.as_deref(), Some("tag_loss"));
 }
 
 #[test]

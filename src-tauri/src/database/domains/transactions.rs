@@ -5,12 +5,13 @@
 
 use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::database::error::{DbError, DbResult, ErrorCode, map_sqlite_error};
+use super::civil_date;
+use crate::database::error::{DbError, DbResult, ErrorCode, map_sqlite_error, validate_money};
 use crate::database::migrations::now_iso_utc;
 use crate::database::receipt::run_idempotent;
 use crate::database::types::{
-    NewTransaction, OperationId, Patch, Transaction, TransactionFilter, TransactionKind,
-    TransactionPatch,
+    FrequentTx, NewTransaction, OperationId, Patch, Transaction, TransactionFilter,
+    TransactionKind, TransactionPatch,
 };
 
 // ---------------------------------------------------------------------------
@@ -188,13 +189,15 @@ pub fn get_transaction(conn: &Connection, id: &str) -> DbResult<Option<Transacti
 /// Create a single transaction. Handles transfers (single-row model) and
 /// refunds (validates that the target is an existing non-deleted expense).
 ///
-/// Validates that `account_id` exists and is not deleted.
+/// Validates that `account_id` exists and is not deleted, and that the amount
+/// is within the range the schema can store.
 pub fn create_transaction(
     conn: &mut Connection,
     op_id: OperationId,
     input: NewTransaction,
 ) -> DbResult<String> {
     validate_account_exists(conn, &input.account_id)?;
+    validate_money(input.amount)?;
 
     // Transfers require a destination account that differs from the source.
     if input.kind == TransactionKind::Transfer {
@@ -316,6 +319,7 @@ pub fn create_transactions_batch(
             return Err(DbError::new(ErrorCode::InvalidInput));
         }
         validate_account_exists(conn, &input.account_id)?;
+        validate_money(input.amount)?;
     }
 
     #[derive(serde::Serialize, serde::Deserialize)]
@@ -384,6 +388,12 @@ pub fn update_transaction(
         }
     }
 
+    // Rejected before the SET list is built, so an unstoreable amount never
+    // reaches SQLite as a CHECK violation.
+    if let Some(amount) = patch.amount {
+        validate_money(amount)?;
+    }
+
     // Kind changes are the edit-mode repair path. Transfer conversions carry
     // column consequences (destination, pair id, refund link), so they are
     // validated and applied here — mirroring the TS repo's applyPatch.
@@ -434,6 +444,11 @@ pub fn update_transaction(
             } else if existing.kind == TransactionKind::Transfer {
                 sets.push("transfer_account_id = NULL".to_string());
                 sets.push("transfer_pair_id = NULL".to_string());
+                // Nulling the destination IS the handling. Without this the
+                // patch's `transfer_account_id` was appended again below and
+                // last-wins re-populated a column the CHECK requires to be NULL
+                // whenever `transfer_pair_id` is NULL.
+                dest_handled = true;
             }
         }
 
@@ -533,30 +548,34 @@ pub fn restore_transaction(
     op_id: OperationId,
     id: &str,
 ) -> DbResult<()> {
-    // Must be currently soft-deleted.
-    let found: bool = conn
-        .query_row(
-            "SELECT 1 FROM transactions WHERE id = ?1 AND deleted_at IS NOT NULL",
-            params![id],
-            |_| Ok(true),
-        )
-        .optional()
-        .map_err(map_sqlite_error)?
-        .is_some();
-    if !found {
-        return Err(DbError::new(ErrorCode::InvalidInput));
-    }
-
     #[derive(serde::Serialize, serde::Deserialize)]
     struct Void {}
 
     run_idempotent(conn, op_id, "restore_transaction", &id.to_string(), |tx| {
+        // Inside the receipt, and the same predicate on the write. Outside it,
+        // the check could pass and the UPDATE could then land on a row that had
+        // changed in between.
+        let found: bool = tx
+            .query_row(
+                "SELECT 1 FROM transactions WHERE id = ?1 AND deleted_at IS NOT NULL",
+                params![id],
+                |_| Ok(true),
+            )
+            .optional()
+            .map_err(map_sqlite_error)?
+            .is_some();
+        if !found {
+            return Err(DbError::new(ErrorCode::InvalidInput));
+        }
+
         let now = now_iso_utc();
         tx.execute(
-            "UPDATE transactions SET deleted_at = NULL, updated_at = ?1 WHERE id = ?2",
+            "UPDATE transactions SET deleted_at = NULL, updated_at = ?1 \
+             WHERE id = ?2 AND deleted_at IS NOT NULL",
             params![now, id],
         )
         .map_err(map_sqlite_error)?;
+
         Ok(Void {})
     })
     .map(|_| ())
@@ -577,22 +596,7 @@ pub fn duplicate_transaction(
 
     validate_account_exists(conn, &existing.account_id)?;
 
-    // Compute today's ISO date.
-    let now_duration = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default();
-    let days = now_duration.as_secs() / 86_400;
-    let z = days as i64 + 719_468;
-    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let y = yoe + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = doy - (153 * mp + 2) / 5 + 1;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 };
-    let yr = if m <= 2 { y + 1 } else { y };
-    let today = format!("{yr:04}-{m:02}-{d:02}");
+    let today = civil_date::today_iso();
 
     let input = NewTransaction {
         kind: existing.kind,
@@ -669,4 +673,141 @@ pub fn duplicate_transaction(
         })
     })
     .map(|r| r.transaction_id)
+}
+
+/// Recurring payees since `since_date`, most frequent first.
+///
+/// Ported verbatim from `browser/client.ts:133-141`. Fidelity caveat:
+/// `amount` and `kind` are bare columns under `GROUP BY payee, tag_id,
+/// account_id`, so SQLite returns an arbitrary row from each group. The browser
+/// layer relies on that; matching it is correct and diverging would make
+/// desktop and web disagree. Do not "fix" it.
+pub fn get_frequent(conn: &Connection, since_date: &str) -> DbResult<Vec<FrequentTx>> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT payee, tag_id, account_id, amount, kind, COUNT(*) as count
+             FROM transactions
+             WHERE deleted_at IS NULL AND date >= ?1 AND payee IS NOT NULL
+               AND kind IN ('expense', 'income')
+             GROUP BY payee, tag_id, account_id
+             ORDER BY count DESC, date DESC
+             LIMIT 5",
+        )
+        .map_err(map_sqlite_error)?;
+
+    let rows = stmt
+        .query_map([since_date], |row| {
+            Ok(FrequentTx {
+                payee: row.get(0)?,
+                tag_id: row.get(1)?,
+                account_id: row.get(2)?,
+                amount: row.get(3)?,
+                kind: row.get(4)?,
+                count: row.get(5)?,
+            })
+        })
+        .map_err(map_sqlite_error)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(map_sqlite_error)?;
+
+    Ok(rows)
+}
+
+/// Soft-delete many transactions in one operation.
+///
+/// Mirrors `browser/repos/transactions.ts:271-282`: an empty id list is a
+/// no-op, and rows already soft-deleted are left alone rather than erroring.
+pub fn delete_transactions(
+    conn: &mut Connection,
+    op_id: OperationId,
+    ids: Vec<String>,
+) -> DbResult<()> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct Void {}
+
+    let request = ids.clone();
+    run_idempotent(conn, op_id, "delete_transactions", &request, |tx| {
+        let now = now_iso_utc();
+        for id in &ids {
+            tx.execute(
+                "UPDATE transactions SET deleted_at = ?1, updated_at = ?1 \
+                 WHERE id = ?2 AND deleted_at IS NULL",
+                params![now, id],
+            )
+            .map_err(map_sqlite_error)?;
+        }
+        Ok(Void {})
+    })
+    .map(|_| ())
+}
+
+/// Retag many transactions in one operation.
+///
+/// Mirrors `browser/repos/transactions.ts:284-295`. `None` clears the tag, the
+/// same way the browser sets the column to NULL rather than to an empty string.
+pub fn set_tag_many(
+    conn: &mut Connection,
+    op_id: OperationId,
+    ids: Vec<String>,
+    tag_id: Option<String>,
+) -> DbResult<()> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct Void {}
+
+    let request = (&ids, &tag_id);
+    run_idempotent(conn, op_id, "set_tag_many", &request, |tx| {
+        let now = now_iso_utc();
+        for id in &ids {
+            tx.execute(
+                "UPDATE transactions SET tag_id = ?1, updated_at = ?2 \
+                 WHERE id = ?3 AND deleted_at IS NULL",
+                params![tag_id.as_deref(), now, id],
+            )
+            .map_err(map_sqlite_error)?;
+        }
+        Ok(Void {})
+    })
+    .map(|_| ())
+}
+
+/// Move many transactions to another account in one operation.
+///
+/// Mirrors `browser/repos/transactions.ts:297-308`. The destination account is
+/// not pre-validated — the browser relies on the foreign key, and a bad
+/// account id now surfaces as `InvalidInput` rather than as corruption.
+pub fn set_account_many(
+    conn: &mut Connection,
+    op_id: OperationId,
+    ids: Vec<String>,
+    account_id: String,
+) -> DbResult<()> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct Void {}
+
+    let request = (&ids, &account_id);
+    run_idempotent(conn, op_id, "set_account_many", &request, |tx| {
+        let now = now_iso_utc();
+        for id in &ids {
+            tx.execute(
+                "UPDATE transactions SET account_id = ?1, updated_at = ?2 \
+                 WHERE id = ?3 AND deleted_at IS NULL",
+                params![&account_id, now, id],
+            )
+            .map_err(map_sqlite_error)?;
+        }
+        Ok(Void {})
+    })
+    .map(|_| ())
 }

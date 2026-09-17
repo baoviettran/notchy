@@ -59,7 +59,7 @@ Rust commands are organized by domain, but mutating commands represent atomic bu
 
 - Create account with opening balance.
 - Create income or expense transaction.
-- Create both sides of a transfer.
+- Create a transfer as one atomic command (single-row model: `account_id` is the source, `transfer_account_id` the destination, `transfer_pair_id` the pair).
 - Reconcile an account with an optional adjustment.
 - Import a deduplicated transaction batch.
 - Merge a category tag and update every reference.
