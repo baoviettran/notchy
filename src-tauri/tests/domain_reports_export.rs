@@ -245,6 +245,24 @@ fn trend_multiple_months() {
 }
 
 #[test]
+fn trend_includes_adjustments_when_requested() {
+    let mut db = fresh_db("trend_adj");
+    let acc = make_account(&mut db, "Main", "checking");
+    let m0 = current_month();
+
+    make_tx(&mut db, "income", 5_000_000, &format!("{m0}-05"), &acc, None);
+    make_tx(&mut db, "adjustment", 1_000_000, &format!("{m0}-06"), &acc, None);
+
+    // Pins the flag end-to-end: the kind clause in the SQL *and* the aggregate
+    // that has to count an adjustment as income. A hardcoded `false`, an
+    // inverted `!`, and substituting `spending_kind_filter` all fail here.
+    let without = reports::get_trend(&db, 1, false, None).unwrap();
+    assert_eq!(without[0].income, 5_000_000);
+    let with_adj = reports::get_trend(&db, 1, true, None).unwrap();
+    assert_eq!(with_adj[0].income, 6_000_000);
+}
+
+#[test]
 fn trend_empty_months_return_zeros() {
     let db = fresh_db("trend_empty");
     let points = reports::get_trend(&db, 2, false, None).unwrap();
@@ -309,6 +327,24 @@ fn category_trend_for_tag() {
 }
 
 #[test]
+fn category_trend_includes_adjustments_when_requested() {
+    let mut db = fresh_db("cat_trend_adj");
+    let acc = make_account(&mut db, "Main", "checking");
+    let (_, tag) = make_category(&mut db, "Food", "Lunch");
+    let m0 = current_month();
+
+    make_tx(&mut db, "expense", 1_000_000, &format!("{m0}-05"), &acc, Some(&tag));
+    make_tx(&mut db, "adjustment", 500_000, &format!("{m0}-06"), &acc, Some(&tag));
+
+    // Pins `spending_kind_filter(include_adjustments)` at this call site: an
+    // inverted `!` or a hardcoded `false` hides the adjustment row.
+    let without = reports::get_category_trend(&db, 1, &tag, false).unwrap();
+    assert_eq!(without[0].spent, 1_000_000);
+    let with_adj = reports::get_category_trend(&db, 1, &tag, true).unwrap();
+    assert_eq!(with_adj[0].spent, 1_500_000);
+}
+
+#[test]
 fn category_trend_empty_returns_zeros() {
     let db = fresh_db("cat_trend_empty");
     let points = reports::get_category_trend(&db, 2, "nonexistent", false).unwrap();
@@ -341,6 +377,27 @@ fn stacked_category_series() {
     assert_eq!(lunch.total, 1_000_000);
 }
 
+#[test]
+fn stacked_category_series_includes_adjustments_when_requested() {
+    let mut db = fresh_db("stacked_adj");
+    let acc = make_account(&mut db, "Main", "checking");
+    let (_, tag) = make_category(&mut db, "Food", "Lunch");
+    let m0 = current_month();
+
+    make_tx(&mut db, "expense", 1_000_000, &format!("{m0}-05"), &acc, Some(&tag));
+    make_tx(&mut db, "adjustment", 500_000, &format!("{m0}-06"), &acc, Some(&tag));
+
+    // Second `spending_kind_filter` call site, same wiring risk as
+    // `get_category_trend` above.
+    let without = reports::get_stacked_category_series(&db, 1, false).unwrap();
+    let lunch = without[0].tags.iter().find(|t| t.tag_id == Some(tag.clone())).unwrap();
+    assert_eq!(lunch.total, 1_000_000);
+
+    let with_adj = reports::get_stacked_category_series(&db, 1, true).unwrap();
+    let lunch_adj = with_adj[0].tags.iter().find(|t| t.tag_id == Some(tag.clone())).unwrap();
+    assert_eq!(lunch_adj.total, 1_500_000);
+}
+
 // ---------------------------------------------------------------------------
 // Year-over-year tests
 // ---------------------------------------------------------------------------
@@ -363,6 +420,25 @@ fn year_over_year() {
     assert_eq!(jun.year_a_expense, 2_000_000);
     assert_eq!(jun.year_b_income, 6_000_000);
     assert_eq!(jun.year_b_expense, 3_000_000);
+}
+
+#[test]
+fn year_over_year_includes_adjustments_when_requested() {
+    let mut db = fresh_db("yoy_adj");
+    let acc = make_account(&mut db, "Main", "checking");
+
+    make_tx(&mut db, "income", 5_000_000, "2025-06-05", &acc, None);
+    make_tx(&mut db, "income", 6_000_000, "2026-06-05", &acc, None);
+    make_tx(&mut db, "adjustment", 1_000_000, "2026-06-06", &acc, None);
+
+    // Third `kind_filter(include_adjustments)` call site. Year A is asserted
+    // too, so a flag applied to the wrong year's query is caught.
+    let without = reports::get_year_over_year(&db, 2025, 2026, false).unwrap();
+    assert_eq!(without[5].year_b_income, 6_000_000);
+
+    let with_adj = reports::get_year_over_year(&db, 2025, 2026, true).unwrap();
+    assert_eq!(with_adj[5].year_b_income, 7_000_000);
+    assert_eq!(with_adj[5].year_a_income, 5_000_000);
 }
 
 #[test]
