@@ -44,6 +44,13 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
+      # The gate that ran nowhere: it is what caught this phase's own spec
+      # carrying no `Serves: STORY-0xx` trace. Note the exit code is driven by
+      # that check alone — per-plan staleness does not affect it, so this step
+      # does not fail on a stale rollup.
+      - name: Roadmap traces are current
+        run: pnpm test:roadmap
+
       - name: Coverage gate (touched files)
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
