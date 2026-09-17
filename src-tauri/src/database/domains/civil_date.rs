@@ -42,3 +42,59 @@ pub fn today_iso() -> String {
     let (year, month, day) = civil_from_days(days_since_epoch());
     format!("{year:04}-{month:02}-{day:02}")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::civil_from_days;
+
+    // Expected values come from an independent source (Python
+    // `datetime.date`), not from reading this function back. Month-granularity
+    // assertions are not enough: a one-day shift in the era constant
+    // (`719_468` -> `719_469`) left the whole suite green while `today_iso()`
+    // -- which feeds the `date <=` boundary filters in `list_accounts` and
+    // `get_account` -- was a day out.
+
+    #[test]
+    fn epoch_is_1970_01_01() {
+        assert_eq!(civil_from_days(0), (1970, 1, 1));
+    }
+
+    #[test]
+    fn day_before_the_epoch_takes_the_negative_era_branch() {
+        assert_eq!(civil_from_days(-1), (1969, 12, 31));
+    }
+
+    #[test]
+    fn day_after_the_epoch() {
+        assert_eq!(civil_from_days(1), (1970, 1, 2));
+    }
+
+    #[test]
+    fn leap_day_and_the_day_after() {
+        assert_eq!(civil_from_days(19_782), (2024, 2, 29));
+        assert_eq!(civil_from_days(19_783), (2024, 3, 1));
+    }
+
+    #[test]
+    fn leap_century_2000() {
+        assert_eq!(civil_from_days(11_016), (2000, 2, 29));
+        assert_eq!(civil_from_days(11_017), (2000, 3, 1));
+    }
+
+    #[test]
+    fn non_leap_century_2100_has_no_february_29() {
+        assert_eq!(civil_from_days(47_540), (2100, 2, 28));
+        assert_eq!(civil_from_days(47_541), (2100, 3, 1));
+    }
+
+    #[test]
+    fn ordinary_month_rollover() {
+        assert_eq!(civil_from_days(20_713), (2026, 9, 17));
+        assert_eq!(civil_from_days(20_714), (2026, 9, 18));
+    }
+
+    #[test]
+    fn far_future() {
+        assert_eq!(civil_from_days(2_932_896), (9999, 12, 31));
+    }
+}

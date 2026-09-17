@@ -8,10 +8,121 @@
 
 import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
 import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const ROOT = join(import.meta.dirname, "..");
 const SRC_DIR = join(ROOT, "src");
 const TARGET = "@tauri-apps/plugin-sql";
+
+/**
+ * Blank out comments, preserving every newline so line numbers stay aligned.
+ *
+ * A mention inside a comment is documentation, not a reference — `db/index.ts`
+ * explains that the plugin was *removed*, and that sentence used to fail this
+ * gate. String literals are deliberately kept: a dynamic `import("...")` is a
+ * real reference.
+ *
+ * @param {string} source
+ * @returns {string} same length and line structure, comments replaced by spaces
+ */
+export function stripComments(source) {
+  let out = "";
+  let state = "code";
+  let quote = null;
+  let i = 0;
+
+  while (i < source.length) {
+    const ch = source[i];
+    const next = source[i + 1];
+
+    if (state === "code") {
+      if (quote) {
+        if (ch === "\\") {
+          out += ch + (next ?? "");
+          i += 2;
+          continue;
+        }
+        if (ch === quote) quote = null;
+        out += ch;
+        i++;
+        continue;
+      }
+      if (ch === '"' || ch === "'" || ch === "`") {
+        quote = ch;
+      } else if (ch === "/" && next === "/") {
+        state = "line";
+        out += "  ";
+        i += 2;
+        continue;
+      } else if (ch === "/" && next === "*") {
+        state = "block";
+        out += "  ";
+        i += 2;
+        continue;
+      } else if (source.startsWith("<!--", i)) {
+        state = "html";
+        out += "    ";
+        i += 4;
+        continue;
+      }
+      out += ch;
+      i++;
+      continue;
+    }
+
+    if (state === "line") {
+      if (ch === "\n") {
+        state = "code";
+        out += ch;
+      } else {
+        out += " ";
+      }
+      i++;
+      continue;
+    }
+
+    if (state === "block") {
+      if (ch === "*" && next === "/") {
+        state = "code";
+        out += "  ";
+        i += 2;
+        continue;
+      }
+      out += ch === "\n" ? "\n" : " ";
+      i++;
+      continue;
+    }
+
+    // html comment (svelte)
+    if (source.startsWith("-->", i)) {
+      state = "code";
+      out += "   ";
+      i += 3;
+      continue;
+    }
+    out += ch === "\n" ? "\n" : " ";
+    i++;
+  }
+
+  return out;
+}
+
+/**
+ * Real references to TARGET, with the *original* line text for the report.
+ * @param {string} source
+ * @returns {{line: number, text: string}[]}
+ */
+export function findReferences(source) {
+  const original = source.split("\n");
+  const stripped = stripComments(source).split("\n");
+  const hits = [];
+  for (let i = 0; i < stripped.length; i++) {
+    if (stripped[i].includes(TARGET)) {
+      hits.push({ line: i + 1, text: (original[i] ?? "").trim() });
+    }
+  }
+  return hits;
+}
 
 /** Directories to skip entirely (relative to src/) */
 const SKIP_DIRS = new Set([
@@ -100,27 +211,29 @@ if (legacyErrors > 0) {
 
 // --- Main ---
 
-const files = collectFiles(SRC_DIR);
-let matches = 0;
+function main() {
+  const files = collectFiles(SRC_DIR);
+  let matches = 0;
 
-for (const file of files) {
-  const content = readFileSync(file, "utf-8");
-  const lines = content.split("\n");
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].includes(TARGET)) {
-      const relPath = relative(ROOT, file);
-      console.log(`${relPath}:${i + 1}: ${lines[i].trim()}`);
+  for (const file of files) {
+    const references = findReferences(readFileSync(file, "utf-8"));
+    for (const { line, text } of references) {
+      console.log(`${relative(ROOT, file)}:${line}: ${text}`);
       matches++;
     }
   }
+
+  if (matches === 0) {
+    console.log(`OK: "${TARGET}" not found in any production source file.`);
+    process.exit(0);
+  } else {
+    console.error(
+      `\nFAILED: found ${matches} reference(s) to "${TARGET}" in production source files.`
+    );
+    process.exit(1);
+  }
 }
 
-if (matches === 0) {
-  console.log(`OK: "${TARGET}" not found in any production source file.`);
-  process.exit(0);
-} else {
-  console.error(
-    `\nFAILED: found ${matches} reference(s) to "${TARGET}" in production source files.`
-  );
-  process.exit(1);
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main();
 }

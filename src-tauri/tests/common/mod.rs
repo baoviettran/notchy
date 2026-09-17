@@ -2,7 +2,7 @@
 //! tests (Task 5). Kept out of the per-test crates so both `startup.rs` and
 //! `command_guards.rs` exercise the exact same fixture and window plumbing.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -83,6 +83,11 @@ pub fn mock_app(manager: Arc<DatabaseManager>) -> MockApp {
 }
 
 /// Invoke `database_initialize` as if called from the window named `label`.
+// `common/` is compiled into every test binary that declares `mod common`.
+// Only `startup.rs` drives the initialize path, so `command_guards.rs` sees
+// this as dead code. Allowed per-item rather than module-wide so the lint
+// still catches genuinely dead helpers here.
+#[allow(dead_code)]
 pub async fn initialize_as(
     label: &str,
     manager: &Arc<DatabaseManager>,
@@ -115,14 +120,3 @@ pub async fn wait_until_stage(manager: &Arc<DatabaseManager>, target: StartupSta
     panic!("manager never reached stage {target:?}");
 }
 
-/// Poll the database path until it exists (used when a bootstrap publishes the
-/// live file asynchronously).
-pub fn wait_for_path(path: &Path) {
-    for _ in 0..1000 {
-        if path.exists() {
-            return;
-        }
-        std::thread::sleep(Duration::from_millis(5));
-    }
-    panic!("path never appeared: {}", path.display());
-}
