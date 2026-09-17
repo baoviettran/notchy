@@ -135,7 +135,7 @@ async fn restore_publishes_rollback_backup_before_replacing() {
     // the one we published to create the token.
     let after = discover_verified_backups(&backup_dir).unwrap().len();
     assert!(
-        after >= before + 1,
+        after > before,
         "expected at least one rollback backup; before={before}, after={after}"
     );
 

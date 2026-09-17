@@ -86,8 +86,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libappindicator3-dev librsvg2-dev patchelf
 
+      # `--all-targets`: without it clippy lints only lib+bins, so every
+      # integration test under tests/ shipped unlinted. Widened after
+      # `--all-targets -- -D warnings` was found to exit 101 on main (four
+      # dead-code items plus one int_plus_one); it is green now, and this step
+      # is what keeps it that way.
       - name: Clippy
-        run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 
       - name: Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml

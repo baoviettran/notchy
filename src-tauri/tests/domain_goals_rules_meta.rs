@@ -49,23 +49,6 @@ fn create_test_account(db: &mut Connection) -> String {
     accounts::create_account(db, op(), input).unwrap()
 }
 
-fn create_test_expense(db: &mut Connection, account_id: &str, amount: i64, tag_id: Option<&str>) -> String {
-    let input = notchy_lib::database::types::NewTransaction {
-        kind: notchy_lib::database::types::TransactionKind::Expense,
-        date: "2026-01-15".to_string(),
-        amount,
-        account_id: account_id.to_string(),
-        transfer_account_id: None,
-        refund_of_id: None,
-        tag_id: tag_id.map(|s| s.to_string()),
-        payee: None,
-        description: None,
-    };
-    transactions::create_transaction(db, op(), input).unwrap()
-}
-
-use notchy_lib::database::domains::transactions;
-
 // ===========================================================================
 // Goal tests
 // ===========================================================================
