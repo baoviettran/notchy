@@ -1124,7 +1124,7 @@ git commit -m "feat(db): cut over to native database ownership"
 - Produces: `artifacts/0.2.0/notchy_0.2.0_amd64.deb` and checksum.
 - Consumes: every native, crash, frontend, and package gate.
 
-- [ ] **Step 1: Write failing clean-tree and release-order tests**
+- [x] **Step 1: Write failing clean-tree and release-order tests**
 
 ```javascript
 test('rejects an untracked source file but allows explicit environment outputs', () => {
@@ -1138,17 +1138,17 @@ test('rejects an untracked source file but allows explicit environment outputs',
 
 Assert exact order: contract/cutover checks, Cargo tests including crash/process tests, frontend check/unit/E2E, database mutation suite, frontend build, Cargo check, then Tauri `.deb` build.
 
-- [ ] **Step 2: Confirm the red state**
+- [x] **Step 2: Confirm the red state**
 
 Run: `pnpm test:release-tooling`
 
 Expected: FAIL because untracked-source inspection and the expanded gate are absent.
 
-- [ ] **Step 3: Implement release `0.2.0` gate and notes**
+- [x] **Step 3: Implement release `0.2.0` gate and notes**
 
 Use `git status --porcelain=v1 --untracked-files=all`, parse every entry, and allow only exact `.codegraph/`, `artifacts/0.2.0/`, `build/`, `.svelte-kit/`, and `src-tauri/target/` prefixes. Reject all tracked modifications at release start and every unexpected untracked path. Synchronize all version records to `0.2.0`; document source app `0.1.4`, source schema `5`, target schema `6`, rollback backup, native cutover, and unsupported downgrade.
 
-- [ ] **Step 4: Run automated release verification**
+- [x] **Step 4: Run automated release verification**
 
 Run:
 
@@ -1168,7 +1168,7 @@ git diff --check
 
 Expected: every command exits 0. Record exact test counts and accepted warnings in the release notes.
 
-- [ ] **Step 5: Build the clean `.deb` and verify checksum**
+- [x] **Step 5: Build the clean `.deb` and verify checksum**
 
 Run: `pnpm release:dogfood`
 
@@ -1194,6 +1194,39 @@ Record Ubuntu version, source/target app and schema, backup path, checksum, test
 git add scripts/release-dogfood.mjs scripts/release-dogfood.test.mjs package.json pnpm-lock.yaml src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json specs/2026-07-27-desktop-release-smoke-checklist.md specs/notes/2026-08-17-v0.2.0.md
 git commit -m "docs: verify native database Ubuntu release"
 ```
+
+**Verification outcome (2026-09-25).** The installed package was driven with WebKitWebDriver
+(`TAURI_WEBVIEW_AUTOMATION=true`) against an isolated XDG tree seeded from a real schema-5
+database. The binary under test is byte-identical to `artifacts/0.2.0/notchy_0.2.0_amd64.deb`
+(`sha256 a7e08a87…`). Migration, data preservation, transfer direction, reconcile-with-adjustment,
+and budget rollover passed; the result is `partial`.
+
+Steps 6–8 stay open:
+
+- **Step 6** — no `sudo apt install` ran in this session. The `0.2.0` package was already installed
+  on the workstation, so the approval this step gates was never requested or given.
+- **Step 7** — `partial`, per this step's own rule. Two defects were found against the shipped
+  package: Settings → Backup & Data is non-functional under Tauri (the page reads `db.raw`, which
+  only the browser client exposes, so the health card errors, "Create backup now" writes nothing,
+  and Export SQLite/CSV throw), and the pre-upgrade backup is published into `backups/` rather than
+  `backups/upgrades/`. The GUI cases that depend on them (manual backup, backup/restore
+  round-trip, export) cannot pass, and the restart case fails on orphaned temp artifacts. The
+  `Ctrl+Shift+N` chord and tray activation were not drivable in this session. Step 7's literal
+  sequence — install the prior `0.1.4` `.deb`, hand-enter a dataset, install `0.2.0` over it — was
+  not replayed; schema-5 data came from a real native `0.1.4` backup, which exercises the same
+  `schema 5 → 6` path but not the package-manager upgrade.
+- **Step 8** — evidence is recorded (Ubuntu 24.04.5 LTS x86_64, source `0.1.4`/schema 5, target
+  `0.2.0`/schema 6, checksum, test counts, and every GUI result) in
+  `specs/notes/2026-08-17-v0.2.0.md` and `specs/2026-07-27-desktop-release-smoke-checklist.md`, and
+  the evidence screenshots are under `artifacts/0.2.0/evidence/`. The step is left open because a
+  `partial` Step 7 blocks the completion gate.
+
+The `0.2.0` artifact was **not** re-cut; its checksum still describes the artifact above. Three
+fixes found while verifying it are committed on `fix/native-backup-upgrades-dir` (`1ecb590`),
+test-first, and ship in the next release: the `upgrades/` publication directory, a startup-wide
+sweep of interrupted publications, and removal of a publication's temp-file sidecars. Porting
+`settings/backup` off `db.raw` — which needs a native create-backup command — is next-release
+work.
 
 ---
 
