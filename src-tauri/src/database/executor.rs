@@ -244,6 +244,14 @@ impl DatabaseManager {
         self.paths.data_dir.join("backups")
     }
 
+    /// The directory where pre-upgrade backups are published. This is the
+    /// location the rest of the app points at (the release notes, the Settings
+    /// "open backup folder" action, and the recorded `last_upgrade_backup_path`).
+    pub fn upgrade_backup_dir(&self) -> std::path::PathBuf {
+        self.backup_dir()
+            .join(crate::database::backup::UPGRADES_DIR)
+    }
+
     /// Test-only: arm a one-shot pause at the migration stage. The returned
     /// sender must be kept alive; firing it resumes the blocked migration. The
     /// receiver is consumed by the first migration that reaches the pause

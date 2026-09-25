@@ -277,6 +277,107 @@ fn backup_restart_cleanup_removes_unpublished_temp_files() {
     );
 }
 
+/// Every entry in `dir` whose name starts with the temporary-publication
+/// prefix — the base `.tmp` file and any of its SQLite sidecars.
+fn temp_artifacts(dir: &Path) -> Vec<String> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut names: Vec<String> = entries
+        .flatten()
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .filter(|name| name.starts_with(TEMP_PREFIX))
+        .collect();
+    names.sort();
+    names
+}
+
+/// A successful publication must leave nothing temporary behind. The online
+/// copy opens its destination with the live policy, which forces WAL mode, so
+/// the temp file acquires `-wal`/`-shm` sidecars that the rename does not move.
+#[test]
+fn successful_publication_leaves_no_temp_artifacts() {
+    let harness = BackupHarness::from_fixture("v004.sqlite");
+
+    let token = publish_backup(&harness.source, &harness.backup_dir, BackupFailurePoint::None)
+        .expect("publication must succeed");
+    assert!(token.path().exists());
+
+    let leftovers = temp_artifacts(&harness.backup_dir);
+    assert!(
+        leftovers.is_empty(),
+        "a successful publication must leave no temp artifacts, found {leftovers:?}"
+    );
+}
+
+/// A publication whose source is a live WAL database must not orphan the temp
+/// file's sidecars.
+///
+/// This is the app's real case: the executor thread holds an open connection on
+/// the live database, so the online copy's destination is a WAL database. The
+/// rename moves only the base file, so the temp name's `-wal`/`-shm` are left
+/// behind — and because the final name carries a *fresh* ULID, they can never be
+/// re-associated with the backup they came from.
+#[test]
+fn successful_publication_from_a_live_wal_source_leaves_no_temp_artifacts() {
+    let harness = BackupHarness::from_fixture("v004.sqlite");
+
+    // A live connection on the source, as the app has while it publishes.
+    let live = rusqlite::Connection::open(&harness.source).unwrap();
+    live.pragma_update(None, "journal_mode", "WAL").unwrap();
+
+    let token = publish_backup(&harness.source, &harness.backup_dir, BackupFailurePoint::None)
+        .expect("publication must succeed");
+    assert!(token.path().exists());
+
+    let leftovers = temp_artifacts(&harness.backup_dir);
+    assert!(
+        leftovers.is_empty(),
+        "a publication from a live WAL source must leave no temp artifacts, found {leftovers:?}"
+    );
+}
+
+/// Restart cleanup must collect the sidecars of a temp file whose base is
+/// already gone, and must never touch a verified backup or its sidecars.
+#[test]
+fn restart_cleanup_removes_orphaned_temp_sidecars() {
+    let harness = BackupHarness::from_fixture("v004.sqlite");
+
+    let token = publish_backup(&harness.source, &harness.backup_dir, BackupFailurePoint::None)
+        .expect("publication must succeed");
+    let verified = token.path().to_path_buf();
+
+    // Orphans of a publication whose base `.tmp` is no longer present.
+    for suffix in ["-wal", "-shm", "-journal"] {
+        std::fs::write(
+            harness
+                .backup_dir
+                .join(format!("{TEMP_PREFIX}01M0D8KQ13A3FM32RDH8537HTP.tmp{suffix}")),
+            b"",
+        )
+        .unwrap();
+    }
+    // A verified backup's own sidecars, which cleanup must preserve.
+    let verified_sidecar = PathBuf::from(format!("{}-wal", verified.display()));
+    std::fs::write(&verified_sidecar, b"").unwrap();
+
+    cleanup_interrupted_publications(&harness.backup_dir).expect("cleanup must succeed");
+
+    let leftovers = temp_artifacts(&harness.backup_dir);
+    assert!(
+        leftovers.is_empty(),
+        "orphaned temp sidecars must be collected, found {leftovers:?}"
+    );
+    assert!(
+        verified.exists(),
+        "cleanup must never remove a verified backup"
+    );
+    assert!(
+        verified_sidecar.exists(),
+        "cleanup must never touch a verified backup's sidecars"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Restore-related tests (Task 12)
 // ---------------------------------------------------------------------------

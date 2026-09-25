@@ -46,6 +46,11 @@ const UNKNOWN_APP_VERSION: &str = "unknown";
 const FINAL_PREFIX: &str = "notchy-backup-v";
 const FINAL_SUFFIX: &str = ".sqlite";
 
+/// The subdirectory of the backup directory that pre-upgrade backups are
+/// published into. Discovery scans it alongside the backup directory itself, so
+/// an upgrade backup stays visible to retention and to restore.
+pub const UPGRADES_DIR: &str = "upgrades";
+
 // ---------------------------------------------------------------------------
 // Failure-point injection (mirrors the migration FailurePoint pattern)
 // ---------------------------------------------------------------------------
@@ -200,12 +205,24 @@ pub fn publish_backup(
         if let Some(target) = &final_path {
             let _ = std::fs::remove_file(target);
         }
-        for suffix in ["-journal", "-wal", "-shm"] {
-            let temp_sidecar = PathBuf::from(format!("{}{}", temp_path.display(), suffix));
-            let _ = std::fs::remove_file(temp_sidecar);
-        }
     }
+    // The rename moves only the base file, so the temp publication's SQLite
+    // sidecars keep their temp name and would otherwise be orphaned by every
+    // successful publication — with a ULID that matches no published backup.
+    remove_temp_sidecars(&temp_path);
     result
+}
+
+/// Remove the SQLite sidecars of a temp publication file.
+///
+/// `copy_online` opens its destination with the live connection policy (which
+/// forces WAL), so the temp file acquires `-journal`/`-wal`/`-shm` companions
+/// that the atomic rename does not move.
+fn remove_temp_sidecars(temp_path: &Path) {
+    for suffix in ["-journal", "-wal", "-shm"] {
+        let sidecar = PathBuf::from(format!("{}{}", temp_path.display(), suffix));
+        let _ = std::fs::remove_file(sidecar);
+    }
 }
 
 /// Copy the source database into `temp_path` through SQLite's online backup
@@ -337,7 +354,9 @@ struct ParsedBackupName {
     ulid: String,
 }
 
-/// Discover every verified backup in `backup_dir`, newest first.
+/// Discover every verified backup reachable from `backup_dir`, newest first:
+/// the backup directory itself plus its `upgrades/` subdirectory, where
+/// pre-upgrade backups are published.
 ///
 /// Every candidate matching the published-backup filename pattern is
 /// revalidated through a true read-only connection against the manifest for
@@ -348,6 +367,18 @@ pub fn discover_verified_backups(
     backup_dir: impl AsRef<Path>,
 ) -> DbResult<Vec<BackupSummary>> {
     let backup_dir = backup_dir.as_ref();
+    let mut records = scan_verified_backups(backup_dir)?;
+    // A missing `upgrades/` directory simply has no upgrade backups in it.
+    records.extend(
+        scan_verified_backups(&backup_dir.join(UPGRADES_DIR)).unwrap_or_default(),
+    );
+    // Newest first: ULIDs sort chronologically and lexicographically.
+    records.sort_by(|a, b| b.id.cmp(&a.id));
+    Ok(records)
+}
+
+/// Revalidate and collect the verified backups in exactly one directory.
+fn scan_verified_backups(backup_dir: &Path) -> DbResult<Vec<BackupSummary>> {
     let entries = std::fs::read_dir(backup_dir)
         .map_err(|_| DbError::new(ErrorCode::DatabaseInvalid))?;
     let mut records = Vec::new();
@@ -381,8 +412,6 @@ pub fn discover_verified_backups(
             verified: true,
         });
     }
-    // Newest first: ULIDs sort chronologically and lexicographically.
-    records.sort_by(|a, b| b.id.cmp(&a.id));
     Ok(records)
 }
 
@@ -440,16 +469,25 @@ pub fn cleanup_interrupted_publications(backup_dir: &Path) -> DbResult<usize> {
         if std::fs::remove_file(entry.path()).is_ok() {
             removed += 1;
         }
-        for suffix in ["-journal", "-wal", "-shm"] {
-            let sidecar = PathBuf::from(format!("{}{}", entry.path().display(), suffix));
-            let _ = std::fs::remove_file(sidecar);
-        }
+        remove_temp_sidecars(&entry.path());
     }
     Ok(removed)
 }
 
+/// True when `name` is an unpublished publication's temp file *or* one of that
+/// temp file's SQLite sidecars.
+///
+/// A killed publication can leave a sidecar behind after its base temp file
+/// has already been renamed away, so a sidecar has to be matchable on its own.
+/// Published backups never start with the temp prefix, so a verified backup and
+/// its sidecars are never matched.
 fn is_temp_name(name: &str) -> bool {
-    name.starts_with(TEMP_PREFIX) && name.ends_with(TEMP_SUFFIX)
+    let base = name
+        .strip_suffix("-journal")
+        .or_else(|| name.strip_suffix("-wal"))
+        .or_else(|| name.strip_suffix("-shm"))
+        .unwrap_or(name);
+    base.starts_with(TEMP_PREFIX) && base.ends_with(TEMP_SUFFIX)
 }
 
 // ---------------------------------------------------------------------------

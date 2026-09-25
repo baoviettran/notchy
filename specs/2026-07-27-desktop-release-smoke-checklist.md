@@ -94,4 +94,11 @@ The released `v0.1.4` caps at schema 5, so this upgrade runs the protected migra
 
 | Case | OS | Source app / schema | Target app / schema | Result (pass/fail) | Pre-upgrade backup path | Evidence path |
 | --- | --- | --- | --- | --- | --- | --- |
-| Install 0.2.0 over 0.1.4; verify protected migration, data preservation, and a backup/restore round-trip |  | 0.1.4 / 5 | 0.2.0 / 6 | pending | pending | pending |
+| Install 0.2.0 over 0.1.4; verify protected migration, data preservation, and a backup/restore round-trip | Ubuntu 24.04.5 LTS (x86_64), GNOME on Wayland | 0.1.4 / 5 | 0.2.0 / 6 | **partial** | `~/.local/share/com.notchy.app/backups/notchy-backup-v5-0.1.4-01M3CGSB1ASS5VDMKWMHXE4HVJ.sqlite` — note the missing `upgrades/` | `artifacts/0.2.0/evidence/` (screenshots); full case table in `specs/notes/2026-08-17-v0.2.0.md` |
+
+Notes: the installed binary is byte-identical to `artifacts/0.2.0/notchy_0.2.0_amd64.deb` (`sha256 a7e08a87…`), so this row describes the shipped artifact. Migration, data preservation, transfer direction, reconcile-with-adjustment, and budget rollover all passed. The result is `partial`, blocking the daily-use recommendation, on two defects found against the shipped package:
+
+- **Settings → Backup & Data is non-functional under Tauri.** The page reads the database through `db.raw`, a raw escape hatch that exists only on the browser client, so the health card errors, "Create backup now" writes nothing, and Export SQLite/CSV throw. The E2E suite drives the browser client, where `raw` exists, so it stayed green. There is also no native create-backup command, and routine backup has not run since 2026-08-19.
+- **The pre-upgrade backup lands in `backups/`, not `backups/upgrades/`.** The 0.1.3 → 0.1.4 row above shows the JS path writing the `upgrades/` subdirectory; the native path regressed, so Settings "Open backup folder" points at a directory that does not exist after the upgrade.
+
+Both defects are fixed on `fix/native-backup-upgrades-dir` (`1ecb590`, after the `0.2.0` build) and will ship in the next release; the `0.2.0` artifact was not re-cut. The `settings/backup` page still needs porting off `db.raw`. GUI-only cases that this session could not drive: the `Ctrl+Shift+N` chord itself (no reliable OS-level key injection on Wayland — the quick-add webview and its capture route were confirmed present), and tray activation (no StatusNotifierHost exposed to this session).
