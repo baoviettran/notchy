@@ -231,6 +231,11 @@ impl DatabaseManager {
     /// startup metadata, and stored as the single live connection.
     fn perform_startup(&self, state: &mut ExecutorState) -> DbResult<()> {
         let paths = self.paths();
+        // Sweep temp files a crashed publication left behind, on every startup:
+        // a daily-use launch never reaches the migration branch, so cleanup
+        // there would never run for a `Current` database.
+        let _ = cleanup_interrupted_publications(&self.backup_dir());
+        let _ = cleanup_interrupted_publications(&self.upgrade_backup_dir());
         match inspect_schema(&paths.db_path) {
             SchemaInspection::Fresh => {
                 self.set_startup_stage(Some(StartupStage::Migrating));
@@ -254,10 +259,9 @@ impl DatabaseManager {
                 Ok(())
             }
             SchemaInspection::Older { version } => {
-                let backup_dir = self.backup_dir();
-                // Sweep any temp files a previous crashed publication left
-                // behind before publishing a fresh recovery point.
-                let _ = cleanup_interrupted_publications(&backup_dir);
+                // Pre-upgrade backups go in the `upgrades/` subdirectory, the
+                // location the rest of the app points at.
+                let backup_dir = self.upgrade_backup_dir();
 
                 self.set_startup_stage(Some(StartupStage::BackingUp));
                 self.emit_startup_event(StartupEvent::BackingUp);

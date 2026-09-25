@@ -6,6 +6,7 @@
 //! entering `RecoveryRequired` with retained verified backups, and concurrent
 //! initialize calls coalescing so exactly one caller opens SQLite.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -138,6 +139,39 @@ async fn initialization_orders_backup_before_migration() {
     );
 }
 
+/// The pre-upgrade backup must be published into the `upgrades/` directory the
+/// rest of the app points at: the release notes, the Settings "open backup
+/// folder" action, and the recorded `last_upgrade_backup_path`.
+#[tokio::test]
+async fn migration_publishes_pre_upgrade_backup_into_upgrades_dir() {
+    let fixture = initialize_fixture("v004.sqlite").await.unwrap();
+    let upgrades_dir = fixture.manager.backup_dir().join("upgrades");
+
+    let recorded = fixture
+        .manager
+        .data_job(|state| {
+            let value: String = state
+                .connection()?
+                .query_row(
+                    "SELECT value FROM app_meta WHERE key = 'last_upgrade_backup_path'",
+                    [],
+                    |row| row.get(0),
+                )
+                .map_err(|_| DbError::new(ErrorCode::DatabaseCorrupt))?;
+            Ok(value)
+        })
+        .await
+        .unwrap();
+
+    let recorded_path = PathBuf::from(&recorded);
+    assert_eq!(
+        recorded_path.parent(),
+        Some(upgrades_dir.as_path()),
+        "the recorded pre-upgrade backup must live in the upgrades dir"
+    );
+    assert!(recorded_path.exists(), "the recorded backup must exist");
+}
+
 #[tokio::test]
 async fn quick_add_cannot_initialize_or_write_during_migration() {
     let manager = paused_migration_manager().await;
@@ -203,6 +237,37 @@ async fn current_schema_initializes_to_ready() {
     assert_eq!(drain_events(&mut receiver), ["checking", "verifying", "ready"]);
     assert_eq!(status.lifecycle, LifecycleState::Ready);
     assert_eq!(manager.snapshot(), LifecycleState::Ready);
+}
+
+/// Restart cleanup must run on a plain `Current` startup, not only when a
+/// migration requires a backup. Otherwise a temp artifact left in `backups/` by
+/// an interrupted publication survives every daily-use launch — which is how
+/// orphaned `-wal`/`-shm` files persist for weeks on a real machine.
+#[tokio::test]
+async fn current_schema_startup_sweeps_orphaned_temp_artifacts() {
+    let paths = paths_for("current");
+    {
+        let mut conn = rusqlite::Connection::open(&paths.db_path).unwrap();
+        notchy_lib::database::run_migrations(
+            &mut conn,
+            notchy_lib::database::LATEST_SCHEMA_VERSION,
+            notchy_lib::database::FailurePoint::None,
+        )
+        .unwrap();
+        drop(conn);
+    }
+    let manager = DatabaseManager::spawn(paths, 16).unwrap();
+    let backup_dir = manager.backup_dir();
+    std::fs::create_dir_all(&backup_dir).unwrap();
+    let orphan = backup_dir.join(".notchy-backup-01M0D8KQ13A3FM32RDH8537HTP.tmp-wal");
+    std::fs::write(&orphan, b"").unwrap();
+
+    let status = manager.initialize().await.unwrap();
+    assert_eq!(status.lifecycle, LifecycleState::Ready);
+    assert!(
+        !orphan.exists(),
+        "a Current startup must sweep orphaned temp artifacts"
+    );
 }
 
 #[tokio::test]
