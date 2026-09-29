@@ -156,6 +156,11 @@ pub fn publish_backup(
 /// and app version; `Some(name)` is used verbatim. Either way the copy is staged
 /// in a temp file beside the target, validated, `fsync`ed, and renamed
 /// atomically.
+///
+/// The directory policy follows the naming: a derived name means a Notchy-owned
+/// backup directory, created `0700`; a caller-named target means a directory the
+/// user chose, which is created if missing and left with whatever mode the user
+/// set.
 fn publish_backup_named(
     source_path: &Path,
     backup_dir: &Path,
@@ -163,7 +168,20 @@ fn publish_backup_named(
     failpoint: BackupFailurePoint,
 ) -> DbResult<BackupToken> {
     set_failpoint(failpoint);
-    create_dir_private(backup_dir).map_err(|_| DbError::new(ErrorCode::DatabaseInvalid))?;
+    // `name` is moved into the naming block below, so read this here.
+    let caller_named = name.is_some();
+    // A Notchy-owned backup directory is created 0700 because the app owns its
+    // policy. A caller-named target sits wherever the user chose, so the mode is
+    // theirs to set — chmod'ing their directory would be a silent, persistent
+    // permission change outside the app's storage, and on a directory the user
+    // can write but not chmod (a shared folder, vfat, SMB) it would fail the
+    // export outright. Either way a parent that is a file fails here.
+    let prepared = if caller_named {
+        std::fs::create_dir_all(backup_dir)
+    } else {
+        create_dir_private(backup_dir)
+    };
+    prepared.map_err(|_| DbError::new(ErrorCode::DatabaseInvalid))?;
 
     // Validate the source before copying: only known-good data is published.
     let (schema_version, app_version) = {
@@ -179,6 +197,12 @@ fn publish_backup_named(
     ));
 
     let mut final_path: Option<PathBuf> = None;
+    // Whether the final target already existed when this publication renamed
+    // over it. A derived name can never pre-exist — the guard below refuses it —
+    // but a caller-named export replaces the user's own file, and deleting the
+    // target after a post-rename failure would leave the user with nothing
+    // instead of the replacement they agreed to.
+    let mut target_pre_existed = false;
     let result = (|| -> DbResult<BackupToken> {
         copy_online(source_path, &temp_path)?;
         failpoint_stage(BackupFailurePoint::AfterCopy)?;
@@ -191,7 +215,6 @@ fn publish_backup_named(
         sync_file(&temp_path)?;
         failpoint_stage(BackupFailurePoint::AfterFileSync)?;
 
-        let caller_named = name.is_some();
         let final_name = match name {
             Some(name) => name.to_string(),
             None => final_backup_name(schema_version, &app_version),
@@ -201,12 +224,14 @@ fn publish_backup_named(
         // millisecond produced two publications; never overwrite a verified
         // backup. A caller-named target is an explicit choice — the save dialog
         // already asked — and replacing it is the point.
-        if !caller_named && target.exists() {
+        let target_existed = target.exists();
+        if !caller_named && target_existed {
             return Err(DbError::new(ErrorCode::DatabaseInvalid));
         }
         std::fs::rename(&temp_path, &target)
             .map_err(|_| DbError::new(ErrorCode::DatabaseInvalid))?;
         final_path = Some(target.clone());
+        target_pre_existed = target_existed;
         failpoint_stage(BackupFailurePoint::AfterRename)?;
 
         let fingerprint = hash_file(&target)?;
@@ -225,8 +250,14 @@ fn publish_backup_named(
 
     if result.is_err() {
         let _ = std::fs::remove_file(&temp_path);
-        if let Some(target) = &final_path {
-            let _ = std::fs::remove_file(target);
+        // Only a target this publication created is ours to remove. One that
+        // pre-existed holds the validated, `fsync`ed replacement by now: the
+        // export has already replaced the user's file, so undoing that would be
+        // a data loss, not a rollback.
+        if !target_pre_existed {
+            if let Some(target) = &final_path {
+                let _ = std::fs::remove_file(target);
+            }
         }
     }
     // The rename moves only the base file, so the temp publication's SQLite
@@ -242,14 +273,32 @@ fn publish_backup_named(
 /// Same publication protocol as [`publish_backup`] — online copy, manifest
 /// validation, `fsync`, atomic rename, directory `fsync` — but the caller names
 /// the file. The staged temp lives beside the target, so the final rename stays
-/// on one filesystem and an interrupted export leaves a temp that
-/// [`cleanup_interrupted_publications`] already knows how to sweep. A failure
-/// before the rename leaves an existing target untouched.
+/// on one filesystem.
 ///
-/// The returned path is `target_path` itself, which carries none of the
-/// publication ULID: exports are user-named artifacts, not recovery points, and
-/// discovery ignores them.
+/// Because the destination is the user's rather than the app's, three things
+/// differ: the directory's mode is left as the user set it (never tightened to
+/// `0700`), no failure deletes a target that pre-existed — a failure before the
+/// rename leaves the old content untouched and a failure after it leaves the
+/// validated replacement in place rather than removing the user's file — and
+/// nothing sweeps that directory afterwards, since
+/// [`cleanup_interrupted_publications`] only walks Notchy's own backup
+/// directories. A temp orphaned by a `SIGKILL` mid-export therefore stays beside
+/// the target until the user removes it.
+///
+/// The returned path is `target_path` exactly as given, not canonicalized, and
+/// it carries none of the publication ULID: exports are user-named artifacts,
+/// not recovery points, and discovery ignores them.
 pub fn export_backup_to(source_path: &Path, target_path: &Path) -> DbResult<PathBuf> {
+    export_backup_to_at(source_path, target_path, BackupFailurePoint::None)
+}
+
+/// [`export_backup_to`] with a failure point injected, so the export path can be
+/// exercised at every stage of the publication protocol.
+pub fn export_backup_to_at(
+    source_path: &Path,
+    target_path: &Path,
+    failpoint: BackupFailurePoint,
+) -> DbResult<PathBuf> {
     let backup_dir = target_path
         .parent()
         .ok_or_else(|| DbError::new(ErrorCode::DatabaseInvalid))?;
@@ -257,12 +306,7 @@ pub fn export_backup_to(source_path: &Path, target_path: &Path) -> DbResult<Path
         .file_name()
         .and_then(|name| name.to_str())
         .ok_or_else(|| DbError::new(ErrorCode::DatabaseInvalid))?;
-    publish_backup_named(
-        source_path,
-        backup_dir,
-        Some(file_name),
-        BackupFailurePoint::None,
-    )?;
+    publish_backup_named(source_path, backup_dir, Some(file_name), failpoint)?;
     Ok(target_path.to_path_buf())
 }
 

@@ -12,8 +12,8 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use notchy_lib::database::backup::{
-    cleanup_interrupted_publications, discover_verified_backups, export_backup_to, publish_backup,
-    retention_deletions, BackupFailurePoint,
+    cleanup_interrupted_publications, discover_verified_backups, export_backup_to,
+    export_backup_to_at, publish_backup, retention_deletions, BackupFailurePoint,
 };
 use notchy_lib::database::manifest::validate_manifest;
 use notchy_lib::database::types::BackupSummary;
@@ -461,6 +461,9 @@ fn target_dir(tag: &str) -> PathBuf {
     dir
 }
 
+/// Every temp artifact in `dir`, matched by the shared prefix so the `-wal`,
+/// `-shm`, and `-journal` companions `remove_temp_sidecars` sweeps are counted
+/// alongside the base `.tmp` file.
 fn temp_files_in(dir: &Path) -> Vec<String> {
     std::fs::read_dir(dir)
         .unwrap()
@@ -545,4 +548,78 @@ fn export_is_not_a_discovered_backup() {
         discovered.is_empty(),
         "export leaked into discovery: {discovered:?}"
     );
+}
+
+/// An export writes into a directory the user chose and owns, so the app must
+/// not impose the 0700 mode it sets on the directories it owns itself.
+#[cfg(unix)]
+#[test]
+fn export_does_not_tighten_the_target_directory_permissions() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let source = source_db("export-perms");
+    let dir = target_dir("export-perms-target");
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    export_backup_to(&source, &dir.join("chosen.sqlite")).unwrap();
+
+    let mode = std::fs::metadata(&dir).unwrap().permissions().mode();
+    assert_eq!(
+        mode & 0o777,
+        0o755,
+        "export must leave the user's directory permissions alone"
+    );
+}
+
+/// Re-exporting onto a path the user already had: the rename has already
+/// replaced the old content with a validated, `fsync`ed copy, so a failure in
+/// the finalisation steps after it must not delete the replacement — that would
+/// leave the user with nothing at all instead of the file they agreed to.
+#[test]
+fn export_keeps_the_replacement_when_finalisation_fails() {
+    let source = source_db("export-keep-replacement");
+    let dir = target_dir("export-keep-replacement-target");
+    let target = dir.join("notchy.sqlite");
+    std::fs::write(&target, b"stale bytes").unwrap();
+
+    let result = export_backup_to_at(&source, &target, BackupFailurePoint::AfterRename);
+
+    assert!(result.is_err(), "the injected failpoint must fail the export");
+    assert!(target.exists(), "the replacement must survive the failure");
+    // Validating proves it is the *new* content: stale bytes could not pass.
+    let connection = rusqlite::Connection::open(&target).unwrap();
+    validate_manifest(&connection, 4).unwrap();
+}
+
+/// The other side of that gate: a target this publication created had nothing
+/// of the user's to preserve, so a failed publication cleans up after itself.
+#[test]
+fn export_removes_its_own_target_when_finalisation_fails() {
+    let source = source_db("export-own-target");
+    let dir = target_dir("export-own-target-target");
+    let target = dir.join("chosen.sqlite");
+
+    let result = export_backup_to_at(&source, &target, BackupFailurePoint::AfterRename);
+
+    assert!(result.is_err(), "the injected failpoint must fail the export");
+    assert!(!target.exists(), "a target this export created must be removed");
+    assert!(temp_files_in(&dir).is_empty(), "temp left behind");
+}
+
+/// A failure once the copy stage has run is the first point at which a temp
+/// actually exists, so this is what makes the "a failed export leaves no temp"
+/// property real through the export API.
+#[test]
+fn export_leaves_no_temp_when_the_copy_stage_fails() {
+    let source = source_db("export-copy-fail");
+    let dir = target_dir("export-copy-fail-target");
+
+    let result = export_backup_to_at(
+        &source,
+        &dir.join("chosen.sqlite"),
+        BackupFailurePoint::AfterCopy,
+    );
+
+    assert!(result.is_err(), "the injected failpoint must fail the export");
+    assert!(temp_files_in(&dir).is_empty(), "a failed copy must leave no temp");
 }

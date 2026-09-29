@@ -54,11 +54,10 @@ Rust only. No wiring — this task splits one function and adds another, and its
 
 - [x] **Step 1: Write the failing tests**
 
-Append to `src-tauri/tests/backup_restore.rs`. Add `export_backup_to` to the existing `notchy_lib::database::backup::{…}` import, and add these two imports below it:
+Append to `src-tauri/tests/backup_restore.rs`. Add `export_backup_to` to the existing `notchy_lib::database::backup::{…}` import, and add this import below it:
 
 ```rust
 use notchy_lib::database::manifest::validate_manifest;
-use ulid::Ulid;
 ```
 
 ```rust
@@ -327,7 +326,11 @@ The legacy filename shape is the exact output of the old JS writer — `new Date
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `src-tauri/tests/backup_restore.rs`:
+Append to `src-tauri/tests/backup_restore.rs`. Add this import below the existing `notchy_lib` imports — Task 2's tests derive a published timestamp with `Ulid::from_datetime`:
+
+```rust
+use ulid::Ulid;
+```
 
 ```rust
 // ---------------------------------------------------------------------------
