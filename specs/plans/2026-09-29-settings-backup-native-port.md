@@ -52,7 +52,7 @@ Rust only. No wiring — this task splits one function and adds another, and its
 - Consumes: `publish_backup` (`backup.rs:143`) and its protocol; `final_backup_name` (`backup.rs:298`); `BackupFailurePoint` (`backup.rs:60`); `BackupToken`; `create_dir_private`; `open_read_only_at`; `read_source_meta`; `validate_manifest`. Test helpers `scratch_root`, `fixtures_dir`, `TEMP_PREFIX`, `FINAL_PREFIX` are already defined in `backup_restore.rs`.
 - Produces: `pub fn export_backup_to(source_path: &Path, target_path: &Path) -> DbResult<PathBuf>` — writes a validated copy of the database at `source_path` to exactly `target_path`, **replacing any existing file**. Task 5 wraps it as the `backup_export_sqlite` command.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `src-tauri/tests/backup_restore.rs`. Add `export_backup_to` to the existing `notchy_lib::database::backup::{…}` import, and add these two imports below it:
 
@@ -172,12 +172,12 @@ fn export_is_not_a_discovered_backup() {
 
 `ulid` is already a `[dependencies]` entry and integration tests link the package's normal dependencies (other suites import `rusqlite` directly), so `ulid::Ulid` is available here.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test backup_restore export`
 Expected: FAIL to compile — `cannot find function 'export_backup_to' in this scope`. A compile failure is the red state for a new Rust function.
 
-- [ ] **Step 3: Let a caller name the file**
+- [x] **Step 3: Let a caller name the file**
 
 In `src-tauri/src/database/backup.rs`, rename the existing `publish_backup` body to `publish_backup_named` and append a parameter:
 
@@ -253,7 +253,7 @@ pub fn publish_backup(
 }
 ```
 
-- [ ] **Step 4: Add `export_backup_to`**
+- [x] **Step 4: Add `export_backup_to`**
 
 Below the wrapper in the same file:
 
@@ -289,12 +289,12 @@ pub fn export_backup_to(source_path: &Path, target_path: &Path) -> DbResult<Path
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test backup_restore`
 Expected: PASS — the five new tests plus every pre-existing publication, failpoint, discovery, retention, and cleanup test, which guard the `publish_backup` delegation.
 
-- [ ] **Step 6: Lint and commit**
+- [x] **Step 6: Lint and commit**
 
 Run: `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`
 Expected: no warnings.

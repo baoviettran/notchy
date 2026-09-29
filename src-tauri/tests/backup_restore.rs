@@ -12,9 +12,10 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use notchy_lib::database::backup::{
-    cleanup_interrupted_publications, discover_verified_backups, publish_backup,
+    cleanup_interrupted_publications, discover_verified_backups, export_backup_to, publish_backup,
     retention_deletions, BackupFailurePoint,
 };
+use notchy_lib::database::manifest::validate_manifest;
 use notchy_lib::database::types::BackupSummary;
 
 /// Path of the committed native fixtures, anchored to the crate manifest so the
@@ -437,4 +438,111 @@ fn discover_restore_points_missing_dir() {
     let dir = scratch_root("missing");
     let points = discover_restore_points(&dir).unwrap();
     assert!(points.is_empty());
+}
+
+// ---------------------------------------------------------------------------
+// export_backup_to (Task 1): a validated copy at a caller-named path
+// ---------------------------------------------------------------------------
+
+/// A verified source database, copied out of the fixtures so the test can point
+/// an export at a target without touching the committed fixture.
+fn source_db(tag: &str) -> PathBuf {
+    let root = scratch_root(tag);
+    std::fs::create_dir_all(&root).unwrap();
+    let source = root.join("live.sqlite");
+    std::fs::copy(fixtures_dir().join("v004.sqlite"), &source).unwrap();
+    source
+}
+
+/// A scratch directory that exists, for use as an export target's parent.
+fn target_dir(tag: &str) -> PathBuf {
+    let dir = scratch_root(tag);
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+fn temp_files_in(dir: &Path) -> Vec<String> {
+    std::fs::read_dir(dir)
+        .unwrap()
+        .flatten()
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .filter(|name| name.starts_with(TEMP_PREFIX))
+        .collect()
+}
+
+#[test]
+fn export_writes_a_validated_copy_at_the_exact_target_path() {
+    let source = source_db("export-ok");
+    let target = target_dir("export-ok-target").join("notchy-2026-09-29.sqlite");
+
+    let written = export_backup_to(&source, &target).unwrap();
+
+    assert_eq!(written, target);
+    // The copy is a real database, not a byte blob: it opens and validates.
+    let connection = rusqlite::Connection::open(&target).unwrap();
+    validate_manifest(&connection, 4).unwrap();
+}
+
+#[test]
+fn export_replaces_an_existing_target() {
+    let source = source_db("export-replace");
+    let dir = target_dir("export-replace-target");
+    let target = dir.join("notchy.sqlite");
+    std::fs::write(&target, b"stale bytes").unwrap();
+
+    export_backup_to(&source, &target).unwrap();
+
+    // Replacing is expected: the save dialog has already asked the user.
+    let connection = rusqlite::Connection::open(&target).unwrap();
+    validate_manifest(&connection, 4).unwrap();
+    assert!(temp_files_in(&dir).is_empty(), "temp left behind");
+}
+
+#[test]
+fn export_refuses_a_corrupt_source_and_preserves_the_existing_target() {
+    let dir = target_dir("export-corrupt");
+    let source = dir.join("corrupt.sqlite");
+    std::fs::write(&source, b"not a database").unwrap();
+    let target = dir.join("keep-me.sqlite");
+    std::fs::write(&target, b"original bytes").unwrap();
+
+    let result = export_backup_to(&source, &target);
+
+    assert!(result.is_err(), "a corrupt source must not produce a backup");
+    assert_eq!(std::fs::read(&target).unwrap(), b"original bytes");
+    assert!(temp_files_in(&dir).is_empty(), "a failed export must leave no temp");
+}
+
+#[test]
+fn export_leaves_only_the_target_in_its_directory() {
+    // The staged temp lives beside the target, so the final rename stays on one
+    // filesystem and a successful export sweeps its own scratch file.
+    let source = source_db("export-elsewhere");
+    let dir = target_dir("export-elsewhere-target");
+    let target = dir.join("chosen.sqlite");
+
+    export_backup_to(&source, &target).unwrap();
+
+    assert!(target.exists());
+    assert_eq!(
+        std::fs::read_dir(&dir).unwrap().flatten().count(),
+        1,
+        "only the target should remain"
+    );
+}
+
+#[test]
+fn export_is_not_a_discovered_backup() {
+    let source = source_db("export-not-discovered");
+    let dir = target_dir("export-not-discovered-target");
+
+    export_backup_to(&source, &dir.join("notchy-export.sqlite")).unwrap();
+
+    // An export is named by the user, so it must never masquerade as a
+    // recovery point.
+    let discovered = discover_verified_backups(&dir).unwrap();
+    assert!(
+        discovered.is_empty(),
+        "export leaked into discovery: {discovered:?}"
+    );
 }

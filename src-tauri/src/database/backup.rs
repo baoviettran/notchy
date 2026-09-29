@@ -131,7 +131,8 @@ fn failpoint_stage(stage: BackupFailurePoint) -> DbResult<()> {
 // Publication
 // ---------------------------------------------------------------------------
 
-/// Publish a verified, durable backup of `source_path` into `backup_dir`.
+/// Publish a verified, durable backup of `source_path` into `backup_dir`,
+/// named from the source's own schema and app version.
 ///
 /// The publication sequence is: online copy to a unique `.tmp` file, validate
 /// the source-version manifest (integrity + foreign keys) on the copy, `fsync`
@@ -143,6 +144,22 @@ fn failpoint_stage(stage: BackupFailurePoint) -> DbResult<()> {
 pub fn publish_backup(
     source_path: &Path,
     backup_dir: &Path,
+    failpoint: BackupFailurePoint,
+) -> DbResult<BackupToken> {
+    publish_backup_named(source_path, backup_dir, None, failpoint)
+}
+
+/// Publish a verified, durable backup whose final filename is chosen by the
+/// caller.
+///
+/// `name: None` derives the published-backup name from the source's own schema
+/// and app version; `Some(name)` is used verbatim. Either way the copy is staged
+/// in a temp file beside the target, validated, `fsync`ed, and renamed
+/// atomically.
+fn publish_backup_named(
+    source_path: &Path,
+    backup_dir: &Path,
+    name: Option<&str>,
     failpoint: BackupFailurePoint,
 ) -> DbResult<BackupToken> {
     set_failpoint(failpoint);
@@ -174,11 +191,17 @@ pub fn publish_backup(
         sync_file(&temp_path)?;
         failpoint_stage(BackupFailurePoint::AfterFileSync)?;
 
-        let target = backup_dir.join(final_backup_name(schema_version, &app_version));
-        // The final name embeds a fresh ULID, so a collision means the same
+        let caller_named = name.is_some();
+        let final_name = match name {
+            Some(name) => name.to_string(),
+            None => final_backup_name(schema_version, &app_version),
+        };
+        let target = backup_dir.join(final_name);
+        // A derived name embeds a fresh ULID, so a collision means the same
         // millisecond produced two publications; never overwrite a verified
-        // backup.
-        if target.exists() {
+        // backup. A caller-named target is an explicit choice — the save dialog
+        // already asked — and replacing it is the point.
+        if !caller_named && target.exists() {
             return Err(DbError::new(ErrorCode::DatabaseInvalid));
         }
         std::fs::rename(&temp_path, &target)
@@ -211,6 +234,36 @@ pub fn publish_backup(
     // successful publication — with a ULID that matches no published backup.
     remove_temp_sidecars(&temp_path);
     result
+}
+
+/// Write a validated copy of the database at `source_path` to exactly
+/// `target_path`, replacing any existing file.
+///
+/// Same publication protocol as [`publish_backup`] — online copy, manifest
+/// validation, `fsync`, atomic rename, directory `fsync` — but the caller names
+/// the file. The staged temp lives beside the target, so the final rename stays
+/// on one filesystem and an interrupted export leaves a temp that
+/// [`cleanup_interrupted_publications`] already knows how to sweep. A failure
+/// before the rename leaves an existing target untouched.
+///
+/// The returned path is `target_path` itself, which carries none of the
+/// publication ULID: exports are user-named artifacts, not recovery points, and
+/// discovery ignores them.
+pub fn export_backup_to(source_path: &Path, target_path: &Path) -> DbResult<PathBuf> {
+    let backup_dir = target_path
+        .parent()
+        .ok_or_else(|| DbError::new(ErrorCode::DatabaseInvalid))?;
+    let file_name = target_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| DbError::new(ErrorCode::DatabaseInvalid))?;
+    publish_backup_named(
+        source_path,
+        backup_dir,
+        Some(file_name),
+        BackupFailurePoint::None,
+    )?;
+    Ok(target_path.to_path_buf())
 }
 
 /// Remove the SQLite sidecars of a temp publication file.
