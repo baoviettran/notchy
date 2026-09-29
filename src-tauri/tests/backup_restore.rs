@@ -18,6 +18,8 @@ use notchy_lib::database::backup::{
 use notchy_lib::database::manifest::validate_manifest;
 use notchy_lib::database::types::BackupSummary;
 
+use ulid::Ulid;
+
 /// Path of the committed native fixtures, anchored to the crate manifest so the
 /// tests work regardless of the invoking cwd.
 fn fixtures_dir() -> PathBuf {
@@ -622,4 +624,120 @@ fn export_leaves_no_temp_when_the_copy_stage_fails() {
 
     assert!(result.is_err(), "the injected failpoint must fail the export");
     assert!(temp_files_in(&dir).is_empty(), "a failed copy must leave no temp");
+}
+
+// ---------------------------------------------------------------------------
+// Legacy routine-name discovery (Task 2)
+// ---------------------------------------------------------------------------
+
+/// The timestamp shape the pre-port JS writer produced.
+const LEGACY_STAMP: &str = "2026-08-19T14-22-31-123Z";
+
+fn legacy_name(stamp: &str) -> String {
+    format!("notchy-backup-{stamp}.sqlite")
+}
+
+/// Copy a fixture into `dir` under a legacy routine filename, pinning the mtime
+/// so ordering assertions are deterministic.
+fn legacy_backup(dir: &Path, name: &str, mtime_secs: u64) -> PathBuf {
+    std::fs::create_dir_all(dir).unwrap();
+    let path = dir.join(name);
+    std::fs::copy(fixtures_dir().join("v004.sqlite"), &path).unwrap();
+    std::fs::File::options()
+        .write(true)
+        .open(&path)
+        .unwrap()
+        .set_modified(UNIX_EPOCH + Duration::from_secs(mtime_secs))
+        .unwrap();
+    path
+}
+
+#[test]
+fn discovery_accepts_a_legacy_routine_backup_name() {
+    let dir = scratch_root("legacy-accept");
+    let path = legacy_backup(&dir, &legacy_name(LEGACY_STAMP), 1_755_600_000);
+
+    let found = discover_verified_backups(&dir).unwrap();
+
+    assert_eq!(found.len(), 1, "legacy routine backup must be discoverable");
+    let canonical = std::fs::canonicalize(&path).unwrap();
+    assert_eq!(found[0].path, canonical.to_string_lossy());
+    // The name carries no schema, so it comes from the file's own app_meta.
+    assert_eq!(found[0].schema_version, 4);
+    assert!(found[0].verified);
+    // YYYY-MM-DDTHH:MM:SS.mmmZ
+    assert_eq!(found[0].created_at.len(), 24, "created_at is an ISO timestamp");
+    assert_eq!(found[0].id.len(), 26, "id is a ULID derived from the mtime");
+}
+
+#[test]
+fn discovery_rejects_names_that_are_not_the_legacy_shape() {
+    let dir = scratch_root("legacy-reject");
+    for name in [
+        "notchy-backup-notadate.sqlite",
+        "notchy-backup-2026-08-19.sqlite",
+        "notchy-backup-2026-08-19T14-22-31-123.sqlite",
+        "notchy-backup-2026-08-19T14-22-31-123Z.db",
+        "notchy-backup-vX-0.1.4-01M3CGSB1ASS5VDMKWMHXE4HVJ.sqlite",
+    ] {
+        legacy_backup(&dir, name, 1_755_600_000);
+    }
+
+    let found = discover_verified_backups(&dir).unwrap();
+
+    assert!(
+        found.is_empty(),
+        "non-shape names must not be candidates: {found:?}"
+    );
+}
+
+#[test]
+fn discovery_skips_a_legacy_backup_with_a_corrupt_body() {
+    let dir = scratch_root("legacy-corrupt");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join(legacy_name(LEGACY_STAMP)), b"not a database").unwrap();
+    let published = dir.join(format!(
+        "notchy-backup-v4-0.1.4-{}.sqlite",
+        Ulid::from_datetime(UNIX_EPOCH + Duration::from_secs(1_755_604_800))
+    ));
+    std::fs::copy(fixtures_dir().join("v004.sqlite"), &published).unwrap();
+
+    let found = discover_verified_backups(&dir).unwrap();
+
+    assert_eq!(
+        found.len(),
+        1,
+        "a corrupt candidate must not displace a verified one"
+    );
+    assert!(found[0].path.contains("notchy-backup-v4-0.1.4-"));
+}
+
+#[test]
+fn legacy_and_published_backups_sort_together_newest_first() {
+    let base = 1_755_600_000u64;
+    let dir = scratch_root("legacy-order");
+    // The legacy file's mtime is the older instant; the published name's ULID
+    // encodes the newer one. Both derive from the same base, so the expected
+    // order does not depend on knowing what these seconds are as a date.
+    let legacy_path = legacy_backup(&dir, &legacy_name(LEGACY_STAMP), base);
+    let published = dir.join(format!(
+        "notchy-backup-v4-0.1.4-{}.sqlite",
+        Ulid::from_datetime(UNIX_EPOCH + Duration::from_secs(base + 3_600))
+    ));
+    std::fs::copy(fixtures_dir().join("v004.sqlite"), &published).unwrap();
+
+    let found = discover_verified_backups(&dir).unwrap();
+
+    assert_eq!(found.len(), 2);
+    let published_canonical = std::fs::canonicalize(&published).unwrap();
+    assert_eq!(
+        found[0].path,
+        published_canonical.to_string_lossy(),
+        "the newer record sorts first"
+    );
+    assert!(
+        found[0].created_at > found[1].created_at,
+        "newest first: {found:?}"
+    );
+    assert!(std::fs::canonicalize(&legacy_path).is_ok());
 }

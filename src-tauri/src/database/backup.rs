@@ -26,6 +26,7 @@ use std::time::Duration;
 
 use rusqlite::backup::Backup;
 use rusqlite::Connection;
+use ulid::Ulid;
 
 use crate::database::connection::{create_dir_private, open_live_at, open_read_only_at};
 use crate::database::error::{DbError, DbResult, ErrorCode, map_sqlite_error};
@@ -45,6 +46,10 @@ const UNKNOWN_APP_VERSION: &str = "unknown";
 /// `notchy-backup-v<schema>-<app-version>-<ULID>.sqlite`.
 const FINAL_PREFIX: &str = "notchy-backup-v";
 const FINAL_SUFFIX: &str = ".sqlite";
+
+/// Legacy routine-backup filename prefix, written by the pre-port JS path:
+/// `notchy-backup-<ISO timestamp>.sqlite`.
+const LEGACY_PREFIX: &str = "notchy-backup-";
 
 /// The subdirectory of the backup directory that pre-upgrade backups are
 /// published into. Discovery scans it alongside the backup directory itself, so
@@ -413,9 +418,29 @@ fn final_backup_name(schema_version: i64, app_version: &str) -> String {
 /// Parse one candidate's discovery metadata from its filename.
 ///
 /// Filename parsing is discovery metadata, never proof: the caller must still
-/// revalidate the candidate. Returns `None` for anything that does not match
-/// the published-backup pattern.
-fn parse_backup_name(name: &str) -> Option<ParsedBackupName> {
+/// revalidate the candidate.
+///
+/// Two shapes are accepted:
+/// - `notchy-backup-v<schema>-<app-version>-<ULID>.sqlite` — the published
+///   shape, carrying every field in the name.
+/// - `notchy-backup-<ISO timestamp>.sqlite` — the legacy routine shape from the
+///   pre-port JS writer, which carries no schema, app version, or ULID; those
+///   come from the file and its mtime in `scan_verified_backups`.
+///
+/// Returns `None` for anything matching neither shape.
+fn parse_backup_name(name: &str) -> Option<BackupName> {
+    if let Some(published) = parse_published_name(name) {
+        return Some(BackupName::Published(published));
+    }
+    if is_legacy_routine_name(name) {
+        return Some(BackupName::Legacy);
+    }
+    None
+}
+
+/// Parse the published-backup shape. This is the original `parse_backup_name`
+/// body, unchanged.
+fn parse_published_name(name: &str) -> Option<ParsedBackupName> {
     let stem = name.strip_suffix(FINAL_SUFFIX)?;
     let stem = stem.strip_prefix(FINAL_PREFIX)?;
     // stem = "<schema>-<app-version>-<ULID>"; the ULID is the final segment
@@ -445,6 +470,49 @@ fn parse_backup_name(name: &str) -> Option<ParsedBackupName> {
     })
 }
 
+/// A candidate's discovery metadata source.
+enum BackupName {
+    /// The published shape: schema, app version, and ULID all come from the name.
+    Published(ParsedBackupName),
+    /// The legacy routine shape: everything comes from the file and its mtime.
+    Legacy,
+}
+
+/// True for the exact legacy routine filename the pre-port JS writer produced:
+/// `notchy-backup-` + `YYYY-MM-DDTHH-MM-SS-mmmZ` + `.sqlite`.
+///
+/// Validated by position rather than parsed as a date: the timestamp is display
+/// metadata, and the record's time comes from the file's mtime, so a strict
+/// shape check is all that is needed and there is no calendar arithmetic to get
+/// wrong. A near-miss (`notchy-backup-notadate.sqlite`, a bare date, a missing
+/// `Z`) is not a candidate.
+fn is_legacy_routine_name(name: &str) -> bool {
+    let Some(stamp) = name
+        .strip_suffix(FINAL_SUFFIX)
+        .and_then(|stem| stem.strip_prefix(LEGACY_PREFIX))
+    else {
+        return false;
+    };
+    let bytes = stamp.as_bytes();
+    if bytes.len() != 24 || bytes[10] != b'T' || bytes[23] != b'Z' {
+        return false;
+    }
+    for (index, byte) in bytes.iter().enumerate() {
+        if index == 10 || index == 23 {
+            // The 'T' and 'Z' separators, already checked above.
+            continue;
+        }
+        if matches!(index, 4 | 7 | 13 | 16 | 19) {
+            if *byte != b'-' {
+                return false;
+            }
+        } else if !byte.is_ascii_digit() {
+            return false;
+        }
+    }
+    true
+}
+
 struct ParsedBackupName {
     schema: i64,
     app_version: String,
@@ -455,11 +523,12 @@ struct ParsedBackupName {
 /// the backup directory itself plus its `upgrades/` subdirectory, where
 /// pre-upgrade backups are published.
 ///
-/// Every candidate matching the published-backup filename pattern is
-/// revalidated through a true read-only connection against the manifest for
-/// the schema recorded in its name. Candidates that fail to open or fail
-/// validation are excluded — a corrupt file with a matching name can never
-/// displace a verified recovery point.
+/// Every candidate matching either backup filename shape — the published
+/// `notchy-backup-v<schema>-<app>-<ULID>.sqlite` or the legacy routine
+/// `notchy-backup-<ISO timestamp>.sqlite` — is revalidated through a true
+/// read-only connection against the manifest for its schema. Candidates that
+/// fail to open or fail validation are excluded — a corrupt file with a
+/// matching name can never displace a verified recovery point.
 pub fn discover_verified_backups(
     backup_dir: impl AsRef<Path>,
 ) -> DbResult<Vec<BackupSummary>> {
@@ -475,6 +544,10 @@ pub fn discover_verified_backups(
 }
 
 /// Revalidate and collect the verified backups in exactly one directory.
+///
+/// Both filename shapes are candidates; the name is only a hint about where a
+/// candidate's schema and app version come from, and every candidate is
+/// confirmed against its own bytes before it is returned.
 fn scan_verified_backups(backup_dir: &Path) -> DbResult<Vec<BackupSummary>> {
     let entries = std::fs::read_dir(backup_dir)
         .map_err(|_| DbError::new(ErrorCode::DatabaseInvalid))?;
@@ -484,16 +557,36 @@ fn scan_verified_backups(backup_dir: &Path) -> DbResult<Vec<BackupSummary>> {
         let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
             continue;
         };
-        let Some(meta) = parse_backup_name(name) else {
+        let Some(backup_name) = parse_backup_name(name) else {
             continue;
         };
-        if manifest_for(meta.schema).is_none() {
-            continue;
-        }
+        // A legacy name carries no schema, so the file has to be open before
+        // the manifest can be selected. An unreadable candidate is still
+        // skipped, and a schema with no manifest is still rejected before
+        // validation — the name remains a hint, never a verdict.
         let Ok(connection) = open_read_only_at(&path) else {
             continue;
         };
-        if validate_manifest(&connection, meta.schema).is_err() {
+        let (schema_version, source_app_version, id) = match backup_name {
+            BackupName::Published(parsed) => (parsed.schema, parsed.app_version, parsed.ulid),
+            BackupName::Legacy => {
+                let Ok((schema, app_version)) = read_source_meta(&connection) else {
+                    continue;
+                };
+                // The file's mtime is when the backup was actually written: no
+                // date parsing, and a ULID derived from it sorts correctly
+                // against published backups, whose ULIDs encode their own
+                // creation time.
+                let Ok(modified) = std::fs::metadata(&path).and_then(|m| m.modified()) else {
+                    continue;
+                };
+                (schema, app_version, Ulid::from_datetime(modified).to_string())
+            }
+        };
+        if manifest_for(schema_version).is_none() {
+            continue;
+        }
+        if validate_manifest(&connection, schema_version).is_err() {
             continue;
         }
         drop(connection);
@@ -501,11 +594,11 @@ fn scan_verified_backups(backup_dir: &Path) -> DbResult<Vec<BackupSummary>> {
             continue;
         };
         records.push(BackupSummary {
-            id: meta.ulid.clone(),
+            id: id.clone(),
             path: canonical.to_string_lossy().into_owned(),
-            schema_version: meta.schema,
-            source_app_version: meta.app_version,
-            created_at: format_ulid_timestamp(&meta.ulid),
+            schema_version,
+            source_app_version,
+            created_at: format_ulid_timestamp(&id),
             verified: true,
         });
     }

@@ -324,7 +324,7 @@ Rust only. Routine backups written before this change are named `notchy-backup-<
 
 The legacy filename shape is the exact output of the old JS writer — `new Date().toISOString().replace(/[:.]/g, '-')`, which is `YYYY-MM-DDTHH-MM-SS-mmmZ` (24 characters, e.g. `notchy-backup-2026-08-19T14-22-31-123Z.sqlite`). Validate it by position; do **not** parse it as a date. The record's `id` and `created_at` come from the file's mtime via `Ulid::from_datetime`, which is the real creation time and needs no calendar arithmetic.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `src-tauri/tests/backup_restore.rs`. Add this import below the existing `notchy_lib` imports — Task 2's tests derive a published timestamp with `Ulid::from_datetime`:
 
@@ -450,12 +450,12 @@ fn legacy_and_published_backups_sort_together_newest_first() {
 }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test backup_restore legacy`
 Expected: FAIL — `discovery_accepts_a_legacy_routine_backup_name` panics with `assertion left == right failed … left: 0, right: 1`, and `legacy_and_published_backups_sort_together_newest_first` panics with `left: 1, right: 2`.
 
-- [ ] **Step 3: Widen the parser**
+- [x] **Step 3: Widen the parser**
 
 In `src-tauri/src/database/backup.rs`, add the legacy prefix constant next to `FINAL_PREFIX`:
 
@@ -543,7 +543,7 @@ fn is_legacy_routine_name(name: &str) -> bool {
 }
 ```
 
-- [ ] **Step 4: Fill legacy records from the file**
+- [x] **Step 4: Fill legacy records from the file**
 
 Replace the body of the `for entry in entries.flatten()` loop in `scan_verified_backups`, and update its doc comment to mention both shapes:
 
@@ -602,12 +602,12 @@ Replace the body of the `for entry in entries.flatten()` loop in `scan_verified_
 
 Add `use ulid::Ulid;` to the module imports. The file currently calls `ulid::Ulid::from_string` by full path in `parse_published_name` and `format_ulid_timestamp`; leave those alone — the import is additive and both still resolve.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml`
 Expected: PASS — including the four new legacy tests and every pre-existing discovery test (a corrupt file with a matching name still cannot displace a verified backup).
 
-- [ ] **Step 6: Lint and commit**
+- [x] **Step 6: Lint and commit**
 
 Run: `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`
 
