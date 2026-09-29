@@ -227,6 +227,18 @@ describe('BackupOps contract (browser adapter)', () => {
 
 		expect(written).toHaveLength(7);
 		expect(existsSync(join(csvDir, 'accounts.csv'))).toBe(true);
+		const tables = written
+			.map((path) => path.split(/[\\/]/).pop()!.replace(/\.csv$/, ''))
+			.sort();
+		expect(tables).toEqual([
+			'accounts',
+			'budgets',
+			'category_tags',
+			'category_types',
+			'goals',
+			'reconciliations',
+			'transactions'
+		]);
 	});
 
 	it('exportCsv produces a file for a table with no rows', async () => {

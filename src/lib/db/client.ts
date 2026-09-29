@@ -200,8 +200,11 @@ export interface BackupOps {
 	 */
 	create(): Promise<string>;
 	/**
-	 * Write a validated copy of the live database to exactly `targetPath`,
-	 * replacing any existing file.
+	 * Write a validated copy of the live database to exactly `targetPath`.
+	 *
+	 * Replacement differs by adapter: the native adapter atomically replaces an
+	 * existing target, while the browser adapter refuses one — `VACUUM INTO`
+	 * errors on an existing file — and leaves that file untouched.
 	 */
 	exportSqlite(targetPath: string): Promise<void>;
 	/**
