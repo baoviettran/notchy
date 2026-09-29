@@ -22,7 +22,7 @@ use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, UNIX_EPOCH};
 
 use rusqlite::backup::Backup;
 use rusqlite::Connection;
@@ -424,18 +424,18 @@ fn final_backup_name(schema_version: i64, app_version: &str) -> String {
 /// - `notchy-backup-v<schema>-<app-version>-<ULID>.sqlite` — the published
 ///   shape, carrying every field in the name.
 /// - `notchy-backup-<ISO timestamp>.sqlite` — the legacy routine shape from the
-///   pre-port JS writer, which carries no schema, app version, or ULID; those
-///   come from the file and its mtime in `scan_verified_backups`.
+///   pre-port JS writer, which carries no schema, app version, or ULID: the
+///   first two come from the file and the third from the name's timestamp.
 ///
 /// Returns `None` for anything matching neither shape.
 fn parse_backup_name(name: &str) -> Option<BackupName> {
     if let Some(published) = parse_published_name(name) {
         return Some(BackupName::Published(published));
     }
-    if is_legacy_routine_name(name) {
-        return Some(BackupName::Legacy);
-    }
-    None
+    let stamp = name
+        .strip_suffix(FINAL_SUFFIX)?
+        .strip_prefix(LEGACY_PREFIX)?;
+    parse_legacy_stamp(stamp).map(|created_ms| BackupName::Legacy { created_ms })
 }
 
 /// Parse the published-backup shape. This is the original `parse_backup_name`
@@ -474,28 +474,26 @@ fn parse_published_name(name: &str) -> Option<ParsedBackupName> {
 enum BackupName {
     /// The published shape: schema, app version, and ULID all come from the name.
     Published(ParsedBackupName),
-    /// The legacy routine shape: everything comes from the file and its mtime.
-    Legacy,
+    /// The legacy routine shape: the schema and app version come from the file,
+    /// and the record's time — `created_ms` since the Unix epoch — from the
+    /// name's stamp.
+    Legacy { created_ms: u64 },
 }
 
-/// True for the exact legacy routine filename the pre-port JS writer produced:
-/// `notchy-backup-` + `YYYY-MM-DDTHH-MM-SS-mmmZ` + `.sqlite`.
+/// Parse a legacy routine stamp to epoch milliseconds.
 ///
-/// Validated by position rather than parsed as a date: the timestamp is display
-/// metadata, and the record's time comes from the file's mtime, so a strict
-/// shape check is all that is needed and there is no calendar arithmetic to get
-/// wrong. A near-miss (`notchy-backup-notadate.sqlite`, a bare date, a missing
-/// `Z`) is not a candidate.
-fn is_legacy_routine_name(name: &str) -> bool {
-    let Some(stamp) = name
-        .strip_suffix(FINAL_SUFFIX)
-        .and_then(|stem| stem.strip_prefix(LEGACY_PREFIX))
-    else {
-        return false;
-    };
+/// The stamp is the exact output of the pre-port JS writer's
+/// `new Date().toISOString().replace(/[:.]/g, '-')`:
+/// `YYYY-MM-DDTHH-MM-SS-mmmZ`, 24 characters. Shape is checked by position, and
+/// the seven fields are then checked as an instant: a well-shaped stamp naming
+/// an impossible date or a pre-epoch time is not a candidate, because
+/// `new Date().toISOString()` cannot produce one and the record's ULID is
+/// derived from this value. Near-misses (`notchy-backup-notadate.sqlite`, a
+/// bare date, a missing `Z`) are not candidates either.
+fn parse_legacy_stamp(stamp: &str) -> Option<u64> {
     let bytes = stamp.as_bytes();
     if bytes.len() != 24 || bytes[10] != b'T' || bytes[23] != b'Z' {
-        return false;
+        return None;
     }
     for (index, byte) in bytes.iter().enumerate() {
         if index == 10 || index == 23 {
@@ -504,13 +502,36 @@ fn is_legacy_routine_name(name: &str) -> bool {
         }
         if matches!(index, 4 | 7 | 13 | 16 | 19) {
             if *byte != b'-' {
-                return false;
+                return None;
             }
         } else if !byte.is_ascii_digit() {
-            return false;
+            return None;
         }
     }
-    true
+    // Every byte is now an ASCII digit or a validated separator, so the fields
+    // sit on char boundaries.
+    let year: i64 = stamp.get(0..4)?.parse().ok()?;
+    let field = |start: usize| -> Option<i64> { stamp.get(start..start + 2)?.parse().ok() };
+    let month = field(5)?;
+    let day = field(8)?;
+    let hour = field(11)?;
+    let minute = field(14)?;
+    let second = field(17)?;
+    let millis: i64 = stamp.get(20..23)?.parse().ok()?;
+
+    if !(1..=12).contains(&month) || day < 1 || day > days_in_month(year, month as u32) as i64 {
+        return None;
+    }
+    if hour > 23 || minute > 59 || second > 59 {
+        return None;
+    }
+
+    let days = days_from_civil(year, month as u32, day as u32);
+    let seconds = days * 86_400 + hour * 3_600 + minute * 60 + second;
+    if seconds < 0 {
+        return None;
+    }
+    Some(seconds as u64 * 1_000 + millis as u64)
 }
 
 struct ParsedBackupName {
@@ -569,18 +590,21 @@ fn scan_verified_backups(backup_dir: &Path) -> DbResult<Vec<BackupSummary>> {
         };
         let (schema_version, source_app_version, id) = match backup_name {
             BackupName::Published(parsed) => (parsed.schema, parsed.app_version, parsed.ulid),
-            BackupName::Legacy => {
+            BackupName::Legacy { created_ms } => {
                 let Ok((schema, app_version)) = read_source_meta(&connection) else {
                     continue;
                 };
-                // The file's mtime is when the backup was actually written: no
-                // date parsing, and a ULID derived from it sorts correctly
-                // against published backups, whose ULIDs encode their own
-                // creation time.
-                let Ok(modified) = std::fs::metadata(&path).and_then(|m| m.modified()) else {
-                    continue;
-                };
-                (schema, app_version, Ulid::from_datetime(modified).to_string())
+                // The record's time is the name's, never the file's: an mtime
+                // survives a rename but is reset by a copy, an unzip, or a move
+                // to a new machine, which would put an old backup above a
+                // genuinely newer one on the recovery screen. A ULID derived
+                // from the stamp sorts correctly against published backups,
+                // whose ULIDs encode their own creation time.
+                (
+                    schema,
+                    app_version,
+                    Ulid::from_datetime(UNIX_EPOCH + Duration::from_millis(created_ms)).to_string(),
+                )
             }
         };
         if manifest_for(schema_version).is_none() {
@@ -718,4 +742,28 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
     let day = (day_of_year - (153 * month_prime + 2) / 5 + 1) as u32;
     let month = if month_prime < 10 { month_prime + 3 } else { month_prime - 9 } as u32;
     (if month <= 2 { year + 1 } else { year }, month, day)
+}
+
+/// The number of days in `month` of `year`, February included.
+fn days_in_month(year: i64, month: u32) -> u32 {
+    match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) => 29,
+        2 => 28,
+        _ => 0,
+    }
+}
+
+/// Convert a civil date to days since the Unix epoch: the inverse of
+/// [`civil_from_days`], using Howard Hinnant's `days_from_civil` algorithm.
+fn days_from_civil(year: i64, month: u32, day: u32) -> i64 {
+    let year = year - if month <= 2 { 1 } else { 0 };
+    let era = if year >= 0 { year } else { year - 399 } / 400;
+    let year_of_era = year - era * 400;
+    let day_of_year =
+        (153 * (month as i64 + if month > 2 { -3 } else { 9 }) + 2) / 5 + day as i64 - 1;
+    let day_of_era =
+        year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+    era * 146_097 + day_of_era - 719_468
 }

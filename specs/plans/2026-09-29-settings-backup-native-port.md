@@ -320,9 +320,9 @@ Rust only. Routine backups written before this change are named `notchy-backup-<
 
 **Interfaces:**
 - Consumes: `read_source_meta` (`backup.rs:243`) — returns `(i64, String)` and already falls back to `UNKNOWN_APP_VERSION` when the key is absent; `manifest_for` (`manifest.rs:546`); `validate_manifest` (`manifest.rs:628`); `open_read_only_at`; `format_ulid_timestamp`; `FINAL_SUFFIX`; `TEMP_PREFIX`.
-- Produces: `enum BackupName { Published(ParsedBackupName), Legacy }` — the return of the still-private `parse_backup_name`, plus the private `parse_published_name` (the old body) and `is_legacy_routine_name`. `discover_verified_backups` gains verified legacy routine backups; its signature and `BackupSummary` shape are unchanged, so no caller changes.
+- Produces: `enum BackupName { Published(ParsedBackupName), Legacy { created_ms: u64 } }` — the return of the still-private `parse_backup_name`, plus the private `parse_published_name` (the old body) and `parse_legacy_stamp`. `discover_verified_backups` gains verified legacy routine backups; its signature and `BackupSummary` shape are unchanged, so no caller changes.
 
-The legacy filename shape is the exact output of the old JS writer — `new Date().toISOString().replace(/[:.]/g, '-')`, which is `YYYY-MM-DDTHH-MM-SS-mmmZ` (24 characters, e.g. `notchy-backup-2026-08-19T14-22-31-123Z.sqlite`). Validate it by position; do **not** parse it as a date. The record's `id` and `created_at` come from the file's mtime via `Ulid::from_datetime`, which is the real creation time and needs no calendar arithmetic.
+The legacy filename shape is the exact output of the old JS writer — `new Date().toISOString().replace(/[:.]/g, '-')`, which is `YYYY-MM-DDTHH-MM-SS-mmmZ` (24 characters, e.g. `notchy-backup-2026-08-19T14-22-31-123Z.sqlite`). Check it by position **and** by value: the seven fields must name a real instant (month `1..=12`, day `1..=days_in_month(year, month)`, hour `<= 23`, minute `<= 59`, second `<= 59`, and not pre-epoch). A malformed or impossible stamp is not a candidate. The record's `id` comes from the **filename stamp** via `Ulid::from_datetime`, so ordering against ULID-named records stays chronological and `format_ulid_timestamp` round-trips — never from the file's mtime, which survives a rename but is reset by a copy, an unzip, or a move to a new machine, and would put an old backup above a genuinely newer one on the recovery screen.
 
 - [x] **Step 1: Write the failing tests**
 
@@ -372,9 +372,14 @@ fn discovery_accepts_a_legacy_routine_backup_name() {
     // The name carries no schema, so it comes from the file's own app_meta.
     assert_eq!(found[0].schema_version, 4);
     assert!(found[0].verified);
-    // YYYY-MM-DDTHH:MM:SS.mmmZ
-    assert_eq!(found[0].created_at.len(), 24, "created_at is an ISO timestamp");
-    assert_eq!(found[0].id.len(), 26, "id is a ULID derived from the mtime");
+    // The name's stamp, not the file's mtime, which is pinned a year earlier.
+    assert_eq!(
+        Ulid::from_string(&found[0].id).unwrap().timestamp_ms(),
+        1_787_149_351_123,
+        "the id must come from the filename stamp, not the file's mtime"
+    );
+    assert_eq!(found[0].created_at, "2026-08-19T14:22:31.123Z");
+    assert_eq!(found[0].id.len(), 26, "id is a ULID derived from the stamp");
 }
 
 #[test]
@@ -395,6 +400,29 @@ fn discovery_rejects_names_that_are_not_the_legacy_shape() {
     assert!(
         found.is_empty(),
         "non-shape names must not be candidates: {found:?}"
+    );
+}
+
+#[test]
+fn discovery_rejects_a_legacy_backup_whose_stamp_is_not_a_real_instant() {
+    let dir = scratch_root("legacy-bad-instant");
+    // Copies of the *valid* fixture: accepting either name would produce a
+    // verified record, so an empty result cannot be vacuous.
+    for name in [
+        // Correct shape, impossible fields.
+        legacy_name("2026-99-99T99-99-99-999Z"),
+        // A real date, but pre-epoch: `new Date().toISOString()` cannot
+        // produce it.
+        legacy_name("0000-01-01T00-00-00-000Z"),
+    ] {
+        legacy_backup(&dir, &name, 1_755_600_000);
+    }
+
+    let found = discover_verified_backups(&dir).unwrap();
+
+    assert!(
+        found.is_empty(),
+        "a stamp that is not a real instant must not be a candidate: {found:?}"
     );
 }
 
@@ -421,27 +449,26 @@ fn discovery_skips_a_legacy_backup_with_a_corrupt_body() {
 
 #[test]
 fn legacy_and_published_backups_sort_together_newest_first() {
-    let base = 1_755_600_000u64;
     let dir = scratch_root("legacy-order");
-    // The legacy file's mtime is the older instant; the published name's ULID
-    // encodes the newer one. Both derive from the same base, so the expected
-    // order does not depend on knowing what these seconds are as a date.
-    let legacy_path = legacy_backup(&dir, &legacy_name(LEGACY_STAMP), base);
+    // The legacy stamp's instant is the older one; the published ULID encodes
+    // one an hour later. The legacy file's mtime is pinned *later still*, so an
+    // implementation that ordered by mtime would put the legacy file first and
+    // fail — the mtime fixture is deliberately adversarial.
+    let legacy_path = legacy_backup(&dir, &legacy_name(LEGACY_STAMP), 1_787_149_351 + 7_200);
     let published = dir.join(format!(
         "notchy-backup-v4-0.1.4-{}.sqlite",
-        Ulid::from_datetime(UNIX_EPOCH + Duration::from_secs(base + 3_600))
+        Ulid::from_datetime(UNIX_EPOCH + Duration::from_millis(1_787_149_351_123 + 3_600_000))
     ));
     std::fs::copy(fixtures_dir().join("v004.sqlite"), &published).unwrap();
 
     let found = discover_verified_backups(&dir).unwrap();
 
     assert_eq!(found.len(), 2);
-    let published_canonical = std::fs::canonicalize(&published).unwrap();
-    assert_eq!(
-        found[0].path,
-        published_canonical.to_string_lossy(),
-        "the newer record sorts first"
+    assert!(
+        found[0].path.contains("notchy-backup-v4-0.1.4-"),
+        "the published record is the newer one: {found:?}"
     );
+    assert_eq!(found[1].created_at, "2026-08-19T14:22:31.123Z");
     assert!(
         found[0].created_at > found[1].created_at,
         "newest first: {found:?}"
@@ -477,18 +504,18 @@ Replace `parse_backup_name`'s signature and doc comment, keeping its existing bo
 /// - `notchy-backup-v<schema>-<app-version>-<ULID>.sqlite` — the published
 ///   shape, carrying every field in the name.
 /// - `notchy-backup-<ISO timestamp>.sqlite` — the legacy routine shape from the
-///   pre-port JS writer, which carries no schema, app version, or ULID; those
-///   come from the file and its mtime in `scan_verified_backups`.
+///   pre-port JS writer, which carries no schema, app version, or ULID: the
+///   first two come from the file and the third from the name's timestamp.
 ///
 /// Returns `None` for anything matching neither shape.
 fn parse_backup_name(name: &str) -> Option<BackupName> {
     if let Some(published) = parse_published_name(name) {
         return Some(BackupName::Published(published));
     }
-    if is_legacy_routine_name(name) {
-        return Some(BackupName::Legacy);
-    }
-    None
+    let stamp = name
+        .strip_suffix(FINAL_SUFFIX)?
+        .strip_prefix(LEGACY_PREFIX)?;
+    parse_legacy_stamp(stamp).map(|created_ms| BackupName::Legacy { created_ms })
 }
 
 /// Parse the published-backup shape. This is the original `parse_backup_name`
@@ -503,28 +530,25 @@ Delete the old `parse_backup_name` doc comment (it now lives on the wrapper). Th
 enum BackupName {
     /// The published shape: schema, app version, and ULID all come from the name.
     Published(ParsedBackupName),
-    /// The legacy routine shape: everything comes from the file and its mtime.
-    Legacy,
+    /// The legacy routine shape: the schema and app version come from the file,
+    /// and the record's time — `created_ms` since the Unix epoch — from the
+    /// name's stamp.
+    Legacy { created_ms: u64 },
 }
 
-/// True for the exact legacy routine filename the pre-port JS writer produced:
-/// `notchy-backup-` + `YYYY-MM-DDTHH-MM-SS-mmmZ` + `.sqlite`.
+/// Parse a legacy routine stamp to epoch milliseconds.
 ///
-/// Validated by position rather than parsed as a date: the timestamp is display
-/// metadata, and the record's time comes from the file's mtime, so a strict
-/// shape check is all that is needed and there is no calendar arithmetic to get
-/// wrong. A near-miss (`notchy-backup-notadate.sqlite`, a bare date, a missing
-/// `Z`) is not a candidate.
-fn is_legacy_routine_name(name: &str) -> bool {
-    let Some(stamp) = name
-        .strip_suffix(FINAL_SUFFIX)
-        .and_then(|stem| stem.strip_prefix(LEGACY_PREFIX))
-    else {
-        return false;
-    };
+/// The stamp is `notchy-backup-` + `YYYY-MM-DDTHH-MM-SS-mmmZ`. Shape is checked
+/// by position, then the seven fields are checked as an instant: a well-shaped
+/// stamp naming an impossible date (`2026-99-99T99-99-99-999Z`) or a pre-epoch
+/// time is not a candidate, because the record's ULID is derived from this
+/// value and `new Date().toISOString()` cannot produce one. A near-miss
+/// (`notchy-backup-notadate.sqlite`, a bare date, a missing `Z`) is not a
+/// candidate either.
+fn parse_legacy_stamp(stamp: &str) -> Option<u64> {
     let bytes = stamp.as_bytes();
     if bytes.len() != 24 || bytes[10] != b'T' || bytes[23] != b'Z' {
-        return false;
+        return None;
     }
     for (index, byte) in bytes.iter().enumerate() {
         if index == 10 || index == 23 {
@@ -533,15 +557,41 @@ fn is_legacy_routine_name(name: &str) -> bool {
         }
         if matches!(index, 4 | 7 | 13 | 16 | 19) {
             if *byte != b'-' {
-                return false;
+                return None;
             }
         } else if !byte.is_ascii_digit() {
-            return false;
+            return None;
         }
     }
-    true
+    let year: i64 = stamp.get(0..4)?.parse().ok()?;
+    let field = |start: usize| -> Option<i64> { stamp.get(start..start + 2)?.parse().ok() };
+    let month = field(5)?;
+    let day = field(8)?;
+    let hour = field(11)?;
+    let minute = field(14)?;
+    let second = field(17)?;
+    let millis: i64 = stamp.get(20..23)?.parse().ok()?;
+
+    if !(1..=12).contains(&month) || day < 1 || day > days_in_month(year, month as u32) as i64 {
+        return None;
+    }
+    if hour > 23 || minute > 59 || second > 59 {
+        return None;
+    }
+    let seconds = days_from_civil(year, month as u32, day as u32) * 86_400
+        + hour * 3_600
+        + minute * 60
+        + second;
+    if seconds < 0 {
+        return None;
+    }
+    Some(seconds as u64 * 1_000 + millis as u64)
 }
 ```
+
+`days_in_month(year, month)` (leap-year aware) and `days_from_civil(year, month, day)` — the
+inverse of the `civil_from_days` already in this file, Howard Hinnant's algorithm — sit beside
+`civil_from_days` in the time-helper section.
 
 - [x] **Step 4: Fill legacy records from the file**
 
@@ -565,18 +615,19 @@ Replace the body of the `for entry in entries.flatten()` loop in `scan_verified_
         };
         let (schema_version, source_app_version, id) = match backup_name {
             BackupName::Published(parsed) => (parsed.schema, parsed.app_version, parsed.ulid),
-            BackupName::Legacy => {
+            BackupName::Legacy { created_ms } => {
                 let Ok((schema, app_version)) = read_source_meta(&connection) else {
                     continue;
                 };
-                // The file's mtime is when the backup was actually written: no
-                // date parsing, and a ULID derived from it sorts correctly
-                // against published backups, whose ULIDs encode their own
-                // creation time.
-                let Ok(modified) = std::fs::metadata(&path).and_then(|m| m.modified()) else {
-                    continue;
-                };
-                (schema, app_version, Ulid::from_datetime(modified).to_string())
+                // The record's time is the name's, never the file's: an mtime
+                // survives a rename but is reset by a copy, an unzip, or a move
+                // to a new machine, which would put an old backup above a
+                // genuinely newer one on the recovery screen.
+                (
+                    schema,
+                    app_version,
+                    Ulid::from_datetime(UNIX_EPOCH + Duration::from_millis(created_ms)).to_string(),
+                )
             }
         };
         if manifest_for(schema_version).is_none() {
@@ -605,7 +656,7 @@ Add `use ulid::Ulid;` to the module imports. The file currently calls `ulid::Uli
 - [x] **Step 5: Run the tests to verify they pass**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml`
-Expected: PASS — including the four new legacy tests and every pre-existing discovery test (a corrupt file with a matching name still cannot displace a verified backup).
+Expected: PASS — including the five new legacy tests (discovery accepts the legacy name, rejects non-shape names, rejects a stamp that is not a real instant, skips a corrupt body, and orders legacy against published newest-first) and every pre-existing discovery test (a corrupt file with a matching name still cannot displace a verified backup).
 
 - [x] **Step 6: Lint and commit**
 

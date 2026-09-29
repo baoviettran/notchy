@@ -637,18 +637,23 @@ fn legacy_name(stamp: &str) -> String {
     format!("notchy-backup-{stamp}.sqlite")
 }
 
+/// Pin a file's mtime, so ordering assertions are deterministic.
+fn pin_mtime(path: &Path, mtime_secs: u64) {
+    std::fs::File::options()
+        .write(true)
+        .open(path)
+        .unwrap()
+        .set_modified(UNIX_EPOCH + Duration::from_secs(mtime_secs))
+        .unwrap();
+}
+
 /// Copy a fixture into `dir` under a legacy routine filename, pinning the mtime
 /// so ordering assertions are deterministic.
 fn legacy_backup(dir: &Path, name: &str, mtime_secs: u64) -> PathBuf {
     std::fs::create_dir_all(dir).unwrap();
     let path = dir.join(name);
     std::fs::copy(fixtures_dir().join("v004.sqlite"), &path).unwrap();
-    std::fs::File::options()
-        .write(true)
-        .open(&path)
-        .unwrap()
-        .set_modified(UNIX_EPOCH + Duration::from_secs(mtime_secs))
-        .unwrap();
+    pin_mtime(&path, mtime_secs);
     path
 }
 
@@ -657,17 +662,37 @@ fn discovery_accepts_a_legacy_routine_backup_name() {
     let dir = scratch_root("legacy-accept");
     let path = legacy_backup(&dir, &legacy_name(LEGACY_STAMP), 1_755_600_000);
 
+    // Stamp a version the fixture does not carry, so `source_app_version` is
+    // verifiable rather than the UNKNOWN fallback. The write moves the mtime,
+    // so re-pin it: that mtime is now the evidence that discovery derives the
+    // record's time from the filename stamp and never consults mtime.
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    connection
+        .execute(
+            "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('last_successful_app_version', '9.9.9')",
+            [],
+        )
+        .unwrap();
+    drop(connection);
+    pin_mtime(&path, 1_755_600_000);
+
     let found = discover_verified_backups(&dir).unwrap();
 
     assert_eq!(found.len(), 1, "legacy routine backup must be discoverable");
     let canonical = std::fs::canonicalize(&path).unwrap();
     assert_eq!(found[0].path, canonical.to_string_lossy());
-    // The name carries no schema, so it comes from the file's own app_meta.
+    // The name carries no schema or app version, so both come from the file.
     assert_eq!(found[0].schema_version, 4);
+    assert_eq!(found[0].source_app_version, "9.9.9");
     assert!(found[0].verified);
-    // YYYY-MM-DDTHH:MM:SS.mmmZ
-    assert_eq!(found[0].created_at.len(), 24, "created_at is an ISO timestamp");
-    assert_eq!(found[0].id.len(), 26, "id is a ULID derived from the mtime");
+    // The name's stamp, not the file's mtime, which is pinned a year earlier.
+    assert_eq!(
+        Ulid::from_string(&found[0].id).unwrap().timestamp_ms(),
+        1_787_149_351_123,
+        "the id must come from the filename stamp, not the file's mtime"
+    );
+    assert_eq!(found[0].created_at, "2026-08-19T14:22:31.123Z");
+    assert_eq!(found[0].id.len(), 26, "id is a ULID derived from the stamp");
 }
 
 #[test]
@@ -713,28 +738,50 @@ fn discovery_skips_a_legacy_backup_with_a_corrupt_body() {
 }
 
 #[test]
+fn discovery_rejects_a_legacy_backup_whose_stamp_is_not_a_real_instant() {
+    let dir = scratch_root("legacy-bad-instant");
+    // Copies of the *valid* fixture: accepting either name would produce a
+    // verified record, so an empty result cannot be vacuous.
+    for name in [
+        // Correct shape, impossible fields.
+        legacy_name("2026-99-99T99-99-99-999Z"),
+        // A real date, but pre-epoch: `new Date().toISOString()` cannot
+        // produce it.
+        legacy_name("0000-01-01T00-00-00-000Z"),
+    ] {
+        legacy_backup(&dir, &name, 1_755_600_000);
+    }
+
+    let found = discover_verified_backups(&dir).unwrap();
+
+    assert!(
+        found.is_empty(),
+        "a stamp that is not a real instant must not be a candidate: {found:?}"
+    );
+}
+
+#[test]
 fn legacy_and_published_backups_sort_together_newest_first() {
-    let base = 1_755_600_000u64;
     let dir = scratch_root("legacy-order");
-    // The legacy file's mtime is the older instant; the published name's ULID
-    // encodes the newer one. Both derive from the same base, so the expected
-    // order does not depend on knowing what these seconds are as a date.
-    let legacy_path = legacy_backup(&dir, &legacy_name(LEGACY_STAMP), base);
+    // The legacy stamp's instant is the older one; the published ULID encodes
+    // one an hour later. The legacy file's mtime is pinned *later still*, so an
+    // implementation that ordered by mtime would put the legacy file first and
+    // fail.
+    let legacy_path = legacy_backup(&dir, &legacy_name(LEGACY_STAMP), 1_787_149_351 + 7_200);
     let published = dir.join(format!(
         "notchy-backup-v4-0.1.4-{}.sqlite",
-        Ulid::from_datetime(UNIX_EPOCH + Duration::from_secs(base + 3_600))
+        Ulid::from_datetime(UNIX_EPOCH + Duration::from_millis(1_787_149_351_123 + 3_600_000))
     ));
     std::fs::copy(fixtures_dir().join("v004.sqlite"), &published).unwrap();
 
     let found = discover_verified_backups(&dir).unwrap();
 
     assert_eq!(found.len(), 2);
-    let published_canonical = std::fs::canonicalize(&published).unwrap();
-    assert_eq!(
-        found[0].path,
-        published_canonical.to_string_lossy(),
-        "the newer record sorts first"
+    assert!(
+        found[0].path.contains("notchy-backup-v4-0.1.4-"),
+        "the published record is the newer one: {found:?}"
     );
+    assert_eq!(found[1].created_at, "2026-08-19T14:22:31.123Z");
     assert!(
         found[0].created_at > found[1].created_at,
         "newest first: {found:?}"
