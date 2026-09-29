@@ -4,17 +4,8 @@
 	import ConfirmDialog from '$lib/components/primitives/ConfirmDialog.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import { save, open } from '@tauri-apps/plugin-dialog';
-	import { writeTextFile } from '@tauri-apps/plugin-fs';
 	import { getDb } from '$lib/db';
-	import type { AppDatabase } from '$lib/db/client';
-	import type { DatabaseService } from '$lib/db/browser/service';
-	import { exportCsv } from '$lib/backup';
-	import { createManualBackup, getBackupHealth, type BackupHealth } from '$lib/backup/health';
-
-	/** Access the raw DatabaseService for legacy backup operations. */
-	function getRawDb(db: AppDatabase): DatabaseService {
-		return (db as unknown as { raw: DatabaseService }).raw;
-	}
+	import { getBackupHealth, type BackupHealth } from '$lib/backup/health';
 	import { restoreCompatibleDatabase } from '$lib/recovery';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { AppError } from '$lib/errors';
@@ -31,10 +22,12 @@
 
 	async function loadHealth() {
 		try {
-			const [appVersion, paths] = await Promise.all([getInstalledAppVersion(), getDatabasePaths()]);
+			const [appVersion, paths] = await Promise.all([
+				getInstalledAppVersion(),
+				getDatabasePaths()
+			]);
 			upgradeBackupDir = paths.upgradeBackupDir;
-			const db = getDb();
-			health = await getBackupHealth(getRawDb(db), {
+			health = await getBackupHealth(getDb().meta, {
 				appVersion,
 				databasePath: paths.databasePath,
 				upgradeBackupDir: paths.upgradeBackupDir
@@ -52,8 +45,7 @@
 	async function createBackupNow() {
 		try {
 			busy = true;
-			const db = getDb();
-			await createManualBackup(getRawDb(db));
+			await getDb().backup.create();
 			await loadHealth();
 			toast.show(m.settings_backup_toast_created());
 		} catch (e) {
@@ -79,8 +71,7 @@
 				filters: [{ name: 'SQLite Database', extensions: ['sqlite', 'db'] }]
 			});
 			if (!path) return;
-			const db = getDb();
-			await getRawDb(db).execute(`VACUUM INTO '${path.replace(/'/g, "''")}'`);
+			await getDb().backup.exportSqlite(path);
 			toast.show(m.settings_backup_toast_exported());
 		} catch (e) {
 			toast.show(m.settings_backup_toast_export_failed({ error: mapError(e) }));
@@ -94,11 +85,7 @@
 			busy = true;
 			const dir = await open({ directory: true });
 			if (!dir) return;
-			const db = getDb();
-			const csvMap = await exportCsv(getRawDb(db));
-			for (const [table, content] of csvMap) {
-				if (content) await writeTextFile(`${dir}/${table}.csv`, content);
-			}
+			await getDb().backup.exportCsv(dir);
 			toast.show(m.settings_backup_toast_csv_exported());
 		} catch (e) {
 			toast.show(m.settings_backup_toast_export_failed({ error: mapError(e) }));
