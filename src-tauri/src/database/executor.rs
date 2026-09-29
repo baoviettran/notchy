@@ -244,6 +244,32 @@ impl DatabaseManager {
         self.paths.data_dir.join("backups")
     }
 
+    /// Publish a routine backup of the live database and record the timestamp.
+    ///
+    /// The publication runs inside the data job so no write interleaves with the
+    /// online copy. `last_backup_at` is written only after publication succeeds:
+    /// a failed backup leaves the last known-good timestamp intact, which is the
+    /// invariant the pre-port JS path documented.
+    pub async fn create_routine_backup(&self) -> DbResult<String> {
+        let db_path = self.paths().db_path.clone();
+        let backup_dir = self.backup_dir();
+        self.data_job(move |state| {
+            let token = crate::database::backup::publish_backup(
+                &db_path,
+                &backup_dir,
+                crate::database::backup::BackupFailurePoint::None,
+            )?;
+            let path = token.path().to_string_lossy().into_owned();
+            crate::database::domains::set_meta(
+                state.connection()?,
+                "last_backup_at",
+                &crate::database::migrations::now_iso_utc(),
+            )?;
+            Ok(path)
+        })
+        .await
+    }
+
     /// The directory where pre-upgrade backups are published. This is the
     /// location the rest of the app points at (the release notes, the Settings
     /// "open backup folder" action, and the recorded `last_upgrade_backup_path`).

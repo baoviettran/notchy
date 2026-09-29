@@ -136,6 +136,10 @@ pub fn run() {
             report_get_stacked_category_series,
             report_get_year_over_year,
             report_get_net_worth_series,
+            // Backup commands
+            backup_create,
+            backup_export_sqlite,
+            backup_export_csv,
         ])
         .plugin({
             let mut builder = tauri_plugin_global_shortcut::Builder::new();
