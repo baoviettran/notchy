@@ -1007,7 +1007,7 @@ Rust commands plus the manager method that owns the "record only after success" 
   - `backup_export_csv(dir: String, manager: State<'_, Arc<DatabaseManager>>) -> Result<Vec<String>, DbError>` — camelCase arg key `dir`.
   - `DatabaseManager::create_routine_backup(&self) -> DbResult<String>`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `src-tauri/tests/command_guards.rs`. Add `scratch_root` to its existing `use common::{…}` list, add `backup_create, backup_export_csv, backup_export_sqlite` to the `use notchy_lib::database::commands::{…}` list, and add `use notchy_lib::database::domains::get_meta;` (`ErrorCode` is already imported):
 
@@ -1107,12 +1107,12 @@ async fn backup_export_csv_writes_the_table_set() {
 
 `manager.data_job` is `pub` and already used from this test file (see `data_jobs_run_once_ready`), and `manager.backup_dir()` is `pub`. `manager.paths()` is `pub(crate)` and must not be called from a test.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test command_guards backup`
 Expected: FAIL to compile — `cannot find function 'backup_create' in this scope`.
 
-- [ ] **Step 3: Add the manager method**
+- [x] **Step 3: Add the manager method**
 
 In `src-tauri/src/database/executor.rs`, beside `backup_dir()`:
 
@@ -1146,7 +1146,7 @@ In `src-tauri/src/database/executor.rs`, beside `backup_dir()`:
 
 `BackupToken::path()` is the accessor the startup path already uses (`startup.rs:280`).
 
-- [ ] **Step 4: Add the three commands**
+- [x] **Step 4: Add the three commands**
 
 In `src-tauri/src/database/commands.rs`, after the report commands:
 
@@ -1193,7 +1193,7 @@ pub async fn backup_export_csv(
 }
 ```
 
-- [ ] **Step 5: Register the commands and run the tests**
+- [x] **Step 5: Register the commands and run the tests**
 
 In `src-tauri/src/lib.rs`, add the three names to the `generate_handler![...]` list (after the report commands) and to the `use` block that imports them:
 
@@ -1206,7 +1206,7 @@ In `src-tauri/src/lib.rs`, add the three names to the `generate_handler![...]` l
 Run: `cargo test --manifest-path src-tauri/Cargo.toml`
 Expected: PASS — the four new tests plus every existing guard test.
 
-- [ ] **Step 6: Verify the boundary test and contracts are still green**
+- [x] **Step 6: Verify the boundary test and contracts are still green**
 
 Run: `pnpm test -- native-boundary`
 Expected: PASS — the new commands are registered but not yet invoked from production code, so the inverse check has nothing new to reject.
@@ -1214,7 +1214,7 @@ Expected: PASS — the new commands are registered but not yet invoked from prod
 Run: `pnpm check:db-contracts`
 Expected: `bindings are current` — the three commands return primitives, so the generated contracts do not change.
 
-- [ ] **Step 7: Lint and commit**
+- [x] **Step 7: Lint and commit**
 
 Run: `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`
 
