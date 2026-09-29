@@ -1829,7 +1829,7 @@ This is the task that proves the fix on the platform where the defect shipped, a
 - Consumes: everything above.
 - Produces: a `partial` → `pass` GUI result for manual backup and the backup/restore round-trip, or an honest `partial` with the new failure recorded.
 
-- [ ] **Step 1: Run every automated gate**
+- [x] **Step 1: Run every automated gate**
 
 ```bash
 pnpm check
@@ -1857,12 +1857,12 @@ Append the re-verification to `specs/notes/2026-08-17-v0.2.0.md` (package versio
 
 Step 6 (the `sudo apt install` approval) and Step 7's literal package-manager upgrade sequence may still be out of reach in a given session; if so, say so in the note and leave those boxes open rather than claiming a pass that did not happen.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add specs/plans/2026-08-17-rust-database-integrity-boundary.md specs/notes/2026-08-17-v0.2.0.md specs/2026-07-27-desktop-release-smoke-checklist.md specs/STATUS.md
 git commit -m "$(cat <<'EOF'
-docs: verify the backup page on a real package and close the trigger
+docs: record the backup port evidence and the unverified GUI cases
 
 Co-Authored-By: Claude Code <noreply@anthropic.com>
 EOF
