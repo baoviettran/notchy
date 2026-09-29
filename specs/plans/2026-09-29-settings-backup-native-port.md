@@ -690,7 +690,7 @@ Parity with the JS `exportCsv` (`src/lib/backup/index.ts:105`) is the requiremen
 
 Table order must match the JS array: `accounts`, `category_types`, `category_tags`, `transactions`, `budgets`, `goals`, `reconciliations`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `src-tauri/tests/domain_reports_export.rs` (add `use std::path::Path;` to the existing `use std::path::PathBuf;`):
 
@@ -815,12 +815,12 @@ fn table_set_export_neutralizes_formula_cells_and_escapes_delimiters() {
 
 `make_tx` does not set a payee, which is why the two cells are written by `UPDATE` afterwards. If `transactions` has no `payee` column in this schema, substitute a text column that does exist — a failing run prints the header line with the real column names, and the assertion is about escaping, not about payees.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_reports_export table_set`
 Expected: FAIL to compile — `no function or associated item named 'export_table_set_csv' found for module 'export'`.
 
-- [ ] **Step 3: Implement the dump**
+- [x] **Step 3: Implement the dump**
 
 In `src-tauri/src/database/domains/export.rs`, add `use std::path::Path;` and `use crate::database::error::ErrorCode;`, then:
 
@@ -892,12 +892,12 @@ pub fn export_table_set_csv(conn: &Connection, dir: &Path) -> DbResult<Vec<Strin
 
 Read `sanitize_csv_cell` at `export.rs:19` and match its declared parameter list — if it takes only the cell value, drop the `header` argument here. If it does not itself quote for delimiters, route the value through `csv_escape` on the way out, exactly as `export_transactions_csv` composes them; the two helpers must compose the same way in both writers for the escaping test to hold.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_reports_export`
 Expected: PASS — the five new tests plus the pre-existing `sanitize_csv_cell` and transactions-report tests.
 
-- [ ] **Step 5: Lint and commit**
+- [x] **Step 5: Lint and commit**
 
 Run: `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`
 
