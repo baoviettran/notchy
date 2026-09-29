@@ -1608,7 +1608,7 @@ The commit that removes the escape hatch. Health stops taking a `DatabaseService
 
 The five keys read stay exactly the same — `schema_version`, `last_backup_at`, `last_upgrade_backup_path`, `last_migrated_from_schema`, `backup_warning` — and financial tables are still never touched.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `src/tests/unit/backup-health.test.ts`: change the import on line 10 to `import { getBackupHealth } from '$lib/backup/health';`, delete the whole `describe('createManualBackup', …)` block (lines 74-114 — its two behaviours are covered by the `BackupOps` contract tests in Task 6), change **every** `getBackupHealth(db, OPTS)` call to `getBackupHealth(db.meta, OPTS)`, and add:
 
@@ -1665,12 +1665,12 @@ describe('no route reads a raw database handle', () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pnpm test -- backup-health no-raw-db-handle`
 Expected: FAIL — `no route reads a raw database handle` reports `src/routes/settings/backup/+page.svelte` for both patterns, and the health tests fail to type-check against the old signature.
 
-- [ ] **Step 3: Change the health signature and retire `createManualBackup`**
+- [x] **Step 3: Change the health signature and retire `createManualBackup`**
 
 In `src/lib/backup/health.ts`, take the port's meta ops, delete `createManualBackup` and `ManualBackupOptions` (their steps are now `BackupOps.create()`), and drop the now-unused imports (`DatabaseService`, `getMeta`, `setMeta`, `createBackup`, `getDatabasePaths`, `ensureDirectory`):
 
@@ -1710,7 +1710,7 @@ export async function getBackupHealth(
 
 `parseSchemaVersion` stays exactly as it is.
 
-- [ ] **Step 4: Move the page onto the port**
+- [x] **Step 4: Move the page onto the port**
 
 In `src/routes/settings/backup/+page.svelte`: delete `getRawDb` and the `DatabaseService` import, and drop `exportCsv` and `writeTextFile` from the imports. Then:
 
@@ -1782,21 +1782,21 @@ Leave `openUpgradeFolder`, `importDb`, and the rest of the page untouched. For `
 	}
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pnpm test -- backup-health no-raw-db-handle backup`
 Expected: PASS.
 
-- [ ] **Step 6: Add the page test**
+- [x] **Step 6: Add the page test**
 
 Follow the pattern of an existing route-page test under `src/tests/unit/components/` — read one that renders a page and seeds `getDb`, and copy its mocking approach. Assert only the routing, with a fake `AppDatabase` whose `backup` ops record their calls: health renders the version and schema (`db.meta` returns the five keys), "Create backup now" calls `backup.create`, and the two export buttons call `backup.exportSqlite` / `backup.exportCsv`.
 
-- [ ] **Step 7: Run the full gate**
+- [x] **Step 7: Run the full gate**
 
 Run: `pnpm check && pnpm test && pnpm test:e2e`
 Expected: PASS — the E2E backup/restore suite drives the browser client through the same `BackupOps` the page now uses.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/lib/backup/health.ts src/routes/settings/backup/+page.svelte src/tests/unit/backup-health.test.ts src/tests/unit/no-raw-db-handle.test.ts src/tests/unit/components
