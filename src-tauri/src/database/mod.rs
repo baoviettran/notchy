@@ -42,7 +42,7 @@ pub use migrations::{
 pub use startup::{DatabaseStatus, StartupEvent};
 pub use types::{
     validate_bounded_list, validate_bounded_text, Account, AccountPatch, AccountType,
-    AccountWithBalance, BackupHealth, BackupHealthOptions, BackupSummary, BackupToken,
+    AccountWithBalance, BackupSummary, BackupToken,
     Bucket, BucketSpending, Budget, BudgetSummary,
     CategoryTrendPoint, CategorizeRule, CompareRow, DebtAccount, DebtSummary,
     Goal, GoalStatus, GoalType, GoalWithProgress,

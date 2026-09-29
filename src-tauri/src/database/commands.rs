@@ -1013,9 +1013,6 @@ pub fn generate_bindings() -> String {
     push_decl(&mut out, YearOverYearPoint::decl(&cfg));
     push_decl(&mut out, NetWorthPoint::decl(&cfg));
 
-    push_decl(&mut out, BackupHealth::decl(&cfg));
-    push_decl(&mut out, BackupHealthOptions::decl(&cfg));
-
     out
 }
 
