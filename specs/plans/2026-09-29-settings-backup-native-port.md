@@ -928,7 +928,7 @@ EOF
 - Consumes: the bindings generator in `src-tauri/src/bin/export_bindings.rs`, reached via `pnpm generate:db-contracts` / `pnpm check:db-contracts`.
 - Produces: nothing new. After this task the generated contracts contain no `BackupHealth` type. Task 7's `BackupHealth` is the TypeScript interface in `src/lib/backup/health.ts`, which is unrelated and untouched.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `src-tauri/tests/contracts.rs`, calling the generator the same way that file's existing tests do (they build the contract text with the same function `export_bindings` uses):
 
@@ -948,12 +948,12 @@ fn native_backup_health_contracts_are_not_declared_without_a_command() {
 
 Use the same import path for the generator that the top of `contracts.rs` already uses; the existing tests in that file are the reference for the exact name.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test contracts native_backup_health`
 Expected: FAIL — `a backup-health contract with no constructing command is drift`.
 
-- [ ] **Step 3: Delete the dead types and their declarations**
+- [x] **Step 3: Delete the dead types and their declarations**
 
 Remove both structs and their doc comments from `src-tauri/src/database/types.rs` (the `BackupHealth` and `BackupHealthOptions` definitions around lines 831-845), remove `BackupHealth, BackupHealthOptions` from the re-export list in `src-tauri/src/database/mod.rs:45`, and delete these two lines from `src-tauri/src/database/commands.rs`:
 
@@ -964,7 +964,7 @@ Remove both structs and their doc comments from `src-tauri/src/database/types.rs
 
 Leave `BackupSummary` and `BackupToken` alone — they are used by discovery and restore.
 
-- [ ] **Step 4: Regenerate the contracts and run the tests**
+- [x] **Step 4: Regenerate the contracts and run the tests**
 
 Run: `pnpm generate:db-contracts && pnpm check:db-contracts`
 Expected: bindings written, then `bindings are current`.
@@ -975,7 +975,7 @@ Expected: PASS.
 Run: `pnpm test && pnpm check`
 Expected: PASS — nothing in TypeScript imported those types.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src-tauri/src/database/types.rs src-tauri/src/database/mod.rs src-tauri/src/database/commands.rs src-tauri/tests/contracts.rs src/lib/native/contracts.generated.ts
