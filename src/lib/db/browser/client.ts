@@ -17,6 +17,7 @@ import type {
 	DebtOps,
 	ReconciliationOps,
 	ReportOps,
+	BackupOps,
 } from '../client';
 import type { AccountType, AccountWithBalance, NewAccount } from './repos/accounts';
 import type { TransactionKind, Transaction, NewTransaction, TransactionFilter } from './repos/transactions';
@@ -46,6 +47,7 @@ import * as debtsRepo from './repos/debts';
 import * as reconciliationsRepo from './repos/reconciliations';
 import * as reportsRepo from './repos/reports';
 import { getDefaultQuickAccount, setDefaultQuickAccount, clearDefaultQuickAccount } from './repos/quick_account';
+import { BrowserBackupOps } from './backup';
 
 class BrowserAccountOps implements AccountOps {
 	constructor(private db: DatabaseService) {}
@@ -400,6 +402,7 @@ export class BrowserDatabaseClient implements AppDatabase {
 	readonly debts: DebtOps;
 	readonly reconciliations: ReconciliationOps;
 	readonly reports: ReportOps;
+	readonly backup: BackupOps;
 
 	constructor(private db: DatabaseService) {
 		this.accounts = new BrowserAccountOps(db);
@@ -412,6 +415,7 @@ export class BrowserDatabaseClient implements AppDatabase {
 		this.debts = new BrowserDebtOps(db);
 		this.reconciliations = new BrowserReconciliationOps(db);
 		this.reports = new BrowserReportOps(db);
+		this.backup = new BrowserBackupOps(db);
 	}
 
 	/**

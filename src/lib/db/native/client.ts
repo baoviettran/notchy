@@ -19,6 +19,7 @@ import type {
 	DebtOps,
 	ReconciliationOps,
 	ReportOps,
+	BackupOps,
 } from '../client';
 import type { AccountType, AccountWithBalance, NewAccount } from '../client';
 import type { TransactionKind, Transaction, NewTransaction, TransactionFilter } from '../client';
@@ -37,6 +38,7 @@ import type {
 	YearOverYearPoint,
 	NetWorthPoint,
 } from '../client';
+import { NativeBackupOps } from './backup';
 
 /**
  * Every command goes through here: a Rust rejection is a `{code, meta}`
@@ -481,6 +483,7 @@ export class NativeDatabaseClient implements AppDatabase {
 	readonly debts: DebtOps = new NativeDebtOps();
 	readonly reconciliations: ReconciliationOps = new NativeReconciliationOps();
 	readonly reports: ReportOps = new NativeReportOps();
+	readonly backup: BackupOps = new NativeBackupOps();
 
 	// NativeDatabaseClient delegates raw SQL operations to Rust commands.
 	// No DatabaseService instance is available here.

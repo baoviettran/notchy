@@ -141,6 +141,11 @@ const { invokeMock, calls } = vi.hoisted(() => {
 		transaction_delete_many: null,
 		transaction_set_tag_many: null,
 		transaction_set_account_many: null,
+
+		// Backup
+		backup_create: '/data/backups/notchy-backup-v6-0.2.1-01M3CGSB1ASS5VDMKWMHXE4HVJ.sqlite',
+		backup_export_sqlite: null,
+		backup_export_csv: ['/data/export/accounts.csv'],
 	};
 
 	const invokeMock = vi.fn(async (command: string, args?: unknown) => {
@@ -479,6 +484,19 @@ describe('NativeDatabaseClient: full surface sweep (command name + camelCase arg
 		{ label: 'reports.getStackedCategorySeries', run: () => client.reports.getStackedCategorySeries(12), command: 'report_get_stacked_category_series' },
 		{ label: 'reports.getYearOverYear', run: () => client.reports.getYearOverYear(2025, 2026), command: 'report_get_year_over_year' },
 		{ label: 'reports.getNetWorthSeries', run: () => client.reports.getNetWorthSeries(12), command: 'report_get_net_worth_series' },
+
+		// Backup
+		{ label: 'backup.create', run: () => client.backup.create(), command: 'backup_create' },
+		{
+			label: 'backup.exportSqlite',
+			run: () => client.backup.exportSqlite('/tmp/x.sqlite'),
+			command: 'backup_export_sqlite'
+		},
+		{
+			label: 'backup.exportCsv',
+			run: () => client.backup.exportCsv('/tmp/export'),
+			command: 'backup_export_csv'
+		},
 	];
 
 	// `[label, command, run]` — the command comes second so the title's second

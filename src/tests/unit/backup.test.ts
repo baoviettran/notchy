@@ -1,11 +1,12 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestDb } from './helpers/test-db';
 import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
 import { exportCsv, getBackupsToDelete, createBackup } from '$lib/backup';
+import { BrowserBackupOps, type BrowserBackupOptions } from '$lib/db/browser/backup';
 import * as accounts from '$lib/db/repos/accounts';
 import type { DatabaseService } from '$lib/db';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import BetterSqlite3 from 'better-sqlite3';
@@ -151,5 +152,89 @@ describe('backup mutation boundaries', () => {
 		const csv = (await exportCsv(db)).get('accounts')!;
 
 		expect(csv).toContain('"Comma, ""quoted""\nnext line"');
+	});
+});
+
+describe('BackupOps contract (browser adapter)', () => {
+	let dir: string;
+
+	beforeEach(async () => {
+		dir = mkdtempSync(join(tmpdir(), 'notchy-backupops-'));
+	});
+
+	afterEach(() => {
+		rmSync(dir, { recursive: true, force: true });
+	});
+
+	function ops(extra: Partial<BrowserBackupOptions> = {}): BrowserBackupOps {
+		return new BrowserBackupOps(db, {
+			backupDir: dir,
+			ensureDirectory: async () => {},
+			writeFile: async (path, content) => writeFileSync(path, content),
+			...extra
+		});
+	}
+
+	it('create publishes a backup into the routine directory', async () => {
+		const path = await ops().create();
+
+		expect(path.startsWith(dir)).toBe(true);
+		expect(existsSync(path)).toBe(true);
+	});
+
+	it('create records last_backup_at once the file exists', async () => {
+		const path = await ops().create();
+
+		expect(existsSync(path)).toBe(true);
+		const rows = await db.query<{ value: string }>(
+			`SELECT value FROM app_meta WHERE key = 'last_backup_at'`
+		);
+		expect(rows).toHaveLength(1);
+	});
+
+	it('create reports a failure and leaves the marker unset when the file cannot be written', async () => {
+		const missing = join(dir, 'missing', 'deeper');
+
+		await expect(ops({ backupDir: missing }).create()).rejects.toThrow();
+
+		const rows = await db.query(
+			`SELECT value FROM app_meta WHERE key = 'last_backup_at'`
+		);
+		expect(rows).toHaveLength(0);
+	});
+
+	it('exportSqlite writes a readable copy at the exact path', async () => {
+		const target = join(dir, 'chosen.sqlite');
+
+		await ops().exportSqlite(target);
+
+		expect(existsSync(target)).toBe(true);
+		const copy = new BetterSqlite3(target, { readonly: true });
+		try {
+			expect(copy.prepare('SELECT COUNT(*) AS c FROM app_meta').get()).toEqual({
+				c: expect.any(Number)
+			});
+		} finally {
+			copy.close();
+		}
+	});
+
+	it('exportCsv writes one file per table and returns the paths', async () => {
+		const csvDir = join(dir, 'csv');
+		mkdirSync(csvDir, { recursive: true });
+
+		const written = await ops().exportCsv(csvDir);
+
+		expect(written).toHaveLength(7);
+		expect(existsSync(join(csvDir, 'accounts.csv'))).toBe(true);
+	});
+
+	it('exportCsv produces a file for a table with no rows', async () => {
+		const csvDir = join(dir, 'csv-empty');
+		mkdirSync(csvDir, { recursive: true });
+
+		await ops().exportCsv(csvDir);
+
+		expect(existsSync(join(csvDir, 'goals.csv'))).toBe(true);
 	});
 });

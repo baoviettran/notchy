@@ -186,6 +186,32 @@ export interface ReportOps {
 	getNetWorthSeries(months: number, includeAdjustments?: boolean): Promise<NetWorthPoint[]>;
 }
 
+/**
+ * Backup and export operations. Both adapters publish through one crash-safe
+ * path: the browser adapter over sql.js, the native adapter over Rust's
+ * publication protocol. No op exposes a query handle — a caller gets a path or
+ * an error, never SQL.
+ */
+export interface BackupOps {
+	/**
+	 * Publish a routine backup into the app's routine backup directory and
+	 * resolve to its canonical path. Records `last_backup_at` only if the
+	 * publication succeeded.
+	 */
+	create(): Promise<string>;
+	/**
+	 * Write a validated copy of the live database to exactly `targetPath`,
+	 * replacing any existing file.
+	 */
+	exportSqlite(targetPath: string): Promise<void>;
+	/**
+	 * Write one CSV per exported table into `dir`, replacing existing files.
+	 * Resolves to the written paths — one per table, including a table with no
+	 * rows.
+	 */
+	exportCsv(dir: string): Promise<string[]>;
+}
+
 // ---------------------------------------------------------------------------
 // Domain port
 // ---------------------------------------------------------------------------
@@ -201,4 +227,5 @@ export interface AppDatabase {
 	readonly debts: DebtOps;
 	readonly reconciliations: ReconciliationOps;
 	readonly reports: ReportOps;
+	readonly backup: BackupOps;
 }
