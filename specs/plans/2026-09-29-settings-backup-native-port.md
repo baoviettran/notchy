@@ -1254,7 +1254,7 @@ export interface BackupOps {
 }
 ```
 
-- [ ] **Step 1: Write the failing browser-contract tests**
+- [x] **Step 1: Write the failing browser-contract tests**
 
 Append to `src/tests/unit/backup.test.ts`. Add `mkdirSync` and `writeFileSync` to its `node:fs` import, and the adapter to the imports:
 
@@ -1350,12 +1350,12 @@ describe('BackupOps contract (browser adapter)', () => {
 
 `BetterSqlite3`, `db` (built in the file's existing `beforeEach`), `mkdtempSync`, `rmSync`, `existsSync`, `join`, `tmpdir` are already imported at the top of the file.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pnpm test -- backup.test`
 Expected: FAIL — `Cannot find module '$lib/db/browser/backup'`.
 
-- [ ] **Step 3: Declare the port**
+- [x] **Step 3: Declare the port**
 
 In `src/lib/db/client.ts`, add after `ReportOps`:
 
@@ -1393,7 +1393,7 @@ and in `AppDatabase`, after `readonly reports: ReportOps;`:
 	readonly backup: BackupOps;
 ```
 
-- [ ] **Step 4: Implement the browser adapter**
+- [x] **Step 4: Implement the browser adapter**
 
 Create `src/lib/db/browser/backup.ts`:
 
@@ -1481,7 +1481,7 @@ export class BrowserBackupOps implements BackupOps {
 
 Check `src/lib/db/browser/service.ts` for the service's real module path before writing the first import — if the class lives elsewhere (for example alongside `client.ts`), import from there; the neighbouring adapter files show the correct relative path.
 
-- [ ] **Step 5: Implement the native adapter**
+- [x] **Step 5: Implement the native adapter**
 
 Create `src/lib/db/native/backup.ts`:
 
@@ -1522,7 +1522,7 @@ export class NativeBackupOps implements BackupOps {
 
 Match the `isTauri` import and the native-unavailable error shape to the sibling `src/lib/db/native/recovery.ts`, which is the established pattern.
 
-- [ ] **Step 6: Wire both clients**
+- [x] **Step 6: Wire both clients**
 
 In `src/lib/db/browser/client.ts`, import the adapter and the `BackupOps` type, declare the field beside the others (`readonly backup: BackupOps;`) and assign it in the constructor next to `this.reports = new BrowserReportOps(db);`:
 
@@ -1536,12 +1536,12 @@ In `src/lib/db/native/client.ts`, import the adapter and the type, then declare 
 	readonly backup: BackupOps = new NativeBackupOps();
 ```
 
-- [ ] **Step 7: Run the browser-contract tests to verify they pass**
+- [x] **Step 7: Run the browser-contract tests to verify they pass**
 
 Run: `pnpm test -- backup.test`
 Expected: PASS.
 
-- [ ] **Step 8: Add the boundary fixtures and sweep rows**
+- [x] **Step 8: Add the boundary fixtures and sweep rows**
 
 In `src/tests/unit/native-boundary.test.ts`, add to the `FIXTURES` map:
 
@@ -1569,7 +1569,7 @@ and to the `rows` array:
 		},
 ```
 
-- [ ] **Step 9: Run the boundary test and the full suite**
+- [x] **Step 9: Run the boundary test and the full suite**
 
 Run: `pnpm test -- native-boundary`
 Expected: PASS — each row's camelCase arg keys match the parsed Rust signatures (`[]`, `['targetPath']`, `['dir']`).
@@ -1577,7 +1577,7 @@ Expected: PASS — each row's camelCase arg keys match the parsed Rust signature
 Run: `pnpm check && pnpm test`
 Expected: PASS.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add src/lib/db/client.ts src/lib/db/browser/backup.ts src/lib/db/native/backup.ts src/lib/db/browser/client.ts src/lib/db/native/client.ts src/tests/unit/backup.test.ts src/tests/unit/native-boundary.test.ts
