@@ -938,6 +938,47 @@ pub async fn report_get_net_worth_series(
 }
 
 // ===========================================================================
+// Backup commands
+// ===========================================================================
+
+/// Publish a routine backup into the app's backup directory and return its path.
+#[tauri::command]
+pub async fn backup_create(manager: State<'_, Arc<DatabaseManager>>) -> Result<String, DbError> {
+    manager.create_routine_backup().await
+}
+
+/// Write a validated copy of the live database to an exact user-chosen path.
+#[tauri::command]
+pub async fn backup_export_sqlite(
+    target_path: String,
+    manager: State<'_, Arc<DatabaseManager>>,
+) -> Result<(), DbError> {
+    let db_path = manager.paths().db_path.clone();
+    manager
+        .data_job(move |_state| {
+            crate::database::backup::export_backup_to(&db_path, std::path::Path::new(&target_path))?;
+            Ok(())
+        })
+        .await
+}
+
+/// Write one CSV per exported table into a user-chosen directory.
+#[tauri::command]
+pub async fn backup_export_csv(
+    dir: String,
+    manager: State<'_, Arc<DatabaseManager>>,
+) -> Result<Vec<String>, DbError> {
+    manager
+        .data_job(move |state| {
+            crate::database::domains::export::export_table_set_csv(
+                state.connection()?,
+                std::path::Path::new(&dir),
+            )
+        })
+        .await
+}
+
+// ===========================================================================
 // Binding generator
 // ===========================================================================
 
@@ -1012,9 +1053,6 @@ pub fn generate_bindings() -> String {
     push_decl(&mut out, StackedCategoryPoint::decl(&cfg));
     push_decl(&mut out, YearOverYearPoint::decl(&cfg));
     push_decl(&mut out, NetWorthPoint::decl(&cfg));
-
-    push_decl(&mut out, BackupHealth::decl(&cfg));
-    push_decl(&mut out, BackupHealthOptions::decl(&cfg));
 
     out
 }

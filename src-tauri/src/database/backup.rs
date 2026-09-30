@@ -22,10 +22,11 @@ use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, UNIX_EPOCH};
 
 use rusqlite::backup::Backup;
 use rusqlite::Connection;
+use ulid::Ulid;
 
 use crate::database::connection::{create_dir_private, open_live_at, open_read_only_at};
 use crate::database::error::{DbError, DbResult, ErrorCode, map_sqlite_error};
@@ -45,6 +46,10 @@ const UNKNOWN_APP_VERSION: &str = "unknown";
 /// `notchy-backup-v<schema>-<app-version>-<ULID>.sqlite`.
 const FINAL_PREFIX: &str = "notchy-backup-v";
 const FINAL_SUFFIX: &str = ".sqlite";
+
+/// Legacy routine-backup filename prefix, written by the pre-port JS path:
+/// `notchy-backup-<ISO timestamp>.sqlite`.
+const LEGACY_PREFIX: &str = "notchy-backup-";
 
 /// The subdirectory of the backup directory that pre-upgrade backups are
 /// published into. Discovery scans it alongside the backup directory itself, so
@@ -131,7 +136,8 @@ fn failpoint_stage(stage: BackupFailurePoint) -> DbResult<()> {
 // Publication
 // ---------------------------------------------------------------------------
 
-/// Publish a verified, durable backup of `source_path` into `backup_dir`.
+/// Publish a verified, durable backup of `source_path` into `backup_dir`,
+/// named from the source's own schema and app version.
 ///
 /// The publication sequence is: online copy to a unique `.tmp` file, validate
 /// the source-version manifest (integrity + foreign keys) on the copy, `fsync`
@@ -145,8 +151,42 @@ pub fn publish_backup(
     backup_dir: &Path,
     failpoint: BackupFailurePoint,
 ) -> DbResult<BackupToken> {
+    publish_backup_named(source_path, backup_dir, None, failpoint)
+}
+
+/// Publish a verified, durable backup whose final filename is chosen by the
+/// caller.
+///
+/// `name: None` derives the published-backup name from the source's own schema
+/// and app version; `Some(name)` is used verbatim. Either way the copy is staged
+/// in a temp file beside the target, validated, `fsync`ed, and renamed
+/// atomically.
+///
+/// The directory policy follows the naming: a derived name means a Notchy-owned
+/// backup directory, created `0700`; a caller-named target means a directory the
+/// user chose, which is created if missing and left with whatever mode the user
+/// set.
+fn publish_backup_named(
+    source_path: &Path,
+    backup_dir: &Path,
+    name: Option<&str>,
+    failpoint: BackupFailurePoint,
+) -> DbResult<BackupToken> {
     set_failpoint(failpoint);
-    create_dir_private(backup_dir).map_err(|_| DbError::new(ErrorCode::DatabaseInvalid))?;
+    // `name` is moved into the naming block below, so read this here.
+    let caller_named = name.is_some();
+    // A Notchy-owned backup directory is created 0700 because the app owns its
+    // policy. A caller-named target sits wherever the user chose, so the mode is
+    // theirs to set — chmod'ing their directory would be a silent, persistent
+    // permission change outside the app's storage, and on a directory the user
+    // can write but not chmod (a shared folder, vfat, SMB) it would fail the
+    // export outright. Either way a parent that is a file fails here.
+    let prepared = if caller_named {
+        std::fs::create_dir_all(backup_dir)
+    } else {
+        create_dir_private(backup_dir)
+    };
+    prepared.map_err(|_| DbError::new(ErrorCode::DatabaseInvalid))?;
 
     // Validate the source before copying: only known-good data is published.
     let (schema_version, app_version) = {
@@ -162,6 +202,12 @@ pub fn publish_backup(
     ));
 
     let mut final_path: Option<PathBuf> = None;
+    // Whether the final target already existed when this publication renamed
+    // over it. A derived name can never pre-exist — the guard below refuses it —
+    // but a caller-named export replaces the user's own file, and deleting the
+    // target after a post-rename failure would leave the user with nothing
+    // instead of the replacement they agreed to.
+    let mut target_pre_existed = false;
     let result = (|| -> DbResult<BackupToken> {
         copy_online(source_path, &temp_path)?;
         failpoint_stage(BackupFailurePoint::AfterCopy)?;
@@ -174,16 +220,23 @@ pub fn publish_backup(
         sync_file(&temp_path)?;
         failpoint_stage(BackupFailurePoint::AfterFileSync)?;
 
-        let target = backup_dir.join(final_backup_name(schema_version, &app_version));
-        // The final name embeds a fresh ULID, so a collision means the same
+        let final_name = match name {
+            Some(name) => name.to_string(),
+            None => final_backup_name(schema_version, &app_version),
+        };
+        let target = backup_dir.join(final_name);
+        // A derived name embeds a fresh ULID, so a collision means the same
         // millisecond produced two publications; never overwrite a verified
-        // backup.
-        if target.exists() {
+        // backup. A caller-named target is an explicit choice — the save dialog
+        // already asked — and replacing it is the point.
+        let target_existed = target.exists();
+        if !caller_named && target_existed {
             return Err(DbError::new(ErrorCode::DatabaseInvalid));
         }
         std::fs::rename(&temp_path, &target)
             .map_err(|_| DbError::new(ErrorCode::DatabaseInvalid))?;
         final_path = Some(target.clone());
+        target_pre_existed = target_existed;
         failpoint_stage(BackupFailurePoint::AfterRename)?;
 
         let fingerprint = hash_file(&target)?;
@@ -202,8 +255,14 @@ pub fn publish_backup(
 
     if result.is_err() {
         let _ = std::fs::remove_file(&temp_path);
-        if let Some(target) = &final_path {
-            let _ = std::fs::remove_file(target);
+        // Only a target this publication created is ours to remove. One that
+        // pre-existed holds the validated, `fsync`ed replacement by now: the
+        // export has already replaced the user's file, so undoing that would be
+        // a data loss, not a rollback.
+        if !target_pre_existed {
+            if let Some(target) = &final_path {
+                let _ = std::fs::remove_file(target);
+            }
         }
     }
     // The rename moves only the base file, so the temp publication's SQLite
@@ -211,6 +270,49 @@ pub fn publish_backup(
     // successful publication — with a ULID that matches no published backup.
     remove_temp_sidecars(&temp_path);
     result
+}
+
+/// Write a validated copy of the database at `source_path` to exactly
+/// `target_path`, replacing any existing file.
+///
+/// Same publication protocol as [`publish_backup`] — online copy, manifest
+/// validation, `fsync`, atomic rename, directory `fsync` — but the caller names
+/// the file. The staged temp lives beside the target, so the final rename stays
+/// on one filesystem.
+///
+/// Because the destination is the user's rather than the app's, three things
+/// differ: the directory's mode is left as the user set it (never tightened to
+/// `0700`), no failure deletes a target that pre-existed — a failure before the
+/// rename leaves the old content untouched and a failure after it leaves the
+/// validated replacement in place rather than removing the user's file — and
+/// nothing sweeps that directory afterwards, since
+/// [`cleanup_interrupted_publications`] only walks Notchy's own backup
+/// directories. A temp orphaned by a `SIGKILL` mid-export therefore stays beside
+/// the target until the user removes it.
+///
+/// The returned path is `target_path` exactly as given, not canonicalized, and
+/// it carries none of the publication ULID: exports are user-named artifacts,
+/// not recovery points, and discovery ignores them.
+pub fn export_backup_to(source_path: &Path, target_path: &Path) -> DbResult<PathBuf> {
+    export_backup_to_at(source_path, target_path, BackupFailurePoint::None)
+}
+
+/// [`export_backup_to`] with a failure point injected, so the export path can be
+/// exercised at every stage of the publication protocol.
+pub fn export_backup_to_at(
+    source_path: &Path,
+    target_path: &Path,
+    failpoint: BackupFailurePoint,
+) -> DbResult<PathBuf> {
+    let backup_dir = target_path
+        .parent()
+        .ok_or_else(|| DbError::new(ErrorCode::DatabaseInvalid))?;
+    let file_name = target_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| DbError::new(ErrorCode::DatabaseInvalid))?;
+    publish_backup_named(source_path, backup_dir, Some(file_name), failpoint)?;
+    Ok(target_path.to_path_buf())
 }
 
 /// Remove the SQLite sidecars of a temp publication file.
@@ -316,9 +418,29 @@ fn final_backup_name(schema_version: i64, app_version: &str) -> String {
 /// Parse one candidate's discovery metadata from its filename.
 ///
 /// Filename parsing is discovery metadata, never proof: the caller must still
-/// revalidate the candidate. Returns `None` for anything that does not match
-/// the published-backup pattern.
-fn parse_backup_name(name: &str) -> Option<ParsedBackupName> {
+/// revalidate the candidate.
+///
+/// Two shapes are accepted:
+/// - `notchy-backup-v<schema>-<app-version>-<ULID>.sqlite` — the published
+///   shape, carrying every field in the name.
+/// - `notchy-backup-<ISO timestamp>.sqlite` — the legacy routine shape from the
+///   pre-port JS writer, which carries no schema, app version, or ULID: the
+///   first two come from the file and the third from the name's timestamp.
+///
+/// Returns `None` for anything matching neither shape.
+fn parse_backup_name(name: &str) -> Option<BackupName> {
+    if let Some(published) = parse_published_name(name) {
+        return Some(BackupName::Published(published));
+    }
+    let stamp = name
+        .strip_suffix(FINAL_SUFFIX)?
+        .strip_prefix(LEGACY_PREFIX)?;
+    parse_legacy_stamp(stamp).map(|created_ms| BackupName::Legacy { created_ms })
+}
+
+/// Parse the published-backup shape. This is the original `parse_backup_name`
+/// body, unchanged.
+fn parse_published_name(name: &str) -> Option<ParsedBackupName> {
     let stem = name.strip_suffix(FINAL_SUFFIX)?;
     let stem = stem.strip_prefix(FINAL_PREFIX)?;
     // stem = "<schema>-<app-version>-<ULID>"; the ULID is the final segment
@@ -348,6 +470,70 @@ fn parse_backup_name(name: &str) -> Option<ParsedBackupName> {
     })
 }
 
+/// A candidate's discovery metadata source.
+enum BackupName {
+    /// The published shape: schema, app version, and ULID all come from the name.
+    Published(ParsedBackupName),
+    /// The legacy routine shape: the schema and app version come from the file,
+    /// and the record's time — `created_ms` since the Unix epoch — from the
+    /// name's stamp.
+    Legacy { created_ms: u64 },
+}
+
+/// Parse a legacy routine stamp to epoch milliseconds.
+///
+/// The stamp is the exact output of the pre-port JS writer's
+/// `new Date().toISOString().replace(/[:.]/g, '-')`:
+/// `YYYY-MM-DDTHH-MM-SS-mmmZ`, 24 characters. Shape is checked by position, and
+/// the seven fields are then checked as an instant: a well-shaped stamp naming
+/// an impossible date or a pre-epoch time is not a candidate, because
+/// `new Date().toISOString()` cannot produce one and the record's ULID is
+/// derived from this value. Near-misses (`notchy-backup-notadate.sqlite`, a
+/// bare date, a missing `Z`) are not candidates either.
+fn parse_legacy_stamp(stamp: &str) -> Option<u64> {
+    let bytes = stamp.as_bytes();
+    if bytes.len() != 24 || bytes[10] != b'T' || bytes[23] != b'Z' {
+        return None;
+    }
+    for (index, byte) in bytes.iter().enumerate() {
+        if index == 10 || index == 23 {
+            // The 'T' and 'Z' separators, already checked above.
+            continue;
+        }
+        if matches!(index, 4 | 7 | 13 | 16 | 19) {
+            if *byte != b'-' {
+                return None;
+            }
+        } else if !byte.is_ascii_digit() {
+            return None;
+        }
+    }
+    // Every byte is now an ASCII digit or a validated separator, so the fields
+    // sit on char boundaries.
+    let year: i64 = stamp.get(0..4)?.parse().ok()?;
+    let field = |start: usize| -> Option<i64> { stamp.get(start..start + 2)?.parse().ok() };
+    let month = field(5)?;
+    let day = field(8)?;
+    let hour = field(11)?;
+    let minute = field(14)?;
+    let second = field(17)?;
+    let millis: i64 = stamp.get(20..23)?.parse().ok()?;
+
+    if !(1..=12).contains(&month) || day < 1 || day > days_in_month(year, month as u32) as i64 {
+        return None;
+    }
+    if hour > 23 || minute > 59 || second > 59 {
+        return None;
+    }
+
+    let days = days_from_civil(year, month as u32, day as u32);
+    let seconds = days * 86_400 + hour * 3_600 + minute * 60 + second;
+    if seconds < 0 {
+        return None;
+    }
+    Some(seconds as u64 * 1_000 + millis as u64)
+}
+
 struct ParsedBackupName {
     schema: i64,
     app_version: String,
@@ -358,11 +544,12 @@ struct ParsedBackupName {
 /// the backup directory itself plus its `upgrades/` subdirectory, where
 /// pre-upgrade backups are published.
 ///
-/// Every candidate matching the published-backup filename pattern is
-/// revalidated through a true read-only connection against the manifest for
-/// the schema recorded in its name. Candidates that fail to open or fail
-/// validation are excluded — a corrupt file with a matching name can never
-/// displace a verified recovery point.
+/// Every candidate matching either backup filename shape — the published
+/// `notchy-backup-v<schema>-<app>-<ULID>.sqlite` or the legacy routine
+/// `notchy-backup-<ISO timestamp>.sqlite` — is revalidated through a true
+/// read-only connection against the manifest for its schema. Candidates that
+/// fail to open or fail validation are excluded — a corrupt file with a
+/// matching name can never displace a verified recovery point.
 pub fn discover_verified_backups(
     backup_dir: impl AsRef<Path>,
 ) -> DbResult<Vec<BackupSummary>> {
@@ -378,6 +565,10 @@ pub fn discover_verified_backups(
 }
 
 /// Revalidate and collect the verified backups in exactly one directory.
+///
+/// Both filename shapes are candidates; the name is only a hint about where a
+/// candidate's schema and app version come from, and every candidate is
+/// confirmed against its own bytes before it is returned.
 fn scan_verified_backups(backup_dir: &Path) -> DbResult<Vec<BackupSummary>> {
     let entries = std::fs::read_dir(backup_dir)
         .map_err(|_| DbError::new(ErrorCode::DatabaseInvalid))?;
@@ -387,16 +578,39 @@ fn scan_verified_backups(backup_dir: &Path) -> DbResult<Vec<BackupSummary>> {
         let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
             continue;
         };
-        let Some(meta) = parse_backup_name(name) else {
+        let Some(backup_name) = parse_backup_name(name) else {
             continue;
         };
-        if manifest_for(meta.schema).is_none() {
-            continue;
-        }
+        // A legacy name carries no schema, so the file has to be open before
+        // the manifest can be selected. An unreadable candidate is still
+        // skipped, and a schema with no manifest is still rejected before
+        // validation — the name remains a hint, never a verdict.
         let Ok(connection) = open_read_only_at(&path) else {
             continue;
         };
-        if validate_manifest(&connection, meta.schema).is_err() {
+        let (schema_version, source_app_version, id) = match backup_name {
+            BackupName::Published(parsed) => (parsed.schema, parsed.app_version, parsed.ulid),
+            BackupName::Legacy { created_ms } => {
+                let Ok((schema, app_version)) = read_source_meta(&connection) else {
+                    continue;
+                };
+                // The record's time is the name's, never the file's: an mtime
+                // survives a rename but is reset by a copy, an unzip, or a move
+                // to a new machine, which would put an old backup above a
+                // genuinely newer one on the recovery screen. A ULID derived
+                // from the stamp sorts correctly against published backups,
+                // whose ULIDs encode their own creation time.
+                (
+                    schema,
+                    app_version,
+                    Ulid::from_datetime(UNIX_EPOCH + Duration::from_millis(created_ms)).to_string(),
+                )
+            }
+        };
+        if manifest_for(schema_version).is_none() {
+            continue;
+        }
+        if validate_manifest(&connection, schema_version).is_err() {
             continue;
         }
         drop(connection);
@@ -404,11 +618,11 @@ fn scan_verified_backups(backup_dir: &Path) -> DbResult<Vec<BackupSummary>> {
             continue;
         };
         records.push(BackupSummary {
-            id: meta.ulid.clone(),
+            id: id.clone(),
             path: canonical.to_string_lossy().into_owned(),
-            schema_version: meta.schema,
-            source_app_version: meta.app_version,
-            created_at: format_ulid_timestamp(&meta.ulid),
+            schema_version,
+            source_app_version,
+            created_at: format_ulid_timestamp(&id),
             verified: true,
         });
     }
@@ -528,4 +742,28 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
     let day = (day_of_year - (153 * month_prime + 2) / 5 + 1) as u32;
     let month = if month_prime < 10 { month_prime + 3 } else { month_prime - 9 } as u32;
     (if month <= 2 { year + 1 } else { year }, month, day)
+}
+
+/// The number of days in `month` of `year`, February included.
+fn days_in_month(year: i64, month: u32) -> u32 {
+    match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) => 29,
+        2 => 28,
+        _ => 0,
+    }
+}
+
+/// Convert a civil date to days since the Unix epoch: the inverse of
+/// [`civil_from_days`], using Howard Hinnant's `days_from_civil` algorithm.
+fn days_from_civil(year: i64, month: u32, day: u32) -> i64 {
+    let year = year - if month <= 2 { 1 } else { 0 };
+    let era = if year >= 0 { year } else { year - 399 } / 400;
+    let year_of_era = year - era * 400;
+    let day_of_year =
+        (153 * (month as i64 + if month > 2 { -3 } else { 9 }) + 2) / 5 + day as i64 - 1;
+    let day_of_era =
+        year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+    era * 146_097 + day_of_era - 719_468
 }

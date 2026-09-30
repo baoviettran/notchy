@@ -822,27 +822,6 @@ pub struct NetWorthPoint {
     pub net_worth: i64,
 }
 
-// ---------------------------------------------------------------------------
-// Backup health types
-// ---------------------------------------------------------------------------
-
-/// Backup health summary for the settings card.
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-pub struct BackupHealth {
-    pub last_backup: Option<String>,
-    pub backup_count: usize,
-    pub backup_dir: String,
-    pub db_size: u64,
-    pub latest_backup_size: Option<u64>,
-}
-
-/// Options for computing backup health.
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-pub struct BackupHealthOptions {
-    pub backup_dir: String,
-    pub database_path: String,
-}
-
 /// Validate a strict `YYYY-MM-DD` calendar date.
 fn is_valid_iso_date(value: &str) -> bool {
     let mut parts = value.split('-');

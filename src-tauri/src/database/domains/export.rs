@@ -4,9 +4,11 @@
 //! prefixing cells starting with `=`, `+`, `-`, `@`, `\t`, `\r` with a
 //! single quote.
 
+use std::path::Path;
+
 use rusqlite::Connection;
 
-use crate::database::error::{DbResult, map_sqlite_error};
+use crate::database::error::{DbError, DbResult, ErrorCode, map_sqlite_error};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -127,6 +129,80 @@ pub fn export_transactions_csv(
     }
 
     Ok(out)
+}
+
+/// The tables the Settings → Backup & Data export writes, in the order the
+/// pre-port JS export produced them.
+pub const TABLE_SET: [&str; 7] = [
+    "accounts",
+    "category_types",
+    "category_tags",
+    "transactions",
+    "budgets",
+    "goals",
+    "reconciliations",
+];
+
+/// Write one CSV per table into `dir`, replacing existing files, and return the
+/// written paths in [`TABLE_SET`] order.
+///
+/// This is a database dump, not the formatted transactions report: `SELECT *`
+/// column order, raw stored values (amounts stay integers), soft-deleted rows
+/// excluded, and every cell passed through the shared cell sanitizer so a payee
+/// cannot become a spreadsheet formula. A table with no rows still gets a file,
+/// with its header line, so the export is a complete set.
+pub fn export_table_set_csv(conn: &Connection, dir: &Path) -> DbResult<Vec<String>> {
+    std::fs::create_dir_all(dir).map_err(|_| DbError::new(ErrorCode::InvalidInput))?;
+
+    let mut written = Vec::with_capacity(TABLE_SET.len());
+    for table in TABLE_SET {
+        // Table names come from the fixed constant above, never from input.
+        let mut statement = conn
+            .prepare(&format!("SELECT * FROM {table} WHERE deleted_at IS NULL"))
+            .map_err(map_sqlite_error)?;
+        let headers: Vec<String> = statement
+            .column_names()
+            .iter()
+            .map(|name| name.to_string())
+            .collect();
+
+        let header_line = headers
+            .iter()
+            .map(|name| csv_escape(name))
+            .collect::<Vec<_>>()
+            .join(",");
+        let mut lines = vec![header_line];
+
+        let mut rows = statement.query([]).map_err(map_sqlite_error)?;
+        while let Some(row) = rows.next().map_err(map_sqlite_error)? {
+            let mut cells = Vec::with_capacity(headers.len());
+            for index in 0..headers.len() {
+                let value = row
+                    .get::<_, rusqlite::types::Value>(index)
+                    .map_err(map_sqlite_error)?;
+                // NULL is the empty cell, matching the JS `?? ''`. Integers are
+                // written verbatim; the schema has no REAL columns.
+                let text = match value {
+                    rusqlite::types::Value::Null => String::new(),
+                    rusqlite::types::Value::Integer(number) => number.to_string(),
+                    rusqlite::types::Value::Real(number) => number.to_string(),
+                    rusqlite::types::Value::Text(text) => text,
+                    rusqlite::types::Value::Blob(bytes) => {
+                        String::from_utf8_lossy(&bytes).into_owned()
+                    }
+                };
+                cells.push(csv_escape(&text));
+            }
+            lines.push(cells.join(","));
+        }
+
+        let path = dir.join(format!("{table}.csv"));
+        std::fs::write(&path, lines.join("\n"))
+            .map_err(|_| DbError::new(ErrorCode::InvalidInput))?;
+        written.push(path.to_string_lossy().into_owned());
+    }
+
+    Ok(written)
 }
 
 #[cfg(test)]

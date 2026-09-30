@@ -290,3 +290,15 @@ fn generated_meta_key_union_covers_all_variants() {
         );
     }
 }
+
+#[test]
+fn native_backup_health_contracts_are_not_declared_without_a_command() {
+    let bindings = generate_bindings();
+
+    // Health is computed in JS from app_meta; a native health command does not
+    // exist, so its type must not be advertised in the committed contracts.
+    assert!(
+        !bindings.contains("BackupHealth"),
+        "a backup-health contract with no constructing command is drift"
+    );
+}

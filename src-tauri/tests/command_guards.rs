@@ -9,14 +9,18 @@ use std::sync::Arc;
 
 use tauri::Manager;
 
-use notchy_lib::database::commands::{database_initialize, database_retry, database_status};
+use notchy_lib::database::commands::{
+    backup_create, backup_export_csv, backup_export_sqlite, database_initialize, database_retry,
+    database_status,
+};
+use notchy_lib::database::domains::get_meta;
 use notchy_lib::database::error::ErrorCode;
 use notchy_lib::database::executor::DatabaseManager;
 use notchy_lib::database::types::{LifecycleState, StartupStage};
 
 mod common;
 use common::{
-    manager_for_fixture, manager_fresh, mock_app, wait_until_stage, write_as,
+    manager_for_fixture, manager_fresh, mock_app, scratch_root, wait_until_stage, write_as,
 };
 
 // ---------------------------------------------------------------------------
@@ -150,4 +154,96 @@ async fn data_jobs_run_once_ready() {
         .await
         .unwrap();
     assert_eq!(version, 6);
+}
+
+// ---------------------------------------------------------------------------
+// Backup commands (Task 5)
+// ---------------------------------------------------------------------------
+
+/// Read one `app_meta` key through the manager's own data job.
+async fn meta_at(manager: &Arc<DatabaseManager>, key: &str) -> Option<String> {
+    let key = key.to_string();
+    manager
+        .data_job(move |state| get_meta(state.connection()?, &key))
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn backup_create_publishes_a_backup_and_records_the_timestamp() {
+    let manager = manager_for_fixture("v004.sqlite").await;
+    let _ = manager.initialize().await.unwrap();
+    let app = mock_app(Arc::clone(&manager));
+    let state = app.app.state::<Arc<DatabaseManager>>();
+
+    let path = backup_create(state).await.unwrap();
+
+    assert!(std::path::Path::new(&path).exists(), "no file at {path}");
+    let name = std::path::Path::new(&path)
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+    assert!(
+        name.starts_with("notchy-backup-v"),
+        "routine backups use the published name: {name}"
+    );
+    // The health card reads this key, so a published backup must set it.
+    assert!(
+        meta_at(&manager, "last_backup_at").await.is_some(),
+        "last_backup_at was not recorded"
+    );
+}
+
+#[tokio::test]
+async fn backup_create_leaves_the_timestamp_alone_when_publication_fails() {
+    let manager = manager_for_fixture("v004.sqlite").await;
+    let _ = manager.initialize().await.unwrap();
+    // A file where the backup directory belongs makes publication fail: the
+    // directory cannot be created.
+    let backup_dir = manager.backup_dir();
+    let _ = std::fs::remove_dir_all(&backup_dir);
+    std::fs::write(&backup_dir, b"not a directory").unwrap();
+    let app = mock_app(Arc::clone(&manager));
+    let state = app.app.state::<Arc<DatabaseManager>>();
+
+    let error = backup_create(state).await.unwrap_err();
+
+    assert_eq!(error.code, ErrorCode::DatabaseInvalid);
+    assert!(
+        meta_at(&manager, "last_backup_at").await.is_none(),
+        "a failed backup must not claim success"
+    );
+}
+
+#[tokio::test]
+async fn backup_export_sqlite_writes_the_named_file() {
+    let manager = manager_for_fixture("v004.sqlite").await;
+    let _ = manager.initialize().await.unwrap();
+    let app = mock_app(Arc::clone(&manager));
+    let state = app.app.state::<Arc<DatabaseManager>>();
+    let target = scratch_root("cmd-export").join("chosen.sqlite");
+    std::fs::create_dir_all(target.parent().unwrap()).unwrap();
+
+    backup_export_sqlite(target.to_string_lossy().into_owned(), state)
+        .await
+        .unwrap();
+
+    assert!(target.exists());
+}
+
+#[tokio::test]
+async fn backup_export_csv_writes_the_table_set() {
+    let manager = manager_for_fixture("v004.sqlite").await;
+    let _ = manager.initialize().await.unwrap();
+    let app = mock_app(Arc::clone(&manager));
+    let state = app.app.state::<Arc<DatabaseManager>>();
+    let dir = scratch_root("cmd-export-csv");
+
+    let written = backup_export_csv(dir.to_string_lossy().into_owned(), state)
+        .await
+        .unwrap();
+
+    assert_eq!(written.len(), 7);
+    assert!(dir.join("accounts.csv").exists());
 }

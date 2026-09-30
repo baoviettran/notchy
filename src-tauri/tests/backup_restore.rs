@@ -12,10 +12,13 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use notchy_lib::database::backup::{
-    cleanup_interrupted_publications, discover_verified_backups, publish_backup,
-    retention_deletions, BackupFailurePoint,
+    cleanup_interrupted_publications, discover_verified_backups, export_backup_to,
+    export_backup_to_at, publish_backup, retention_deletions, BackupFailurePoint,
 };
+use notchy_lib::database::manifest::validate_manifest;
 use notchy_lib::database::types::BackupSummary;
+
+use ulid::Ulid;
 
 /// Path of the committed native fixtures, anchored to the crate manifest so the
 /// tests work regardless of the invoking cwd.
@@ -437,4 +440,351 @@ fn discover_restore_points_missing_dir() {
     let dir = scratch_root("missing");
     let points = discover_restore_points(&dir).unwrap();
     assert!(points.is_empty());
+}
+
+// ---------------------------------------------------------------------------
+// export_backup_to (Task 1): a validated copy at a caller-named path
+// ---------------------------------------------------------------------------
+
+/// A verified source database, copied out of the fixtures so the test can point
+/// an export at a target without touching the committed fixture.
+fn source_db(tag: &str) -> PathBuf {
+    let root = scratch_root(tag);
+    std::fs::create_dir_all(&root).unwrap();
+    let source = root.join("live.sqlite");
+    std::fs::copy(fixtures_dir().join("v004.sqlite"), &source).unwrap();
+    source
+}
+
+/// A scratch directory that exists, for use as an export target's parent.
+fn target_dir(tag: &str) -> PathBuf {
+    let dir = scratch_root(tag);
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+/// Every temp artifact in `dir`, matched by the shared prefix so the `-wal`,
+/// `-shm`, and `-journal` companions `remove_temp_sidecars` sweeps are counted
+/// alongside the base `.tmp` file.
+fn temp_files_in(dir: &Path) -> Vec<String> {
+    std::fs::read_dir(dir)
+        .unwrap()
+        .flatten()
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .filter(|name| name.starts_with(TEMP_PREFIX))
+        .collect()
+}
+
+#[test]
+fn export_writes_a_validated_copy_at_the_exact_target_path() {
+    let source = source_db("export-ok");
+    let target = target_dir("export-ok-target").join("notchy-2026-09-29.sqlite");
+
+    let written = export_backup_to(&source, &target).unwrap();
+
+    assert_eq!(written, target);
+    // The copy is a real database, not a byte blob: it opens and validates.
+    let connection = rusqlite::Connection::open(&target).unwrap();
+    validate_manifest(&connection, 4).unwrap();
+}
+
+#[test]
+fn export_replaces_an_existing_target() {
+    let source = source_db("export-replace");
+    let dir = target_dir("export-replace-target");
+    let target = dir.join("notchy.sqlite");
+    std::fs::write(&target, b"stale bytes").unwrap();
+
+    export_backup_to(&source, &target).unwrap();
+
+    // Replacing is expected: the save dialog has already asked the user.
+    let connection = rusqlite::Connection::open(&target).unwrap();
+    validate_manifest(&connection, 4).unwrap();
+    assert!(temp_files_in(&dir).is_empty(), "temp left behind");
+}
+
+#[test]
+fn export_refuses_a_corrupt_source_and_preserves_the_existing_target() {
+    let dir = target_dir("export-corrupt");
+    let source = dir.join("corrupt.sqlite");
+    std::fs::write(&source, b"not a database").unwrap();
+    let target = dir.join("keep-me.sqlite");
+    std::fs::write(&target, b"original bytes").unwrap();
+
+    let result = export_backup_to(&source, &target);
+
+    assert!(result.is_err(), "a corrupt source must not produce a backup");
+    assert_eq!(std::fs::read(&target).unwrap(), b"original bytes");
+    assert!(temp_files_in(&dir).is_empty(), "a failed export must leave no temp");
+}
+
+#[test]
+fn export_leaves_only_the_target_in_its_directory() {
+    // The staged temp lives beside the target, so the final rename stays on one
+    // filesystem and a successful export sweeps its own scratch file.
+    let source = source_db("export-elsewhere");
+    let dir = target_dir("export-elsewhere-target");
+    let target = dir.join("chosen.sqlite");
+
+    export_backup_to(&source, &target).unwrap();
+
+    assert!(target.exists());
+    assert_eq!(
+        std::fs::read_dir(&dir).unwrap().flatten().count(),
+        1,
+        "only the target should remain"
+    );
+}
+
+#[test]
+fn export_is_not_a_discovered_backup() {
+    let source = source_db("export-not-discovered");
+    let dir = target_dir("export-not-discovered-target");
+
+    export_backup_to(&source, &dir.join("notchy-export.sqlite")).unwrap();
+
+    // An export is named by the user, so it must never masquerade as a
+    // recovery point.
+    let discovered = discover_verified_backups(&dir).unwrap();
+    assert!(
+        discovered.is_empty(),
+        "export leaked into discovery: {discovered:?}"
+    );
+}
+
+/// An export writes into a directory the user chose and owns, so the app must
+/// not impose the 0700 mode it sets on the directories it owns itself.
+#[cfg(unix)]
+#[test]
+fn export_does_not_tighten_the_target_directory_permissions() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let source = source_db("export-perms");
+    let dir = target_dir("export-perms-target");
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    export_backup_to(&source, &dir.join("chosen.sqlite")).unwrap();
+
+    let mode = std::fs::metadata(&dir).unwrap().permissions().mode();
+    assert_eq!(
+        mode & 0o777,
+        0o755,
+        "export must leave the user's directory permissions alone"
+    );
+}
+
+/// Re-exporting onto a path the user already had: the rename has already
+/// replaced the old content with a validated, `fsync`ed copy, so a failure in
+/// the finalisation steps after it must not delete the replacement — that would
+/// leave the user with nothing at all instead of the file they agreed to.
+#[test]
+fn export_keeps_the_replacement_when_finalisation_fails() {
+    let source = source_db("export-keep-replacement");
+    let dir = target_dir("export-keep-replacement-target");
+    let target = dir.join("notchy.sqlite");
+    std::fs::write(&target, b"stale bytes").unwrap();
+
+    let result = export_backup_to_at(&source, &target, BackupFailurePoint::AfterRename);
+
+    assert!(result.is_err(), "the injected failpoint must fail the export");
+    assert!(target.exists(), "the replacement must survive the failure");
+    // Validating proves it is the *new* content: stale bytes could not pass.
+    let connection = rusqlite::Connection::open(&target).unwrap();
+    validate_manifest(&connection, 4).unwrap();
+}
+
+/// The other side of that gate: a target this publication created had nothing
+/// of the user's to preserve, so a failed publication cleans up after itself.
+#[test]
+fn export_removes_its_own_target_when_finalisation_fails() {
+    let source = source_db("export-own-target");
+    let dir = target_dir("export-own-target-target");
+    let target = dir.join("chosen.sqlite");
+
+    let result = export_backup_to_at(&source, &target, BackupFailurePoint::AfterRename);
+
+    assert!(result.is_err(), "the injected failpoint must fail the export");
+    assert!(!target.exists(), "a target this export created must be removed");
+    assert!(temp_files_in(&dir).is_empty(), "temp left behind");
+}
+
+/// A failure once the copy stage has run is the first point at which a temp
+/// actually exists, so this is what makes the "a failed export leaves no temp"
+/// property real through the export API.
+#[test]
+fn export_leaves_no_temp_when_the_copy_stage_fails() {
+    let source = source_db("export-copy-fail");
+    let dir = target_dir("export-copy-fail-target");
+
+    let result = export_backup_to_at(
+        &source,
+        &dir.join("chosen.sqlite"),
+        BackupFailurePoint::AfterCopy,
+    );
+
+    assert!(result.is_err(), "the injected failpoint must fail the export");
+    assert!(temp_files_in(&dir).is_empty(), "a failed copy must leave no temp");
+}
+
+// ---------------------------------------------------------------------------
+// Legacy routine-name discovery (Task 2)
+// ---------------------------------------------------------------------------
+
+/// The timestamp shape the pre-port JS writer produced.
+const LEGACY_STAMP: &str = "2026-08-19T14-22-31-123Z";
+
+fn legacy_name(stamp: &str) -> String {
+    format!("notchy-backup-{stamp}.sqlite")
+}
+
+/// Pin a file's mtime, so ordering assertions are deterministic.
+fn pin_mtime(path: &Path, mtime_secs: u64) {
+    std::fs::File::options()
+        .write(true)
+        .open(path)
+        .unwrap()
+        .set_modified(UNIX_EPOCH + Duration::from_secs(mtime_secs))
+        .unwrap();
+}
+
+/// Copy a fixture into `dir` under a legacy routine filename, pinning the mtime
+/// so ordering assertions are deterministic.
+fn legacy_backup(dir: &Path, name: &str, mtime_secs: u64) -> PathBuf {
+    std::fs::create_dir_all(dir).unwrap();
+    let path = dir.join(name);
+    std::fs::copy(fixtures_dir().join("v004.sqlite"), &path).unwrap();
+    pin_mtime(&path, mtime_secs);
+    path
+}
+
+#[test]
+fn discovery_accepts_a_legacy_routine_backup_name() {
+    let dir = scratch_root("legacy-accept");
+    let path = legacy_backup(&dir, &legacy_name(LEGACY_STAMP), 1_755_600_000);
+
+    // Stamp a version the fixture does not carry, so `source_app_version` is
+    // verifiable rather than the UNKNOWN fallback. The write moves the mtime,
+    // so re-pin it: that mtime is now the evidence that discovery derives the
+    // record's time from the filename stamp and never consults mtime.
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    connection
+        .execute(
+            "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('last_successful_app_version', '9.9.9')",
+            [],
+        )
+        .unwrap();
+    drop(connection);
+    pin_mtime(&path, 1_755_600_000);
+
+    let found = discover_verified_backups(&dir).unwrap();
+
+    assert_eq!(found.len(), 1, "legacy routine backup must be discoverable");
+    let canonical = std::fs::canonicalize(&path).unwrap();
+    assert_eq!(found[0].path, canonical.to_string_lossy());
+    // The name carries no schema or app version, so both come from the file.
+    assert_eq!(found[0].schema_version, 4);
+    assert_eq!(found[0].source_app_version, "9.9.9");
+    assert!(found[0].verified);
+    // The name's stamp, not the file's mtime, which is pinned a year earlier.
+    assert_eq!(
+        Ulid::from_string(&found[0].id).unwrap().timestamp_ms(),
+        1_787_149_351_123,
+        "the id must come from the filename stamp, not the file's mtime"
+    );
+    assert_eq!(found[0].created_at, "2026-08-19T14:22:31.123Z");
+    assert_eq!(found[0].id.len(), 26, "id is a ULID derived from the stamp");
+}
+
+#[test]
+fn discovery_rejects_names_that_are_not_the_legacy_shape() {
+    let dir = scratch_root("legacy-reject");
+    for name in [
+        "notchy-backup-notadate.sqlite",
+        "notchy-backup-2026-08-19.sqlite",
+        "notchy-backup-2026-08-19T14-22-31-123.sqlite",
+        "notchy-backup-2026-08-19T14-22-31-123Z.db",
+        "notchy-backup-vX-0.1.4-01M3CGSB1ASS5VDMKWMHXE4HVJ.sqlite",
+    ] {
+        legacy_backup(&dir, name, 1_755_600_000);
+    }
+
+    let found = discover_verified_backups(&dir).unwrap();
+
+    assert!(
+        found.is_empty(),
+        "non-shape names must not be candidates: {found:?}"
+    );
+}
+
+#[test]
+fn discovery_skips_a_legacy_backup_with_a_corrupt_body() {
+    let dir = scratch_root("legacy-corrupt");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join(legacy_name(LEGACY_STAMP)), b"not a database").unwrap();
+    let published = dir.join(format!(
+        "notchy-backup-v4-0.1.4-{}.sqlite",
+        Ulid::from_datetime(UNIX_EPOCH + Duration::from_secs(1_755_604_800))
+    ));
+    std::fs::copy(fixtures_dir().join("v004.sqlite"), &published).unwrap();
+
+    let found = discover_verified_backups(&dir).unwrap();
+
+    assert_eq!(
+        found.len(),
+        1,
+        "a corrupt candidate must not displace a verified one"
+    );
+    assert!(found[0].path.contains("notchy-backup-v4-0.1.4-"));
+}
+
+#[test]
+fn discovery_rejects_a_legacy_backup_whose_stamp_is_not_a_real_instant() {
+    let dir = scratch_root("legacy-bad-instant");
+    // Copies of the *valid* fixture: accepting either name would produce a
+    // verified record, so an empty result cannot be vacuous.
+    for name in [
+        // Correct shape, impossible fields.
+        legacy_name("2026-99-99T99-99-99-999Z"),
+        // A real date, but pre-epoch: `new Date().toISOString()` cannot
+        // produce it.
+        legacy_name("0000-01-01T00-00-00-000Z"),
+    ] {
+        legacy_backup(&dir, &name, 1_755_600_000);
+    }
+
+    let found = discover_verified_backups(&dir).unwrap();
+
+    assert!(
+        found.is_empty(),
+        "a stamp that is not a real instant must not be a candidate: {found:?}"
+    );
+}
+
+#[test]
+fn legacy_and_published_backups_sort_together_newest_first() {
+    let dir = scratch_root("legacy-order");
+    // The legacy stamp's instant is the older one; the published ULID encodes
+    // one an hour later. The legacy file's mtime is pinned *later still*, so an
+    // implementation that ordered by mtime would put the legacy file first and
+    // fail.
+    let legacy_path = legacy_backup(&dir, &legacy_name(LEGACY_STAMP), 1_787_149_351 + 7_200);
+    let published = dir.join(format!(
+        "notchy-backup-v4-0.1.4-{}.sqlite",
+        Ulid::from_datetime(UNIX_EPOCH + Duration::from_millis(1_787_149_351_123 + 3_600_000))
+    ));
+    std::fs::copy(fixtures_dir().join("v004.sqlite"), &published).unwrap();
+
+    let found = discover_verified_backups(&dir).unwrap();
+
+    assert_eq!(found.len(), 2);
+    assert!(
+        found[0].path.contains("notchy-backup-v4-0.1.4-"),
+        "the published record is the newer one: {found:?}"
+    );
+    assert_eq!(found[1].created_at, "2026-08-19T14:22:31.123Z");
+    assert!(
+        found[0].created_at > found[1].created_at,
+        "newest first: {found:?}"
+    );
+    assert!(std::fs::canonicalize(&legacy_path).is_ok());
 }

@@ -77,5 +77,3 @@ export type StackedTag = { tagId: string | null, name: string, total: number, };
 export type StackedCategoryPoint = { month: string, tags: Array<StackedTag>, };
 export type YearOverYearPoint = { month: string, yearAIncome: number, yearAExpense: number, yearBIncome: number, yearBExpense: number, };
 export type NetWorthPoint = { month: string, netWorth: number, };
-export type BackupHealth = { last_backup: string | null, backup_count: number, backup_dir: string, db_size: number, latest_backup_size: number | null, };
-export type BackupHealthOptions = { backup_dir: string, database_path: string, };

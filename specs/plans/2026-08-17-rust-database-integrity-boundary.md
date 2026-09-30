@@ -1225,8 +1225,10 @@ The `0.2.0` artifact was **not** re-cut; its checksum still describes the artifa
 fixes found while verifying it are committed on `fix/native-backup-upgrades-dir` (`1ecb590`),
 test-first, and ship in the next release: the `upgrades/` publication directory, a startup-wide
 sweep of interrupted publications, and removal of a publication's temp-file sidecars. Porting
-`settings/backup` off `db.raw` — which needs a native create-backup command — is next-release
-work.
+`settings/backup` off `db.raw` — which needed a native create-backup command — has since landed
+on `specs/settings-backup-native-port` (`8917db1`…`4e783b2`), so it is no longer next-release work;
+the GUI cases it unblocks were **not** re-verified on a package, so the result above stays
+`partial`.
 
 ---
 

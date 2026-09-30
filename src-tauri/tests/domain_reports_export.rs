@@ -1,6 +1,6 @@
 //! Integration tests for the reports and export domain services.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use rusqlite::{Connection, OpenFlags, params};
 
@@ -564,4 +564,121 @@ fn sanitize_cell_various_prefixes() {
     assert_eq!(export::sanitize_csv_cell("-1"), "'-1");
     assert_eq!(export::sanitize_csv_cell("@1"), "'@1");
     assert_eq!(export::sanitize_csv_cell("normal"), "normal");
+}
+
+// ---------------------------------------------------------------------------
+// export_table_set_csv (Task 3)
+// ---------------------------------------------------------------------------
+
+/// A migrated database plus a scratch directory to export into.
+fn fresh_db_and_dir(tag: &str) -> (Connection, PathBuf) {
+    let dir = scratch_path(tag).parent().unwrap().join("export");
+    (fresh_db(tag), dir)
+}
+
+fn read_export(dir: &Path, table: &str) -> String {
+    std::fs::read_to_string(dir.join(format!("{table}.csv"))).unwrap()
+}
+
+#[test]
+fn table_set_export_writes_seven_files_in_order() {
+    let (conn, dir) = fresh_db_and_dir("csv-set");
+    let written = export::export_table_set_csv(&conn, &dir).unwrap();
+
+    let names: Vec<String> = written
+        .iter()
+        .map(|path| {
+            Path::new(path)
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect();
+    assert_eq!(
+        names,
+        vec![
+            "accounts.csv",
+            "category_types.csv",
+            "category_tags.csv",
+            "transactions.csv",
+            "budgets.csv",
+            "goals.csv",
+            "reconciliations.csv",
+        ]
+    );
+    for path in &written {
+        assert!(Path::new(path).exists(), "missing: {path}");
+    }
+}
+
+#[test]
+fn table_set_export_writes_headers_even_for_an_empty_table() {
+    let (conn, dir) = fresh_db_and_dir("csv-empty");
+    export::export_table_set_csv(&conn, &dir).unwrap();
+
+    // A fresh ledger has no goals; the file must still exist and describe them,
+    // so "I exported 7 tables" is true.
+    let goals = read_export(&dir, "goals");
+    let header = goals.lines().next().unwrap_or_default();
+    assert!(header.starts_with("id,"), "header-only file expected, got {header:?}");
+    assert_eq!(goals.lines().count(), 1, "no data rows expected");
+}
+
+#[test]
+fn table_set_export_writes_raw_integer_amounts() {
+    let (mut conn, dir) = fresh_db_and_dir("csv-amounts");
+    let account = make_account(&mut conn, "Cash", "checking");
+    make_tx(&mut conn, "expense", 123_456, "2026-02-01", &account, None);
+
+    export::export_table_set_csv(&conn, &dir).unwrap();
+
+    let transactions = read_export(&dir, "transactions");
+    // The stored integer, not the formatted "1234.56" that the flat
+    // transactions report writes.
+    assert!(transactions.contains("123456"), "expected raw integer: {transactions}");
+    assert!(!transactions.contains("1234.56"), "amount must not be reformatted");
+}
+
+#[test]
+fn table_set_export_omits_soft_deleted_rows() {
+    let (mut conn, dir) = fresh_db_and_dir("csv-soft-delete");
+    let account = make_account(&mut conn, "Doomed", "checking");
+    conn.execute(
+        "UPDATE accounts SET deleted_at = '2026-01-01T00:00:00.000Z' WHERE id = ?1",
+        params![account],
+    )
+    .unwrap();
+
+    export::export_table_set_csv(&conn, &dir).unwrap();
+
+    let accounts = read_export(&dir, "accounts");
+    assert!(!accounts.contains("Doomed"), "soft-deleted row leaked: {accounts}");
+}
+
+#[test]
+fn table_set_export_neutralizes_formula_cells_and_escapes_delimiters() {
+    let (mut conn, dir) = fresh_db_and_dir("csv-injection");
+    let account = make_account(&mut conn, "Escapes", "checking");
+    let formula = make_tx(&mut conn, "expense", 1, "2026-02-01", &account, None);
+    let delimited = make_tx(&mut conn, "expense", 2, "2026-02-02", &account, None);
+    conn.execute(
+        "UPDATE transactions SET payee = ?1 WHERE id = ?2",
+        params!["=cmd|'/c calc'!A1", formula],
+    )
+    .unwrap();
+    conn.execute(
+        "UPDATE transactions SET payee = ?1 WHERE id = ?2",
+        params!["Smith, \"Bob\"\nJr", delimited],
+    )
+    .unwrap();
+
+    export::export_table_set_csv(&conn, &dir).unwrap();
+
+    let transactions = read_export(&dir, "transactions");
+    assert!(transactions.contains("'=cmd"), "formula not neutralized: {transactions}");
+    assert!(
+        transactions.contains("\"Smith, \"\"Bob\"\"\nJr\""),
+        "RFC 4180 escaping missing: {transactions}"
+    );
 }
