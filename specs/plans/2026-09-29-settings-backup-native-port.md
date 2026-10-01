@@ -1842,7 +1842,7 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 
 Expected: all pass. `pnpm test:roadmap` must print this plan as in-progress with every box flipped and no `⚠ stale` — a stale reading means a commit subject did not match a step's heredoc, so fix the step text, not the commit.
 
-- [ ] **Step 2: Smoke the fix in the real app**
+- [x] **Step 2: Smoke the fix in the real app**
 
 Run: `pnpm tauri dev`
 Then, in the app: open Settings → Backup & Data and confirm the card shows the app version, schema version, database path, and last-backup rows (no error text); press **Create backup now** and confirm a toast plus a new `notchy-backup-v6-*.sqlite` in the routine backup folder; note that **Open backup folder** opens the *upgrades* folder (`backups/upgrades`), not the routine one, so it will not show the file just created — check the routine backup folder on disk instead.
