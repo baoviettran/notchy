@@ -1824,6 +1824,7 @@ This is the task that proves the fix on the platform where the defect shipped, a
 - Modify: `specs/notes/2026-08-17-v0.2.0.md` (record the re-verification)
 - Modify: `specs/2026-07-27-desktop-release-smoke-checklist.md` (the two rows this unblocks)
 - Modify: `specs/STATUS.md` (regenerated)
+- Modify: `package.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/tauri.conf.json`, `messages/en.json`, `messages/vi.json`, `src/tests/e2e/settings-extended.spec.ts`, `scripts/release-dogfood.test.mjs` — the `0.2.0` → `0.2.1` bump Step 3 needs
 
 **Interfaces:**
 - Consumes: everything above.
@@ -1850,6 +1851,10 @@ Then, in the app: open Settings → Backup & Data and confirm the card shows the
 - [ ] **Step 3: Prove it on an installed package**
 
 Follow `specs/plans/2026-08-17-rust-database-integrity-boundary.md` Task 15 Steps 6-7. The two GUI cases this unblocks are **Manual backup** (was `fail`) and **Backup/restore round-trip** (was `blocked`). Record the outcome honestly: a skipped or failed case leaves the result `partial`. If the package on the machine predates these commits, cut a new one first — the earlier session's evidence is tied to a specific checksum.
+
+The package must be **0.2.1, not a re-cut 0.2.0**: `release:dogfood` copies to `artifacts/<version>/`, so re-cutting `0.2.0` would overwrite `artifacts/0.2.0/notchy_0.2.0_amd64.deb` and its checksum, and the `partial` record above cites that checksum. Bump all four declarations (`package.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/tauri.conf.json`) plus the `settings_version` string and the two tests that pin it, then `pnpm release:dogfood` → `artifacts/0.2.1/`.
+
+Driving the cut package does not need `sudo`: `dpkg-deb -x artifacts/0.2.1/notchy_0.2.1_amd64.deb <dir>` and run `<dir>/usr/bin/notchy` under WebKitWebDriver. Record plainly that this is the packaged binary, not an `apt install`ed system package.
 
 - [ ] **Step 4: Record the evidence and close the boxes**
 
