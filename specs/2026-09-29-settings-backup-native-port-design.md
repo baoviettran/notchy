@@ -2,7 +2,7 @@
 
 **Serves:** STORY-023
 
-**Status:** Design — awaiting plan
+**Status:** Implemented — plan 8/8 complete, merged in #36 (2026-10-01); the two GUI cases it unblocks pass on the `0.2.1` package, with the remaining boundary-plan Task 15 steps still open
 **Date:** 2026-09-29
 **Trigger:** v0.2.0 Ubuntu release verification — `specs/notes/2026-08-17-v0.2.0.md`, Blocker 1.
 **Predecessor:** `specs/2026-08-17-rust-database-integrity-boundary-design.md` — the cutover that removed raw SQL from the frontend and left this page behind.
