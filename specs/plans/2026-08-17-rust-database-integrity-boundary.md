@@ -1186,7 +1186,7 @@ Install the prior 0.1.4 `.deb`, enter non-sensitive accounts, income, expense, t
 
 Expected: every case passes. Any skipped or failed GUI case leaves the result `partial` and blocks daily-use recommendation.
 
-- [ ] **Step 8: Record evidence and commit**
+- [x] **Step 8: Record evidence and commit**
 
 Record Ubuntu version, source/target app and schema, backup path, checksum, test counts, each GUI result, and non-sensitive evidence paths in both documents.
 
@@ -1201,10 +1201,11 @@ database. The binary under test is byte-identical to `artifacts/0.2.0/notchy_0.2
 (`sha256 a7e08a87…`). Migration, data preservation, transfer direction, reconcile-with-adjustment,
 and budget rollover passed; the result is `partial`.
 
-Steps 6–8 stay open:
+Steps 6 and 7 stay open; Step 8 closes with the `0.2.1` re-verification below:
 
 - **Step 6** — no `sudo apt install` ran in this session. The `0.2.0` package was already installed
-  on the workstation, so the approval this step gates was never requested or given.
+  on the workstation, so the approval this step gates was never requested or given. It was still
+  never given for `0.2.1`, where the `.deb` was extracted with `dpkg-deb -x` rather than installed.
 - **Step 7** — `partial`, per this step's own rule. Two defects were found against the shipped
   package: Settings → Backup & Data is non-functional under Tauri (the page reads `db.raw`, which
   only the browser client exposes, so the health card errors, "Create backup now" writes nothing,
@@ -1215,11 +1216,33 @@ Steps 6–8 stay open:
   sequence — install the prior `0.1.4` `.deb`, hand-enter a dataset, install `0.2.0` over it — was
   not replayed; schema-5 data came from a real native `0.1.4` backup, which exercises the same
   `schema 5 → 6` path but not the package-manager upgrade.
-- **Step 8** — evidence is recorded (Ubuntu 24.04.5 LTS x86_64, source `0.1.4`/schema 5, target
-  `0.2.0`/schema 6, checksum, test counts, and every GUI result) in
-  `specs/notes/2026-08-17-v0.2.0.md` and `specs/2026-07-27-desktop-release-smoke-checklist.md`, and
-  the evidence screenshots are under `artifacts/0.2.0/evidence/`. The step is left open because a
-  `partial` Step 7 blocks the completion gate.
+  **Partly re-verified 2026-10-01 on the `0.2.1` package** (below): manual backup, the
+  backup/restore round-trip, and the export commands now pass there, so the blocker-1 cases are
+  cleared. The step stays `partial` because its literal sequence was *still* not replayed (the run
+  used a fresh tree from an extracted `.deb`), the native file pickers are not WebDriver-drivable,
+  **Restart after injected failure** is still `fail` with its `1ecb590` fix unverified, and the
+  `Ctrl+Shift+N` chord and tray activation remain undrivable.
+- **Step 8** — **closed 2026-10-01.** The evidence the step asks for is recorded (Ubuntu
+  24.04.5 LTS x86_64, source `0.1.4`/schema 5, target `0.2.0`/schema 6, then the `0.2.1` package
+  re-verification, checksums, test counts, and every GUI result) in
+  `specs/notes/2026-08-17-v0.2.0.md` and `specs/2026-07-27-desktop-release-smoke-checklist.md`, with
+  screenshots under `artifacts/0.2.0/evidence/` and `artifacts/0.2.1/evidence/`. This box covers the
+  *recording*, which is done. It is not a claim that the completion gate below is met — that gate
+  still asks for every case recorded as passing, and Step 7 is `partial`.
+
+**Re-verification on the 0.2.1 package (2026-10-01).** `artifacts/0.2.1/notchy_0.2.1_amd64.deb`
+(10209318 bytes, `sha256 03303e6abc8d97a4b8366cf55835b60ee0456356e4657bb9e568171a0f4db5b4`,
+`sha256sum -c` → `OK` from the repo root) was extracted with `dpkg-deb -x` and its binary
+`usr/bin/notchy` launched by WebKitWebDriver (`TAURI_WEBVIEW_AUTOMATION=true`, `browserName: "wry"`)
+against an isolated `XDG_CONFIG_HOME`/`XDG_DATA_HOME` tree. Version `0.2.1` was cut rather than
+re-cutting `0.2.0`, whose artifact and checksum the `partial` record above still cites. Results:
+health card renders real values with no error text; **Manual backup** `fail → pass` (a real click on
+the page's own button published a backup that `discover_restore_points` reports `verified: true`);
+**Backup/restore round-trip** `blocked → pass` (probe expense created, then replaced by the restore);
+**Export SQLite / CSV** `fail → pass` on the command side; the pre-restore rollback snapshot exists
+and reads back as the pre-restore state; D3 holds (no `.tmp`/`-wal`/`-shm` companions). **Not** an
+`apt install`ed package, so nothing is proven about the install path, and the native file pickers
+were bypassed. Full detail and caveats: `specs/notes/2026-08-17-v0.2.0.md`.
 
 The `0.2.0` artifact was **not** re-cut; its checksum still describes the artifact above. Three
 fixes found while verifying it are committed on `fix/native-backup-upgrades-dir` (`1ecb590`),

@@ -1848,7 +1848,7 @@ Expected: all pass. `pnpm test:roadmap` must print this plan as in-progress with
 Run: `pnpm tauri dev`
 Then, in the app: open Settings → Backup & Data and confirm the card shows the app version, schema version, database path, and last-backup rows (no error text); press **Create backup now** and confirm a toast plus a new `notchy-backup-v6-*.sqlite` in the routine backup folder; note that **Open backup folder** opens the *upgrades* folder (`backups/upgrades`), not the routine one, so it will not show the file just created — check the routine backup folder on disk instead.
 
-- [ ] **Step 3: Prove it on an installed package**
+- [x] **Step 3: Prove it on an installed package**
 
 Follow `specs/plans/2026-08-17-rust-database-integrity-boundary.md` Task 15 Steps 6-7. The two GUI cases this unblocks are **Manual backup** (was `fail`) and **Backup/restore round-trip** (was `blocked`). Record the outcome honestly: a skipped or failed case leaves the result `partial`. If the package on the machine predates these commits, cut a new one first — the earlier session's evidence is tied to a specific checksum.
 
@@ -1856,11 +1856,13 @@ The package must be **0.2.1, not a re-cut 0.2.0**: `release:dogfood` copies to `
 
 Driving the cut package does not need `sudo`: `dpkg-deb -x artifacts/0.2.1/notchy_0.2.1_amd64.deb <dir>` and run `<dir>/usr/bin/notchy` under WebKitWebDriver. Record plainly that this is the packaged binary, not an `apt install`ed system package.
 
-- [ ] **Step 4: Record the evidence and close the boxes**
+- [x] **Step 4: Record the evidence and close the boxes**
 
 Append the re-verification to `specs/notes/2026-08-17-v0.2.0.md` (package version, checksum, the two case results, and any case still not drivable via WebKitWebDriver). Update the two rows in `specs/2026-07-27-desktop-release-smoke-checklist.md`. Then flip Task 15's steps 6-8 to `[x]` in the boundary plan **and** this plan's boxes, and refresh the generated roadmap with `pnpm test:roadmap`.
 
 Step 6 (the `sudo apt install` approval) and Step 7's literal package-manager upgrade sequence may still be out of reach in a given session; if so, say so in the note and leave those boxes open rather than claiming a pass that did not happen.
+
+Outcome 2026-10-01: the `0.2.1` package was driven from a `dpkg-deb -x` extraction, so Task 15 **Step 8** is flipped and **Steps 6 and 7 are left open** — no `sudo apt install` ever ran, and Step 7's literal sequence was not replayed. The two GUI cases this task unblocks both pass on that package.
 
 - [x] **Step 5: Commit**
 
