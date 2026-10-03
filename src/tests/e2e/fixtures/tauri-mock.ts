@@ -487,11 +487,11 @@ window.__TAURI_INTERNALS__ = {
 		// After the cutover, the app uses NativeDatabaseClient which calls
 		// domain commands instead of plugin:sql|*. Translate them to SQL queries.
 		if (cmd === 'database_initialize' || cmd === 'database_retry' || cmd === 'database_status') {
-			// LATEST aligns to the JS registry (LATEST_SCHEMA_VERSION = 5 in
+			// LATEST aligns to the JS registry (LATEST_SCHEMA_VERSION = 6 in
 			// src/lib/db/migrations/index.ts): restoreCompatibleDatabase validates
-			// max 5, and the E2E fixtures/assertions are schema-5-based. Rust runs
-			// its own migration 006; the mock simulates the JS-visible contract.
-			const LATEST = 5;
+			// max 6, and the E2E fixtures/assertions are schema-6-based. Rust runs
+			// its own migration 007; the mock simulates the JS-visible contract.
+			const LATEST = 6;
 			const UPGRADE_DIR = APP_DATA_DIR + '/backups/upgrades';
 			const BACKUP_DIR = APP_DATA_DIR + '/backups';
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
@@ -524,7 +524,7 @@ window.__TAURI_INTERNALS__ = {
 				};
 			}
 
-			if (currentVersion < 5) {
+			if (currentVersion < LATEST) {
 				// Mirrors Rust: a verified pre-upgrade backup is written BEFORE any
 				// migration, so a failed migration still leaves a restorable snapshot.
 				if (!faults.failUpgradeBackup) {
@@ -580,7 +580,9 @@ window.__TAURI_INTERNALS__ = {
 				}
 				// Migration 005 (mirrors src/lib/db/migrations/005-*.ts: goals table).
 				db.run('CREATE TABLE IF NOT EXISTS goals (id TEXT PRIMARY KEY, name TEXT NOT NULL, goal_type TEXT NOT NULL, target_amount INTEGER NOT NULL, target_date TEXT NOT NULL, linked_account_id TEXT, starting_amount INTEGER DEFAULT 0, current_amount INTEGER DEFAULT 0, show_on_dashboard INTEGER DEFAULT 1, status TEXT DEFAULT active, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT)');
-				db.run("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', '5')");
+				// Migration 006 (mirrors src/lib/db/migrations/006-*.ts: schedules table).
+				db.run("CREATE TABLE IF NOT EXISTS schedules (id TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL, amount INTEGER NOT NULL, account_id TEXT NOT NULL, transfer_account_id TEXT, tag_id TEXT, payee TEXT, description TEXT, frequency TEXT NOT NULL, start_date TEXT NOT NULL, end_date TEXT, posts_transaction INTEGER NOT NULL DEFAULT 1, next_due_date TEXT, last_posted_date TEXT, completed INTEGER NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, errored_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT)");
+				db.run("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', '6')");
 			}
 
 			// Auto-backup simulation. runAutoBackup (src/lib/backup/index.ts) is no

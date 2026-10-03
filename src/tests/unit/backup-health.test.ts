@@ -23,7 +23,7 @@ describe('getBackupHealth', () => {
 	it('reports a fresh database with all-null backup fields', async () => {
 		expect(await getBackupHealth(metaOf(db), OPTS)).toEqual({
 			appVersion: '0.1.4',
-			schemaVersion: 5,
+			schemaVersion: 6,
 			databasePath: '/data/notchy.db',
 			lastRoutineBackupAt: null,
 			lastUpgradeBackupPath: null,
@@ -33,6 +33,8 @@ describe('getBackupHealth', () => {
 	});
 
 	it('surfaces each seeded metadata key without reading financial tables', async () => {
+		// The seeded value is deliberately the app's current schema (6): this test
+		// proves the port value is surfaced verbatim, not that the DB was migrated.
 		await db.execute(`INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', '6')`);
 		await db.execute(`INSERT OR REPLACE INTO app_meta (key, value) VALUES ('last_backup_at', '2026-08-01T00:00:00.000Z')`);
 		const upgradePath = '/data/backups/upgrades/notchy-pre-upgrade-v4-to-v5-0.1.3-2026-08-01T00-00-00-000Z.sqlite';

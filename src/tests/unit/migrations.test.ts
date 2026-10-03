@@ -73,7 +73,7 @@ describe('released database fixtures', () => {
 				await fixtureDb.query<{ value: string }>(
 					`SELECT value FROM app_meta WHERE key = 'schema_version'`
 				)
-			).toEqual([{ value: '5' }]);
+			).toEqual([{ value: '6' }]);
 			expect(await fixtureDb.query<{ id: string }>(`SELECT id FROM accounts WHERE id = ?`, [accountId])).toEqual([
 				{ id: accountId }
 			]);
@@ -127,7 +127,7 @@ describe('released database fixtures', () => {
 
 describe('migration registry', () => {
 	it('derives the latest schema version from the registry', () => {
-		expect(LATEST_SCHEMA_VERSION).toBe(5);
+		expect(LATEST_SCHEMA_VERSION).toBe(6);
 	});
 });
 
@@ -151,7 +151,7 @@ describe('Migration 001 - schema', () => {
 		const indexes = await db.query<{ name: string }>(
 			`SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'`
 		);
-		expect(indexes.length).toBe(14);
+		expect(indexes.length).toBe(15);
 	});
 });
 
@@ -207,11 +207,11 @@ describe('Migration 003 - seed data', () => {
 		expect(rows[0].value).toHaveLength(26);
 	});
 
-	it('schema_version is 5', async () => {
+	it('schema_version is 6', async () => {
 		const rows = await db.query<{ value: string }>(
 			`SELECT value FROM app_meta WHERE key = 'schema_version'`
 		);
-		expect(rows[0].value).toBe('5');
+		expect(rows[0].value).toBe('6');
 	});
 });
 
@@ -249,7 +249,7 @@ describe('runMigrations — recovery from a half-applied state', () => {
 		// `db` is already fully migrated by beforeEach. Simulate the stuck state:
 		// roll schema_version back to 3 while keeping the rollover_enabled column.
 		// This is exactly the on-disk state that bricked boot with "duplicate
-		// column name". runMigrations must converge to schema_version=5 cleanly.
+		// column name". runMigrations must converge to schema_version=6 cleanly.
 		await db.execute(
 			`UPDATE app_meta SET value = '3' WHERE key = 'schema_version'`
 		);
@@ -257,7 +257,7 @@ describe('runMigrations — recovery from a half-applied state', () => {
 		const rows = await db.query<{ value: string }>(
 			`SELECT value FROM app_meta WHERE key = 'schema_version'`
 		);
-		expect(rows[0].value).toBe('5');
+		expect(rows[0].value).toBe('6');
 	});
 
 	it('reports each applied migration in order', async () => {
@@ -266,16 +266,16 @@ describe('runMigrations — recovery from a half-applied state', () => {
 
 		await runMigrations(fresh, migrations, (migration) => seen.push(migration.version));
 
-		expect(seen).toEqual([1, 2, 3, 4, 5]);
+		expect(seen).toEqual([1, 2, 3, 4, 5, 6]);
 	});
 
 	it('does not modify a database from a newer schema', async () => {
-		await db.execute(`UPDATE app_meta SET value = '6' WHERE key = 'schema_version'`);
+		await db.execute(`UPDATE app_meta SET value = '7' WHERE key = 'schema_version'`);
 
-		await expect(runMigrations(db, migrations)).rejects.toThrow('database_schema_newer:6:5');
+		await expect(runMigrations(db, migrations)).rejects.toThrow('database_schema_newer:7:6');
 		expect(
 			await db.query<{ value: string }>(`SELECT value FROM app_meta WHERE key = 'schema_version'`)
-		).toEqual([{ value: '6' }]);
+		).toEqual([{ value: '7' }]);
 	});
 });
 
@@ -338,5 +338,79 @@ describe('migration sequence idempotency (no "duplicate column name" on re-run)'
 			)
 		).toEqual([{ value: String(LATEST_SCHEMA_VERSION) }]);
 		await fileDb.close();
+	});
+});
+
+describe('migration 006 — schedules', () => {
+	it('creates the schedules table with the recurrence columns', async () => {
+		const columns = await db.query<{ name: string }>('PRAGMA table_info(schedules)');
+		const names = columns.map((column) => column.name).sort();
+		expect(names).toEqual(
+			[
+				'account_id',
+				'amount',
+				'completed',
+				'created_at',
+				'deleted_at',
+				'description',
+				'enabled',
+				'end_date',
+				'errored_at',
+				'frequency',
+				'id',
+				'kind',
+				'last_posted_date',
+				'name',
+				'next_due_date',
+				'payee',
+				'posts_transaction',
+				'start_date',
+				'tag_id',
+				'transfer_account_id',
+				'updated_at',
+			].sort()
+		);
+	});
+
+	it('rejects a recurrence the pure util cannot produce', async () => {
+		await db.execute(
+			`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+			 VALUES ('s1', 'Rent', 'expense', 100, 'acct', 'fortnightly', '2026-01-01', '2026-01-01', 'x', 'x')`
+		).then(
+			() => {
+				throw new Error('expected the CHECK constraint to reject an unknown frequency');
+			},
+			() => undefined
+		);
+	});
+
+	it('rejects a non-positive amount', async () => {
+		await db.execute(
+			`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+			 VALUES ('s2', 'Zero', 'expense', 0, 'acct', 'monthly', '2026-01-01', '2026-01-01', 'x', 'x')`
+		).then(
+			() => {
+				throw new Error('expected the CHECK constraint to reject a zero amount');
+			},
+			() => undefined
+		);
+	});
+
+	it('rejects a start date outside the range transactions.date allows', async () => {
+		await db.execute(
+			`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+			 VALUES ('s3', 'Ancient', 'expense', 100, 'acct', 'monthly', '1899-12-31', '1899-12-31', 'x', 'x')`
+		).then(
+			() => {
+				throw new Error('expected the CHECK constraint to reject an out-of-range start date');
+			},
+			() => undefined
+		);
+	});
+
+	it('is idempotent — re-running the registry is a no-op', async () => {
+		await runMigrations(db, migrations);
+		const columns = await db.query<{ name: string }>('PRAGMA table_info(schedules)');
+		expect(columns.length).toBe(21);
 	});
 });
