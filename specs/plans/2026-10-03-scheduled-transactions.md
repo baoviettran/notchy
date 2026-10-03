@@ -721,9 +721,20 @@ so it is a real database rather than a byte copy claiming a version:
 
 ```bash
 cp src-tauri/tests/fixtures/v007.sqlite src-tauri/tests/fixtures/v008.sqlite
-sqlite3 src-tauri/tests/fixtures/v008.sqlite \
-  "UPDATE app_meta SET value = '8' WHERE key = 'schema_version'"
+python3 - <<'PY'
+import sqlite3
+con = sqlite3.connect('src-tauri/tests/fixtures/v008.sqlite')
+con.execute("UPDATE app_meta SET value = '8' WHERE key = 'schema_version'")
+con.commit()
+print(con.execute("SELECT key, value FROM app_meta").fetchall())
+con.close()
+PY
 ```
+
+Use `python3`'s stdlib `sqlite3`, not the `sqlite3` CLI: the CLI is **not installed** on the
+development machine (checked 2026-10-03), so the shell form fails at the first command. Verify the
+fixture reads back `schema_version = '8'` and that `v007.sqlite` still reads `'7'` — they must
+differ, or the newer-than-latest fixture is not newer than anything.
 
 Confirm it reads back, and delete nothing: `v007.sqlite` stays in the fixtures directory as the
 v7-shaped database, even though its role as the newer-than-latest fixture moves to v008.
