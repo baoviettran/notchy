@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { nextDueDate, firstDueOnOrAfter } from '$lib/utils/schedule_next_due';
 
 describe('nextDueDate', () => {
@@ -38,8 +38,24 @@ describe('nextDueDate', () => {
 		expect(nextDueDate('2026-01-15', 'yearly', 2)).toBe('2028-01-15');
 	});
 
-	it('is pure — the same input always yields the same output', () => {
-		expect(nextDueDate('2026-01-31', 'monthly')).toBe(nextDueDate('2026-01-31', 'monthly'));
+	it('is pure — the output does not depend on the system clock', () => {
+		vi.useFakeTimers();
+		try {
+			vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+			const first = nextDueDate('2026-01-31', 'monthly');
+			vi.setSystemTime(new Date('2030-07-15T12:34:56Z'));
+			const second = nextDueDate('2026-01-31', 'monthly');
+			expect(second).toBe(first);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('throws on a malformed or impossible from', () => {
+		expect(() => nextDueDate('nope', 'weekly')).toThrow();
+		expect(() => nextDueDate('2026-1-1', 'weekly')).toThrow();
+		expect(() => nextDueDate('2026-13-45', 'monthly')).toThrow();
+		expect(() => nextDueDate('2026-02-30', 'monthly')).toThrow();
 	});
 });
 
@@ -62,5 +78,17 @@ describe('firstDueOnOrAfter', () => {
 	it('gives up rather than looping forever on an unreachable date', () => {
 		// 1000 weekly steps is ~19 years; past that the caller keeps the stored date.
 		expect(firstDueOnOrAfter('1970-01-01', 'weekly', '2100-01-01')).toBeNull();
+	});
+
+	it('rejects a malformed or impossible from the same way nextDueDate does', () => {
+		expect(() => firstDueOnOrAfter('nope', 'weekly', '2026-01-01')).toThrow();
+		expect(() => firstDueOnOrAfter('2026-1-1', 'weekly', '2026-01-01')).toThrow();
+		expect(() => firstDueOnOrAfter('2026-13-45', 'monthly', '2026-01-01')).toThrow();
+		expect(() => firstDueOnOrAfter('2026-02-30', 'monthly', '2026-01-01')).toThrow();
+	});
+
+	it('rejects a malformed or impossible today', () => {
+		expect(() => firstDueOnOrAfter('2026-01-01', 'weekly', 'nope')).toThrow();
+		expect(() => firstDueOnOrAfter('2026-01-01', 'weekly', '2026-13-45')).toThrow();
 	});
 });

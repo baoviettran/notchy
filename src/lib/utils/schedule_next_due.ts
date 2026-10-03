@@ -19,7 +19,13 @@ const ISO_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 function parseIso(iso: string): CivilDate {
 	const match = ISO_PATTERN.exec(iso);
 	if (!match) throw new Error(`not an ISO date: ${iso}`);
-	return { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
+	const year = Number(match[1]);
+	const month = Number(match[2]);
+	const day = Number(match[3]);
+	if (month < 1 || month > 12 || day < 1 || day > daysInMonth(year, month)) {
+		throw new Error(`not an ISO date: ${iso}`);
+	}
+	return { year, month, day };
 }
 
 function formatIso({ year, month, day }: CivilDate): string {
@@ -111,6 +117,11 @@ export function firstDueOnOrAfter(
 	frequency: ScheduleFrequency,
 	today: string
 ): string | null {
+	// Validate both dates up front: a bad anchor must fail the same way
+	// nextDueDate fails it, not slip through the `candidate >= today`
+	// short-circuit and be returned as-is.
+	parseIso(from);
+	parseIso(today);
 	let candidate = from;
 	for (let step = 0; step < REANCHOR_MAX_STEPS; step += 1) {
 		if (candidate >= today) return candidate;
