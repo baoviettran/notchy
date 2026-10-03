@@ -269,7 +269,7 @@ export function firstDueOnOrAfter(
 - [ ] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm test src/tests/unit/schedules/schedule-next-due.test.ts`
-Expected: PASS — all 8 cases.
+Expected: PASS — all 12 cases (8 under `nextDueDate`, 4 under `firstDueOnOrAfter`).
 
 - [ ] **Step 5: Commit**
 
@@ -1004,7 +1004,6 @@ Two local helpers the bodies above call — define them once at the top of the f
 - `update_of(conn: &Connection, id: &str, enabled: i64, next_due_date: Option<String>) -> ScheduleUpdate` — reads the stored row and projects it into a `ScheduleUpdate` with the full field set `ScheduleUpdate` requires, overriding only `enabled` and `next_due_date`. This mirrors the store's `toUpdateFields` (Task 10) and is why the "full replacement, not a patch" choice in Task 4 needs no `Patch<T>` triples.
 
 And `fixture_conn_with_account()`: do **not** invent a harness. Open `src-tauri/tests/domain_accounts_transactions.rs` and copy the exact setup its tests use to get a migrated in-memory connection plus an inserted account, then expose it as this file's `fixture_conn_with_account()`. If that file uses a shared `mod common`, use the same one.
-```
 
 Fill each body with the concrete arrangement its title names — one inserted row per exclusion reason is the point of the `list_due` test, and the assertions must name which row survived and why.
 
