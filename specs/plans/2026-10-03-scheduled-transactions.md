@@ -366,6 +366,18 @@ describe('migration 006 — schedules', () => {
 		);
 	});
 
+	it('rejects a start date outside the range transactions.date allows', async () => {
+		await db.execute(
+			`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+			 VALUES ('s3', 'Ancient', 'expense', 100, 'acct', 'monthly', '1899-12-31', '1899-12-31', 'x', 'x')`
+		).then(
+			() => {
+				throw new Error('expected the CHECK constraint to reject an out-of-range start date');
+			},
+			() => undefined
+		);
+	});
+
 	it('is idempotent — re-running the registry is a no-op', async () => {
 		await runMigrations(db, migrations);
 		const columns = await db.query<{ name: string }>('PRAGMA table_info(schedules)');
@@ -515,8 +527,29 @@ Rust keeps its own registry and its own manifest of expected tables per version;
 **Files:**
 - Modify: `src-tauri/src/database/migrations.rs` (add `migration_007`, append to `MIGRATIONS`, `LATEST_SCHEMA_VERSION = 7`, fix the "migrations 1-6" doc comments at :1 and :165)
 - Modify: `src-tauri/src/database/manifest.rs` (add `TABLES_V7` and the `manifest_for` arm)
-- Modify: `src-tauri/tests/migrations.rs` (`assert_eq!(LATEST_SCHEMA_VERSION, 6)` at :476 → `7`; header comment at :2)
+- Modify: `src-tauri/tests/migrations.rs` (the version-literal sweep below; header comment at :2)
+- Modify: `src-tauri/tests/crash_recovery.rs:224` (`assert_eq!(version, "6")` → `"7"`)
+- Modify: `src-tauri/tests/startup.rs:218` (`assert_eq!(meta, "6")` → `"7"`)
+- Create: `src-tauri/tests/fixtures/v008.sqlite` (copy of `v007.sqlite` with `app_meta.schema_version` set to `8`)
 - Test: `src-tauri/tests/migrations.rs` (extend)
+
+**The version-literal sweep.** Bumping `LATEST_SCHEMA_VERSION` to 7 breaks every Rust test that
+hard-codes a schema number. Do not assume these follow the constant — grep first, then sweep. Two
+classes, both verified by grep at plan review:
+
+*Class (a) — "this is the current schema" (6 → 7):* `migrations.rs:183` (and rename
+`supported_v4_migrates_to_v6_atomically` → `..._to_v7_atomically`), `:211`, `:228` (**both** the
+`for version in 1..=6` loop bound → `1..=7` and the `assert_eq!(schema_version(&db), 6)` plus its
+"published DB is schema 6" comment), `:265`, `:476`; `crash_recovery.rs:224`; `startup.rs:218`.
+
+*Class (b) — "this is newer than the app" (7 → 8):* `v007.sqlite` is the committed
+newer-than-latest fixture, so once 7 is current it is `Current`, not `Newer`, and both of its call
+sites break — `migrations.rs:190` (the loop asserting every listed fixture `is_rejected()`) and
+`:332` (`Newer { version: 7 }`). Create `v008.sqlite` and re-point both. No manifest is needed:
+`inspect_schema` (`manifest.rs:566`) classifies by integer comparison *before* any manifest lookup,
+so a fixture only has to carry `app_meta` and one user table claiming the version — which is the
+same shape `v007.sqlite` must have, there being no fixture generator in the repo. `copy_fixture`
+panics on a missing file, so a bad fixture is a red gate rather than a silent pass.
 
 **Interfaces:**
 - Consumes: `Migration { version, name, up: fn(&Transaction<'_>) -> DbResult<()> }`, the `failpoint_step` atomicity helper, `sql(...)` error mapping, and the `TABLES_V6` / `manifest_for` pattern in `manifest.rs`.
@@ -564,7 +597,27 @@ fn migration_seven_rejects_an_unknown_frequency() {
     );
     assert!(result.is_err(), "the frequency CHECK must be authoritative on the native path too");
 }
+
+#[test]
+fn migration_seven_rejects_an_out_of_range_start_date() {
+    let (_root, db) = migrated_fresh();
+    let result = db.execute(
+        "INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+         VALUES ('s1', 'Rent', 'expense', 100, 'acct', 'monthly', '1899-12-31', '1899-12-31', 'x', 'x')",
+        [],
+    );
+    assert!(result.is_err(), "the date bound must match transactions.date and the JS side");
+}
 ```
+
+Both rejection tests insert `account_id 'acct'`, which no row satisfies. If the connection the test
+helper hands back has `PRAGMA foreign_keys = ON` (production does — `connection.rs:80`; a bare
+`rusqlite::Connection` does not), these inserts fail on the foreign key and the CHECK under test is
+never reached — the assertion passes for the wrong reason. Insert a real account row first (or
+assert on the error text) so each failure is attributable to the constraint the test names. Pin
+`start_date` to the same `BETWEEN` bound the JS migration uses; `transactions.date` already carries
+that exact check on both sides (`migrations.rs:302`, `001_initial.ts:58`), and these two tables are
+the only pair in the feature that must not drift.
 
 Rename the existing `assert_eq!(LATEST_SCHEMA_VERSION, 6)` assertion into the new test above rather than leaving two tests that assert the same constant. `migrated_fresh()` is a stand-in for whatever this file already uses to produce a fully-migrated connection — reuse the existing helper and name it in the same style as its neighbours.
 
@@ -573,7 +626,7 @@ Rename the existing `assert_eq!(LATEST_SCHEMA_VERSION, 6)` assertion into the ne
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test migrations`
 Expected: FAIL — `no such table: schedules`, and `assertion failed: 6 == 7`.
 
-- [ ] **Step 3: Write the migration and the manifest entry**
+- [ ] **Step 3: Write the migration, the manifest entry, and the version-literal sweep**
 
 In `src-tauri/src/database/migrations.rs`: change `pub const LATEST_SCHEMA_VERSION: i64 = 6;` to `7`, append to `MIGRATIONS`, update the two "migrations 1-6" doc comments, and add the up-function mirroring the JS DDL (Rust is the authority for the native path; the two must not drift):
 
@@ -591,7 +644,7 @@ fn migration_007(transaction: &Transaction<'_>) -> DbResult<()> {
             payee               TEXT CHECK (payee IS NULL OR length(payee) <= 128),
             description         TEXT CHECK (description IS NULL OR length(description) <= 1024),
             frequency           TEXT NOT NULL CHECK (frequency IN ('weekly', 'biweekly', 'monthly', 'yearly')),
-            start_date          TEXT NOT NULL CHECK (length(start_date) = 10),
+            start_date          TEXT NOT NULL CHECK (start_date BETWEEN '1970-01-01' AND '2100-12-31'),
             end_date            TEXT CHECK (end_date IS NULL OR end_date >= start_date),
             posts_transaction   INTEGER NOT NULL DEFAULT 1 CHECK (posts_transaction IN (0, 1)),
             next_due_date       TEXT,
@@ -626,17 +679,38 @@ In `src-tauri/src/database/manifest.rs`, copy the `TABLES_V6` table-manifest ent
 
 matching the shape of the existing `6 => Some(&SCHEMA_V6)` arm. The `schedules` entry must list every column the migration creates, in the manifest's own column-descriptor shape — `validate_manifest` is what proves it.
 
+Declare the CHECK constraints too, not just the columns: `validate_manifest` compares them against the live schema, so the `start_date` range bound has to appear here exactly as migration 007 writes it. A manifest that lists the column but omits its check is the drift this step exists to prevent — and it is also the reason to keep the migration's bound and the manifest's bound in one edit rather than two.
+
+Then apply the version-literal sweep from the Files block — every class (a) site to `7`, and the
+`v007.sqlite` → `v008.sqlite` re-point with its new fixture. Build the fixture with SQLite itself,
+so it is a real database rather than a byte copy claiming a version:
+
+```bash
+cp src-tauri/tests/fixtures/v007.sqlite src-tauri/tests/fixtures/v008.sqlite
+sqlite3 src-tauri/tests/fixtures/v008.sqlite \
+  "UPDATE app_meta SET value = '8' WHERE key = 'schema_version'"
+```
+
+Confirm it reads back, and delete nothing: `v007.sqlite` stays in the fixtures directory as the
+v7-shaped database, even though its role as the newer-than-latest fixture moves to v008.
+
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml`
-Expected: PASS — the new migration tests, the v7 manifest, and the pre-existing migration/startup/crash-recovery suites (which use `LATEST_SCHEMA_VERSION` symbolically and so follow the bump).
+Expected: PASS — the new migration tests, the v7 manifest, and the pre-existing migration/startup/crash-recovery suites **once the version-literal sweep above is applied**. Those suites do *not* all follow the constant: several hard-code `6`, and two use `v007.sqlite` as the newer-than-latest fixture. Run this before the sweep and you will see exactly those failures — that is the sweep's own red step, and fixing them is part of this task, not a follow-up.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src-tauri/src/database/migrations.rs src-tauri/src/database/manifest.rs src-tauri/tests/migrations.rs
+git add src-tauri/src/database/migrations.rs src-tauri/src/database/manifest.rs \
+  src-tauri/tests/migrations.rs src-tauri/tests/crash_recovery.rs src-tauri/tests/startup.rs \
+  src-tauri/tests/fixtures/v008.sqlite
 git commit -F - <<'EOF'
 feat: add the schedules table as native migration 007 with its manifest
+
+Also sweeps every Rust schema-version literal the bump invalidates: the
+"current schema" assertions move to 7, and the newer-than-latest fixture
+moves from v007.sqlite to a new v008.sqlite (v007 is current once 7 ships).
 
 Co-Authored-By: Claude Code <noreply@anthropic.com>
 EOF
