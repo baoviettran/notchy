@@ -19,7 +19,7 @@
 - **IDs are ULIDs** (`src/lib/utils/id.ts` in TS; `OperationId`/ULID helpers in Rust).
 - **Commit messages** use the house prefixes (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`) and **the heredoc form**, because a multi-line `-m` string makes `pnpm test:roadmap` mark the plan stale:
   ```bash
-  git commit -F - <<'EOF'
+  git commit -m "$(cat <<'EOF'
   feat: <subject>
 
   Co-Authored-By: Claude Code <noreply@anthropic.com>
@@ -275,11 +275,12 @@ Expected: PASS — all 12 cases (8 under `nextDueDate`, 4 under `firstDueOnOrAft
 
 ```bash
 git add src/lib/utils/schedule_next_due.ts src/tests/unit/schedules/schedule-next-due.test.ts
-git commit -F - <<'EOF'
+git commit -m "$(cat <<'EOF'
 feat: add pure nextDueDate recurrence step for scheduled transactions
 
 Co-Authored-By: Claude Code <noreply@anthropic.com>
 EOF
+)"
 ```
 
 ---
@@ -543,11 +544,12 @@ Expected: PASS — including `schema-version-drift.test.ts`, whose two assertion
 
 ```bash
 git add src/lib/db/browser/migrations/006_schedules.ts src/lib/db/migrations/006_schedules.ts src/lib/db/browser/migrations/index.ts src/tests/unit/migrations.test.ts src/tests/unit/startup.test.ts src/tests/unit/upgrade-backup.test.ts src/tests/unit/schema.test.ts src/tests/unit/recovery.test.ts src/tests/unit/backup-health.test.ts src/tests/e2e/fixtures/tauri-mock.ts src/tests/e2e/backup-restore.spec.ts src/tests/e2e/startup-recovery.spec.ts
-git commit -F - <<'EOF'
+git commit -m "$(cat <<'EOF'
 feat: add the schedules table as JS schema 006 and sweep schema-version call sites
 
 Co-Authored-By: Claude Code <noreply@anthropic.com>
 EOF
+)"
 ```
 
 ---
@@ -737,7 +739,7 @@ Expected: PASS — the new migration tests, the v7 manifest, and the pre-existin
 git add src-tauri/src/database/migrations.rs src-tauri/src/database/manifest.rs \
   src-tauri/tests/migrations.rs src-tauri/tests/crash_recovery.rs src-tauri/tests/startup.rs \
   src-tauri/tests/fixtures/v008.sqlite
-git commit -F - <<'EOF'
+git commit -m "$(cat <<'EOF'
 feat: add the schedules table as native migration 007 with its manifest
 
 Also sweeps every Rust schema-version literal the bump invalidates: the
@@ -746,6 +748,7 @@ moves from v007.sqlite to a new v008.sqlite (v007 is current once 7 ships).
 
 Co-Authored-By: Claude Code <noreply@anthropic.com>
 EOF
+)"
 ```
 
 ---
@@ -1092,11 +1095,12 @@ Expected: PASS, and `cargo clippy --manifest-path src-tauri/Cargo.toml -- -D war
 
 ```bash
 git add src-tauri/src/database/types.rs src-tauri/src/database/domains/schedules.rs src-tauri/src/database/domains/mod.rs src-tauri/tests/domain_schedules.rs
-git commit -F - <<'EOF'
+git commit -m "$(cat <<'EOF'
 feat: add the native schedules domain with idempotent CRUD and posting marks
 
 Co-Authored-By: Claude Code <noreply@anthropic.com>
 EOF
+)"
 ```
 
 ---
@@ -1276,11 +1280,12 @@ Expected: PASS — bindings contain the five types, and the committed file match
 
 ```bash
 git add src-tauri/src/database/commands.rs src-tauri/src/lib.rs src-tauri/tests/contracts.rs src-tauri/tests/command_guards.rs src/lib/native/contracts.generated.ts
-git commit -F - <<'EOF'
+git commit -m "$(cat <<'EOF'
 feat: expose schedule commands and regenerate the native contracts
 
 Co-Authored-By: Claude Code <noreply@anthropic.com>
 EOF
+)"
 ```
 
 ---
@@ -1434,11 +1439,12 @@ Expected: PASS — every `invoke()` site resolves to a registered command, and t
 
 ```bash
 git add src/lib/db/client.ts src/lib/db/native/schedules.ts src/lib/db/native/client.ts src/tests/unit/native-boundary.test.ts
-git commit -F - <<'EOF'
+git commit -m "$(cat <<'EOF'
 feat: add ScheduleOps to the domain port with the native adapter
 
 Co-Authored-By: Claude Code <noreply@anthropic.com>
 EOF
+)"
 ```
 
 ---
@@ -1651,11 +1657,12 @@ Expected: PASS.
 
 ```bash
 git add src/lib/db/browser/repos/schedules.ts src/lib/db/browser/schedules.ts src/lib/db/repos/schedules.ts src/lib/db/browser/client.ts src/tests/unit/repos/schedules.test.ts
-git commit -F - <<'EOF'
+git commit -m "$(cat <<'EOF'
 feat: add the browser schedules repo and adapter for ScheduleOps
 
 Co-Authored-By: Claude Code <noreply@anthropic.com>
 EOF
+)"
 ```
 
 ---
@@ -2135,7 +2142,7 @@ Expected: PASS — all cases, including the cap, the deleted account, and the re
 
 ```bash
 git add src/lib/logic/post-due-schedules.ts src/tests/unit/schedules/post-due-schedules.test.ts
-git commit -F - <<'EOF'
+git commit -m "$(cat <<'EOF'
 feat: add the scheduled-transaction posting engine with catch-up and parking
 
 The spec expects a deleted account to trip a foreign key. It does not:
@@ -2146,6 +2153,7 @@ instead; the FK path stays as the backstop for a genuinely absent row.
 
 Co-Authored-By: Claude Code <noreply@anthropic.com>
 EOF
+)"
 ```
 
 ---
@@ -2297,11 +2305,12 @@ Expected: PASS — the pure date test, the emit-helper cases, and no E2E regress
 
 ```bash
 git add src/routes/+layout.svelte src/lib/utils/date.ts src/lib/stores/quick-refresh.ts messages/en.json messages/vi.json src/tests/unit/schedules/today-iso.test.ts src/tests/unit/quick-refresh.test.ts
-git commit -F - <<'EOF'
+git commit -m "$(cat <<'EOF'
 feat: post due scheduled transactions at boot and refresh the open windows
 
 Co-Authored-By: Claude Code <noreply@anthropic.com>
 EOF
+)"
 ```
 
 **Note (not a step):** `dbStore.db!` is non-null only because the effect's `ready` gate guarantees it. If `$effect` ever runs with `stage === 'ready'` before `db` is assigned, prefer `dbStore.db` in a guard — read `db.svelte.ts` and match how other consumers of the store access it rather than assuming.
@@ -2515,11 +2524,12 @@ Expected: PASS; `pnpm check` clean (Svelte 5 runes, no `$:`).
 
 ```bash
 git add src/lib/stores/schedules.svelte.ts src/routes/schedules/+page.svelte src/lib/components/forms/ScheduleForm.svelte src/lib/nav-items.ts messages/en.json messages/vi.json src/tests/unit/components/ScheduleForm.test.ts src/tests/unit/stores/schedules.test.ts
-git commit -F - <<'EOF'
+git commit -m "$(cat <<'EOF'
 feat: add the schedules store, page, form, and navigation entry
 
 Co-Authored-By: Claude Code <noreply@anthropic.com>
 EOF
+)"
 ```
 
 If Task 9 was executed first and dropped its `schedules.load()` line, add it now — the boot pass should refresh this store the way it refreshes `transactions`.
@@ -2580,7 +2590,7 @@ Expected: PASS.
 
 ```bash
 git add src/lib/components src/routes/accounts messages/en.json messages/vi.json
-git commit -F - <<'EOF'
+git commit -m "$(cat <<'EOF'
 feat: warn when deleting an account that active schedules still post to
 
 Advisory rather than blocking, unlike the linked-goals check: the posting
@@ -2589,6 +2599,7 @@ who abandoned a schedule should not be stopped by it.
 
 Co-Authored-By: Claude Code <noreply@anthropic.com>
 EOF
+)"
 ```
 
 ---
@@ -2688,11 +2699,12 @@ Expected: PASS — the new spec plus the whole existing suite.
 
 ```bash
 git add src/tests/e2e/fixtures/tauri-mock.ts src/tests/e2e/schedules.spec.ts
-git commit -F - <<'EOF'
+git commit -m "$(cat <<'EOF'
 test: drive scheduled transactions end to end through the Tauri mock
 
 Co-Authored-By: Claude Code <noreply@anthropic.com>
 EOF
+)"
 ```
 
 ---
@@ -2744,11 +2756,12 @@ Expected: no `⚠ stale` warning, exit 0, and this plan's rows showing every tas
 
 ```bash
 git add product/stories/index.md specs/2026-07-06-scheduled-transactions-and-rollover-pool-design.md specs/STATUS.md
-git commit -F - <<'EOF'
+git commit -m "$(cat <<'EOF'
 docs: split STORY-009 and mark the scheduled-transactions plan complete
 
 Co-Authored-By: Claude Code <noreply@anthropic.com>
 EOF
+)"
 ```
 
 ---
