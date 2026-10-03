@@ -342,6 +342,19 @@ describe('migration sequence idempotency (no "duplicate column name" on re-run)'
 });
 
 describe('migration 006 — schedules', () => {
+	/** Insert a real account so a rejection can never be caused by a missing
+	 *  `account_id` FK/NOT NULL instead of the constraint under test (the app
+	 *  sets PRAGMA foreign_keys = ON; the harness does not today, but must not
+	 *  make these pass for the wrong reason if it ever does). */
+	async function insertAccount(id = 'acct_schedules'): Promise<string> {
+		await db.execute(
+			`INSERT INTO accounts (id, name, type, currency, created_at, updated_at)
+			 VALUES (?, 'Schedules test', 'checking', 'VND', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`,
+			[id]
+		);
+		return id;
+	}
+
 	it('creates the schedules table with the recurrence columns', async () => {
 		const columns = await db.query<{ name: string }>('PRAGMA table_info(schedules)');
 		const names = columns.map((column) => column.name).sort();
@@ -373,39 +386,71 @@ describe('migration 006 — schedules', () => {
 	});
 
 	it('rejects a recurrence the pure util cannot produce', async () => {
-		await db.execute(
-			`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
-			 VALUES ('s1', 'Rent', 'expense', 100, 'acct', 'fortnightly', '2026-01-01', '2026-01-01', 'x', 'x')`
-		).then(
-			() => {
-				throw new Error('expected the CHECK constraint to reject an unknown frequency');
-			},
-			() => undefined
-		);
+		const accountId = await insertAccount();
+		await expect(
+			db.execute(
+				`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+				 VALUES ('s1', 'Rent', 'expense', 100, ?, 'fortnightly', '2026-01-01', '2026-01-01', 'x', 'x')`,
+				[accountId]
+			)
+		).rejects.toThrow(/CHECK constraint failed: frequency IN/);
 	});
 
 	it('rejects a non-positive amount', async () => {
-		await db.execute(
-			`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
-			 VALUES ('s2', 'Zero', 'expense', 0, 'acct', 'monthly', '2026-01-01', '2026-01-01', 'x', 'x')`
-		).then(
-			() => {
-				throw new Error('expected the CHECK constraint to reject a zero amount');
-			},
-			() => undefined
-		);
+		const accountId = await insertAccount();
+		await expect(
+			db.execute(
+				`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+				 VALUES ('s2', 'Zero', 'expense', 0, ?, 'monthly', '2026-01-01', '2026-01-01', 'x', 'x')`,
+				[accountId]
+			)
+		).rejects.toThrow(/CHECK constraint failed: amount > 0/);
 	});
 
 	it('rejects a start date outside the range transactions.date allows', async () => {
-		await db.execute(
-			`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
-			 VALUES ('s3', 'Ancient', 'expense', 100, 'acct', 'monthly', '1899-12-31', '1899-12-31', 'x', 'x')`
-		).then(
-			() => {
-				throw new Error('expected the CHECK constraint to reject an out-of-range start date');
-			},
-			() => undefined
-		);
+		const accountId = await insertAccount();
+		await expect(
+			db.execute(
+				`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+				 VALUES ('s3', 'Ancient', 'expense', 100, ?, 'monthly', '1899-12-31', '1899-12-31', 'x', 'x')`,
+				[accountId]
+			)
+		).rejects.toThrow(/CHECK constraint failed: start_date BETWEEN/);
+	});
+
+	it('rejects a transfer with no destination account', async () => {
+		const accountId = await insertAccount();
+		await expect(
+			db.execute(
+				`INSERT INTO schedules (id, name, kind, amount, account_id, transfer_account_id, frequency, start_date, created_at, updated_at)
+				 VALUES ('s4', 'Move', 'transfer', 100, ?, NULL, 'monthly', '2026-01-01', 'x', 'x')`,
+				[accountId]
+			)
+		).rejects.toThrow(/CHECK constraint failed: kind <> 'transfer'/);
+	});
+
+	it('rejects a non-transfer carrying a destination account', async () => {
+		const accountId = await insertAccount();
+		const destinationId = await insertAccount('acct_schedules_dest');
+		await expect(
+			db.execute(
+				`INSERT INTO schedules (id, name, kind, amount, account_id, transfer_account_id, frequency, start_date, created_at, updated_at)
+				 VALUES ('s5', 'Move', 'expense', 100, ?, ?, 'monthly', '2026-01-01', 'x', 'x')`,
+				[accountId, destinationId]
+			)
+		).rejects.toThrow(/CHECK constraint failed: kind = 'transfer'/);
+	});
+
+	it('rejects a transfer carrying a category tag', async () => {
+		const accountId = await insertAccount();
+		const destinationId = await insertAccount('acct_schedules_dest');
+		await expect(
+			db.execute(
+				`INSERT INTO schedules (id, name, kind, amount, account_id, transfer_account_id, tag_id, frequency, start_date, created_at, updated_at)
+				 VALUES ('s6', 'Move', 'transfer', 100, ?, ?, ?, 'monthly', '2026-01-01', 'x', 'x')`,
+				[accountId, destinationId, 'tag_initial_balance']
+			)
+		).rejects.toThrow(/CHECK constraint failed: kind <> 'transfer'/);
 	});
 
 	it('is idempotent — re-running the registry is a no-op', async () => {
