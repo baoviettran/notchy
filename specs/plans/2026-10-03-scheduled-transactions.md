@@ -61,7 +61,7 @@ Pure date arithmetic, no DB, no wiring. Everything downstream depends on this be
   - `export function nextDueDate(from: string, frequency: ScheduleFrequency, interval = 1): string` — advances one recurrence step from an ISO `YYYY-MM-DD` date. Pure: `from` is passed in, there is no `Date.now()` inside. Throws on a malformed `from`.
   - `export function firstDueOnOrAfter(from: string, frequency: ScheduleFrequency, today: string): string | null` — the first occurrence on or after `today`, bounded to `REANCHOR_MAX_STEPS = 1000` steps (returns `null` if it cannot reach `today` in that many, which means "leave the stored date alone"). Task 10 uses it when re-enabling a disabled schedule, so re-enabling does not retroactively post the disabled period — see this plan's note under *Accepted risks*.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `src/tests/unit/schedules/schedule-next-due.test.ts`:
 
@@ -134,12 +134,12 @@ describe('firstDueOnOrAfter', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm test src/tests/unit/schedules/schedule-next-due.test.ts`
 Expected: FAIL — `Failed to resolve import "$lib/utils/schedule_next_due"`.
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 `src/lib/utils/schedule_next_due.ts`:
 
@@ -266,12 +266,12 @@ export function firstDueOnOrAfter(
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm test src/tests/unit/schedules/schedule-next-due.test.ts`
 Expected: PASS — all 12 cases (8 under `nextDueDate`, 4 under `firstDueOnOrAfter`).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/utils/schedule_next_due.ts src/tests/unit/schedules/schedule-next-due.test.ts
@@ -500,7 +500,39 @@ db.run("CREATE TABLE IF NOT EXISTS schedules (id TEXT PRIMARY KEY, name TEXT NOT
 
 `src/tests/e2e/startup-recovery.spec.ts` already uses `initialSchemaVersion: 7` (line 24) and stays correct; fix its stale header comment at line 10, which still says 6.
 
-After the edits, run the whole suite and fix any remaining red literal — the two tables above are what `grep` found at plan time, not a guarantee of completeness.
+Then **enumerate the call sites yourself — do not treat the two tables above as complete.** They are
+what `grep` found at plan time. Re-run the grep and reconcile, because a literal the tables miss does
+not necessarily go red:
+
+```bash
+grep -rn "LATEST = 5\|LATEST_SCHEMA_VERSION = 5\|schemaVersion: 5\|schemaVersion: '5'\|schema_version: '5'\|schema_version', '5'\|last_successful_schema_version: '5'\|exact: 5\|min: 5, max: 5\|currentVersion < 5" src/
+grep -rn "schema_version', '6'\|schema_version: '6'\|schemaVersion: '6'\|database_schema_newer\|'newer'" src/tests/
+```
+
+Classification is the actual work — a literal that looks like the others may not change:
+
+- **"the app's current schema"** → moves 5 → 6. Tests that assert what the app *reports* after
+  startup, and fixtures that build a DB at the app's latest, are this class.
+- **"a version I made up for this fixture"** → **stays.** `upgrade-backup.test.ts` passes an explicit
+  expected version to `validateDatabase` (e.g. `{ exact: 5 }` against a fixture DB built at 5); the
+  version there is a parameter under test, not the app's latest, so changing one without the other
+  breaks it. Do not churn these.
+- **"newer than the app's latest"** → moves 6 → 7, so it stays *above* the new latest; miss this and
+  a rejection test silently becomes an acceptance test.
+
+Two sites need a human read, and neither is caught by a test:
+
+- `tauri-mock.ts:490` carries the comment `// LATEST aligns to the JS registry (LATEST_SCHEMA_VERSION = 5 in …)`.
+  `schema-version-drift.test.ts` greps `const LATEST = (\d+)` and the `schema_version', 'N'` insert —
+  not this comment — so it goes stale in silence. Fix it.
+- `src/tests/unit/startup.test.ts:397` inserts `('schema_version', '5')`, and
+  `src/tests/unit/backup-health.test.ts:26` has `schemaVersion: 5`; the tables name neither. Read
+  each, place it in one of the three classes above, and say which in your report.
+
+In your report, give the classification you assigned to every site the grep returned — the reconciled
+list, not the tables.
+
+After the edits, run the whole suite and fix any remaining red literal.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
