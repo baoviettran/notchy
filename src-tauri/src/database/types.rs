@@ -864,3 +864,123 @@ fn is_valid_iso_date(value: &str) -> bool {
     };
     (1..=max_days).contains(&day)
 }
+
+// ---------------------------------------------------------------------------
+// Scheduled transactions
+// ---------------------------------------------------------------------------
+
+/// What a schedule posts when it comes due.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum ScheduleKind {
+    Expense,
+    Income,
+    Transfer,
+}
+
+impl ScheduleKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ScheduleKind::Expense => "expense",
+            ScheduleKind::Income => "income",
+            ScheduleKind::Transfer => "transfer",
+        }
+    }
+}
+
+/// How often a schedule comes due.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum ScheduleFrequency {
+    Weekly,
+    Biweekly,
+    Monthly,
+    Yearly,
+}
+
+impl ScheduleFrequency {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ScheduleFrequency::Weekly => "weekly",
+            ScheduleFrequency::Biweekly => "biweekly",
+            ScheduleFrequency::Monthly => "monthly",
+            ScheduleFrequency::Yearly => "yearly",
+        }
+    }
+}
+
+/// A persisted schedule row, as read back from the database.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct Schedule {
+    pub id: String,
+    pub name: String,
+    pub kind: ScheduleKind,
+    pub amount: i64,
+    pub account_id: String,
+    pub transfer_account_id: Option<String>,
+    pub tag_id: Option<String>,
+    pub payee: Option<String>,
+    pub description: Option<String>,
+    pub frequency: ScheduleFrequency,
+    pub start_date: String,
+    pub end_date: Option<String>,
+    pub posts_transaction: i64,
+    pub next_due_date: Option<String>,
+    pub last_posted_date: Option<String>,
+    pub completed: i64,
+    pub enabled: i64,
+    pub errored_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// The fields a caller supplies when creating a schedule.
+///
+/// `next_due_date` is absent by design: it is engine-owned and `create_schedule`
+/// initializes it to `start_date`.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct NewSchedule {
+    pub name: String,
+    pub kind: ScheduleKind,
+    pub amount: i64,
+    pub account_id: String,
+    pub transfer_account_id: Option<String>,
+    pub tag_id: Option<String>,
+    pub payee: Option<String>,
+    pub description: Option<String>,
+    pub frequency: ScheduleFrequency,
+    pub start_date: String,
+    pub end_date: Option<String>,
+    pub posts_transaction: i64,
+}
+
+/// A full replacement of every field the form can change. A patch type is
+/// deliberately avoided: with `Patch<T>`-style omitted/explicit-null triples, a
+/// form that submits the whole schedule would have to express "unchanged" for
+/// fields it is in fact setting. Everything here is present; `Option` fields
+/// mean "clear it" — **except** `next_due_date`, which is the one exception and
+/// says so on its own field.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ScheduleUpdate {
+    pub name: String,
+    pub kind: ScheduleKind,
+    pub amount: i64,
+    pub account_id: String,
+    pub transfer_account_id: Option<String>,
+    pub tag_id: Option<String>,
+    pub payee: Option<String>,
+    pub description: Option<String>,
+    pub frequency: ScheduleFrequency,
+    pub start_date: String,
+    pub end_date: Option<String>,
+    pub posts_transaction: i64,
+    pub enabled: i64,
+    /// `None` leaves the stored value untouched — the opposite of every other
+    /// optional field here, and deliberately so: this column is engine-owned, so
+    /// a form must not be able to blank it by omitting a field. Callers that
+    /// re-enable a disabled schedule pass `firstDueOnOrAfter(...)` so the
+    /// disabled period is not retroactively posted (Task 10); callers resuming a
+    /// parked schedule pass `None` so its backlog drains. `mark_schedule_posted`
+    /// is the only other writer of this column.
+    pub next_due_date: Option<String>,
+}

@@ -16,6 +16,7 @@ pub mod meta;
 pub mod reconciliations;
 pub mod reports;
 pub mod rules;
+pub mod schedules;
 pub mod transactions;
 
 pub use accounts::{create_account, delete_account, get_account, get_balance, list_accounts, update_account};
@@ -37,6 +38,10 @@ pub use meta::{
 };
 pub use rules::{
     create_rule, delete_rule, get_rule, list_all_rules, list_rules, update_rule, upsert_learned,
+};
+pub use schedules::{
+    create_schedule, delete_schedule, list_due_schedules, list_schedules, mark_schedule_errored,
+    mark_schedule_posted, update_schedule,
 };
 pub use transactions::{
     create_transaction, create_transactions_batch, delete_transaction, delete_transactions,
