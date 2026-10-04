@@ -227,7 +227,7 @@ impl DatabaseManager {
     /// The process lock is already held (acquired by `spawn` before any job
     /// runs), so read-only classification happens strictly after lock
     /// acquisition. Supported older schemas are backed up before the live
-    /// connection opens, migrated to schema 6, validated, stamped with safe
+    /// connection opens, migrated to schema 7, validated, stamped with safe
     /// startup metadata, and stored as the single live connection.
     fn perform_startup(&self, state: &mut ExecutorState) -> DbResult<()> {
         let paths = self.paths();

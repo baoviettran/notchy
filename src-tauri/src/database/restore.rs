@@ -18,7 +18,7 @@
 //! 9. `fsync` the destination directory.
 //! 10. Reopen with the exact live connection pragmas.
 //! 11. Migrate if the schema version is supported.
-//! 12. Validate the schema is the current version (6).
+//! 12. Validate the schema is the current version (7).
 //! 13. Enter `Ready` state.
 
 use std::cell::Cell;

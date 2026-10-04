@@ -77,7 +77,7 @@ async fn main_window_initialize_reaches_ready() {
 
 #[tokio::test]
 async fn main_window_retry_and_status_pass_guard() {
-    let manager = manager_for_fixture("v007.sqlite").await;
+    let manager = manager_for_fixture("v008.sqlite").await;
     let app = mock_app(Arc::clone(&manager));
 
     // Initialize is permitted from main and lands in RecoveryRequired.
@@ -124,7 +124,7 @@ async fn data_jobs_reject_when_not_ready() {
     let _ = release.send(());
 
     // RecoveryRequired: writes are rejected with recovery-required.
-    let manager = manager_for_fixture("v007.sqlite").await;
+    let manager = manager_for_fixture("v008.sqlite").await;
     let _ = manager.initialize().await;
     let error = write_as("main", &manager).await.unwrap_err();
     assert_eq!(error.code, ErrorCode::RecoveryRequired);
@@ -153,7 +153,7 @@ async fn data_jobs_run_once_ready() {
         })
         .await
         .unwrap();
-    assert_eq!(version, 6);
+    assert_eq!(version, 7);
 }
 
 // ---------------------------------------------------------------------------
