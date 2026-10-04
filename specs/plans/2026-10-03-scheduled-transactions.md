@@ -644,16 +644,52 @@ fn migration_seven_rejects_an_out_of_range_start_date() {
 }
 ```
 
-Both rejection tests insert `account_id 'acct'`, which no row satisfies. If the connection the test
-helper hands back has `PRAGMA foreign_keys = ON` (production does — `connection.rs:80`; a bare
-`rusqlite::Connection` does not), these inserts fail on the foreign key and the CHECK under test is
-never reached — the assertion passes for the wrong reason. Insert a real account row first (or
-assert on the error text) so each failure is attributable to the constraint the test names. Pin
+Both rejection tests insert `account_id 'acct'`, which no row satisfies. If the connection they use
+has `PRAGMA foreign_keys = ON` (production does — `connection.rs:80`; a bare `rusqlite::Connection`
+does not), these inserts fail on the foreign key and the CHECK under test is never reached — the
+assertion passes for the wrong reason. **Do both, not either:** insert a real account row first
+*and* assert on the error text, so each failure is attributable to the constraint the test names
+regardless of how the harness is configured. The read-only trap above is the bigger version of the
+same mistake and is not optional to fix. Pin
 `start_date` to the same `BETWEEN` bound the JS migration uses; `transactions.date` already carries
 that exact check on both sides (`migrations.rs:302`, `001_initial.ts:58`), and these two tables are
 the only pair in the feature that must not drift.
 
-Rename the existing `assert_eq!(LATEST_SCHEMA_VERSION, 6)` assertion into the new test above rather than leaving two tests that assert the same constant. `migrated_fresh()` is a stand-in for whatever this file already uses to produce a fully-migrated connection — reuse the existing helper and name it in the same style as its neighbours.
+Rename the existing `assert_eq!(LATEST_SCHEMA_VERSION, 6)` assertion into the new test above rather than leaving two tests that assert the same constant.
+
+**`migrated_fresh()` does not exist — this is the concrete idiom to use instead.** `src-tauri/tests/migrations.rs`
+has exactly one way to obtain a fully-migrated database, and it is already used by
+`fresh_bootstrap_creates_current_schema`:
+
+```rust
+let path = fresh_path("schedules-reject");
+bootstrap_current(&path, FailurePoint::None).unwrap();
+let db = open_ro(&path);          // <-- READ-ONLY. See the warning below.
+```
+
+Use the same first two lines, then open a **read-write** connection for the two rejection tests.
+
+> **The read-only trap — the one way these tests can pass without testing anything.**
+> `open_ro` (`migrations.rs:49`) opens with `SQLITE_OPEN_READ_ONLY`, and it is the idiom every
+> inspection test in this file uses — no test in `migrations.rs` currently calls `execute()` at all.
+> An `INSERT` through it fails with *"attempt to write a readonly database"* for **every** input, so
+> both rejection tests would pass **even if all three CHECK constraints were deleted**. A test that
+> cannot fail is worse than no test, because it reports green. Open read-write instead:
+>
+> ```rust
+> let db = Connection::open(&path).unwrap();   // read-write, like migrations.rs:169/304/484
+> ```
+>
+> Note also that a bare `rusqlite::Connection` has `foreign_keys` **off** by default, unlike production
+> (`connection.rs:80` turns it on, and no test in `src-tauri/tests/` sets it). So the foreign-key
+> wrong-reason does not currently fire — but that is a property of the test harness, not a guarantee.
+> Assert on the error text anyway, so the test pins the constraint it names under either pragma.
+
+> **Also cover the `kind`-versus-`transfer_account_id` CHECKs here.** The plan's stated rationale for
+> adding them is that a bad row must be "rejected at write time **on both adapters**" — but only the
+> JS adapter tests them, so the native adapter enforcing them is currently an untested claim. Add
+> the three rejection tests (transfer with no destination, expense with a destination, transfer with
+> a `tag_id`), in the same read-write + error-text-asserting shape.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
