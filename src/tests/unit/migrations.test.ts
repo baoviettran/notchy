@@ -355,6 +355,18 @@ describe('migration 006 — schedules', () => {
 		return id;
 	}
 
+	/** Read a row back so acceptance tests prove the write landed — "did not
+	 *  throw" would also be satisfied by a silent no-op. */
+	async function readSchedule(id: string) {
+		const rows = await db.query<Record<string, string | number | null>>(
+			`SELECT id, name, kind, amount, account_id, transfer_account_id, tag_id, frequency,
+			        start_date, next_due_date, posts_transaction, completed, enabled, errored_at
+			 FROM schedules WHERE id = ?`,
+			[id]
+		);
+		return rows[0];
+	}
+
 	it('creates the schedules table with the recurrence columns', async () => {
 		const columns = await db.query<{ name: string }>('PRAGMA table_info(schedules)');
 		const names = columns.map((column) => column.name).sort();
@@ -383,6 +395,51 @@ describe('migration 006 — schedules', () => {
 				'updated_at',
 			].sort()
 		);
+	});
+
+	it('accepts a well-formed expense row with no destination and no tag', async () => {
+		const accountId = await insertAccount();
+		await db.execute(
+			`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+			 VALUES ('ok_expense', 'Rent', 'expense', 250000, ?, 'monthly', '2026-01-01', '2026-02-01', 'x', 'x')`,
+			[accountId]
+		);
+
+		expect(await readSchedule('ok_expense')).toEqual({
+			id: 'ok_expense',
+			name: 'Rent',
+			kind: 'expense',
+			amount: 250000,
+			account_id: accountId,
+			transfer_account_id: null,
+			tag_id: null,
+			frequency: 'monthly',
+			start_date: '2026-01-01',
+			next_due_date: '2026-02-01',
+			posts_transaction: 1,
+			completed: 0,
+			enabled: 1,
+			errored_at: null
+		});
+	});
+
+	it('accepts a transfer row with a destination account and no tag', async () => {
+		const accountId = await insertAccount();
+		const destinationId = await insertAccount('acct_schedules_dest');
+		await db.execute(
+			`INSERT INTO schedules (id, name, kind, amount, account_id, transfer_account_id, frequency, start_date, next_due_date, created_at, updated_at)
+			 VALUES ('ok_transfer', 'Move', 'transfer', 75000, ?, ?, 'monthly', '2026-01-01', '2026-02-01', 'x', 'x')`,
+			[accountId, destinationId]
+		);
+
+		expect(await readSchedule('ok_transfer')).toMatchObject({
+			id: 'ok_transfer',
+			kind: 'transfer',
+			amount: 75000,
+			account_id: accountId,
+			transfer_account_id: destinationId,
+			tag_id: null
+		});
 	});
 
 	it('rejects a recurrence the pure util cannot produce', async () => {
@@ -451,6 +508,40 @@ describe('migration 006 — schedules', () => {
 				[accountId, destinationId, 'tag_initial_balance']
 			)
 		).rejects.toThrow(/CHECK constraint failed: kind <> 'transfer'/);
+	});
+
+	it('accepts the inclusive amount bounds (1 and 999999999999)', async () => {
+		const accountId = await insertAccount();
+		for (const [id, amount] of [
+			['ok_amount_min', 1],
+			['ok_amount_max', 999999999999]
+		] as const) {
+			await db.execute(
+				`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+				 VALUES (?, 'Bounded', 'expense', ?, ?, 'monthly', '2026-01-01', '2026-02-01', 'x', 'x')`,
+				[id, amount, accountId]
+			);
+		}
+
+		expect(await readSchedule('ok_amount_min')).toMatchObject({ id: 'ok_amount_min', amount: 1 });
+		expect(await readSchedule('ok_amount_max')).toMatchObject({ id: 'ok_amount_max', amount: 999999999999 });
+	});
+
+	it('accepts the inclusive name-length bounds (1 and 64)', async () => {
+		const accountId = await insertAccount();
+		for (const [id, name] of [
+			['ok_name_min', 'X'],
+			['ok_name_max', 'X'.repeat(64)]
+		] as const) {
+			await db.execute(
+				`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+				 VALUES (?, ?, 'expense', 100, ?, 'monthly', '2026-01-01', '2026-02-01', 'x', 'x')`,
+				[id, name, accountId]
+			);
+		}
+
+		expect((await readSchedule('ok_name_min'))?.name).toBe('X');
+		expect((await readSchedule('ok_name_max'))?.name).toBe('X'.repeat(64));
 	});
 
 	it('is idempotent — re-running the registry is a no-op', async () => {
