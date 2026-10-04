@@ -589,7 +589,7 @@ panics on a missing file, so a bad fixture is a red gate rather than a silent pa
 - Consumes: `Migration { version, name, up: fn(&Transaction<'_>) -> DbResult<()> }`, the `failpoint_step` atomicity helper, `sql(...)` error mapping, and the `TABLES_V6` / `manifest_for` pattern in `manifest.rs`.
 - Produces: Rust schema **7** with `schedules` present; `manifest_for(7)` returns a manifest whose table list includes `schedules`. Task 4's domain code is the only writer.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `src-tauri/tests/migrations.rs`, following its existing helper usage:
 
@@ -750,12 +750,12 @@ Use the same first two lines, then open a **read-write** connection for the two 
 > the three rejection tests (transfer with no destination, expense with a destination, transfer with
 > a `tag_id`), in the same read-write + error-text-asserting shape.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test migrations`
 Expected: FAIL — `no such table: schedules`, and `assertion failed: 6 == 7`.
 
-- [ ] **Step 3: Write the migration, the manifest entry, and the version-literal sweep**
+- [x] **Step 3: Write the migration, the manifest entry, and the version-literal sweep**
 
 In `src-tauri/src/database/migrations.rs`: change `pub const LATEST_SCHEMA_VERSION: i64 = 6;` to `7`, append to `MIGRATIONS`, update the two "migrations 1-6" doc comments, and add the up-function mirroring the JS DDL (Rust is the authority for the native path; the two must not drift):
 
@@ -834,12 +834,12 @@ differ, or the newer-than-latest fixture is not newer than anything.
 Confirm it reads back, and delete nothing: `v007.sqlite` stays in the fixtures directory as the
 v7-shaped database, even though its role as the newer-than-latest fixture moves to v008.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml`
 Expected: PASS — the new migration tests, the v7 manifest, and the pre-existing migration/startup/crash-recovery suites **once the version-literal sweep above is applied**. Those suites do *not* all follow the constant: several hard-code `6`, and two use `v007.sqlite` as the newer-than-latest fixture. Run this before the sweep and you will see exactly those failures — that is the sweep's own red step, and fixing them is part of this task, not a follow-up.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src-tauri/src/database/migrations.rs src-tauri/src/database/manifest.rs \
