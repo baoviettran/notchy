@@ -599,7 +599,7 @@ Append to `src-tauri/tests/migrations.rs`, following its existing helper usage:
 // ---------------------------------------------------------------------------
 #[test]
 fn migration_seven_creates_the_schedules_table() {
-    let (_root, db) = migrated_fresh();
+    let db = fresh_schema7_db();
     let columns: Vec<String> = db
         .prepare("PRAGMA table_info(schedules)")
         .unwrap()
@@ -617,32 +617,91 @@ fn the_v7_manifest_is_the_latest_one() {
     assert_eq!(LATEST_SCHEMA_VERSION, 7);
     assert_eq!(MIN_SUPPORTED_SCHEMA_VERSION, 3);
     // A database at 7 validates against the manifest for 7 — the startup gate.
-    let (_root, db) = migrated_fresh();
+    let db = fresh_schema7_db();
     validate_manifest(&db, LATEST_SCHEMA_VERSION).unwrap();
 }
 
 #[test]
 fn migration_seven_rejects_an_unknown_frequency() {
-    let (_root, db) = migrated_fresh();
-    let result = db.execute(
-        "INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
-         VALUES ('s1', 'Rent', 'expense', 100, 'acct', 'fortnightly', '2026-01-01', '2026-01-01', 'x', 'x')",
-        [],
+    let (mut db, account_id) = fresh_schema7_db_with_account();
+    let error = db
+        .execute(
+            "INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+             VALUES ('s1', 'Rent', 'expense', 100, ?1, 'fortnightly', '2026-01-01', '2026-01-01', 'x', 'x')",
+            [account_id],
+        )
+        .expect_err("the frequency CHECK must be authoritative on the native path too");
+    // Attribute the failure to the named constraint, not to "something rejected it".
+    let message = error.to_string();
+    assert!(
+        message.contains("CHECK constraint failed") && message.contains("frequency"),
+        "expected the frequency CHECK, got: {message}"
     );
-    assert!(result.is_err(), "the frequency CHECK must be authoritative on the native path too");
 }
 
 #[test]
 fn migration_seven_rejects_an_out_of_range_start_date() {
-    let (_root, db) = migrated_fresh();
-    let result = db.execute(
-        "INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
-         VALUES ('s1', 'Rent', 'expense', 100, 'acct', 'monthly', '1899-12-31', '1899-12-31', 'x', 'x')",
-        [],
+    let (mut db, account_id) = fresh_schema7_db_with_account();
+    let error = db
+        .execute(
+            "INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+             VALUES ('s1', 'Rent', 'expense', 100, ?1, 'monthly', '1899-12-31', '1899-12-31', 'x', 'x')",
+            [account_id],
+        )
+        .expect_err("the date bound must match transactions.date and the JS side");
+    let message = error.to_string();
+    assert!(
+        message.contains("CHECK constraint failed") && message.contains("start_date"),
+        "expected the start_date CHECK, got: {message}"
     );
-    assert!(result.is_err(), "the date bound must match transactions.date and the JS side");
+}
+
+#[test]
+fn migration_seven_accepts_a_well_formed_expense_and_transfer() {
+    // The other half of the contract: a row that satisfies every CHECK must be storable.
+    // Without this, an over-tightened CHECK passes every rejection test above.
+    let (mut db, account_id) = fresh_schema7_db_with_account();
+    let transfer_id = accounts::create_account(&mut db, op(), account_named("Dest")).unwrap();
+
+    for (id, kind, destination) in
+        [("ok-expense", "expense", None), ("ok-transfer", "transfer", Some(&transfer_id))]
+    {
+        db.execute(
+            "INSERT INTO schedules (id, name, kind, amount, account_id, transfer_account_id, frequency, start_date, next_due_date, created_at, updated_at)
+             VALUES (?1, 'Rent', ?2, 100, ?3, ?4, 'monthly', '2026-01-01', '2026-01-01', 'x', 'x')",
+            rusqlite::params![id, kind, account_id, destination],
+        )
+        .unwrap_or_else(|e| panic!("{kind} schedule {id} must be accepted, got: {e}"));
+    }
 }
 ```
+
+The two helpers the snippet calls — define them at the top of the file, copying the existing idiom from
+`src-tauri/tests/domain_accounts_transactions.rs` (which every domain test file already follows):
+
+```rust
+/// A freshly bootstrapped schema-7 database, read-only for inspection.
+fn fresh_schema7_db() -> Connection {
+    let path = fresh_path("schema7");
+    bootstrap_current(&path, FailurePoint::None).unwrap();
+    open_ro(&path)
+}
+
+/// A freshly bootstrapped schema-7 database, **read-write**, with one account row inserted.
+/// Read-write is mandatory: an INSERT through `open_ro` fails with "attempt to write a readonly
+/// database" for every input, so every rejection test above would pass with the CHECKs deleted.
+fn fresh_schema7_db_with_account() -> (Connection, String) {
+    let path = fresh_path("schema7-rw");
+    bootstrap_current(&path, FailurePoint::None).unwrap();
+    let mut conn =
+        Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_WRITE).unwrap();
+    let account_id = accounts::create_account(&mut conn, op(), account_named("Main")).unwrap();
+    (conn, account_id)
+}
+```
+
+Use the `open_ro` / `Connection::open_with_flags(…READ_WRITE)` pair exactly as in
+`domain_accounts_transactions.rs:34-38` — that file's `fresh_db` is the shape both of these follow.
 
 Both rejection tests insert `account_id 'acct'`, which no row satisfies. If the connection they use
 has `PRAGMA foreign_keys = ON` (production does — `connection.rs:80`; a bare `rusqlite::Connection`
@@ -1085,7 +1144,23 @@ Two local helpers the bodies above call — define them once at the top of the f
 - `schedule(name: &str, account_id: String) -> NewSchedule` — the monthly-expense baseline the tests vary.
 - `update_of(conn: &Connection, id: &str, enabled: i64, next_due_date: Option<String>) -> ScheduleUpdate` — reads the stored row and projects it into a `ScheduleUpdate` with the full field set `ScheduleUpdate` requires, overriding only `enabled` and `next_due_date`. This mirrors the store's `toUpdateFields` (Task 10) and is why the "full replacement, not a patch" choice in Task 4 needs no `Patch<T>` triples.
 
-And `fixture_conn_with_account()`: do **not** invent a harness. Open `src-tauri/tests/domain_accounts_transactions.rs` and copy the exact setup its tests use to get a migrated in-memory connection plus an inserted account, then expose it as this file's `fixture_conn_with_account()`. If that file uses a shared `mod common`, use the same one.
+And `fixture_conn_with_account()`: do **not** invent a harness. Copy the existing one from
+`src-tauri/tests/domain_accounts_transactions.rs`, which already has exactly the two pieces this
+file needs — its `fresh_db` (`:34-38`) and its `op()` (`:41-43`) / `default_account` (`:45`):
+
+```rust
+/// A migrated database opened **read-write**, with one account row already inserted.
+fn fixture_conn_with_account() -> (Connection, String) {
+    let mut db = fresh_db("schedules");          // domain_accounts_transactions.rs:34
+    let account_id = accounts::create_account(&mut db, op(), default_account("Main")).unwrap();
+    (db, account_id)
+}
+```
+
+Bring `fresh_db`, `op`, and `default_account` across verbatim rather than re-deriving them. Note
+`fresh_db` opens `SQLITE_OPEN_READ_WRITE` — every test in this task inserts rows, so a read-only
+connection would make all of them fail for a reason unrelated to what they assert. If that file uses
+a shared `mod common`, use the same one instead of copying.
 
 Fill each body with the concrete arrangement its title names — one inserted row per exclusion reason is the point of the `list_due` test, and the assertions must name which row survived and why.
 
