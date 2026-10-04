@@ -475,6 +475,28 @@ describe('migration 006 — schedules', () => {
 		).rejects.toThrow(/CHECK constraint failed: start_date BETWEEN/);
 	});
 
+	it('rejects a nameless schedule (the lower bound the spec DDL lacked)', async () => {
+		const accountId = await insertAccount();
+		await expect(
+			db.execute(
+				`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+				 VALUES ('s7', '', 'expense', 100, ?, 'monthly', '2026-01-01', '2026-01-01', 'x', 'x')`,
+				[accountId]
+			)
+		).rejects.toThrow(/CHECK constraint failed: length\(name\) BETWEEN 1 AND 64/);
+	});
+
+	it('rejects a name one character over the bound', async () => {
+		const accountId = await insertAccount();
+		await expect(
+			db.execute(
+				`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+				 VALUES ('s8', ?, 'expense', 100, ?, 'monthly', '2026-01-01', '2026-01-01', 'x', 'x')`,
+				['X'.repeat(65), accountId]
+			)
+		).rejects.toThrow(/CHECK constraint failed: length\(name\) BETWEEN 1 AND 64/);
+	});
+
 	it('rejects a transfer with no destination account', async () => {
 		const accountId = await insertAccount();
 		await expect(
