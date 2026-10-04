@@ -307,7 +307,7 @@ The `schedules` table, in the canonical JS registry, plus every literal that ass
 2. **`name` gets a lower bound** (`length(name) BETWEEN 1 AND 64` rather than `<= 64`), so a nameless schedule cannot exist. Every user-facing list is keyed by this string.
 3. **Both `kind`-versus-`transfer_account_id` directions are CHECKed**, where the spec has only the comment *"set iff kind='transfer'"*. A transfer schedule with no destination, or an expense carrying one, is a row the engine would fail on at post time — better rejected at write time on both adapters.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `src/tests/unit/migrations.test.ts` (it already has `db` + `migrations` in scope from its existing `beforeEach`; follow its existing imports):
 
@@ -389,12 +389,12 @@ describe('migration 006 — schedules', () => {
 
 Add `runMigrations` + `migrations` to that file's imports if they are not already there.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm test src/tests/unit/migrations.test.ts`
 Expected: FAIL — `no such table: schedules` (and the two CHECK cases fail with the same error, not a constraint rejection).
 
-- [ ] **Step 3: Write the migration, the forwarder, the registry entry, and the sweep**
+- [x] **Step 3: Write the migration, the forwarder, the registry entry, and the sweep**
 
 `src/lib/db/browser/migrations/006_schedules.ts`:
 
@@ -535,12 +535,12 @@ list, not the tables.
 
 After the edits, run the whole suite and fix any remaining red literal.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pnpm test && pnpm test:e2e`
 Expected: PASS — including `schema-version-drift.test.ts`, whose two assertions (mock `LATEST`, every `schema_version', 'N'` insert in the mock) now both require 6.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/db/browser/migrations/006_schedules.ts src/lib/db/migrations/006_schedules.ts src/lib/db/browser/migrations/index.ts src/tests/unit/migrations.test.ts src/tests/unit/startup.test.ts src/tests/unit/upgrade-backup.test.ts src/tests/unit/schema.test.ts src/tests/unit/recovery.test.ts src/tests/unit/backup-health.test.ts src/tests/e2e/fixtures/tauri-mock.ts src/tests/e2e/backup-restore.spec.ts src/tests/e2e/startup-recovery.spec.ts
