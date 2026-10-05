@@ -18,6 +18,7 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import { tour } from '$lib/stores/tour.svelte';
 	import { transactions } from '$lib/stores/transactions.svelte';
+	import { schedules } from '$lib/stores/schedules.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { attachTransactionSavedListener, emitTransactionsChanged } from '$lib/stores/quick-refresh';
 	import { postDueSchedulesOnce } from '$lib/logic/post-due-schedules';
@@ -94,8 +95,10 @@
 				if (summary.posted > 0) {
 					// Refresh before the toast: the user should not read "3 posted"
 					// over a dashboard that still shows yesterday's balance.
-					// (Task 10 refreshes the schedules store here too.)
 					await transactions.load();
+					// The boot pass advanced (or parked) schedules, so the /schedules
+					// page must reload too or it shows the pre-pass due dates.
+					await schedules.load();
 					await emitTransactionsChanged();
 					toast.show(m.schedules_toast_posted({ count: summary.posted }));
 				}

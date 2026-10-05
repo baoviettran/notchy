@@ -22,6 +22,7 @@ export const primaryNav: NavItem[] = [
 export const secondaryNav: NavItem[] = [
 	{ href: '/accounts', key: 'accounts', label: () => m.nav_accounts(), tourId: 'accounts' },
 	{ href: '/goals', key: 'goals', label: () => m.nav_goals() },
+	{ href: '/schedules', key: 'schedules', label: () => m.nav_schedules() },
 	{ href: '/debts', key: 'debts', label: () => m.nav_debts() },
 	{ href: '/settings', key: 'settings', label: () => m.nav_settings(), tourId: 'settings' }
 ];
@@ -34,6 +35,7 @@ export const icons: Record<string, string> = {
 	reports: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
 	accounts: 'M3 7h18v12H3zM3 11h18M7 15h4',
 	goals: 'M12 3a9 9 0 100 18 9 9 0 000-18zM12 7v5l3 2',
+	schedules: 'M8 3v3M16 3v3M4 8h16M6 5h12a2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2zM12 11v5M9 13l3 3 3-3',
 	debts: 'M3 12h13M11 7l5 5-5 5M19 4v16',
 	settings: 'M12 9a3 3 0 100 6 3 3 0 000-6zM12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2'
 };
