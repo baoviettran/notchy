@@ -292,6 +292,20 @@ fn generated_meta_key_union_covers_all_variants() {
 }
 
 #[test]
+fn bindings_declare_the_schedule_contracts() {
+    let generated = generate_bindings();
+    for expected in [
+        "export type ScheduleKind =",
+        "export type ScheduleFrequency =",
+        "export type Schedule = {",
+        "export type NewSchedule = {",
+        "export type ScheduleUpdate = {",
+    ] {
+        assert!(generated.contains(expected), "missing from bindings: {expected}");
+    }
+}
+
+#[test]
 fn native_backup_health_contracts_are_not_declared_without_a_command() {
     let bindings = generate_bindings();
 

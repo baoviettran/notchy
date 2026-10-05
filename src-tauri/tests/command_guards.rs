@@ -11,12 +11,15 @@ use tauri::Manager;
 
 use notchy_lib::database::commands::{
     backup_create, backup_export_csv, backup_export_sqlite, database_initialize, database_retry,
-    database_status,
+    database_status, schedule_create, schedule_delete, schedule_mark_errored, schedule_mark_posted,
+    schedule_update,
 };
 use notchy_lib::database::domains::get_meta;
 use notchy_lib::database::error::ErrorCode;
 use notchy_lib::database::executor::DatabaseManager;
-use notchy_lib::database::types::{LifecycleState, StartupStage};
+use notchy_lib::database::types::{
+    LifecycleState, NewSchedule, ScheduleFrequency, ScheduleKind, ScheduleUpdate, StartupStage,
+};
 
 mod common;
 use common::{
@@ -246,4 +249,88 @@ async fn backup_export_csv_writes_the_table_set() {
 
     assert_eq!(written.len(), 7);
     assert!(dir.join("accounts.csv").exists());
+}
+
+// ---------------------------------------------------------------------------
+// Schedule commands (Task 5)
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn schedule_writes_reject_when_not_ready() {
+    let manager = manager_fresh().await; // not initialized → not Ready
+    let app = mock_app(Arc::clone(&manager));
+    let state = app.app.state::<Arc<DatabaseManager>>();
+    let error = schedule_create(
+        state,
+        NewSchedule {
+            name: "Rent".into(),
+            kind: ScheduleKind::Expense,
+            amount: 100,
+            account_id: "acct".into(),
+            transfer_account_id: None,
+            tag_id: None,
+            payee: None,
+            description: None,
+            frequency: ScheduleFrequency::Monthly,
+            start_date: "2026-01-01".into(),
+            end_date: None,
+            posts_transaction: 1,
+        },
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(error.code, ErrorCode::DatabaseUpdateRequired);
+}
+
+/// Every mutating schedule command must pass through the same `data_job`
+/// lifecycle gate as the rest of the domain: an uninitialized boundary rejects
+/// each with `DatabaseUpdateRequired` before any SQL runs.
+#[tokio::test]
+async fn schedule_mutations_reject_when_not_ready() {
+    let manager = manager_fresh().await; // not initialized → not Ready
+    let app = mock_app(Arc::clone(&manager));
+
+    let update = ScheduleUpdate {
+        name: "Rent".into(),
+        kind: ScheduleKind::Expense,
+        amount: 100,
+        account_id: "acct".into(),
+        transfer_account_id: None,
+        tag_id: None,
+        payee: None,
+        description: None,
+        frequency: ScheduleFrequency::Monthly,
+        start_date: "2026-01-01".into(),
+        end_date: None,
+        posts_transaction: 1,
+        enabled: 1,
+        next_due_date: None,
+    };
+    let state = app.app.state::<Arc<DatabaseManager>>();
+    let error = schedule_update(state, "sched".into(), update)
+        .await
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::DatabaseUpdateRequired);
+
+    let state = app.app.state::<Arc<DatabaseManager>>();
+    let error = schedule_delete(state, "sched".into()).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::DatabaseUpdateRequired);
+
+    let state = app.app.state::<Arc<DatabaseManager>>();
+    let error = schedule_mark_posted(
+        state,
+        "sched".into(),
+        Some("2026-01-01".into()),
+        Some("2026-02-01".into()),
+        0,
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(error.code, ErrorCode::DatabaseUpdateRequired);
+
+    let state = app.app.state::<Arc<DatabaseManager>>();
+    let error = schedule_mark_errored(state, "sched".into())
+        .await
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::DatabaseUpdateRequired);
 }

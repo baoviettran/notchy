@@ -77,3 +77,18 @@ export type StackedTag = { tagId: string | null, name: string, total: number, };
 export type StackedCategoryPoint = { month: string, tags: Array<StackedTag>, };
 export type YearOverYearPoint = { month: string, yearAIncome: number, yearAExpense: number, yearBIncome: number, yearBExpense: number, };
 export type NetWorthPoint = { month: string, netWorth: number, };
+export type ScheduleKind = "expense" | "income" | "transfer";
+export type ScheduleFrequency = "weekly" | "biweekly" | "monthly" | "yearly";
+export type Schedule = { id: string, name: string, kind: ScheduleKind, amount: number, account_id: string, transfer_account_id: string | null, tag_id: string | null, payee: string | null, description: string | null, frequency: ScheduleFrequency, start_date: string, end_date: string | null, posts_transaction: number, next_due_date: string | null, last_posted_date: string | null, completed: number, enabled: number, errored_at: string | null, created_at: string, updated_at: string, };
+export type NewSchedule = { name: string, kind: ScheduleKind, amount: number, account_id: string, transfer_account_id: string | null, tag_id: string | null, payee: string | null, description: string | null, frequency: ScheduleFrequency, start_date: string, end_date: string | null, posts_transaction: number, };
+export type ScheduleUpdate = { name: string, kind: ScheduleKind, amount: number, account_id: string, transfer_account_id: string | null, tag_id: string | null, payee: string | null, description: string | null, frequency: ScheduleFrequency, start_date: string, end_date: string | null, posts_transaction: number, enabled: number, 
+/**
+ * `None` leaves the stored value untouched — the opposite of every other
+ * optional field here, and deliberately so: this column is engine-owned, so
+ * a form must not be able to blank it by omitting a field. Callers that
+ * re-enable a disabled schedule pass `firstDueOnOrAfter(...)` so the
+ * disabled period is not retroactively posted (Task 10); callers resuming a
+ * parked schedule pass `None` so its backlog drains. `mark_schedule_posted`
+ * is the only other writer of this column.
+ */
+next_due_date: string | null, };

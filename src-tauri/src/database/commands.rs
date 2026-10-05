@@ -979,6 +979,105 @@ pub async fn backup_export_csv(
 }
 
 // ===========================================================================
+// Schedule commands
+// ===========================================================================
+
+#[tauri::command]
+pub async fn schedule_list(
+    manager: State<'_, Arc<DatabaseManager>>,
+) -> Result<Vec<Schedule>, DbError> {
+    manager.data_job(|state| domains::schedules::list_schedules(state.connection()?)).await
+}
+
+#[tauri::command]
+pub async fn schedule_list_due(
+    manager: State<'_, Arc<DatabaseManager>>,
+    today: String,
+) -> Result<Vec<Schedule>, DbError> {
+    manager
+        .data_job(move |state| {
+            domains::schedules::list_due_schedules(state.connection()?, &today)
+        })
+        .await
+}
+
+#[tauri::command]
+pub async fn schedule_create(
+    manager: State<'_, Arc<DatabaseManager>>,
+    input: NewSchedule,
+) -> Result<String, DbError> {
+    let op_id = OperationId::generate();
+    manager
+        .data_job(move |state| {
+            domains::schedules::create_schedule(state.connection_mut()?, op_id, input)
+        })
+        .await
+}
+
+#[tauri::command]
+pub async fn schedule_update(
+    manager: State<'_, Arc<DatabaseManager>>,
+    id: String,
+    input: ScheduleUpdate,
+) -> Result<(), DbError> {
+    let op_id = OperationId::generate();
+    manager
+        .data_job(move |state| {
+            domains::schedules::update_schedule(state.connection_mut()?, op_id, &id, input)
+        })
+        .await
+}
+
+#[tauri::command]
+pub async fn schedule_delete(
+    manager: State<'_, Arc<DatabaseManager>>,
+    id: String,
+) -> Result<(), DbError> {
+    let op_id = OperationId::generate();
+    manager
+        .data_job(move |state| {
+            domains::schedules::delete_schedule(state.connection_mut()?, op_id, &id)
+        })
+        .await
+}
+
+#[tauri::command]
+pub async fn schedule_mark_posted(
+    manager: State<'_, Arc<DatabaseManager>>,
+    id: String,
+    last_posted_date: Option<String>,
+    next_due_date: Option<String>,
+    completed: i64,
+) -> Result<(), DbError> {
+    let op_id = OperationId::generate();
+    manager
+        .data_job(move |state| {
+            domains::schedules::mark_schedule_posted(
+                state.connection_mut()?,
+                op_id,
+                &id,
+                last_posted_date,
+                next_due_date,
+                completed,
+            )
+        })
+        .await
+}
+
+#[tauri::command]
+pub async fn schedule_mark_errored(
+    manager: State<'_, Arc<DatabaseManager>>,
+    id: String,
+) -> Result<(), DbError> {
+    let op_id = OperationId::generate();
+    manager
+        .data_job(move |state| {
+            domains::schedules::mark_schedule_errored(state.connection_mut()?, op_id, &id)
+        })
+        .await
+}
+
+// ===========================================================================
 // Binding generator
 // ===========================================================================
 
@@ -1053,6 +1152,12 @@ pub fn generate_bindings() -> String {
     push_decl(&mut out, StackedCategoryPoint::decl(&cfg));
     push_decl(&mut out, YearOverYearPoint::decl(&cfg));
     push_decl(&mut out, NetWorthPoint::decl(&cfg));
+
+    push_decl(&mut out, ScheduleKind::decl(&cfg));
+    push_decl(&mut out, ScheduleFrequency::decl(&cfg));
+    push_decl(&mut out, Schedule::decl(&cfg));
+    push_decl(&mut out, NewSchedule::decl(&cfg));
+    push_decl(&mut out, ScheduleUpdate::decl(&cfg));
 
     out
 }
