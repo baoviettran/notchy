@@ -1779,10 +1779,11 @@ Expected: FAIL — `Failed to resolve import "$lib/db/repos/schedules"`.
 `src/lib/db/browser/repos/schedules.ts`: a `row_to_schedule` mapper (snake_case columns straight through; the row shape already matches `Schedule`), a shared `mutableColumnsFrom(input)` helper, and:
 
 - `createSchedule(db, input)` — generates a ULID via `$lib/utils/id`, inserts with `next_due_date = start_date`, `last_posted_date = NULL`, `completed = 0`, `enabled = 1`, `errored_at = NULL`, `created_at = updated_at = now`. Returns the id. Wrap the insert in `db.transaction` so a future change cannot leave a half-row.
-- `listSchedules(db)` — `SELECT … WHERE deleted_at IS NULL ORDER BY next_due_date IS NULL, next_due_date, created_at`.
+- `listSchedules(db)` — `SELECT … WHERE deleted_at IS NULL ORDER BY created_at DESC, id DESC` — the Rust `list_schedules` order exactly (newest first).
 - `listDueSchedules(db, today)` — the filter from Task 4's `list_due_schedules`, same predicate, ordered by `next_due_date, id`.
-- `updateSchedule(db, id, input)` — the `CASE WHEN ? = 1 THEN NULL ELSE errored_at END` and `next_due_date = COALESCE(?, next_due_date)` tricks from Task 4; sets `updated_at`. Identical semantics on both adapters, so a schedule behaves the same whether the user is on the desktop build or the web build — the browser adapter is what E2E exercises.
-- `markSchedulePosted` / `markScheduleErrored` / `deleteSchedule` — single `UPDATE`s, `updated_at` refreshed.
+- `updateSchedule(db, id, input)` — the `CASE WHEN ? = 1 THEN NULL ELSE errored_at END` and `next_due_date = COALESCE(?, next_due_date)` tricks from Task 4; sets `updated_at`. Identical semantics on both adapters, so a schedule behaves the same whether the user is on the desktop build or the web build — the browser adapter is what E2E exercises. When no live row matches the id (`deleted_at IS NULL`), it must **reject** exactly as the Rust domain does: Rust `update_schedule` returns `ErrorCode::InvalidInput` on zero rows affected, so the browser path checks the `{ rowsAffected }` returned by `db.execute(...)` and throws `new AppError('invalid_input')` — rendering `errors_unknown`, identical to the native path.
+- `deleteSchedule(db, id)` — soft-delete `UPDATE`; like `updateSchedule`, an id matching no live row rejects with `new AppError('invalid_input')`, mirroring Rust `delete_schedule`'s zero-rows → `InvalidInput`.
+- `markSchedulePosted` / `markScheduleErrored` — single `UPDATE`s, `updated_at` refreshed. Both stay **no-ops** when the id matches no live row: the posting engine drives these marks, and a schedule deleted mid-pass must not fail the whole posting pass.
 
 `src/lib/db/browser/schedules.ts`:
 

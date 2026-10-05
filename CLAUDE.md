@@ -36,6 +36,10 @@
 - IDs are ULIDs (custom implementation in `src/lib/utils/id.ts`)
 - Supports `en` and `vi` locales
 - Transactions are a single-row model (transfers share a `transfer_pair_id`).
+- **Adapter parity.** A Rust domain query and its browser repo query must carry the **identical**
+  `ORDER BY` and predicate (e.g. `rules.rs:62` ↔ `rules.ts:53`). When they disagree, the Rust domain
+  is canonical. E2E runs against the browser adapter, so a divergence is invisible to the suite while
+  the desktop and web builds behave differently.
 
 ## Repo Layout — `docs/` submodule & specs/plans
 - `docs/` is a **git submodule** (`notchy-docs`), not part of the main repo. Anything written under `docs/` is invisible to the main repo's commits.
