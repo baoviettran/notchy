@@ -2356,7 +2356,7 @@ EOF
 
 **Why this task emits an event at all.** The spec's posting flow ends with *"After posting, emit `transaction:saved` so dashboard/ledger refresh."* Without it, a user opens the app, watches rent post (a toast fires) — and the dashboard behind the toast still shows the old balance, because each Tauri webview is a separate JS context with its own stores. The refresh is the difference between "it posted" and "I can see that it posted".
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `src/tests/unit/schedules/today-iso.test.ts`:
 
@@ -2399,12 +2399,12 @@ describe('emitTransactionsChanged', () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pnpm test src/tests/unit/schedules/today-iso.test.ts src/tests/unit/quick-refresh.test.ts`
 Expected: FAIL — `todayIso is not a function` and `emitTransactionsChanged is not a function`.
 
-- [ ] **Step 3: Add `todayIso`, the emit helper, the toast keys, and the boot call**
+- [x] **Step 3: Add `todayIso`, the emit helper, the toast keys, and the boot call**
 
 `src/lib/utils/date.ts`:
 
@@ -2479,12 +2479,12 @@ Add the imports: `postDueSchedulesOnce` (`$lib/logic/post-due-schedules`), `toda
 
 Every toast is conditional on a non-zero count, so a boot with nothing due is silent — that is what keeps the existing E2E suite's toast assertions meaningful.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pnpm test && pnpm check && pnpm test:e2e`
 Expected: PASS — the pure date test, the emit-helper cases, and no E2E regression from the extra boot work (a run with no schedules produces an empty summary, no toast, and no refresh).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/routes/+layout.svelte src/lib/utils/date.ts src/lib/stores/quick-refresh.ts messages/en.json messages/vi.json src/tests/unit/schedules/today-iso.test.ts src/tests/unit/quick-refresh.test.ts

@@ -105,6 +105,9 @@ Handles month-end clamping (Jan 31 → Feb 28) — the one real edge case. No li
 `postDueSchedules()` runs once at boot from `+layout.svelte`, **main window only** (single-writer discipline, per quick-add-contention memory):
 
 1. Query `schedules WHERE enabled=1 AND completed=0 AND deleted_at IS NULL AND next_due_date <= today`.
+
+   **Definition of `today`.** `today` is the **UTC calendar day** (`todayIso()` — `at.toISOString().slice(0, 10)`), matching the convention already used by `repos/accounts.ts`, `repos/debts.ts`, `repos/transactions.ts` and SQLite's own `date('now')`. This is deliberately a single, timezone-free rule rather than one that drifts with the machine's local zone, and the trade-off is accepted: a user east of UTC can see a schedule still due in the local evening before it posts, and a user far west can see one post before their local midnight. It is the rule to change if that trade-off is ever revisited.
+
 2. For each due schedule, loop while `next_due_date <= today`:
    - If `posts_transaction`: create a real transaction via existing `createTransaction` (date = `next_due_date`, amount/kind/account/tag/payee from the schedule). Mark `last_posted_date`.
    - Advance `next_due_date = nextDueDate(next_due_date, freq)`.
