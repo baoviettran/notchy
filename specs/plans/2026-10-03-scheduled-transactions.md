@@ -1877,7 +1877,7 @@ export async function postDueSchedules(db: AppDatabase, today: string): Promise<
 export async function postDueSchedulesOnce(db: AppDatabase, today: string): Promise<PostDueSummary>;
 ```
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 **Before writing them, read `deleteAccount` in `src/lib/db/browser/repos/accounts.ts` and `createTransaction` in `src/lib/db/browser/repos/transactions.ts`.** The spec assumes a deleted account makes `createTransaction` fail on a foreign key. That is not what this codebase does, and the difference decides how the engine must behave:
 
@@ -2151,12 +2151,12 @@ describe('postDueSchedulesOnce', () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pnpm test src/tests/unit/schedules/post-due-schedules.test.ts`
 Expected: FAIL — `Failed to resolve import "$lib/logic/post-due-schedules"`.
 
-- [ ] **Step 3: Implement the engine**
+- [x] **Step 3: Implement the engine**
 
 `src/lib/logic/post-due-schedules.ts`:
 
@@ -2245,12 +2245,24 @@ async function postOne(
 	return { posted, reminderDue, capped: false };
 }
 
+/** Active and unparked — the same predicate `listDue` applies, minus its date
+ *  bound. Used to rescue a row whose `next_due_date` is NULL (Review Focus 1). */
+function isActive(schedule: Schedule): boolean {
+	return schedule.enabled === 1 && schedule.completed === 0 && schedule.errored_at === null;
+}
+
 export async function postDueSchedules(db: AppDatabase, today: string): Promise<PostDueSummary> {
 	const summary: PostDueSummary = { due: 0, posted: 0, advanced: 0, notices: [], errors: [], capped: [] };
-	const [due, liveAccounts] = await Promise.all([
+	// `listDue` is the contract's due query, but it excludes a NULL `next_due_date`
+	// by design. A row whose date was never seeded would therefore never post — so
+	// fold in the active NULL-due rows from `list()` and let `postOne` re-anchor them
+	// to `start_date`. The two sets cannot overlap: `listDue` requires a non-NULL date.
+	const [dueList, all, liveAccounts] = await Promise.all([
 		db.schedules.listDue(today),
+		db.schedules.list(),
 		db.accounts.list(),
 	]);
+	const due = [...dueList, ...all.filter((s) => s.next_due_date === null && isActive(s))];
 	summary.due = due.length;
 	// One lookup per pass, not per occurrence: `accounts.list()` is a single query
 	// and the account set cannot change mid-pass (the pass is the only writer).
@@ -2304,12 +2316,12 @@ Three details the tests in Step 1 depend on, so do not "simplify" them away:
 
 `AppError` comes from `$lib/utils/errors` — use the constructor signature that file actually exports, and add `schedule_account_missing` to `RUST_ERROR_MESSAGES`/the error map only if that map is where browser-side codes live (read `src/lib/utils/errors.ts`; do not invent a registration site).
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pnpm test src/tests/unit/schedules/post-due-schedules.test.ts`
 Expected: PASS — all cases, including the cap, the deleted account, and the reminder-only notice.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/logic/post-due-schedules.ts src/tests/unit/schedules/post-due-schedules.test.ts

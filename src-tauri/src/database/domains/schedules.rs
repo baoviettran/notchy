@@ -82,7 +82,7 @@ fn row_to_schedule(row: &Row<'_>) -> rusqlite::Result<Schedule> {
 /// List every non-deleted schedule — active, completed, disabled and parked —
 /// newest first. The due-date query below is deliberately not this function
 /// with a `WHERE`: a schedule with a NULL `next_due_date` must stay visible to
-/// the user even though the engine cannot post it.
+/// the user even though the engine re-anchors it to `start_date` when posting.
 pub fn list_schedules(conn: &Connection) -> DbResult<Vec<Schedule>> {
     let sql = format!(
         "SELECT {SCHEDULE_COLUMNS} FROM schedules WHERE deleted_at IS NULL \
