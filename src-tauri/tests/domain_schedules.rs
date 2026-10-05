@@ -325,6 +325,51 @@ fn list_schedules_orders_newest_first() {
 }
 
 #[test]
+fn list_schedules_breaks_a_created_at_tie_by_id_desc() {
+    // `now_iso_utc()` has one-second resolution, so two schedules created in the
+    // same second genuinely tie on `created_at`. Without the `, id DESC`
+    // tiebreaker SQLite falls back to ascending rowid — oldest-first, not
+    // newest-first. Pin both ids explicitly so the assertion does not depend on
+    // ULID generation order, and give both rows the identical timestamp.
+    let (mut conn, account_id) = fixture_conn_with_account();
+    let first = create_schedule(
+        &mut conn,
+        OperationId::generate(),
+        schedule("Tie A", account_id.clone()),
+    )
+    .unwrap();
+    let second = create_schedule(
+        &mut conn,
+        OperationId::generate(),
+        schedule("Tie B", account_id),
+    )
+    .unwrap();
+    let lower_id = "01J8Z9Q0K5N6P7R8S9T0V1W2X3";
+    let higher_id = "01J8Z9Q0K5N6P7R8S9T0V1W2X4";
+    conn.execute(
+        "UPDATE schedules SET id = ?1, created_at = '2026-02-01T00:00:00Z' WHERE id = ?2",
+        rusqlite::params![lower_id, first],
+    )
+    .unwrap();
+    conn.execute(
+        "UPDATE schedules SET id = ?1, created_at = '2026-02-01T00:00:00Z' WHERE id = ?2",
+        rusqlite::params![higher_id, second],
+    )
+    .unwrap();
+
+    let ids: Vec<String> = list_schedules(&conn)
+        .unwrap()
+        .into_iter()
+        .map(|s| s.id)
+        .collect();
+    assert_eq!(
+        ids,
+        vec![higher_id.to_string(), lower_id.to_string()],
+        "a created_at tie must break by id DESC"
+    );
+}
+
+#[test]
 fn mark_posted_advances_the_dates_and_can_complete() {
     let (mut conn, account_id) = fixture_conn_with_account();
     let id = create_schedule(

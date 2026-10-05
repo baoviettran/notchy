@@ -69,6 +69,35 @@ describe('listSchedules', () => {
 		// must stay visible to the user even though the engine cannot post it.
 		expect(rows.some((s) => s.id === nullDue && s.next_due_date === null)).toBe(true);
 	});
+
+	it('breaks a created_at tie by id DESC', async () => {
+		// The clock has one-second resolution, so two schedules created in the same
+		// second genuinely tie on created_at. Without the `, id DESC` tiebreaker
+		// SQLite falls back to ascending rowid — oldest-first, not newest-first.
+		// Pin both ids explicitly so the assertion does not depend on ULID
+		// generation order, and give both rows the identical timestamp.
+		const lowerId = '01J8Z9Q0K5N6P7R8S9T0V1W2X3';
+		const higherId = '01J8Z9Q0K5N6P7R8S9T0V1W2X4';
+		const make = (name: string) =>
+			scheduleRepo.createSchedule(db, {
+				name, kind: 'expense', amount: 1, account_id: 'acct1',
+				frequency: 'monthly', start_date: '2026-01-01',
+			});
+		const first = await make('Tie A');
+		const second = await make('Tie B');
+		await db.execute(
+			`UPDATE schedules SET id = ?, created_at = '2026-02-01T00:00:00Z' WHERE id = ?`,
+			[lowerId, first]
+		);
+		await db.execute(
+			`UPDATE schedules SET id = ?, created_at = '2026-02-01T00:00:00Z' WHERE id = ?`,
+			[higherId, second]
+		);
+
+		const ids = (await scheduleRepo.listSchedules(db)).map((s) => s.id);
+
+		expect(ids).toEqual([higherId, lowerId]);
+	});
 });
 
 describe('listDueSchedules', () => {
