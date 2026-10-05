@@ -2516,7 +2516,7 @@ EOF
 
 **The store is not optional filler.** Every other domain in this app has one (`accounts`, `budgets`, `categories`, `debts`, `goals`, `rules`, `transactions` — all `.svelte.ts` under `src/lib/stores/`), and every route reads its domain through it. A page that reached into `dbStore.db.schedules` directly would be the only one in the codebase, and Task 9 has nothing to refresh after the boot pass without it. Model it on `goals.svelte.ts`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `src/tests/unit/stores/schedules.test.ts` — the two behaviours that are not thin delegation. Follow `src/lib/stores/reports.test.ts`'s pattern exactly (`vi.hoisted` op mocks, `vi.mock('$lib/db', …)`, `new SchedulesStore()`); that means the store must export its class, not only the singleton:
 
@@ -2657,12 +2657,12 @@ The third case is the one that matters: a partial-submit bug here silently rewri
 
 The exact prop names (`accounts`, `tags`, `onsubmit`) and the render/query helpers are yours to match against `src/tests/unit/components/ImportTransactionsModal.test.ts` — read it and follow its setup rather than trusting the shapes above. The behaviours asserted above are the requirement; the plumbing is that file's convention.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pnpm test src/tests/unit/stores/schedules.test.ts src/tests/unit/components/ScheduleForm.test.ts`
 Expected: FAIL — module not found for both.
 
-- [ ] **Step 3: Build the store, the page, the form, the nav entry, and the strings**
+- [x] **Step 3: Build the store, the page, the form, the nav entry, and the strings**
 
 `src/lib/stores/schedules.svelte.ts` — the `goals.svelte.ts` shape (`getDb()`, `$state` fields for `items`/`loading`/`error`, `mapError` + `toast` in the catch blocks, a module-level singleton export):
 
@@ -2698,12 +2698,12 @@ New keys in both message files: `nav_schedules`, `schedules_title`, `schedules_e
 
 Run `pnpm check` afterwards to regenerate Paraglide and confirm no dotted-ID or missing-key errors.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pnpm test && pnpm check`
 Expected: PASS; `pnpm check` clean (Svelte 5 runes, no `$:`).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/stores/schedules.svelte.ts src/routes/schedules/+page.svelte src/lib/components/forms/ScheduleForm.svelte src/lib/nav-items.ts messages/en.json messages/vi.json src/tests/unit/components/ScheduleForm.test.ts src/tests/unit/stores/schedules.test.ts
