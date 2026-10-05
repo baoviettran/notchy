@@ -5,6 +5,7 @@
 	import AccountForm from '$lib/components/forms/AccountForm.svelte';
 	import ConfirmDialog from '$lib/components/primitives/ConfirmDialog.svelte';
 	import { accounts } from '$lib/stores/accounts.svelte';
+	import { schedules } from '$lib/stores/schedules.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { getDb } from '$lib/db';
@@ -25,6 +26,12 @@
 	// can state the impact. Fetched when the menu's Delete is opened, not on
 	// every render. 0 means "no transactions" → the short body message is used.
 	let deleteTxCount = $state(0);
+	// Active schedules still pointing at the account pending deletion. Advisory:
+	// the posting engine parks an affected schedule (post-due-schedules.ts:59-61),
+	// so the delete stays recoverable. A completed or already-parked schedule is
+	// not a surprise and is excluded, or the warning would train people to click
+	// through it. Also fetched on open, beside deleteTxCount.
+	let deleteActiveScheduleCount = $state(0);
 
 	// Deleting is a rare, high-impact action: count the account's transactions
 	// before showing the confirm so the user knows what they're about to remove
@@ -34,6 +41,11 @@
 			const db = getDb();
 			const txs = await db.transactions.list({ account_id: a.id, limit: 100000 });
 			deleteTxCount = txs.length;
+			// The schedules singleton; this page does not otherwise load it.
+			await schedules.load();
+			deleteActiveScheduleCount = schedules.items.filter(
+				(s) => s.account_id === a.id && s.completed === 0 && s.errored_at === null
+			).length;
 			confirmDelete = a;
 		} catch (e) {
 			toast.show(mapError(e));
@@ -69,6 +81,7 @@
 		}
 		confirmDelete = null;
 		deleteTxCount = 0;
+		deleteActiveScheduleCount = 0;
 	}
 </script>
 
@@ -179,4 +192,12 @@
 	danger={true}
 	onconfirm={doDelete}
 	onclose={() => (confirmDelete = null)}
-/>
+>
+	{#if deleteActiveScheduleCount > 0}
+		<p class="text-sm text-debit">
+			{deleteActiveScheduleCount === 1
+				? m.accounts_delete_active_schedules_one()
+				: m.accounts_delete_active_schedules_many({ count: deleteActiveScheduleCount })}
+		</p>
+	{/if}
+</ConfirmDialog>

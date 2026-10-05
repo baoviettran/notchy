@@ -1,6 +1,64 @@
 import { test, expect } from './fixtures/onboarded';
 import { pickDate } from './helpers/datepicker';
 import { addTransaction } from './helpers/ui';
+import type { Page } from '@playwright/test';
+
+// The in-memory (sql.js) browser DB is reachable from the page through the
+// E2E test hook dbStore exposes when Tauri is absent (stores/db.svelte.ts:55-62).
+// Same accessor csv-import.spec.ts drives (its `hooks.getDb().raw.query`); the
+// scan of the real database in the delete dialog seeds rows the UI cannot
+// produce — a completed schedule has no UI path.
+async function accountIdByName(page: Page, name: string): Promise<string> {
+	return page.evaluate(async (accountName) => {
+		const hooks = (
+			window as unknown as {
+				__notchyTestHooks?: {
+					getDb: () => Promise<{ raw: { query: (sql: string, params?: unknown[]) => Promise<{ id: string }[]> } }>;
+				};
+			}
+		).__notchyTestHooks;
+		if (!hooks) throw new Error('Test hooks not available');
+		const db = await hooks.getDb();
+		const rows = await db.raw.query('SELECT id FROM accounts WHERE name = ? AND deleted_at IS NULL', [accountName]);
+		return rows[0].id;
+	}, name);
+}
+
+/** Insert a schedule row directly. `completed: 1` is unreachable through the UI,
+ *  so the raw insert is the only way to pin the "a finished schedule must not
+ *  inflate the warning" case. The far-future `next_due_date` keeps the boot
+ *  posting pass from touching the row. */
+async function seedSchedule(
+	page: Page,
+	accountId: string,
+	{ id, name, completed }: { id: string; name: string; completed: 0 | 1 }
+): Promise<void> {
+	await page.evaluate(
+		async ({ accountId: account, id: scheduleId, name: scheduleName, completed: completedFlag }) => {
+			const hooks = (
+				window as unknown as {
+					__notchyTestHooks?: {
+						getDb: () => Promise<{ raw: { execute: (sql: string, params?: unknown[]) => Promise<unknown> } }>;
+					};
+				}
+			).__notchyTestHooks;
+			if (!hooks) throw new Error('Test hooks not available');
+			const db = await hooks.getDb();
+			await db.raw.execute(
+				`INSERT INTO schedules
+					(id, name, kind, amount, account_id, transfer_account_id, tag_id, payee,
+					 description, frequency, start_date, end_date, posts_transaction,
+					 next_due_date, last_posted_date, completed, enabled, errored_at,
+					 created_at, updated_at)
+				 VALUES (?, ?, 'expense', 1000, ?, NULL, NULL, NULL, NULL, 'monthly',
+					 '2026-01-01', NULL, 1, '2099-01-01', NULL, ?, 1, NULL,
+					 '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`,
+				[scheduleId, scheduleName, account, completedFlag]
+			);
+		},
+		{ accountId, id, name, completed }
+	);
+}
 
 // Extended account coverage for the AUTO-tagged checklist items in §4.
 // Conventions match accounts.spec.ts / transactions.spec.ts: SPA navigation
@@ -164,6 +222,42 @@ test.describe('accounts — extended', () => {
 		// Undo restores the soft-deleted account (m.accounts_restored_toast).
 		await expect(page.getByText('Account restored.')).toBeVisible();
 		await expect(page.getByRole('main').getByText('Test Checking')).toBeVisible();
+	});
+
+	test('warns when the account still has active scheduled transactions', async ({ onboardedPage: page }) => {
+		// Two schedules on the account being deleted: one active, one completed.
+		// The confirm must mention only the ACTIVE count (one) — a completed
+		// schedule is not a surprise, and an inflated warning trains people to
+		// click through it. So this also pins that an always-on / count-drifted
+		// warning would be caught.
+		const accountId = await accountIdByName(page, 'Test Checking');
+		await seedSchedule(page, accountId, { id: '01ACTIVE', name: 'Active Rent', completed: 0 });
+		await seedSchedule(page, accountId, { id: '01DONE', name: 'Done Rent', completed: 1 });
+
+		await page.getByRole('link', { name: 'Accounts', exact: true }).click();
+		const checkingRow = page.getByRole('main').locator('.group', { hasText: 'Test Checking' });
+		await checkingRow.getByRole('button').last().click();
+		await page.getByRole('menuitem', { name: 'Delete' }).click();
+
+		// m.accounts_delete_active_schedules_one — the active schedule counts.
+		await expect(page.getByText(/1 active scheduled transaction/)).toBeVisible();
+		// The completed one is excluded, so the plural/two form must NOT render.
+		await expect(page.getByText(/2 active scheduled transactions/)).toHaveCount(0);
+	});
+
+	test('shows no warning for an account with only completed schedules', async ({ onboardedPage: page }) => {
+		// The zero case is the one that regresses silently: a warning that always
+		// shows is the same as no warning at all.
+		const accountId = await accountIdByName(page, 'Test Checking');
+		await seedSchedule(page, accountId, { id: '01DONE', name: 'Done Rent', completed: 1 });
+
+		await page.getByRole('link', { name: 'Accounts', exact: true }).click();
+		const checkingRow = page.getByRole('main').locator('.group', { hasText: 'Test Checking' });
+		await checkingRow.getByRole('button').last().click();
+		await page.getByRole('menuitem', { name: 'Delete' }).click();
+
+		await expect(page.getByText('Delete account?')).toBeVisible();
+		await expect(page.getByText(/active scheduled transaction/)).toHaveCount(0);
 	});
 
 	test('delete is blocked when the account is linked to an active goal', async ({ onboardedPage: page }) => {

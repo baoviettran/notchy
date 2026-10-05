@@ -18,6 +18,8 @@
   "accounts_assets": "Assets",
   "accounts_current_balance": "Current balance",
   "accounts_currently_shown": "Currently shown: {balance}",
+  "accounts_delete_active_schedules_many": "{count} active scheduled transactions use this account; they will be paused.",
+  "accounts_delete_active_schedules_one": "1 active scheduled transaction uses this account; it will be paused.",
   "accounts_delete_confirm_body": "This hides the account from active lists. You can undo immediately after.",
   "accounts_delete_confirm_body_many": "This account has {count} transactions. Deleting it removes its balance from your net worth. You can undo immediately after.",
   "accounts_delete_confirm_body_one": "This account has 1 transaction. Deleting it removes its balance from your net worth. You can undo immediately after.",
