@@ -1279,7 +1279,7 @@ EOF
 - Consumes: Task 4's domain functions; the `OperationId::generate()` + `manager.data_job(…)` pattern from `account_create`.
 - Produces the seven commands Task 6 bridges from TypeScript: `schedule_list`, `schedule_create(input)`, `schedule_update(id, input)`, `schedule_delete(id)`, `schedule_list_due(today)`, `schedule_mark_posted(id, last_posted_date, next_due_date, completed)`, `schedule_mark_errored(id)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `generate_bindings` is a hand-maintained list, so the failing test is the binding check itself. Add to `src-tauri/tests/contracts.rs` (which already asserts the generated string):
 
@@ -1316,18 +1316,18 @@ async fn schedule_writes_reject_when_not_ready() {
     )
     .await
     .unwrap_err();
-    assert_eq!(error.code, ErrorCode::DatabaseNotReady);
+    assert_eq!(error.code, ErrorCode::DatabaseUpdateRequired);
 }
 ```
 
 Use the exact `ErrorCode` variant name `command_guards.rs` already asserts elsewhere — read it rather than trusting this snippet's spelling.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml`
 Expected: FAIL — `cannot find function schedule_create`; the bindings test fails on the first missing type.
 
-- [ ] **Step 3: Write the commands, register them, regenerate**
+- [x] **Step 3: Write the commands, register them, regenerate**
 
 In `commands.rs`, following `account_create`'s shape:
 
@@ -1433,12 +1433,12 @@ pnpm generate:db-contracts
 pnpm check:db-contracts
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml && pnpm check:db-contracts`
 Expected: PASS — bindings contain the five types, and the committed file matches the generator.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src-tauri/src/database/commands.rs src-tauri/src/lib.rs src-tauri/tests/contracts.rs src-tauri/tests/command_guards.rs src/lib/native/contracts.generated.ts
