@@ -2729,7 +2729,7 @@ The spec flags this explicitly ("Deleting an account should warn about active sc
 - Test: extend the accounts list/delete component's existing test
 
 **Interfaces:**
-- Consumes: the `schedules` store's `items` (Task 10) — filter client-side for `completed === 0 && errored_at === null && account_id === id`, with no new op. The store is already loaded by the accounts page's sibling routes; if it is not, call `schedules.load()` when the dialog opens rather than adding a port method.
+- Consumes: the `schedules` store's `items` (Task 10) — filter client-side for `completed === 0 && errored_at === null && (account_id === id || transfer_account_id === id)`, with no new op. Both columns are matched because the engine parks a schedule when *either* of its accounts is gone (`accountsAreLive`, `post-due-schedules.ts:38-43`). The store is already loaded by the accounts page's sibling routes; if it is not, call `schedules.load()` when the dialog opens rather than adding a port method.
 - Produces: nothing downstream.
 
 **Read the existing delete path first, and match it.** `deleteAccount` already refuses to delete an account with active linked goals, and the confirmation dialog already renders that refusal. Two design questions follow, and the plan does not answer them for you:
@@ -2747,6 +2747,13 @@ Add to the accounts component test that already covers the delete confirmation, 
 		// Open the delete confirmation.
 		// It must mention the count of ACTIVE schedules and must not count the
 		// completed one — an inflated warning trains people to click through it.
+	});
+
+	it('warns when a transfer schedule targets the account being deleted', async () => {
+		// A transfer whose SOURCE is a different, live account but whose
+		// destination is the account being deleted. The engine parks it (either
+		// account being gone is enough), so the warning must count it — matching
+		// account_id alone would let it park unwarned.
 	});
 
 	it('shows no warning for an account with only completed schedules', async () => {

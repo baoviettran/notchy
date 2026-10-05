@@ -43,8 +43,15 @@
 			deleteTxCount = txs.length;
 			// The schedules singleton; this page does not otherwise load it.
 			await schedules.load();
+			// The posting engine parks a schedule when EITHER of its accounts is
+			// gone (accountsAreLive checks account_id and transfer_account_id,
+			// post-due-schedules.ts:38-43), so a transfer whose destination is
+			// this account counts too — match either column.
 			deleteActiveScheduleCount = schedules.items.filter(
-				(s) => s.account_id === a.id && s.completed === 0 && s.errored_at === null
+				(s) =>
+					(s.account_id === a.id || s.transfer_account_id === a.id) &&
+					s.completed === 0 &&
+					s.errored_at === null
 			).length;
 			confirmDelete = a;
 		} catch (e) {
