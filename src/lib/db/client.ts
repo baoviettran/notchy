@@ -74,9 +74,9 @@ export type {
 // ---------------------------------------------------------------------------
 // Schedule domain types.
 //
-// Defined here rather than re-exported from `browser/repos` because the browser
-// repo lands with the browser adapter (Task 7); the port shape is the contract
-// Tasks 7, 8 and 10 all code against.
+// Defined here as the port shape Tasks 8 and 10 code against. Task 6 kept them
+// here (rather than in `browser/repos`) because the browser repo landed with the
+// browser adapter in Task 7; it now imports them from this module.
 // ---------------------------------------------------------------------------
 
 export type ScheduleKind = 'expense' | 'income' | 'transfer';
@@ -275,4 +275,5 @@ export interface AppDatabase {
 	readonly reconciliations: ReconciliationOps;
 	readonly reports: ReportOps;
 	readonly backup: BackupOps;
+	readonly schedules: ScheduleOps;
 }
