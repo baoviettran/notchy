@@ -351,6 +351,76 @@ fn replaying_mark_posted_with_the_same_op_id_does_not_advance_twice() {
 }
 
 #[test]
+fn a_replayed_op_id_does_not_run_the_write_a_second_time() {
+    // The receipt path and a bypassed receipt path are indistinguishable by
+    // *values* here: `mark_schedule_posted`'s request is the whole DTO, so a
+    // re-run writes exactly the same dates back, and `now_iso_utc()` has
+    // one-second resolution, so even `updated_at` comes out identical within the
+    // same second. "The row still says 2026-02-28" therefore passes whether or
+    // not the receipt was honoured.
+    //
+    // Park a sentinel the request can never produce instead, then replay. Only a
+    // genuine receipt replay leaves it standing; a fresh op_id re-runs the
+    // closure and overwrites it.
+    let (mut conn, account_id) = fixture_conn_with_account();
+    let id = create_schedule(
+        &mut conn,
+        OperationId::generate(),
+        schedule("Rent", account_id),
+    )
+    .unwrap();
+
+    let op_id = OperationId::generate();
+    mark_schedule_posted(
+        &mut conn,
+        op_id.clone(),
+        &id,
+        Some("2026-01-31".into()),
+        Some("2026-02-28".into()),
+        0,
+    )
+    .unwrap();
+    // The first call really wrote — otherwise the sentinel below proves nothing.
+    assert_eq!(
+        row_of(&conn, &id).next_due_date.as_deref(),
+        Some("2026-02-28")
+    );
+
+    conn.execute(
+        "UPDATE schedules
+            SET next_due_date = '1999-12-31', last_posted_date = '1999-12-30',
+                completed = 1, updated_at = '1999-01-01T00:00:00Z'
+          WHERE id = ?1",
+        [&id],
+    )
+    .unwrap();
+
+    // Identical op_id, identical request: this must be served from the receipt.
+    mark_schedule_posted(
+        &mut conn,
+        op_id,
+        &id,
+        Some("2026-01-31".into()),
+        Some("2026-02-28".into()),
+        0,
+    )
+    .unwrap();
+
+    let row = row_of(&conn, &id);
+    assert_eq!(
+        row.next_due_date.as_deref(),
+        Some("1999-12-31"),
+        "a replayed op_id must not re-run the write"
+    );
+    assert_eq!(row.last_posted_date.as_deref(), Some("1999-12-30"));
+    assert_eq!(row.completed, 1);
+    assert_eq!(
+        row.updated_at, "1999-01-01T00:00:00Z",
+        "even the timestamp must be untouched by a replay"
+    );
+}
+
+#[test]
 fn a_different_op_id_marks_posted_again() {
     // Same schedule, new intent: the second mark really runs.
     let (mut conn, account_id) = fixture_conn_with_account();
