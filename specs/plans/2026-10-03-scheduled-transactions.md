@@ -961,7 +961,7 @@ pub struct ScheduleUpdate {
 }
 ```
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `src-tauri/tests/domain_schedules.rs`. Copy the connection/fixture scaffolding of `src-tauri/tests/domain_accounts_transactions.rs` (its `mod common;` usage and its `use common::{…}` line) rather than inventing a new harness:
 
@@ -1204,12 +1204,12 @@ a shared `mod common`, use the same one instead of copying.
 
 Fill each body with the concrete arrangement its title names — one inserted row per exclusion reason is the point of the `list_due` test, and the assertions must name which row survived and why.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml --test domain_schedules`
 Expected: FAIL — `unresolved import notchy_lib::database::domains::schedules`.
 
-- [ ] **Step 3: Implement the domain**
+- [x] **Step 3: Implement the domain**
 
 `src-tauri/src/database/domains/schedules.rs`. Follow `domains/accounts.rs` exactly: `row_to_schedule(&Row) -> DbResult<Schedule>` with the `kind`/`frequency` string→enum mapping in the `match` style accounts.rs uses for `AccountType`, read functions querying directly, and mutations wrapped in `run_idempotent` with an inner receipt struct:
 
@@ -1248,12 +1248,12 @@ pub use schedules::{
 };
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml`
 Expected: PASS, and `cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings` clean.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src-tauri/src/database/types.rs src-tauri/src/database/domains/schedules.rs src-tauri/src/database/domains/mod.rs src-tauri/tests/domain_schedules.rs
