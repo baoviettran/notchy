@@ -40,6 +40,12 @@ export function formatMonthShort(ym: string, locale: Locale): string {
 	}).format(new Date(Date.UTC(year, month - 1, 1)));
 }
 
+/** Today as `YYYY-MM-DD` in UTC. Takes its instant as an argument so callers
+ *  (and tests) own the clock; the posting engine never reads it itself. */
+export function todayIso(at: Date = new Date()): string {
+	return at.toISOString().slice(0, 10);
+}
+
 /**
  * Returns the local calendar date as a `YYYY-MM-DD` string. Date-only values
  * must be compared by local calendar day (not UTC) so a user viewing a

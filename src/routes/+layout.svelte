@@ -14,10 +14,14 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { dbStore } from '$lib/stores/db.svelte';
+	import { getDb } from '$lib/db';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { tour } from '$lib/stores/tour.svelte';
 	import { transactions } from '$lib/stores/transactions.svelte';
-	import { attachTransactionSavedListener } from '$lib/stores/quick-refresh';
+	import { toast } from '$lib/stores/toast.svelte';
+	import { attachTransactionSavedListener, emitTransactionsChanged } from '$lib/stores/quick-refresh';
+	import { postDueSchedulesOnce } from '$lib/logic/post-due-schedules';
+	import { todayIso } from '$lib/utils/date';
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
 	import TopBar from '$lib/components/layout/TopBar.svelte';
 	import BottomNav from '$lib/components/layout/BottomNav.svelte';
@@ -81,6 +85,28 @@
 				unlisten = await attachTransactionSavedListener(listen, async () => {
 					await transactions.load();
 				});
+
+				// Post anything that fell due while the app was closed. `getDb()` is
+				// initialized by the ready stage that gates this block; the quick-add
+				// early return above keeps the pass to the main window. Register the
+				// listener first so this window is already listening when we emit.
+				const summary = await postDueSchedulesOnce(getDb(), todayIso());
+				if (summary.posted > 0) {
+					// Refresh before the toast: the user should not read "3 posted"
+					// over a dashboard that still shows yesterday's balance.
+					// (Task 10 refreshes the schedules store here too.)
+					await transactions.load();
+					await emitTransactionsChanged();
+					toast.show(m.schedules_toast_posted({ count: summary.posted }));
+				}
+				if (summary.notices.length > 0) {
+					toast.show(m.schedules_toast_due({ count: summary.notices.length }));
+				}
+				if (summary.errors.length > 0 || summary.capped.length > 0) {
+					toast.show(
+						m.schedules_toast_errored({ count: summary.errors.length + summary.capped.length })
+					);
+				}
 			})();
 		}
 	});

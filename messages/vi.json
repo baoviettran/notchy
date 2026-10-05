@@ -582,5 +582,8 @@
   "empty_title_goals": "Đặt một mục tiêu",
   "empty_title_reports": "Chưa có dữ liệu để biểu đồ",
   "empty_title_transactions": "Sổ cái trống",
-  "empty_title_debts": "Theo dõi khoản được nợ"
+  "empty_title_debts": "Theo dõi khoản được nợ",
+  "schedules_toast_posted": "Đã ghi {count} giao dịch định kỳ",
+  "schedules_toast_due": "{count} giao dịch định kỳ đến hạn",
+  "schedules_toast_errored": "Không thể ghi {count} giao dịch định kỳ"
 }

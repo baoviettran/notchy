@@ -582,5 +582,8 @@
   "empty_title_goals": "Set a goal",
   "empty_title_reports": "Nothing to chart yet",
   "empty_title_transactions": "Your ledger is empty",
-  "empty_title_debts": "Track what you're owed"
+  "empty_title_debts": "Track what you're owed",
+  "schedules_toast_posted": "{count} scheduled transactions posted",
+  "schedules_toast_due": "{count} scheduled transactions are due",
+  "schedules_toast_errored": "{count} scheduled transactions could not be posted"
 }
