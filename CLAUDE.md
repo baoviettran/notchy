@@ -25,9 +25,9 @@
 
 ## i18n Workflow (Paraglide JS)
 - **Source strings** live in `messages/en.json` and `messages/vi.json` — flat underscore keys (e.g. `forms_amount_placeholder`). **No dotted IDs** (Paraglide 1.11.8 rejects them).
-- Paraglide compiles to `src/lib/paraglide/messages/` — this is **gitignored/generated**; never hand-edit. It runs automatically as part of `dev`, `build`, and `check`.
+- Paraglide compiles to `src/lib/paraglide/messages/` — this is **gitignored/generated**; never hand-edit. It runs automatically as part of `dev` and `build` (`pnpm check` does **not** compile it).
 - Use in components: `import * as m from '$lib/paraglide/messages'; m.forms_amount_placeholder()`.
-- Adding a string: edit both `messages/en.json` and `messages/vi.json`, then run `pnpm check` (or `pnpm exec paraglide-js compile …`) to regenerate.
+- Adding a string: edit both `messages/en.json` and `messages/vi.json`, then run `pnpm exec paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide` to regenerate (`pnpm check` does **not** compile Paraglide).
 
 ## Conventions
 - Amounts are always integers (smallest currency unit). No floats.

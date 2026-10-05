@@ -26,7 +26,7 @@
   EOF
   ```
 - **Checkbox discipline:** when a task's commit lands, flip that task's steps to `[x]` in this file. A task counts as done only if its boxes are `[x]` **and** `git log` has the commit.
-- **i18n (Paraglide 1.11.8):** flat underscore keys, **no dotted IDs**; every new key goes into **both** `messages/en.json` and `messages/vi.json`; run `pnpm check` (or `pnpm exec paraglide-js compile …`) to regenerate `src/lib/paraglide/messages/`, which is generated and never hand-edited.
+- **i18n (Paraglide 1.11.8):** flat underscore keys, **no dotted IDs**; every new key goes into **both** `messages/en.json` and `messages/vi.json`; run `pnpm exec paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide` to regenerate `src/lib/paraglide/messages/`, which is generated and never hand-edited (`pnpm check` does **not** compile Paraglide).
 - **Svelte 5 runes** (`$state`, `$derived`, `$effect`, `$props`) — not legacy stores.
 - **Rust command pattern:** `#[tauri::command] pub async fn x(manager: State<'_, Arc<DatabaseManager>>, input: T) -> Result<R, DbError>`, writes through `manager.data_job(move |state| domains::…(state.connection_mut()?, op_id, …))`, registered in `tauri::generate_handler![…]` (`src-tauri/src/lib.rs`).
 - **Every mutation is idempotent** through `run_idempotent(conn, op_id, command_kind, &request, |tx| …)`; one `OperationId::generate()` per user intent.
@@ -2696,7 +2696,7 @@ and an icon under the `schedules` key in the `icons` map, drawn in the same sing
 
 New keys in both message files: `nav_schedules`, `schedules_title`, `schedules_empty`, `schedules_new`, `schedules_name`, `schedules_amount`, `schedules_kind`, `schedules_kind_expense`, `schedules_kind_income`, `schedules_kind_transfer`, `schedules_frequency`, `schedules_freq_weekly`, `schedules_freq_biweekly`, `schedules_freq_monthly`, `schedules_freq_yearly`, `schedules_account`, `schedules_transfer_account`, `schedules_payee`, `schedules_category`, `schedules_description`, `schedules_start_date`, `schedules_end_date`, `schedules_posts_transaction`, `schedules_reminder_only`, `schedules_next_due`, `schedules_last_posted`, `schedules_status_active`, `schedules_status_reminder`, `schedules_status_completed`, `schedules_status_errored`, `schedules_resume`, `schedules_save`, `schedules_cancel`, `schedules_delete`, `schedules_delete_confirm`.
 
-Run `pnpm check` afterwards to regenerate Paraglide and confirm no dotted-ID or missing-key errors.
+Run `pnpm exec paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide` afterwards to regenerate Paraglide, then `pnpm check` to confirm no dotted-ID or missing-key errors.
 
 - [x] **Step 4: Run the tests to verify they pass**
 
@@ -2930,7 +2930,7 @@ EOF
 - Consumes: every prior task's commits.
 - Produces: a repo where the roadmap, the story inventory, and reality agree.
 
-- [ ] **Step 1: Run every gate**
+- [x] **Step 1: Run every gate**
 
 ```bash
 pnpm check
@@ -2944,7 +2944,7 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 
 All must be green. A DB-contract mismatch means Task 5's regeneration was not committed; a cutover failure means a new raw handle appeared.
 
-- [ ] **Step 2: Split STORY-009 and record the status**
+- [x] **Step 2: Split STORY-009 and record the status**
 
 This plan ships Part 1 only, so STORY-009 ("I set up rent once and it reappears monthly, **with a rollover to-budget pool**") cannot go `shipped` — that would claim the pool works. In `product/stories/index.md`:
 
@@ -2954,7 +2954,7 @@ This plan ships Part 1 only, so STORY-009 ("I set up rent once and it reappears 
 
 Update the spec's status line: Part 1 implemented by this plan; Part 2 awaiting a plan.
 
-- [ ] **Step 3: Regenerate the roadmap and read it**
+- [x] **Step 3: Regenerate the roadmap and read it**
 
 ```bash
 pnpm test:roadmap
@@ -2962,7 +2962,7 @@ pnpm test:roadmap
 
 Expected: no `⚠ stale` warning, exit 0, and this plan's rows showing every task checked. If it reports stale, the commit history is missing a step commit or a checkbox is unflipped — fix that, do not edit `specs/STATUS.md`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add product/stories/index.md specs/2026-07-06-scheduled-transactions-and-rollover-pool-design.md specs/STATUS.md
