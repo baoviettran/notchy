@@ -89,6 +89,14 @@
 		// Build a complete ScheduleUpdate from the loaded row plus the edited
 		// fields. `next_due_date` and `enabled` come from the stored row on edit;
 		// a new schedule starts enabled with the repo defaulting its due date.
+		//
+		// A parked row (`errored_at !== null`) is the exception to `enabled`: both
+		// adapters clear `errored_at` whenever `enabled = 1`, so echoing the stored
+		// `enabled` would make Edit a second resume path and silently un-park the
+		// schedule. Submit `enabled: 0` instead — the row's Resume control is the
+		// one explicit un-park. `errored_at` is read off the raw `schedule` prop,
+		// not `toUpdateFields`, which deliberately omits the park marker.
+		const parked = schedule?.errored_at != null;
 		const base = schedule ? toUpdateFields(schedule) : null;
 		const input: ScheduleUpdate = {
 			name: name.trim(),
@@ -103,7 +111,7 @@
 			start_date: startDate,
 			end_date: endDate || null,
 			posts_transaction: postsTransaction,
-			enabled: base ? base.enabled : 1,
+			enabled: parked ? 0 : base ? base.enabled : 1,
 			next_due_date: base ? base.next_due_date : null
 		};
 

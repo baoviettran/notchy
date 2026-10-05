@@ -617,6 +617,7 @@
   "schedules_status_completed": "Completed",
   "schedules_status_errored": "Errored",
   "schedules_resume": "Resume",
+  "schedules_enable": "Enable",
   "schedules_save": "Save",
   "schedules_cancel": "Cancel",
   "schedules_delete": "Delete",

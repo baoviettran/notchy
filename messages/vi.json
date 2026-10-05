@@ -617,6 +617,7 @@
   "schedules_status_completed": "Hoàn thành",
   "schedules_status_errored": "Lỗi",
   "schedules_resume": "Tiếp tục",
+  "schedules_enable": "Bật",
   "schedules_save": "Lưu",
   "schedules_cancel": "Huỷ",
   "schedules_delete": "Xoá",

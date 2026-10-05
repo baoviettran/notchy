@@ -84,4 +84,26 @@ describe('ScheduleForm', () => {
 			tag_id: 'tag1', payee: 'Landlord', enabled: 1,
 		});
 	});
+
+	it('preserves the park when a parked schedule is edited', async () => {
+		const onsubmit = vi.fn();
+		const parked: Schedule = { ...stored, enabled: 1, errored_at: '2026-02-01T00:00:00.000Z' };
+		render(ScheduleForm, {
+			props: { schedule: parked, accounts: accountList, tags: tagList, onsubmit }
+		});
+
+		await fireEvent.input(screen.getByLabelText(m.schedules_amount()), { target: { value: '6000000' } });
+		await fireEvent.click(screen.getByRole('button', { name: m.schedules_save() }));
+
+		await waitFor(() => expect(onsubmit).toHaveBeenCalledTimes(1));
+		// `updateSchedule` clears `errored_at` on both adapters whenever `enabled = 1`,
+		// so echoing the parked row's stored `enabled` would make Edit a second resume
+		// path. The edit must submit `enabled: 0` and leave every other field as-is;
+		// only the row's Resume control is allowed to un-park it.
+		expect(onsubmit).toHaveBeenCalledWith({
+			...toUpdateFields(stored),
+			amount: 6_000_000,
+			enabled: 0,
+		});
+	});
 });

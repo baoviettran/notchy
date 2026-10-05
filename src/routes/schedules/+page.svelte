@@ -150,7 +150,7 @@
 							</button>
 						{:else if s.completed === 0 && s.enabled === 0}
 							<button type="button" onclick={() => resume(s)} class="min-h-9 inline-flex items-center text-xs text-phosphor hover:underline">
-								{m.schedules_resume()}
+								{m.schedules_enable()}
 							</button>
 						{/if}
 						{#if s.completed === 0}
