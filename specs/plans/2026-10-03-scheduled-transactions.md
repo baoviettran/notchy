@@ -2737,7 +2737,7 @@ The spec flags this explicitly ("Deleting an account should warn about active sc
 1. **Warn or block?** The spec says "warn", and this plan keeps it advisory: the engine parks the schedule safely, and a user deleting an account on purpose should not be stopped by a schedule they abandoned. But the goals case *blocks*, and a reviewer may well prefer consistency. Ship the warning; note the choice in the commit body so the reviewer can see it was considered rather than missed.
 2. **Which schedules count as active?** `errored_at`-free and not completed. A schedule already parked because of this very account is not a new surprise and must not inflate the count — that is what the test's two-schedule arrangement pins.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to the accounts component test that already covers the delete confirmation, following its existing seeding style:
 
@@ -2762,26 +2762,26 @@ Add to the accounts component test that already covers the delete confirmation, 
 	});
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm test <the accounts test path>`
 Expected: FAIL — the warning text is absent.
 
-- [ ] **Step 3: Add the warning**
+- [x] **Step 3: Add the warning**
 
 The confirmation dialog gains a line when the active count is non-zero: `accounts_delete_active_schedules` — en: `{count} scheduled transactions still post to this account`; vi: `{count} giao dịch định kỳ vẫn ghi vào tài khoản này`. One key, plural count, in **both** message files. Use the same pluralization approach the neighbouring `account_delete_linked_goals` key uses rather than introducing a second convention.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pnpm test && pnpm check`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/components src/routes/accounts messages/en.json messages/vi.json
 git commit -m "$(cat <<'EOF'
-feat: warn when deleting an account that active schedules still post to
+feat: warn before deleting an account that active schedules still use
 
 Advisory rather than blocking, unlike the linked-goals check: the posting
 engine parks an affected schedule, so the delete is recoverable and a user
