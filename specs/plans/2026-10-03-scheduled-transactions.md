@@ -1503,7 +1503,7 @@ export interface ScheduleOps {
 }
 ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `src/tests/unit/native-boundary.test.ts`, add to `FIXTURES` (the mock throws on an unlisted command, so this is what makes the sweep real):
 
@@ -1544,12 +1544,12 @@ and in the arg-key assertions section:
 	});
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm test src/tests/unit/native-boundary.test.ts`
 Expected: FAIL — `client.schedules is not a function` / `Property 'schedules' does not exist`.
 
-- [ ] **Step 3: Add the port types and the native adapter**
+- [x] **Step 3: Add the port types and the native adapter**
 
 Add the types and `ScheduleOps` to `src/lib/db/client.ts` as written in Interfaces above, plus `readonly schedules: ScheduleOps;` on `AppDatabase`. Re-export the schedule types from the same barrel style the file already uses for `AccountType`/`TransactionKind`.
 
@@ -1592,12 +1592,12 @@ export class NativeScheduleOps implements ScheduleOps {
 
 Wire it in `src/lib/db/native/client.ts`: import, `readonly schedules: ScheduleOps;`, and `this.schedules = new NativeScheduleOps();` beside the other ops.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm test src/tests/unit/native-boundary.test.ts`
 Expected: PASS — every `invoke()` site resolves to a registered command, and the camelCase keys match the parsed Rust signatures.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/db/client.ts src/lib/db/native/schedules.ts src/lib/db/native/client.ts src/tests/unit/native-boundary.test.ts
@@ -1620,7 +1620,15 @@ Playwright E2E and the unit tests drive this adapter, so it is the one that deci
 - Create: `src/lib/db/browser/schedules.ts` (`BrowserScheduleOps`)
 - Create: `src/lib/db/repos/schedules.ts` (forwarder)
 - Modify: `src/lib/db/browser/client.ts` (construct + expose `schedules`)
+- Modify: `src/lib/db/client.ts` (add `readonly schedules: ScheduleOps;` to `AppDatabase`)
 - Test: `src/tests/unit/repos/schedules.test.ts`
+
+**Carried forward from Task 6.** Task 6 defined `ScheduleOps` and exposed `schedules` on the concrete
+`NativeDatabaseClient`, but deliberately did **not** add the member to the `AppDatabase` interface:
+`BrowserDatabaseClient` implements that interface, so adding it in Task 6 would have broken the type
+tree before this task landed. Add it **here**, in the same change as the browser wiring, so both
+implementers are satisfied at once. Tasks 8 and 10 reach the database through
+`getDb(): AppDatabase`, so until this member is on the interface they cannot see `.schedules` at all.
 
 **Interfaces:**
 - Consumes: `DatabaseService` (`execute`/`query`/`transaction`), `ScheduleOps` + types from `../client`, the repo-per-domain pattern of `browser/repos/accounts.ts` (`AppError` for domain rejections).
