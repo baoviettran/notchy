@@ -2809,50 +2809,70 @@ EOF
 `src/tests/e2e/schedules.spec.ts`:
 
 ```ts
-import { test, expect } from './fixtures/onboarded';
+// Import the Tauri IPC mock fixture, NOT ./fixtures/onboarded: the journey
+// reloads and expects the boot pass to run, and the browser-fallback fixture
+// installs no __TAURI_INTERNALS__, so the boot pass never runs there. This is
+// the same fixture the plan's own note points at (backup-restore.spec.ts).
+import { test, expect, rawQuery, flushDb } from './fixtures/tauri-mock';
+import { onboard } from './helpers/ui';
 import type { Page } from '@playwright/test';
 
-/** Read the browser adapter's live SQLite database from the page, the way
- *  backup-restore.spec.ts:25 does — copy that helper rather than inventing one. */
+// Persist mode is required: the journey crosses full page loads and the mock's
+// virtual FS / DB registry are per-page-load. `flushDb()` marks each durability
+// point (the mock never auto-flushes from its execute handler).
+test.use({ tauriMockOptions: { persist: true } });
+
+/** Read the live sql.js database via the mock's ready-made helper (the same one
+ *  backup-restore.spec.ts:25 wraps) rather than hand-rolling a window accessor. */
 async function liveQuery<T>(page: Page, sql: string): Promise<T[]> {
-	return page.evaluate((statement) => {
-		const raw = (window as unknown as { __notchyTestDb?: { query: (s: string) => Promise<T[]> } })
-			.__notchyTestDb;
-		return raw!.query(statement);
-	}, sql);
+	return rawQuery<T>(page, sql);
 }
 
-test('a schedule that is due posts on the next open, exactly once', async ({ onboardedPage: page }) => {
-	// The onboarded fixture has already created an account and landed on the
-	// dashboard, so the schedule below has somewhere to post.
+const POSTED_ROWS = "FROM transactions WHERE payee = 'Landlord' AND deleted_at IS NULL";
+
+test('a schedule that is due posts on the next open, exactly once', async ({ tauriMockPage: page }) => {
+	// Onboarding creates an account and sets first_run_complete, so the next full
+	// load runs the boot pass and the schedule below has somewhere to post.
+	await onboard(page);
+	// Durably persist the onboarded DB before the first full page load; without
+	// it the load rehydrates a fresh database and bounces to /onboarding.
+	await flushDb(page);
+
 	await page.goto('/schedules');
-	await page.getByRole('button', { name: 'New schedule' }).click();
-	// Fill with the real labels from Task 10's message keys: name "Rent", expense,
-	// an amount, the onboarded account, monthly, and a start date of today — so
-	// the first occurrence is already due on the very next boot.
-	await page.getByRole('button', { name: 'Save' }).click();
-	await expect(page.getByText('Rent')).toBeVisible();
+	// Two "New schedule" buttons render (the header action and the empty-state
+	// action) — disambiguate to the first.
+	await page.getByRole('button', { name: 'New schedule' }).first().click();
+	const dialog = page.getByRole('dialog');
+	// Expense, monthly, the onboarded account, "posts a transaction", and a start
+	// date of today are ScheduleForm's defaults — so the first occurrence is due
+	// on the very next boot. Only the identifying fields need typing.
+	await dialog.getByLabel('Name').fill('Rent');
+	await dialog.getByLabel('Amount').fill('500000');
+	await dialog.getByLabel('Payee').fill('Landlord');
+	await dialog.getByRole('button', { name: 'Save' }).click();
+	await expect(page.getByText('Rent', { exact: true })).toBeVisible();
 
+	// Persist the created schedule, then reload: the boot pass sees it due and
+	// posts it.
+	await flushDb(page);
 	await page.reload();
-	await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'New schedule' }).first()).toBeVisible();
 
-	// The posted row exists exactly once, dated the schedule's start date.
-	const first = await liveQuery<{ c: number; date: string }>(
-		page,
-		"SELECT COUNT(*) AS c, MIN(date) AS date FROM transactions WHERE payee = 'Landlord' AND deleted_at IS NULL"
-	);
-	expect(first[0].c).toBe(1);
+	// The posted row exists exactly once, dated the schedule's start date. Poll:
+	// the boot pass is async and may still be running when the page settles.
+	const count = async () =>
+		(await liveQuery<{ c: number }>(page, `SELECT COUNT(*) AS c ${POSTED_ROWS}`))[0].c;
+	await expect.poll(count, { timeout: 10_000 }).toBe(1);
+	const first = await liveQuery<{ date: string }>(page, `SELECT MIN(date) AS date ${POSTED_ROWS}`);
+	expect(first[0].date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
 
 	// Reloading again must not post it a second time: the schedule advanced past
 	// today. This is the assertion that makes the test cover the advance, not
 	// just the insert.
+	await flushDb(page);
 	await page.reload();
-	await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
-	const second = await liveQuery<{ c: number }>(
-		page,
-		"SELECT COUNT(*) AS c FROM transactions WHERE payee = 'Landlord' AND deleted_at IS NULL"
-	);
-	expect(second[0].c).toBe(1);
+	await expect(page.getByRole('button', { name: 'New schedule' }).first()).toBeVisible();
+	await expect.poll(count, { timeout: 10_000 }).toBe(1);
 
 	// And the schedule itself moved forward rather than re-firing.
 	const schedule = await liveQuery<{ next_due_date: string; last_posted_date: string }>(
@@ -2864,16 +2884,18 @@ test('a schedule that is due posts on the next open, exactly once', async ({ onb
 });
 ```
 
-**Two names to confirm before running, not to guess:** the fixture's page extension (the file above imports `./fixtures/onboarded`, whose extension is `onboardedPage`) and the db handle the helper reaches for. Read `src/tests/e2e/backup-restore.spec.ts` and copy its `liveQuery` (line 25) and its `test`/`expect` import verbatim — if it exposes the database differently, use that exact accessor. Also use the real labels from Task 10's message keys rather than the English strings above.
+**Two names that were wrong in the original snippet, now corrected above:** the fixture (`.fixtures/tauri-mock`, not `./fixtures/onboarded` — only the mock installs `__TAURI_INTERNALS__`, so only the mock's spec can run the boot pass after a reload) and the db handle (`.helpers/ui`'s `onboard(page)` plus the mock's exported `rawQuery`, not a hand-rolled `window.__notchyTestDb` accessor, which does not exist). Also use the real labels from Task 10's message keys rather than English literals where the form doesn't already default them.
 
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm test:e2e src/tests/e2e/schedules.spec.ts`
-Expected: FAIL — `tauri-mock: unhandled invoke schedule_list`.
+Expected: FAIL — the boot pass's first invoke is `tauri-mock: unhandled invoke schedule_list_due` (the pass calls `listDue` before `list`; see `post-due-schedules.ts:117-121`). Once that arm exists the next red is `schedule_list`, so neither may be skipped.
 
 - [ ] **Step 3: Add the mock handlers**
 
 In `tauri-mock.ts`, alongside the other domain blocks, add one `if (cmd === '…')` arm per command, each translating to SQL over the mock's virtual DB exactly as the neighbouring domain handlers do: `schedule_list`, `schedule_create` (generating an id, defaulting `next_due_date` to `start_date`), `schedule_update`, `schedule_delete`, `schedule_list_due`, `schedule_mark_posted`, `schedule_mark_errored`. The `schedules` table itself was added in Task 2.
+
+The mock also needs a minimal `plugin:event|listen` / `|unlisten` / `|emit` stub: the root layout awaits `attachTransactionSavedListener` *before* `postDueSchedulesOnce`, and without an arm the listen invoke rejects and aborts the boot IIFE before the pass ever runs (so no `schedule_*` command is reached at all). The stub returns an id for listen and no-ops the rest.
 
 Two of them need care, because the mock is the only place the schema exists twice and drift shows up here first:
 
@@ -2888,7 +2910,7 @@ Expected: PASS — the new spec plus the whole existing suite.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/tests/e2e/fixtures/tauri-mock.ts src/tests/e2e/schedules.spec.ts
+git add src/tests/e2e/fixtures/tauri-mock.ts src/tests/e2e/schedules.spec.ts specs/plans/2026-10-03-scheduled-transactions.md
 git commit -m "$(cat <<'EOF'
 test: drive scheduled transactions end to end through the Tauri mock
 
