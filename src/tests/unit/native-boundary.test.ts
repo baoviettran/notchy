@@ -17,7 +17,7 @@
  * dev`). This is the approved JS-side substitute for real-native smoke.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import type { NewAccount, NewTransaction, NewGoal, NewCategorizeRule } from '$lib/db/client';
+import type { NewAccount, NewTransaction, NewGoal, NewCategorizeRule, ScheduleUpdate } from '$lib/db/client';
 
 // Hoisted so the module mock can reference it before `@tauri-apps/api/core`
 // is imported by client.ts.
@@ -146,6 +146,19 @@ const { invokeMock, calls } = vi.hoisted(() => {
 		backup_create: '/data/backups/notchy-backup-v6-0.2.1-01M3CGSB1ASS5VDMKWMHXE4HVJ.sqlite',
 		backup_export_sqlite: null,
 		backup_export_csv: ['/data/export/accounts.csv'],
+
+		// Schedules
+		schedule_list: [{ id: 'sch1', name: 'Rent', kind: 'expense', amount: 5000000,
+			account_id: 'acct1', transfer_account_id: null, tag_id: null, payee: 'Landlord',
+			description: null, frequency: 'monthly', start_date: '2026-01-31', end_date: null,
+			posts_transaction: 1, next_due_date: '2026-01-31', last_posted_date: null,
+			completed: 0, enabled: 1, errored_at: null, created_at: 'x', updated_at: 'x' }],
+		schedule_create: 'sch1',
+		schedule_update: null,
+		schedule_delete: null,
+		schedule_list_due: [],
+		schedule_mark_posted: null,
+		schedule_mark_errored: null,
 	};
 
 	const invokeMock = vi.fn(async (command: string, args?: unknown) => {
@@ -312,6 +325,24 @@ describe('NativeDatabaseClient: serialization seam (camelCase keys -> snake_case
 		const filter = { account_id: 'acc1', limit: 20, offset: 0 };
 		await client.transactions.list(filter);
 		expect(lastCall().args).toEqual({ filter });
+	});
+
+	it('schedule_create forwards the input object unchanged', async () => {
+		await client.schedules.create({
+			name: 'Rent', kind: 'expense', amount: 5000000, account_id: 'acct1',
+			frequency: 'monthly', start_date: '2026-01-31',
+		});
+		expect(lastCall().args).toEqual({
+			input: { name: 'Rent', kind: 'expense', amount: 5000000, account_id: 'acct1',
+				frequency: 'monthly', start_date: '2026-01-31' },
+		});
+	});
+
+	it('schedule_mark_posted uses camelCase argument keys', async () => {
+		await client.schedules.markPosted('sch1', '2026-01-31', '2026-02-28', 0);
+		expect(lastCall().args).toEqual({
+			id: 'sch1', lastPostedDate: '2026-01-31', nextDueDate: '2026-02-28', completed: 0,
+		});
 	});
 });
 
@@ -497,6 +528,15 @@ describe('NativeDatabaseClient: full surface sweep (command name + camelCase arg
 			run: () => client.backup.exportCsv('/tmp/export'),
 			command: 'backup_export_csv'
 		},
+
+		// Schedules
+		{ label: 'schedules.list', run: () => client.schedules.list(), command: 'schedule_list' },
+		{ label: 'schedules.create', run: () => client.schedules.create({ name: 'Rent', kind: 'expense', amount: 5000000, account_id: 'acct1', frequency: 'monthly', start_date: '2026-01-31' }), command: 'schedule_create' },
+		{ label: 'schedules.update', run: () => client.schedules.update('sch1', { name: 'Rent', kind: 'expense', amount: 5000000, account_id: 'acct1', frequency: 'monthly', start_date: '2026-01-31', enabled: 1, next_due_date: null } as ScheduleUpdate), command: 'schedule_update' },
+		{ label: 'schedules.remove', run: () => client.schedules.remove('sch1'), command: 'schedule_delete' },
+		{ label: 'schedules.listDue', run: () => client.schedules.listDue('2026-01-31'), command: 'schedule_list_due' },
+		{ label: 'schedules.markPosted', run: () => client.schedules.markPosted('sch1', '2026-01-31', '2026-02-28', 0), command: 'schedule_mark_posted' },
+		{ label: 'schedules.markErrored', run: () => client.schedules.markErrored('sch1'), command: 'schedule_mark_errored' },
 	];
 
 	// `[label, command, run]` — the command comes second so the title's second

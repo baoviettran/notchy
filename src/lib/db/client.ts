@@ -72,6 +72,39 @@ export type {
 };
 
 // ---------------------------------------------------------------------------
+// Schedule domain types.
+//
+// Defined here rather than re-exported from `browser/repos` because the browser
+// repo lands with the browser adapter (Task 7); the port shape is the contract
+// Tasks 7, 8 and 10 all code against.
+// ---------------------------------------------------------------------------
+
+export type ScheduleKind = 'expense' | 'income' | 'transfer';
+export type ScheduleFrequency = 'weekly' | 'biweekly' | 'monthly' | 'yearly';
+
+export interface Schedule { id: string; name: string; kind: ScheduleKind; amount: number;
+	account_id: string; transfer_account_id: string | null; tag_id: string | null;
+	payee: string | null; description: string | null; frequency: ScheduleFrequency;
+	start_date: string; end_date: string | null; posts_transaction: number;
+	next_due_date: string | null; last_posted_date: string | null; completed: number;
+	enabled: number; errored_at: string | null; created_at: string; updated_at: string; }
+
+export interface NewSchedule { name: string; kind: ScheduleKind; amount: number;
+	account_id: string; transfer_account_id?: string | null; tag_id?: string | null;
+	payee?: string | null; description?: string | null;
+	frequency: ScheduleFrequency; start_date: string; end_date?: string | null;
+	posts_transaction?: number; }
+
+export interface ScheduleUpdate { name: string; kind: ScheduleKind; amount: number;
+	account_id: string; transfer_account_id: string | null; tag_id: string | null;
+	payee: string | null; description: string | null; frequency: ScheduleFrequency;
+	start_date: string; end_date: string | null; posts_transaction: number; enabled: number;
+	/** `null` leaves the stored due date untouched — the one field where a null
+	 *  does not mean "clear". See `ScheduleUpdate` in the Rust types (Task 4) and
+	 *  `firstDueOnOrAfter` (Task 1). */
+	next_due_date: string | null; }
+
+// ---------------------------------------------------------------------------
 // Operation interfaces — one per domain.
 // ---------------------------------------------------------------------------
 
@@ -213,6 +246,17 @@ export interface BackupOps {
 	 * rows.
 	 */
 	exportCsv(dir: string): Promise<string[]>;
+}
+
+export interface ScheduleOps {
+	list(): Promise<Schedule[]>;
+	create(input: NewSchedule): Promise<string>;
+	update(id: string, input: ScheduleUpdate): Promise<void>;
+	remove(id: string): Promise<void>;
+	/** Active schedules whose `next_due_date` is on or before `today`, oldest first. */
+	listDue(today: string): Promise<Schedule[]>;
+	markPosted(id: string, lastPostedDate: string | null, nextDueDate: string | null, completed: number): Promise<void>;
+	markErrored(id: string): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
