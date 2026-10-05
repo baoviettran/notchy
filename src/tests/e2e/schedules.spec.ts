@@ -56,11 +56,38 @@ test('a schedule that is due posts on the next open, exactly once', async ({ tau
 		(await liveQuery<{ c: number }>(page, `SELECT COUNT(*) AS c ${POSTED_ROWS}`))[0].c;
 	await expect.poll(count, { timeout: 10_000 }).toBe(1);
 	const first = await liveQuery<{ date: string }>(page, `SELECT MIN(date) AS date ${POSTED_ROWS}`);
-	expect(first[0].date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+	// Read start_date here, before the schedule query below runs (after the
+	// second reload), so the posted row's date can be compared to it directly.
+	const start = await liveQuery<{ start_date: string }>(
+		page,
+		'SELECT start_date FROM schedules WHERE deleted_at IS NULL'
+	);
+	// Not a format check: the row must be dated the schedule's own start_date.
+	// A UTC-vs-local `todayIso` shift or an off-by-one in the engine's re-anchor
+	// (`next = schedule.next_due_date ?? schedule.start_date`) posts a different
+	// but still well-formed `YYYY-MM-DD`; `toBe` catches it, a regex would not.
+	expect(first[0].date).toBe(start[0].start_date);
 
 	// Reloading again must not post it a second time: the schedule advanced past
 	// today. This is the assertion that makes the test cover the advance, not
 	// just the insert.
+	//
+	// `markPosted` writes next_due_date and last_posted_date in the same
+	// statement, so waiting for last_posted_date to become non-NULL proves the
+	// advance has committed before this flush persists it — otherwise reload #2
+	// rehydrates a not-yet-advanced schedule and re-posts the same occurrence.
+	await expect
+		.poll(
+			async () =>
+				(
+					await liveQuery<{ last_posted_date: string | null }>(
+						page,
+						'SELECT last_posted_date FROM schedules WHERE deleted_at IS NULL'
+					)
+				)[0]?.last_posted_date,
+			{ timeout: 10_000 }
+		)
+		.not.toBeNull();
 	await flushDb(page);
 	await page.reload();
 	await expect(page.getByRole('button', { name: 'New schedule' }).first()).toBeVisible();

@@ -2889,13 +2889,11 @@ test('a schedule that is due posts on the next open, exactly once', async ({ tau
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm test:e2e src/tests/e2e/schedules.spec.ts`
-Expected: FAIL — the boot pass's first invoke is `tauri-mock: unhandled invoke schedule_list_due` (the pass calls `listDue` before `list`; see `post-due-schedules.ts:117-121`). Once that arm exists the next red is `schedule_list`, so neither may be skipped.
+Expected: FAIL — the boot pass's first invoke is `tauri-mock: unhandled invoke plugin:event|listen`, **not** a `schedule_*` command: the root layout awaits `attachTransactionSavedListener` *before* `postDueSchedulesOnce`, and without an arm the listen invoke rejects and aborts the boot IIFE before the pass ever runs. Add the minimal `plugin:event|listen` / `|unlisten` / `|emit` stub to `tauri-mock.ts` first (returns an id for listen, no-ops the rest); re-run and the next red is `tauri-mock: unhandled invoke schedule_list_due` (the pass calls `listDue` before `list`; see `post-due-schedules.ts:117-121`). Once that arm exists the next red is `schedule_list`, so none of the three may be skipped.
 
 - [ ] **Step 3: Add the mock handlers**
 
 In `tauri-mock.ts`, alongside the other domain blocks, add one `if (cmd === '…')` arm per command, each translating to SQL over the mock's virtual DB exactly as the neighbouring domain handlers do: `schedule_list`, `schedule_create` (generating an id, defaulting `next_due_date` to `start_date`), `schedule_update`, `schedule_delete`, `schedule_list_due`, `schedule_mark_posted`, `schedule_mark_errored`. The `schedules` table itself was added in Task 2.
-
-The mock also needs a minimal `plugin:event|listen` / `|unlisten` / `|emit` stub: the root layout awaits `attachTransactionSavedListener` *before* `postDueSchedulesOnce`, and without an arm the listen invoke rejects and aborts the boot IIFE before the pass ever runs (so no `schedule_*` command is reached at all). The stub returns an id for listen and no-ops the rest.
 
 Two of them need care, because the mock is the only place the schema exists twice and drift shows up here first:
 
