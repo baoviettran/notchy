@@ -1634,7 +1634,7 @@ implementers are satisfied at once. Tasks 8 and 10 reach the database through
 - Consumes: `DatabaseService` (`execute`/`query`/`transaction`), `ScheduleOps` + types from `../client`, the repo-per-domain pattern of `browser/repos/accounts.ts` (`AppError` for domain rejections).
 - Produces: `BrowserScheduleOps` implementing `ScheduleOps` exactly as Task 6 defines it, plus repo functions `listSchedules(db)`, `createSchedule(db, input)`, `updateSchedule(db, id, input)`, `deleteSchedule(db, id)`, `listDueSchedules(db, today)`, `markSchedulePosted(db, …)`, `markScheduleErrored(db, id)`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `src/tests/unit/repos/schedules.test.ts`, following `src/tests/unit/repos/categories.test.ts`'s setup exactly (`createTestDb()` + `runMigrations(db, migrations)` in `beforeEach`), plus the FK pragma the production adapters set:
 
@@ -1769,12 +1769,12 @@ describe('deleteSchedule', () => {
 
 Fill the empty bodies with the concrete arrangement their titles name.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pnpm test src/tests/unit/repos/schedules.test.ts`
 Expected: FAIL — `Failed to resolve import "$lib/db/repos/schedules"`.
 
-- [ ] **Step 3: Implement the repo, the ops class, and the wiring**
+- [x] **Step 3: Implement the repo, the ops class, and the wiring**
 
 `src/lib/db/browser/repos/schedules.ts`: a `row_to_schedule` mapper (snake_case columns straight through; the row shape already matches `Schedule`), a shared `mutableColumnsFrom(input)` helper, and:
 
@@ -1819,12 +1819,12 @@ export {
 
 Wire `readonly schedules: ScheduleOps;` and `this.schedules = new BrowserScheduleOps(db);` into `BrowserDatabaseClient`.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pnpm test`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/db/browser/repos/schedules.ts src/lib/db/browser/schedules.ts src/lib/db/repos/schedules.ts src/lib/db/browser/client.ts src/tests/unit/repos/schedules.test.ts
