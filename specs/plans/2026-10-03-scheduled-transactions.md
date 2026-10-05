@@ -2804,7 +2804,7 @@ EOF
 - Consumes: the mock's `loadDb`/`select`/`run` helpers and its existing handler style; the port's method names, which the handlers must match one-for-one (the mock throws `tauri-mock: unhandled invoke` otherwise).
 - Produces: nothing downstream.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `src/tests/e2e/schedules.spec.ts`:
 
@@ -2886,12 +2886,12 @@ test('a schedule that is due posts on the next open, exactly once', async ({ tau
 
 **Two names that were wrong in the original snippet, now corrected above:** the fixture (`.fixtures/tauri-mock`, not `./fixtures/onboarded` — only the mock installs `__TAURI_INTERNALS__`, so only the mock's spec can run the boot pass after a reload) and the db handle (`.helpers/ui`'s `onboard(page)` plus the mock's exported `rawQuery`, not a hand-rolled `window.__notchyTestDb` accessor, which does not exist). Also use the real labels from Task 10's message keys rather than English literals where the form doesn't already default them.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm test:e2e src/tests/e2e/schedules.spec.ts`
 Expected: FAIL — the boot pass's first invoke is `tauri-mock: unhandled invoke plugin:event|listen`, **not** a `schedule_*` command: the root layout awaits `attachTransactionSavedListener` *before* `postDueSchedulesOnce`, and without an arm the listen invoke rejects and aborts the boot IIFE before the pass ever runs. Add the minimal `plugin:event|listen` / `|unlisten` / `|emit` stub to `tauri-mock.ts` first (returns an id for listen, no-ops the rest); re-run and the next red is `tauri-mock: unhandled invoke schedule_list_due` (the pass calls `listDue` before `list`; see `post-due-schedules.ts:117-121`). Once that arm exists the next red is `schedule_list`, so none of the three may be skipped.
 
-- [ ] **Step 3: Add the mock handlers**
+- [x] **Step 3: Add the mock handlers**
 
 In `tauri-mock.ts`, alongside the other domain blocks, add one `if (cmd === '…')` arm per command, each translating to SQL over the mock's virtual DB exactly as the neighbouring domain handlers do: `schedule_list`, `schedule_create` (generating an id, defaulting `next_due_date` to `start_date`), `schedule_update`, `schedule_delete`, `schedule_list_due`, `schedule_mark_posted`, `schedule_mark_errored`. The `schedules` table itself was added in Task 2.
 
@@ -2900,12 +2900,12 @@ Two of them need care, because the mock is the only place the schema exists twic
 - **`schedule_list_due`** must apply the same predicate as the real query — `enabled = 1 AND completed = 0 AND errored_at IS NULL AND deleted_at IS NULL AND next_due_date IS NOT NULL AND next_due_date <= ?`. A mock that returns everything makes the boot pass look like it works while the native path would post nothing.
 - **`schedule_update`** must implement `next_due_date = COALESCE(?, next_due_date)` and the `errored_at` clear-on-enable, or the E2E run will diverge from the unit tests on exactly the two behaviours Task 4 exists for.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm test:e2e`
 Expected: PASS — the new spec plus the whole existing suite.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/tests/e2e/fixtures/tauri-mock.ts src/tests/e2e/schedules.spec.ts specs/plans/2026-10-03-scheduled-transactions.md
