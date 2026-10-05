@@ -1,5 +1,6 @@
 import type { DatabaseService } from '../service';
 import { ulid } from '../../../utils/id';
+import { AppError } from '../../../errors';
 import type {
 	Schedule,
 	NewSchedule,
@@ -76,15 +77,16 @@ export async function createSchedule(db: DatabaseService, input: NewSchedule): P
 }
 
 /**
- * List every non-deleted schedule — active, completed, disabled and parked.
- * A schedule with a NULL `next_due_date` stays visible here even though the
- * engine cannot post it.
+ * List every non-deleted schedule — active, completed, disabled and parked —
+ * newest first. A schedule with a NULL `next_due_date` stays visible here even
+ * though the engine cannot post it. The `ORDER BY` mirrors the Rust
+ * `list_schedules` exactly (`created_at DESC, id DESC`).
  */
 export async function listSchedules(db: DatabaseService): Promise<Schedule[]> {
 	const rows = await db.query<Schedule>(
 		`SELECT ${SCHEDULE_COLUMNS} FROM schedules
 		 WHERE deleted_at IS NULL
-		 ORDER BY next_due_date IS NULL, next_due_date, created_at`
+		 ORDER BY created_at DESC, id DESC`
 	);
 	return rows.map(row_to_schedule);
 }
@@ -112,6 +114,9 @@ export async function listDueSchedules(db: DatabaseService, today: string): Prom
  * `enabled = 1` clears `errored_at`, and `next_due_date` is only overwritten
  * when the caller supplies one — a re-anchored date skips a disabled period,
  * `null` leaves a parked backlog to drain.
+ *
+ * An id that matched no row (unknown or soft-deleted) is rejected, mirroring
+ * Rust `update_schedule`'s `rowsAffected == 0` → `InvalidInput`.
  */
 export async function updateSchedule(
 	db: DatabaseService,
@@ -120,7 +125,7 @@ export async function updateSchedule(
 ): Promise<void> {
 	const now = new Date().toISOString();
 	const c = mutableColumnsFrom(input);
-	await db.execute(
+	const { rowsAffected } = await db.execute(
 		`UPDATE schedules
 			SET name = ?, kind = ?, amount = ?, account_id = ?,
 				transfer_account_id = ?, tag_id = ?, payee = ?, description = ?,
@@ -137,6 +142,9 @@ export async function updateSchedule(
 			now, id,
 		]
 	);
+	if (rowsAffected === 0) {
+		throw new AppError('invalid_input');
+	}
 }
 
 /**
@@ -172,11 +180,18 @@ export async function markScheduleErrored(db: DatabaseService, id: string): Prom
 	);
 }
 
-/** Soft-delete a schedule — the row survives so posted history keeps its parent. */
+/**
+ * Soft-delete a schedule — the row survives so posted history keeps its parent.
+ * An id that matched no row (unknown or already soft-deleted) is rejected,
+ * mirroring Rust `delete_schedule`'s `rowsAffected == 0` → `InvalidInput`.
+ */
 export async function deleteSchedule(db: DatabaseService, id: string): Promise<void> {
 	const now = new Date().toISOString();
-	await db.execute(
+	const { rowsAffected } = await db.execute(
 		`UPDATE schedules SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`,
 		[now, now, id]
 	);
+	if (rowsAffected === 0) {
+		throw new AppError('invalid_input');
+	}
 }

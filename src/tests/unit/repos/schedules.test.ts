@@ -4,6 +4,7 @@ import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
 import * as scheduleRepo from '$lib/db/repos/schedules';
 import type { DatabaseService } from '$lib/db';
+import type { ScheduleUpdate } from '$lib/db/client';
 
 let db: DatabaseService;
 
@@ -38,6 +39,35 @@ describe('createSchedule', () => {
 				frequency: 'monthly', start_date: '2026-01-01',
 			})
 		).rejects.toThrow();
+	});
+});
+
+describe('listSchedules', () => {
+	it('lists newest first and keeps a NULL next_due_date visible', async () => {
+		// created_at comes from the clock on insert, so two rows can land on the
+		// same millisecond. Pin distinct values (and one NULL due date) so the
+		// ordering assertion is deterministic.
+		const make = (name: string) =>
+			scheduleRepo.createSchedule(db, {
+				name, kind: 'expense', amount: 1, account_id: 'acct1',
+				frequency: 'monthly', start_date: '2026-01-01',
+			});
+		const oldest = await make('Oldest');
+		const nullDue = await make('NullDue');
+		const newest = await make('Newest');
+		await db.execute(`UPDATE schedules SET created_at = '2026-01-01T00:00:00Z' WHERE id = ?`, [oldest]);
+		await db.execute(
+			`UPDATE schedules SET created_at = '2026-01-02T00:00:00Z', next_due_date = NULL WHERE id = ?`,
+			[nullDue]
+		);
+		await db.execute(`UPDATE schedules SET created_at = '2026-01-03T00:00:00Z' WHERE id = ?`, [newest]);
+
+		const rows = await scheduleRepo.listSchedules(db);
+
+		expect(rows.map((s) => s.id)).toEqual([newest, nullDue, oldest]);
+		// The whole reason listSchedules is not listDueSchedules: a NULL due date
+		// must stay visible to the user even though the engine cannot post it.
+		expect(rows.some((s) => s.id === nullDue && s.next_due_date === null)).toBe(true);
 	});
 });
 
@@ -101,6 +131,38 @@ describe('updateSchedule', () => {
 
 		await scheduleRepo.updateSchedule(db, id, { ...base, next_due_date: null });
 		expect((await scheduleRepo.listSchedules(db)).find((s) => s.id === id)!.next_due_date).toBe('2026-06-28');
+	});
+
+	it('rejects an id that matches no row', async () => {
+		const fields: ScheduleUpdate = {
+			name: 'Rent', kind: 'expense', amount: 1, account_id: 'acct1',
+			transfer_account_id: null, tag_id: null, payee: null, description: null,
+			frequency: 'monthly', start_date: '2026-01-01', end_date: null,
+			posts_transaction: 1, enabled: 1, next_due_date: null,
+		};
+		await expect(scheduleRepo.updateSchedule(db, 'does-not-exist', fields)).rejects.toMatchObject({
+			code: 'invalid_input',
+		});
+	});
+
+	it('rejects a soft-deleted schedule', async () => {
+		// A schedule deleted while the form was open must not be resurrected by a
+		// late save.
+		const id = await scheduleRepo.createSchedule(db, {
+			name: 'Rent', kind: 'expense', amount: 1, account_id: 'acct1',
+			frequency: 'monthly', start_date: '2026-01-01',
+		});
+		const row = (await scheduleRepo.listSchedules(db)).find((s) => s.id === id)!;
+		await scheduleRepo.deleteSchedule(db, id);
+
+		await expect(
+			scheduleRepo.updateSchedule(db, id, {
+				name: row.name, kind: row.kind, amount: row.amount, account_id: row.account_id,
+				transfer_account_id: null, tag_id: null, payee: null, description: null,
+				frequency: row.frequency, start_date: row.start_date, end_date: null,
+				posts_transaction: 1, enabled: 1, next_due_date: null,
+			})
+		).rejects.toMatchObject({ code: 'invalid_input' });
 	});
 });
 
@@ -181,5 +243,23 @@ describe('deleteSchedule', () => {
 			[id]
 		);
 		expect(rows[0].deleted_at).not.toBeNull();
+	});
+
+	it('rejects an id that matches no row', async () => {
+		await expect(scheduleRepo.deleteSchedule(db, 'does-not-exist')).rejects.toMatchObject({
+			code: 'invalid_input',
+		});
+	});
+
+	it('rejects a soft-deleted schedule', async () => {
+		const id = await scheduleRepo.createSchedule(db, {
+			name: 'Rent', kind: 'expense', amount: 1, account_id: 'acct1',
+			frequency: 'monthly', start_date: '2026-01-01',
+		});
+		await scheduleRepo.deleteSchedule(db, id);
+
+		await expect(scheduleRepo.deleteSchedule(db, id)).rejects.toMatchObject({
+			code: 'invalid_input',
+		});
 	});
 });

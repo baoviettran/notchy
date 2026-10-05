@@ -288,6 +288,43 @@ fn list_due_orders_by_due_date_then_id() {
 }
 
 #[test]
+fn list_schedules_orders_newest_first() {
+    // `create_schedule` stamps created_at from `now_iso_utc()` (one-second
+    // resolution), so two inserts in the same second would tie. Pin distinct
+    // values to make the ordering assertion deterministic.
+    let (mut conn, account_id) = fixture_conn_with_account();
+    let older = create_schedule(
+        &mut conn,
+        OperationId::generate(),
+        schedule("Older", account_id.clone()),
+    )
+    .unwrap();
+    let newer = create_schedule(
+        &mut conn,
+        OperationId::generate(),
+        schedule("Newer", account_id),
+    )
+    .unwrap();
+    conn.execute(
+        "UPDATE schedules SET created_at = '2026-01-01T00:00:00Z' WHERE id = ?1",
+        [&older],
+    )
+    .unwrap();
+    conn.execute(
+        "UPDATE schedules SET created_at = '2026-01-02T00:00:00Z' WHERE id = ?1",
+        [&newer],
+    )
+    .unwrap();
+
+    let ids: Vec<String> = list_schedules(&conn)
+        .unwrap()
+        .into_iter()
+        .map(|s| s.id)
+        .collect();
+    assert_eq!(ids, vec![newer, older], "newest first");
+}
+
+#[test]
 fn mark_posted_advances_the_dates_and_can_complete() {
     let (mut conn, account_id) = fixture_conn_with_account();
     let id = create_schedule(
