@@ -1010,8 +1010,8 @@ fn creating_the_same_request_twice_returns_the_same_schedule() {
         frequency: ScheduleFrequency::Monthly, start_date: "2026-01-31".into(),
         end_date: None, posts_transaction: 1 };
 
-    let first = create_schedule(&mut conn, op_id, input.clone()).unwrap();
-    let second = create_schedule(&mut conn, op_id, input).unwrap();
+    let first = create_schedule(&mut conn, op_id.clone(), input.clone()).unwrap();
+    let second = create_schedule(&mut conn, op_id.clone(), input).unwrap();
 
     assert_eq!(first, second);
     assert_eq!(list_schedules(&conn).unwrap().len(), 1);
@@ -1086,7 +1086,8 @@ fn mark_errored_parks_a_schedule_and_re_enabling_resumes_it() {
     mark_schedule_errored(&mut conn, OperationId::generate(), &id).unwrap();
     assert!(list_due_schedules(&conn, "2026-06-01").unwrap().is_empty());
 
-    update_schedule(&mut conn, OperationId::generate(), &id, update_of(&conn, &id, 1, None)).unwrap();
+    let resume = update_of(&conn, &id, 1, None);
+    update_schedule(&mut conn, OperationId::generate(), &id, resume).unwrap();
 
     let row = list_schedules(&conn).unwrap().into_iter().find(|s| s.id == id).unwrap();
     assert_eq!(row.errored_at, None);
@@ -1101,12 +1102,13 @@ fn update_sets_next_due_date_when_the_caller_supplies_one() {
     let (mut conn, account_id) = fixture_conn_with_account();
     let id = create_schedule(&mut conn, OperationId::generate(), schedule("Rent", account_id)).unwrap();
 
-    update_schedule(&mut conn, OperationId::generate(), &id,
-        update_of(&conn, &id, 0, Some("2026-06-28".into()))).unwrap();
+    let input = update_of(&conn, &id, 0, Some("2026-06-28".into()));
+    update_schedule(&mut conn, OperationId::generate(), &id, input).unwrap();
     let row = list_schedules(&conn).unwrap().into_iter().find(|s| s.id == id).unwrap();
     assert_eq!(row.next_due_date.as_deref(), Some("2026-06-28"));
 
-    update_schedule(&mut conn, OperationId::generate(), &id, update_of(&conn, &id, 0, None)).unwrap();
+    let input = update_of(&conn, &id, 0, None);
+    update_schedule(&mut conn, OperationId::generate(), &id, input).unwrap();
     let row = list_schedules(&conn).unwrap().into_iter().find(|s| s.id == id).unwrap();
     assert_eq!(row.next_due_date.as_deref(), Some("2026-06-28"), "None must not clear the date");
 }
@@ -1142,7 +1144,45 @@ fn create_rejects_a_transfer_without_a_destination() {
 Two local helpers the bodies above call — define them once at the top of the file, next to the fixture:
 
 - `schedule(name: &str, account_id: String) -> NewSchedule` — the monthly-expense baseline the tests vary.
-- `update_of(conn: &Connection, id: &str, enabled: i64, next_due_date: Option<String>) -> ScheduleUpdate` — reads the stored row and projects it into a `ScheduleUpdate` with the full field set `ScheduleUpdate` requires, overriding only `enabled` and `next_due_date`. This mirrors the store's `toUpdateFields` (Task 10) and is why the "full replacement, not a patch" choice in Task 4 needs no `Patch<T>` triples.
+- `update_of(conn: &Connection, id: &str, enabled: i64, next_due_date: Option<String>) -> ScheduleUpdate` — reads the stored row and projects it into a `ScheduleUpdate` with the full field set `ScheduleUpdate` requires, overriding only `enabled` and `next_due_date`. This mirrors the store's `toUpdateFields` (Task 10) and is why the "full replacement, not a patch" choice in Task 4 needs no `Patch<T>` triples. Its body:
+
+```rust
+fn update_of(
+    conn: &Connection,
+    id: &str,
+    enabled: i64,
+    next_due_date: Option<String>,
+) -> ScheduleUpdate {
+    let stored = list_schedules(conn)
+        .unwrap()
+        .into_iter()
+        .find(|s| s.id == id)
+        .expect("schedule exists");
+    ScheduleUpdate {
+        name: stored.name,
+        kind: stored.kind,
+        amount: stored.amount,
+        account_id: stored.account_id,
+        transfer_account_id: stored.transfer_account_id,
+        tag_id: stored.tag_id,
+        payee: stored.payee,
+        description: stored.description,
+        frequency: stored.frequency,
+        start_date: stored.start_date,
+        end_date: stored.end_date,
+        posts_transaction: stored.posts_transaction,
+        enabled,
+        next_due_date,
+    }
+}
+```
+
+**Call it on its own line, never nested inside the `update_schedule` call.** `update_schedule` takes `&mut conn` and `update_of` takes `&conn`; writing `update_schedule(&mut conn, op, &id, update_of(&conn, &id, 1, None))` borrows `conn` mutably and immutably in one expression and does not compile. Bind it first:
+
+```rust
+let input = update_of(&conn, &id, 1, None);
+update_schedule(&mut conn, OperationId::generate(), &id, input).unwrap();
+```
 
 And `fixture_conn_with_account()`: do **not** invent a harness. Copy the existing one from
 `src-tauri/tests/domain_accounts_transactions.rs`, which already has exactly the two pieces this
@@ -1178,7 +1218,7 @@ Expected: FAIL — `unresolved import notchy_lib::database::domains::schedules`.
 struct ScheduleCreated { schedule_id: String }
 ```
 
-`run_idempotent(conn, op_id, "schedule_create", &input, |tx| { … })` returns the serialized receipt so a retried request replays the same id. `update_schedule` binds the full `ScheduleUpdate` plus `updated_at = now_iso_utc()` and writes:
+`run_idempotent(conn, op_id, "schedule_create", &input, |tx| { …; Ok(ScheduleCreated { schedule_id: id }) })` returns the serialized receipt so a retried request replays the same id — the closure itself must return `DbResult<ScheduleCreated>`, so it ends in `Ok(…)` rather than the bare receipt. `update_schedule` binds the full `ScheduleUpdate` plus `updated_at = now_iso_utc()` and writes:
 
 ```sql
 UPDATE schedules
