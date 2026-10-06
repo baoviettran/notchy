@@ -6,7 +6,14 @@ import { migrations } from '$lib/db/migrations/index';
 import { BrowserDatabaseClient } from '$lib/db/browser/client';
 import type { AppDatabase, NewSchedule } from '$lib/db/client';
 import * as scheduleRepo from '$lib/db/repos/schedules';
-import { postDueSchedules, postDueSchedulesOnce, CATCH_UP_CAP } from '$lib/logic/post-due-schedules';
+import {
+	postDueSchedules,
+	postDueSchedulesOnce,
+	bootSummaryMessage,
+	CATCH_UP_CAP,
+	type PostDueSummary,
+} from '$lib/logic/post-due-schedules';
+import * as m from '$lib/paraglide/messages';
 
 let raw: DatabaseService;
 let db: AppDatabase;
@@ -240,6 +247,46 @@ describe('postDueSchedules', () => {
 
 		expect(summary.posted).toBe(4);
 		expect((await reload(id)).next_due_date).toBe('2026-05-28');
+	});
+});
+
+describe('bootSummaryMessage', () => {
+	const empty: PostDueSummary = {
+		due: 0, posted: 0, advanced: 0, notices: [], errors: [], capped: [],
+	};
+
+	it('returns null when there is nothing to report', () => {
+		expect(bootSummaryMessage(empty)).toBeNull();
+	});
+
+	it('reports posted alone when nothing else happened', () => {
+		const msg = bootSummaryMessage({ ...empty, posted: 2 });
+		expect(msg).toContain(m.schedules_toast_posted({ count: 2 }));
+		expect(msg).not.toContain(m.schedules_toast_due({ count: 1 }));
+		expect(msg).not.toContain(m.schedules_toast_errored({ count: 1 }));
+	});
+
+	it('reports posted and due together', () => {
+		const msg = bootSummaryMessage({ ...empty, posted: 1, notices: ['Rent'] });
+		expect(msg).toContain(m.schedules_toast_posted({ count: 1 }));
+		expect(msg).toContain(m.schedules_toast_due({ count: 1 }));
+	});
+
+	it('contains all three counts when posted, due, and errored all occur', () => {
+		// The assertion that would have caught the original bug: three consecutive
+		// toast.show calls in one tick meant only the last survived, so a message
+		// carrying all three counts is the only shape that proves the aggregation.
+		const msg = bootSummaryMessage({
+			...empty,
+			posted: 3,
+			notices: ['Rent', 'Gym'],
+			errors: [{ id: 'a', name: 'Gym' }],
+			capped: ['b'],
+		});
+		expect(msg).toContain(m.schedules_toast_posted({ count: 3 }));
+		expect(msg).toContain(m.schedules_toast_due({ count: 2 }));
+		// errors + capped — both are "could not be posted".
+		expect(msg).toContain(m.schedules_toast_errored({ count: 2 }));
 	});
 });
 

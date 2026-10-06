@@ -1,6 +1,7 @@
 import type { AppDatabase, Schedule } from '$lib/db/client';
 import { nextDueDate } from '$lib/utils/schedule_next_due';
 import { AppError } from '$lib/errors';
+import * as m from '$lib/paraglide/messages';
 
 /** Beyond this many posts in one pass a schedule is parked instead of drained. */
 export const CATCH_UP_CAP = 24;
@@ -162,4 +163,23 @@ let once: Promise<PostDueSummary> | null = null;
 export function postDueSchedulesOnce(db: AppDatabase, today: string): Promise<PostDueSummary> {
 	once ??= postDueSchedules(db, today);
 	return once;
+}
+
+/**
+ * The boot pass's one user-facing message, or `null` when it has nothing to say.
+ *
+ * A boot summary is a single event, but `ToastBus` keeps only one informational
+ * toast at a time — three consecutive `show` calls in the same tick leave only
+ * the last visible. So the pass joins its notices into one message rather than
+ * firing three; the parts are joined with " · " and reuse the three existing
+ * toast keys, so no new translations are needed and the message is one string
+ * to read. Pure and locale-aware, so it is unit-testable without a browser.
+ */
+export function bootSummaryMessage(summary: PostDueSummary): string | null {
+	const parts: string[] = [];
+	if (summary.posted > 0) parts.push(m.schedules_toast_posted({ count: summary.posted }));
+	if (summary.notices.length > 0) parts.push(m.schedules_toast_due({ count: summary.notices.length }));
+	const errored = summary.errors.length + summary.capped.length;
+	if (errored > 0) parts.push(m.schedules_toast_errored({ count: errored }));
+	return parts.length > 0 ? parts.join(' · ') : null;
 }

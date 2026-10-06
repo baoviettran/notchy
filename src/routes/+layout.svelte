@@ -21,7 +21,7 @@
 	import { schedules } from '$lib/stores/schedules.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { attachTransactionSavedListener, emitTransactionsChanged } from '$lib/stores/quick-refresh';
-	import { postDueSchedulesOnce } from '$lib/logic/post-due-schedules';
+	import { postDueSchedulesOnce, bootSummaryMessage } from '$lib/logic/post-due-schedules';
 	import { todayIso } from '$lib/utils/date';
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
 	import TopBar from '$lib/components/layout/TopBar.svelte';
@@ -100,16 +100,12 @@
 					// page must reload too or it shows the pre-pass due dates.
 					await schedules.load();
 					await emitTransactionsChanged();
-					toast.show(m.schedules_toast_posted({ count: summary.posted }));
 				}
-				if (summary.notices.length > 0) {
-					toast.show(m.schedules_toast_due({ count: summary.notices.length }));
-				}
-				if (summary.errors.length > 0 || summary.capped.length > 0) {
-					toast.show(
-						m.schedules_toast_errored({ count: summary.errors.length + summary.capped.length })
-					);
-				}
+				// One message, not three: ToastBus keeps a single informational toast
+				// per tick, so back-to-back show() calls would leave only the last
+				// visible. The aggregation is a pure function so it is unit-tested.
+				const msg = bootSummaryMessage(summary);
+				if (msg) toast.show(msg);
 			})();
 		}
 	});

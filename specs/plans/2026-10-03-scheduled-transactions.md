@@ -2456,26 +2456,29 @@ New keys in **both** `messages/en.json` and `messages/vi.json`:
 In `+layout.svelte`'s existing ready/firstRun `$effect` block, inside the same `(async () => { … })()` that already loads `settings` and `tour` — and **after** the `attachTransactionSavedListener` call, so this window is already listening when it emits. The effect's `isQuickAddWindow` early return at the top of the block is the main-window guard the spec requires; it is the only one needed, and the pass must not be hoisted above it:
 
 ```ts
-				const summary = await postDueSchedulesOnce(dbStore.db!, todayIso());
+				const summary = await postDueSchedulesOnce(getDb(), todayIso());
 				if (summary.posted > 0) {
 					// Refresh before the toast: the user should not read "3 posted"
 					// over a dashboard that still shows yesterday's balance.
 					await transactions.load();
 					await schedules.load();
 					await emitTransactionsChanged();
-					toast.show(m.schedules_toast_posted({ count: summary.posted }));
 				}
-				if (summary.notices.length > 0) {
-					toast.show(m.schedules_toast_due({ count: summary.notices.length }));
-				}
-				if (summary.errors.length > 0 || summary.capped.length > 0) {
-					toast.show(
-						m.schedules_toast_errored({ count: summary.errors.length + summary.capped.length })
-					);
-				}
+				// One message, not three: ToastBus keeps a single informational toast
+				// per tick, so consecutive show() calls would leave only the last.
+				const msg = bootSummaryMessage(summary);
+				if (msg) toast.show(msg);
 ```
 
-Add the imports: `postDueSchedulesOnce` (`$lib/logic/post-due-schedules`), `todayIso` (`$lib/utils/date`), `emitTransactionsChanged` (`$lib/stores/quick-refresh`), and the `schedules` store (Task 10 creates it — if this task is executed before Task 10, import the store only after it exists, or drop the `schedules.load()` line and add it in Task 10; do not create the store file here).
+The three notices are joined into one message by `bootSummaryMessage(summary)`
+(`$lib/logic/post-due-schedules`) rather than three back-to-back `toast.show` calls: `ToastBus`
+keeps only one informational toast at a time, so three calls in the same tick would leave only the
+last visible. The function reuses the three keys above, joined with ` · `, and returns `null` when
+there is nothing to say — that is what keeps a boot with nothing due silent.
+
+Add the imports: `postDueSchedulesOnce` and `bootSummaryMessage` (`$lib/logic/post-due-schedules`), `todayIso` (`$lib/utils/date`), `emitTransactionsChanged` (`$lib/stores/quick-refresh`), and the `schedules` store (Task 10 creates it — if this task is executed before Task 10, import the store only after it exists, or drop the `schedules.load()` line and add it in Task 10; do not create the store file here).
+
+Every toast is conditional on a non-zero count, so a boot with nothing due is silent — that is what keeps the existing E2E suite's toast assertions meaningful.
 
 Every toast is conditional on a non-zero count, so a boot with nothing due is silent — that is what keeps the existing E2E suite's toast assertions meaningful.
 
