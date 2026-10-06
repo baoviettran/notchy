@@ -101,3 +101,55 @@ test('a schedule that is due posts on the next open, exactly once', async ({ tau
 	expect(schedule[0].last_posted_date).toBe(first[0].date);
 	expect(schedule[0].next_due_date > first[0].date).toBe(true);
 });
+
+test('one boot aggregates a posted and a due notice into a single toast', async ({ tauriMockPage: page }) => {
+	// Guards the boot toast's aggregation (f994f0f). `bootSummaryMessage` has a
+	// unit test, but nothing asserted that +layout.svelte actually calls it once
+	// instead of `toast.show`ing each part — and ToastBus keeps a single
+	// informational toast, so the old three-call shape left only the last
+	// visible. That hole needs a boot with TWO non-zero parts: with one part the
+	// aggregate and a single show() render identically, so a one-part boot would
+	// guard nothing.
+	await onboard(page);
+	// Durably persist the onboarded DB before the first full page load.
+	await flushDb(page);
+
+	await page.goto('/schedules');
+
+	// A — "Rent": the default controls (expense, monthly, "Posts a transaction",
+	// start date today) post one transaction on the next boot → summary.posted = 1.
+	await page.getByRole('button', { name: 'New schedule' }).first().click();
+	await page.getByRole('dialog').getByLabel('Name').fill('Rent');
+	await page.getByRole('dialog').getByLabel('Amount').fill('500000');
+	await page.getByRole('dialog').getByLabel('Payee').fill('Landlord');
+	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
+	await expect(page.getByText('Rent', { exact: true })).toBeVisible();
+
+	// B — "Netflix": "Reminder only" (posts_transaction = 0) fires no
+	// transaction but contributes a name to summary.notices → the due part.
+	await page.getByRole('button', { name: 'New schedule' }).first().click();
+	await page.getByRole('dialog').getByLabel('Name').fill('Netflix');
+	await page.getByRole('dialog').getByLabel('Amount').fill('200000');
+	await page.getByRole('dialog').getByRole('radio', { name: 'Reminder only' }).check();
+	await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
+	await expect(page.getByText('Netflix', { exact: true })).toBeVisible();
+
+	// Both schedules are dated today, so the next boot posts A and notices B in
+	// the one pass: `bootSummaryMessage` joins them — under the old three
+	// sequential show() calls only the due (last) one survived, so the posted
+	// substring below is what makes this fail against the un-aggregated layout.
+	await flushDb(page);
+	await page.reload();
+
+	// Both parts sit in ONE element's text, so assert them together in a single
+	// regex. Not `toContainText([a, b])`: the array form is positional across
+	// matched elements and would compare the second string against a non-existent
+	// second element, so it can never pass against this single `role="status"`
+	// region. The regex also pins the order the aggregation joins them in. The
+	// toast auto-dismisses after ~3s (ToastBus's timer), but the retrying
+	// assertion catches it on the first poll after the reload; `role="status"` is
+	// GlobalToast's persistent region.
+	await expect(page.getByRole('status')).toContainText(
+		/scheduled transactions posted[\s\S]*scheduled transactions are due/
+	);
+});
