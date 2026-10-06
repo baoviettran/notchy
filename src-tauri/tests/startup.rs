@@ -215,7 +215,7 @@ async fn fresh_database_initializes_to_ready() {
         })
         .await
         .unwrap();
-    assert_eq!(meta, "6");
+    assert_eq!(meta, "7");
 }
 
 #[tokio::test]
@@ -272,7 +272,7 @@ async fn current_schema_startup_sweeps_orphaned_temp_artifacts() {
 
 #[tokio::test]
 async fn newer_schema_enters_recovery_required() {
-    let manager = manager_for_fixture("v007.sqlite").await;
+    let manager = manager_for_fixture("v008.sqlite").await;
     let mut receiver = manager.subscribe_startup();
     let error = manager.initialize().await.unwrap_err();
     assert_eq!(error.code, ErrorCode::SchemaTooNew);
@@ -305,7 +305,7 @@ async fn too_old_and_invalid_enter_recovery_required() {
 
 #[tokio::test]
 async fn failed_startup_retains_verified_backups() {
-    let manager = manager_for_fixture("v007.sqlite").await;
+    let manager = manager_for_fixture("v008.sqlite").await;
     // Pre-publish a verified recovery point so the recovery screen has a
     // backup to offer even though this startup fails.
     let backup_dir = manager.backup_dir();

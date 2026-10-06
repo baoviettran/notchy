@@ -79,7 +79,7 @@ test.describe('backup -> diverge -> restore round-trip', () => {
 		const result = await page.evaluate(
 			hookExpr(`return h.restoreCompatibleDatabase(${JSON.stringify(backupPath)});`)
 		);
-		expect(result).toEqual({ schemaVersion: 5 });
+		expect(result).toEqual({ schemaVersion: 6 });
 
 		// Reload so getDb() reopens the copied file (the live connection was
 		// closed by restoreCompatibleDatabase; the copied bytes live in the
@@ -112,7 +112,7 @@ test.describe('backup -> diverge -> restore round-trip', () => {
 		expect(beforeIds.length).toBeGreaterThan(0);
 
 		// Claim an older schema on the live DB, then back up those bytes so the
-		// backup presents as a supported v4 database (schema-5 structure with a
+		// backup presents as a supported v4 database (schema-6 structure with a
 		// v4 schema_version claim).
 		await rawExecute(page, "UPDATE app_meta SET value='4' WHERE key='schema_version'");
 		const backupPath = await createMockBackup(page, BACKUP_DIR);
@@ -126,8 +126,8 @@ test.describe('backup -> diverge -> restore round-trip', () => {
 
 		// The restored live-DB bytes (mirrored into IndexedDB by copy_file) must
 		// survive reload; startup then detects schema 4, creates a verified
-		// pre-upgrade backup, re-runs migration 005 (idempotent no-op), and
-		// reaches schema 5 while preserving the original account rows.
+		// pre-upgrade backup, re-runs the migrations (idempotent no-op), and
+		// reaches schema 6 while preserving the original account rows.
 		await flushDb(page);
 		await page.reload();
 		await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
@@ -143,7 +143,7 @@ test.describe('backup -> diverge -> restore round-trip', () => {
 			page,
 			"SELECT value FROM app_meta WHERE key = 'schema_version'"
 		);
-		expect(schema[0].value).toBe('5');
+		expect(schema[0].value).toBe('6');
 	});
 });
 
@@ -213,7 +213,7 @@ test.describe('import rejection (Tauri IPC mock)', () => {
 			db.run('CREATE TABLE transactions (id TEXT)');
 			db.run('CREATE TABLE category_types (id TEXT)');
 			db.run('CREATE TABLE category_tags (id TEXT)');
-			db.run("INSERT INTO app_meta (key, value) VALUES ('schema_version', '6')");
+			db.run("INSERT INTO app_meta (key, value) VALUES ('schema_version', '7')");
 			return Array.from(db.export());
 		});
 		await writeVirtualFs(page, APP_DATA_DIR + '/wrongver.sqlite', new Uint8Array(newerBytes));

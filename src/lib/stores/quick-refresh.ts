@@ -17,3 +17,28 @@ export async function attachTransactionSavedListener(
     await refetch();
   });
 }
+
+/**
+ * Tell every window that transactions changed.
+ *
+ * Each Tauri webview has its own JS context and its own stores, so a write in
+ * one window is invisible to another until this signal crosses the boundary.
+ * Under Tauri that is an `emit` the layout's `attachTransactionSavedListener`
+ * picks up; in the browser build it is a window event (and the caller refreshes
+ * its own list directly, since nothing listens there).
+ *
+ * Best-effort by design: a caller has already committed its writes by the time
+ * it calls this, so a failure here must never surface as an error.
+ */
+export async function emitTransactionsChanged(): Promise<void> {
+	try {
+		if (typeof window !== 'undefined' && (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
+			const { emit } = await import('@tauri-apps/api/event');
+			await emit('transaction:saved', {});
+		} else {
+			window.dispatchEvent(new Event('transaction:saved'));
+		}
+	} catch {
+		/* non-fatal: the calling window refreshes its own stores regardless */
+	}
+}

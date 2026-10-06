@@ -140,6 +140,14 @@ pub fn run() {
             backup_create,
             backup_export_sqlite,
             backup_export_csv,
+            // Schedule commands
+            schedule_list,
+            schedule_list_due,
+            schedule_create,
+            schedule_update,
+            schedule_delete,
+            schedule_mark_posted,
+            schedule_mark_errored,
         ])
         .plugin({
             let mut builder = tauri_plugin_global_shortcut::Builder::new();

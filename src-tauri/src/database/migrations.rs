@@ -1,4 +1,4 @@
-//! Native schema registry, fresh bootstrap, and migrations 1-6 (Task 3).
+//! Native schema registry, fresh bootstrap, and migrations 1-7 (Task 3).
 //!
 //! This is the single native source of schema truth: the exact SQL ported from
 //! the committed TypeScript migration registry, plus the Rust-only migration
@@ -20,7 +20,7 @@ use crate::database::manifest::{inspect_schema, validate_manifest};
 use crate::database::types::OperationId;
 
 /// The newest released schema version.
-pub const LATEST_SCHEMA_VERSION: i64 = 6;
+pub const LATEST_SCHEMA_VERSION: i64 = 7;
 /// The oldest schema version still supported for in-place migration.
 pub const MIN_SUPPORTED_SCHEMA_VERSION: i64 = 3;
 
@@ -41,6 +41,7 @@ pub const MIGRATIONS: &[Migration] = &[
     Migration { version: 4, name: "rollover_toggle", up: migration_004 },
     Migration { version: 5, name: "categorize_rules", up: migration_005 },
     Migration { version: 6, name: "operation_receipts", up: migration_006 },
+    Migration { version: 7, name: "schedules", up: migration_007 },
 ];
 
 /// Fault-injection point for atomic-rollback tests.
@@ -142,7 +143,7 @@ pub fn run_migrations(
 /// The database is inspected read-only first; only `Older` schemas with the
 /// expected `from_version` proceed. The live connection applies the exact
 /// connection policy, every pending migration runs atomically, and the result
-/// is validated against the schema-6 manifest.
+/// is validated against the schema-7 manifest.
 pub fn migrate_supported(
     path: &Path,
     from_version: i64,
@@ -162,7 +163,7 @@ pub fn migrate_supported(
     Ok(())
 }
 
-/// Bootstrap a fresh database (absent path) through migrations 1-6.
+/// Bootstrap a fresh database (absent path) through migrations 1-7.
 ///
 /// The schema is built in a same-directory temporary file, validated, `fsync`ed,
 /// and atomically renamed into place, then the directory is `fsync`ed. Any
@@ -733,5 +734,49 @@ fn migration_006(transaction: &Transaction<'_>) -> DbResult<()> {
         [],
     ))?;
     failpoint_step(6)?;
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Migration 7: schedules (ported from 006_schedules.ts)
+// ---------------------------------------------------------------------------
+
+fn migration_007(transaction: &Transaction<'_>) -> DbResult<()> {
+    sql(transaction.execute(
+        "CREATE TABLE IF NOT EXISTS schedules (
+            id                  TEXT PRIMARY KEY,
+            name                TEXT NOT NULL CHECK (length(name) BETWEEN 1 AND 64),
+            kind                TEXT NOT NULL CHECK (kind IN ('expense', 'income', 'transfer')),
+            amount              INTEGER NOT NULL CHECK (amount > 0 AND amount <= 999999999999),
+            account_id          TEXT NOT NULL REFERENCES accounts(id),
+            transfer_account_id TEXT REFERENCES accounts(id),
+            tag_id              TEXT REFERENCES category_tags(id),
+            payee               TEXT CHECK (payee IS NULL OR length(payee) <= 128),
+            description         TEXT CHECK (description IS NULL OR length(description) <= 1024),
+            frequency           TEXT NOT NULL CHECK (frequency IN ('weekly', 'biweekly', 'monthly', 'yearly')),
+            start_date          TEXT NOT NULL CHECK (start_date BETWEEN '1970-01-01' AND '2100-12-31'),
+            end_date            TEXT CHECK (end_date IS NULL OR end_date >= start_date),
+            posts_transaction   INTEGER NOT NULL DEFAULT 1 CHECK (posts_transaction IN (0, 1)),
+            next_due_date       TEXT,
+            last_posted_date    TEXT,
+            completed           INTEGER NOT NULL DEFAULT 0 CHECK (completed IN (0, 1)),
+            enabled             INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+            errored_at          TEXT,
+            created_at          TEXT NOT NULL,
+            updated_at          TEXT NOT NULL,
+            deleted_at          TEXT,
+            CHECK (kind <> 'transfer' OR (transfer_account_id IS NOT NULL AND tag_id IS NULL)),
+            CHECK (kind = 'transfer' OR transfer_account_id IS NULL)
+        )",
+        [],
+    ))?;
+    failpoint_step(7)?;
+
+    sql(transaction.execute(
+        "CREATE INDEX IF NOT EXISTS idx_schedules_due
+         ON schedules(enabled, completed, errored_at, next_due_date, deleted_at)",
+        [],
+    ))?;
+    failpoint_step(7)?;
     Ok(())
 }

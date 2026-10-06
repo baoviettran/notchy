@@ -1,8 +1,9 @@
 # Scheduled Transactions + Rollover To-Budget Pool — Design
 
 **Date:** 2026-07-06
-**Status:** Design (pending implementation plan)
+**Status:** Part 1 (scheduled transactions) implemented by `specs/plans/2026-10-03-scheduled-transactions.md`; Part 2 (rollover to-budget pool) awaiting a plan.
 **Branch:** `feat/actual`
+**Serves:** STORY-009
 
 ## Summary
 
@@ -105,6 +106,9 @@ Handles month-end clamping (Jan 31 → Feb 28) — the one real edge case. No li
 `postDueSchedules()` runs once at boot from `+layout.svelte`, **main window only** (single-writer discipline, per quick-add-contention memory):
 
 1. Query `schedules WHERE enabled=1 AND completed=0 AND deleted_at IS NULL AND next_due_date <= today`.
+
+   **Definition of `today`.** `today` is the **UTC calendar day** (`todayIso()` — `at.toISOString().slice(0, 10)`), matching the convention already used by `repos/accounts.ts`, `repos/debts.ts`, `repos/transactions.ts` and SQLite's own `date('now')`. This is deliberately a single, timezone-free rule rather than one that drifts with the machine's local zone, and the trade-off is accepted: a user east of UTC can see a schedule still due in the local evening before it posts, and a user far west can see one post before their local midnight. It is the rule to change if that trade-off is ever revisited.
+
 2. For each due schedule, loop while `next_due_date <= today`:
    - If `posts_transaction`: create a real transaction via existing `createTransaction` (date = `next_due_date`, amount/kind/account/tag/payee from the schedule). Mark `last_posted_date`.
    - Advance `next_due_date = nextDueDate(next_due_date, freq)`.
@@ -210,3 +214,16 @@ Following project TDD discipline (red-green-refactor) and the "do not mock the D
 ## Open questions
 
 None at design time. Defaults pinned in the body: catch-up cap 24 posts/schedule; income from `kind='income'`; rollover-off drops negatives to pool, rollover-on unchanged; no money-movement primitives; reminder schedules informational only. The implementation plan may revisit the cap value and whether deleting an account blocks on active schedules, but should treat the above as the baseline.
+
+## Known gaps and follow-ups
+
+Parked during `2026-10-03-scheduled-transactions` (Task 13); all still open and each names the file it would touch.
+
+1. **`schedules` is absent from the CSV table dump** — `src-tauri/src/database/domains/export.rs`'s `TABLE_SET` lists 7 tables and omits `schedules`, so the convenience CSV export skips schedule definitions. Backups are unaffected (the Online Backup API copies the whole DB). Needs a product decision: does a schedule *definition* belong in a ledger dump?
+2. **`manifest.rs`'s per-version `TABLES_V*` lists are hand-copied** — `TABLES_V7` (`src-tauri/src/database/manifest.rs`) was the second hand-maintained copy and migration 8 will be the third; forgetting to add the table to the new list is a boot brick, which is exactly how this plan opens.
+3. **`validate_manifest`'s CHECK gate is one-directional** — `src-tauri/src/database/manifest.rs` catches a manifest declaring a CHECK the DDL lacks, but not the reverse; the rejection tests are the real protection. Pre-existing, not introduced here.
+4. **`NewSchedule.posts_transaction` is optional on the port** — `src/lib/db/client.ts` marks it `posts_transaction?`, so the browser `createSchedule` (`src/lib/db/browser/repos/schedules.ts`) defaults a missing value to `1` while Rust's `create_schedule` requires the field: the lenient-double-divergence class (browser accepting what Rust rejects). Unreachable while the form supplies it; tightening the port type ripples into `NativeScheduleOps`.
+5. **The posting engine is not atomic across the port** — a `markPosted` failure after `create` wrote rows parks the schedule without advancing its date, so a later Resume re-posts those rows (duplicate financial posts). Touches `src/lib/db/browser/repos/schedules.ts` and `src-tauri/src/database/domains/schedules.rs`; the real fix is a design change (transaction support or `op_id` on the port).
+6. **The boot posting pass never runs in the web/browser build** — `attachTransactionSavedListener` (`src/lib/stores/quick-refresh.ts`) rejects there (`@tauri-apps/api` `invoke` dereferences `window.__TAURI_INTERNALS__` unguarded), aborting the boot IIFE before the pass; the bare IIFE also has no `.catch`, so an initial-query failure silently never posts. Desktop is unaffected; `pnpm dev` and the 28 browser-fallback E2E specs are. Task 12 (`95c142d`) added a `plugin:event|listen` stub to the Tauri mock, which finally let the pass run in the mock specs (the same missing-handler abort was hiding it there too); that half is fixed, the browser-build half is not. Touches the boot pass in `src/routes/+layout.svelte`.
+7. **Cross-window event delivery has no coverage anywhere** — the Tauri mock's event stub no-ops `emit`, so `emitTransactionsChanged`'s path (`src/lib/stores/quick-refresh.ts`) is untested. It masks nothing today (the layout refreshes its stores explicitly before emitting) but it is unproven.
+8. **Resume clears the badge but nothing posts until the next boot** — `src/lib/stores/schedules.svelte.ts:84-96` resumes a parked schedule with `next_due_date: null` (which keeps the stored, still-due date), but the posting pass runs **only at boot** (`src/routes/+layout.svelte`) and nothing on the schedules page re-triggers it: the user clicks Resume, the badge clears, and no transaction appears until they restart the app. Consistent with the documented boot-only design (a spec non-goal), so nothing is lost — the gap is the silent wait. It interacts with gap 5, where a later pass re-posts rows the parking never advanced past; closing it is a product decision (button copy or a "run now" path), not this round's.

@@ -14,10 +14,15 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { dbStore } from '$lib/stores/db.svelte';
+	import { getDb } from '$lib/db';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { tour } from '$lib/stores/tour.svelte';
 	import { transactions } from '$lib/stores/transactions.svelte';
-	import { attachTransactionSavedListener } from '$lib/stores/quick-refresh';
+	import { schedules } from '$lib/stores/schedules.svelte';
+	import { toast } from '$lib/stores/toast.svelte';
+	import { attachTransactionSavedListener, emitTransactionsChanged } from '$lib/stores/quick-refresh';
+	import { postDueSchedulesOnce, bootSummaryMessage } from '$lib/logic/post-due-schedules';
+	import { todayIso } from '$lib/utils/date';
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
 	import TopBar from '$lib/components/layout/TopBar.svelte';
 	import BottomNav from '$lib/components/layout/BottomNav.svelte';
@@ -81,6 +86,26 @@
 				unlisten = await attachTransactionSavedListener(listen, async () => {
 					await transactions.load();
 				});
+
+				// Post anything that fell due while the app was closed. `getDb()` is
+				// initialized by the ready stage that gates this block; the quick-add
+				// early return above keeps the pass to the main window. Register the
+				// listener first so this window is already listening when we emit.
+				const summary = await postDueSchedulesOnce(getDb(), todayIso());
+				if (summary.posted > 0) {
+					// Refresh before the toast: the user should not read "3 posted"
+					// over a dashboard that still shows yesterday's balance.
+					await transactions.load();
+					// The boot pass advanced (or parked) schedules, so the /schedules
+					// page must reload too or it shows the pre-pass due dates.
+					await schedules.load();
+					await emitTransactionsChanged();
+				}
+				// One message, not three: ToastBus keeps a single informational toast
+				// per tick, so back-to-back show() calls would leave only the last
+				// visible. The aggregation is a pure function so it is unit-tested.
+				const msg = bootSummaryMessage(summary);
+				if (msg) toast.show(msg);
 			})();
 		}
 	});

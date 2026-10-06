@@ -7,13 +7,13 @@ import type { Page } from '@playwright/test';
  * Drives the REAL startup coordinator (initializeMainDatabase → prepareDatabase),
  * migration runner, and recovery UI against the Tauri IPC mock with seeded
  * released-schema databases and injected upgrade/migration failures:
- *   - initialSchemaVersion 6 → database_schema_newer (finance routes blocked)
+ *   - initialSchemaVersion 7 → database_schema_newer (finance routes blocked)
  *   - initialSchemaVersion 4 + failMigrationVersion 5 → migration_failed with a
- *     verified pre-upgrade backup (v4→v5) available for restore
+ *     verified pre-upgrade backup (v4→v6) available for restore
  *   - initialSchemaVersion 4 + failUpgradeBackup → upgrade_backup_failed with
  *     no restore action available
  * The restore journey clears the injected fault via the mock-only callback,
- * clicks Restore, and asserts the fixture transaction survives at schema 5.
+ * clicks Restore, and asserts the fixture transaction survives at schema 6.
  */
 async function liveQuery<T>(page: Page, sql: string): Promise<T[]> {
 	return rawQuery<T>(page, sql);
@@ -37,7 +37,7 @@ test.describe('protected startup', () => {
 		test('shows a verified backup after a migration failure', async ({ tauriMockPage: page }) => {
 			await page.goto('/');
 			await expect(page.getByRole('button', { name: 'Restore verified backup' })).toBeVisible();
-			await expect(page.getByText(/notchy-pre-upgrade-v4-to-v5/)).toBeVisible();
+			await expect(page.getByText(/notchy-pre-upgrade-v4-to-v6/)).toBeVisible();
 		});
 
 		test('retry does not reach finance UI while the fault remains', async ({ tauriMockPage: page }) => {
@@ -87,8 +87,8 @@ test.describe('protected startup', () => {
 			await page.getByRole('dialog').getByRole('button', { name: 'Restore verified backup' }).click();
 
 			// restoreCompatibleDatabase replaces the live file and reloads; startup
-			// re-runs against the restored schema-4 backup, migration 005 is
-			// idempotent, and the app reaches the Dashboard at schema 5.
+			// re-runs against the restored schema-4 backup, the migrations are
+			// idempotent, and the app reaches the Dashboard at schema 6.
 			await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 
 			// The original released-fixture transaction survives the round trip.
@@ -103,7 +103,7 @@ test.describe('protected startup', () => {
 				page,
 				"SELECT value FROM app_meta WHERE key = 'schema_version'"
 			);
-			expect(schema[0].value).toBe('5');
+			expect(schema[0].value).toBe('6');
 		});
 	});
 

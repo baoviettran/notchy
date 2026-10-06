@@ -52,7 +52,7 @@ function makeDependencies(
 	overrides: DependencyOverrides = {}
 ): StartupDependencies {
 	return {
-		latestSchemaVersion: 5,
+		latestSchemaVersion: 6,
 		appVersion: '0.1.4',
 		liveDatabasePath: '/data/notchy.db',
 		now: () => new Date('2026-08-15T11:00:00.000Z'),
@@ -107,7 +107,7 @@ describe('prepareDatabase', () => {
 		expect(events).toEqual([
 			'checking', 'backing_up', 'backup', 'migrating', 'migrate', 'verifying', 'verify', 'ready'
 		]);
-		expect(result).toMatchObject({ schemaVersion: 5, migratedFrom: 4, backup: record });
+		expect(result).toMatchObject({ schemaVersion: 6, migratedFrom: 4, backup: record });
 	});
 
 	it('writes startup and upgrade metadata on an older database', async () => {
@@ -117,9 +117,9 @@ describe('prepareDatabase', () => {
 		await prepareDatabase(db, makeDependencies(db, []), () => {});
 
 		expect(await readAppMeta(db)).toMatchObject({
-			schema_version: '5',
+			schema_version: '6',
 			last_successful_app_version: '0.1.4',
-			last_successful_schema_version: '5',
+			last_successful_schema_version: '6',
 			last_successful_startup_at: '2026-08-15T11:00:00.000Z',
 			last_migrated_from_schema: '4',
 			last_upgrade_backup_path: record.path
@@ -132,7 +132,7 @@ describe('prepareDatabase', () => {
 		const backupSpy = vi.fn(async () => verifiedRecord());
 
 		const result = await prepareDatabase(db, {
-			latestSchemaVersion: 5,
+			latestSchemaVersion: 6,
 			appVersion: '0.1.4',
 			liveDatabasePath: '/data/notchy.db',
 			now: () => new Date('2026-08-15T11:00:00.000Z'),
@@ -149,7 +149,7 @@ describe('prepareDatabase', () => {
 
 		expect(events).toEqual(['checking', 'migrating', 'migrate', 'verifying', 'verify', 'ready']);
 		expect(backupSpy).not.toHaveBeenCalled();
-		expect(result).toMatchObject({ schemaVersion: 5, migratedFrom: null, backup: null });
+		expect(result).toMatchObject({ schemaVersion: 6, migratedFrom: null, backup: null });
 
 		const meta = await readAppMeta(db);
 		expect(meta.last_successful_app_version).toBe('0.1.4');
@@ -171,7 +171,7 @@ describe('prepareDatabase', () => {
 		});
 
 		const result = await prepareDatabase(db, {
-			latestSchemaVersion: 5,
+			latestSchemaVersion: 6,
 			appVersion: '0.1.4',
 			liveDatabasePath: '/data/notchy.db',
 			now: () => new Date('2026-08-15T11:00:00.000Z'),
@@ -186,7 +186,7 @@ describe('prepareDatabase', () => {
 		expect(events).toEqual(['checking', 'verifying', 'verify', 'ready']);
 		expect(backupSpy).not.toHaveBeenCalled();
 		expect(migrateSpy).not.toHaveBeenCalled();
-		expect(result).toMatchObject({ schemaVersion: 5, migratedFrom: null, backup: null });
+		expect(result).toMatchObject({ schemaVersion: 6, migratedFrom: null, backup: null });
 
 		const meta = await readAppMeta(db);
 		expect(meta.last_successful_app_version).toBe('0.1.4');
@@ -197,12 +197,12 @@ describe('prepareDatabase', () => {
 	it('rejects a newer database without calling migration and leaves it unmodified', async () => {
 		const db = trackDb(createTestDb());
 		await runMigrations(db, migrations);
-		await db.execute(`UPDATE app_meta SET value = '6' WHERE key = 'schema_version'`);
+		await db.execute(`UPDATE app_meta SET value = '7' WHERE key = 'schema_version'`);
 		const migrateSpy = vi.fn(async () => {});
 		const verifySpy = vi.fn(async () => {});
 
 		const error = await captureError(prepareDatabase(db, {
-			latestSchemaVersion: 5,
+			latestSchemaVersion: 6,
 			appVersion: '0.1.4',
 			liveDatabasePath: '/data/notchy.db',
 			now: () => new Date('2026-08-15T11:00:00.000Z'),
@@ -216,7 +216,7 @@ describe('prepareDatabase', () => {
 		expect(error as DatabaseStartupError).toMatchObject({
 			recovery: {
 				code: 'database_schema_newer',
-				detectedSchemaVersion: 6,
+				detectedSchemaVersion: 7,
 				backupPath: null,
 				detail: expect.any(String)
 			}
@@ -224,7 +224,7 @@ describe('prepareDatabase', () => {
 		expect(migrateSpy).not.toHaveBeenCalled();
 		expect(verifySpy).not.toHaveBeenCalled();
 		expect(await db.query<{ value: string }>(`SELECT value FROM app_meta WHERE key = 'schema_version'`)).toEqual([
-			{ value: '6' }
+			{ value: '7' }
 		]);
 	});
 
@@ -234,7 +234,7 @@ describe('prepareDatabase', () => {
 		const migrateSpy = vi.fn(async () => {});
 
 		const error = await captureError(prepareDatabase(db, {
-			latestSchemaVersion: 5,
+			latestSchemaVersion: 6,
 			appVersion: '0.1.4',
 			liveDatabasePath: '/data/notchy.db',
 			now: () => new Date('2026-08-15T11:00:00.000Z'),
@@ -260,7 +260,7 @@ describe('prepareDatabase', () => {
 		const migrateSpy = vi.fn(async () => {});
 
 		const error = await captureError(prepareDatabase(db, {
-			latestSchemaVersion: 5,
+			latestSchemaVersion: 6,
 			appVersion: '0.1.4',
 			liveDatabasePath: '/data/notchy.db',
 			now: () => new Date('2026-08-15T11:00:00.000Z'),
@@ -293,7 +293,7 @@ describe('prepareDatabase', () => {
 		const migrateSpy = vi.fn(async () => {});
 
 		const error = await captureError(prepareDatabase(db, {
-			latestSchemaVersion: 5,
+			latestSchemaVersion: 6,
 			appVersion: '0.1.4',
 			liveDatabasePath: '/data/notchy.db',
 			now: () => new Date('2026-08-15T11:00:00.000Z'),
@@ -320,7 +320,7 @@ describe('prepareDatabase', () => {
 		const record = verifiedRecord();
 
 		const error = await captureError(prepareDatabase(db, {
-			latestSchemaVersion: 5,
+			latestSchemaVersion: 6,
 			appVersion: '0.1.4',
 			liveDatabasePath: '/data/notchy.db',
 			now: () => new Date('2026-08-15T11:00:00.000Z'),
@@ -357,7 +357,7 @@ describe('prepareDatabase', () => {
 		const db = trackDb(createTestDb());
 
 		const error = await captureError(prepareDatabase(db, {
-			latestSchemaVersion: 5,
+			latestSchemaVersion: 6,
 			appVersion: '0.1.4',
 			liveDatabasePath: '/data/notchy.db',
 			now: () => new Date('2026-08-15T11:00:00.000Z'),
@@ -383,7 +383,7 @@ describe('prepareDatabase', () => {
 		const db = trackDb(createTestDb());
 
 		await prepareDatabase(db, {
-			latestSchemaVersion: 5,
+			latestSchemaVersion: 6,
 			appVersion: '0.1.4',
 			liveDatabasePath: '/data/notchy.db',
 			now: () => new Date('2026-08-15T11:00:00.000Z'),
@@ -394,7 +394,7 @@ describe('prepareDatabase', () => {
 				// stale upgrade keys so the fresh-launch cleanup has something to
 				// delete (the real migrations never write these keys).
 				await db.execute(`CREATE TABLE app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
-				await db.execute(`INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', '5')`);
+				await db.execute(`INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', '6')`);
 				await db.execute(`INSERT OR REPLACE INTO app_meta (key, value) VALUES ('last_migrated_from_schema', '4')`);
 				await db.execute(`INSERT OR REPLACE INTO app_meta (key, value) VALUES ('last_upgrade_backup_path', '/stale/backup.sqlite')`);
 			},
@@ -412,7 +412,7 @@ describe('prepareDatabase', () => {
 		const record = verifiedRecord();
 
 		const error = await captureError(prepareDatabase(db, {
-			latestSchemaVersion: 5,
+			latestSchemaVersion: 6,
 			appVersion: '0.1.4',
 			liveDatabasePath: '/data/notchy.db',
 			now: () => new Date('2026-08-15T11:00:00.000Z'),

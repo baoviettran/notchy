@@ -1,6 +1,85 @@
 import { test, expect } from './fixtures/onboarded';
 import { pickDate } from './helpers/datepicker';
 import { addTransaction } from './helpers/ui';
+import type { Page } from '@playwright/test';
+
+// The in-memory (sql.js) browser DB is reachable from the page through the
+// E2E test hook dbStore exposes when Tauri is absent (stores/db.svelte.ts:55-62).
+// Same accessor csv-import.spec.ts drives (its `hooks.getDb().raw.query`); the
+// scan of the real database in the delete dialog seeds rows the UI cannot
+// produce — a completed schedule has no UI path.
+async function accountIdByName(page: Page, name: string): Promise<string> {
+	return page.evaluate(async (accountName) => {
+		const hooks = (
+			window as unknown as {
+				__notchyTestHooks?: {
+					getDb: () => Promise<{ raw: { query: (sql: string, params?: unknown[]) => Promise<{ id: string }[]> } }>;
+				};
+			}
+		).__notchyTestHooks;
+		if (!hooks) throw new Error('Test hooks not available');
+		const db = await hooks.getDb();
+		const rows = await db.raw.query('SELECT id FROM accounts WHERE name = ? AND deleted_at IS NULL', [accountName]);
+		return rows[0].id;
+	}, name);
+}
+
+/** Insert a schedule row directly. `completed: 1` is unreachable through the UI,
+ *  so the raw insert is the only way to pin the "a finished schedule must not
+ *  inflate the warning" case. The far-future `next_due_date` keeps the boot
+ *  posting pass from touching the row. A `transfer` seed additionally names the
+ *  destination account through `transferAccountId` (the schema requires it for
+ *  that kind: migration 006's CHECK). */
+async function seedSchedule(
+	page: Page,
+	accountId: string,
+	{
+		id,
+		name,
+		completed,
+		kind = 'expense',
+		transferAccountId = null
+	}: {
+		id: string;
+		name: string;
+		completed: 0 | 1;
+		kind?: 'expense' | 'income' | 'transfer';
+		transferAccountId?: string | null;
+	}
+): Promise<void> {
+	await page.evaluate(
+		async ({
+			accountId: account,
+			id: scheduleId,
+			name: scheduleName,
+			completed: completedFlag,
+			kind: kindValue,
+			transferAccountId: transferAccount
+		}) => {
+			const hooks = (
+				window as unknown as {
+					__notchyTestHooks?: {
+						getDb: () => Promise<{ raw: { execute: (sql: string, params?: unknown[]) => Promise<unknown> } }>;
+					};
+				}
+			).__notchyTestHooks;
+			if (!hooks) throw new Error('Test hooks not available');
+			const db = await hooks.getDb();
+			await db.raw.execute(
+				`INSERT INTO schedules
+					(id, name, kind, amount, account_id, transfer_account_id, tag_id, payee,
+					 description, frequency, start_date, end_date, posts_transaction,
+					 next_due_date, last_posted_date, completed, enabled, errored_at,
+					 created_at, updated_at)
+				 VALUES (?, ?, ?, 1000, ?, ?, NULL, NULL, NULL, 'monthly',
+					 '2026-01-01', NULL, 1, '2099-01-01', NULL, ?, 1, NULL,
+					 '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`,
+				[scheduleId, scheduleName, kindValue, account, transferAccount, completedFlag]
+			);
+		},
+		{ accountId, id, name, completed, kind, transferAccountId }
+	);
+}
 
 // Extended account coverage for the AUTO-tagged checklist items in §4.
 // Conventions match accounts.spec.ts / transactions.spec.ts: SPA navigation
@@ -164,6 +243,77 @@ test.describe('accounts — extended', () => {
 		// Undo restores the soft-deleted account (m.accounts_restored_toast).
 		await expect(page.getByText('Account restored.')).toBeVisible();
 		await expect(page.getByRole('main').getByText('Test Checking')).toBeVisible();
+	});
+
+	test('warns when the account still has active scheduled transactions', async ({ onboardedPage: page }) => {
+		// Two schedules on the account being deleted: one active, one completed.
+		// The confirm must mention only the ACTIVE count (one) — a completed
+		// schedule is not a surprise, and an inflated warning trains people to
+		// click through it. So this also pins that an always-on / count-drifted
+		// warning would be caught.
+		const accountId = await accountIdByName(page, 'Test Checking');
+		await seedSchedule(page, accountId, { id: '01ACTIVE', name: 'Active Rent', completed: 0 });
+		await seedSchedule(page, accountId, { id: '01DONE', name: 'Done Rent', completed: 1 });
+
+		await page.getByRole('link', { name: 'Accounts', exact: true }).click();
+		const checkingRow = page.getByRole('main').locator('.group', { hasText: 'Test Checking' });
+		await checkingRow.getByRole('button').last().click();
+		await page.getByRole('menuitem', { name: 'Delete' }).click();
+
+		// m.accounts_delete_active_schedules_one — the active schedule counts.
+		await expect(page.getByText(/1 schedule still uses this account/)).toBeVisible();
+		// The completed one is excluded, so the plural/two form must NOT render.
+		await expect(page.getByText(/2 schedules still use this account/)).toHaveCount(0);
+	});
+
+	test('warns when a transfer schedule targets the account being deleted', async ({ onboardedPage: page }) => {
+		// The engine parks a schedule when EITHER of its accounts is gone:
+		// accountsAreLive checks account_id AND transfer_account_id
+		// (post-due-schedules.ts:38-43). So deleting A parks a transfer stored as
+		// account_id = B, transfer_account_id = A. The delete warning must count
+		// that row too, or it parks with no warning and the user first learns of
+		// it from a later "could not be posted" toast.
+		await page.getByRole('link', { name: 'Accounts', exact: true }).click();
+		// A second, live account for the transfer's source side (the FK target).
+		await page.getByRole('button', { name: '+ Add account' }).first().click();
+		const createModal = page.getByRole('dialog');
+		await createModal.getByLabel('Name').fill('Other Wallet');
+		await createModal.getByLabel('Type').selectOption('Cash');
+		await createModal.getByRole('button', { name: 'Create' }).click();
+		await expect(page.getByRole('dialog')).toBeHidden();
+
+		const checkingId = await accountIdByName(page, 'Test Checking');
+		const walletId = await accountIdByName(page, 'Other Wallet');
+		// Source is the live wallet; destination is the account being deleted.
+		await seedSchedule(page, walletId, {
+			id: '01TRANSFER',
+			name: 'Wallet to Checking',
+			completed: 0,
+			kind: 'transfer',
+			transferAccountId: checkingId
+		});
+
+		const checkingRow = page.getByRole('main').locator('.group', { hasText: 'Test Checking' });
+		await checkingRow.getByRole('button').last().click();
+		await page.getByRole('menuitem', { name: 'Delete' }).click();
+
+		// The transfer counts as 1, matched through its transfer_account_id.
+		await expect(page.getByText(/1 schedule still uses this account/)).toBeVisible();
+	});
+
+	test('shows no warning for an account with only completed schedules', async ({ onboardedPage: page }) => {
+		// The zero case is the one that regresses silently: a warning that always
+		// shows is the same as no warning at all.
+		const accountId = await accountIdByName(page, 'Test Checking');
+		await seedSchedule(page, accountId, { id: '01DONE', name: 'Done Rent', completed: 1 });
+
+		await page.getByRole('link', { name: 'Accounts', exact: true }).click();
+		const checkingRow = page.getByRole('main').locator('.group', { hasText: 'Test Checking' });
+		await checkingRow.getByRole('button').last().click();
+		await page.getByRole('menuitem', { name: 'Delete' }).click();
+
+		await expect(page.getByText('Delete account?')).toBeVisible();
+		await expect(page.getByText(/still use/)).toHaveCount(0);
 	});
 
 	test('delete is blocked when the account is linked to an active goal', async ({ onboardedPage: page }) => {

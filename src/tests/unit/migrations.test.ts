@@ -73,7 +73,7 @@ describe('released database fixtures', () => {
 				await fixtureDb.query<{ value: string }>(
 					`SELECT value FROM app_meta WHERE key = 'schema_version'`
 				)
-			).toEqual([{ value: '5' }]);
+			).toEqual([{ value: '6' }]);
 			expect(await fixtureDb.query<{ id: string }>(`SELECT id FROM accounts WHERE id = ?`, [accountId])).toEqual([
 				{ id: accountId }
 			]);
@@ -127,7 +127,7 @@ describe('released database fixtures', () => {
 
 describe('migration registry', () => {
 	it('derives the latest schema version from the registry', () => {
-		expect(LATEST_SCHEMA_VERSION).toBe(5);
+		expect(LATEST_SCHEMA_VERSION).toBe(6);
 	});
 });
 
@@ -151,7 +151,7 @@ describe('Migration 001 - schema', () => {
 		const indexes = await db.query<{ name: string }>(
 			`SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'`
 		);
-		expect(indexes.length).toBe(14);
+		expect(indexes.length).toBe(15);
 	});
 });
 
@@ -207,11 +207,11 @@ describe('Migration 003 - seed data', () => {
 		expect(rows[0].value).toHaveLength(26);
 	});
 
-	it('schema_version is 5', async () => {
+	it('schema_version is 6', async () => {
 		const rows = await db.query<{ value: string }>(
 			`SELECT value FROM app_meta WHERE key = 'schema_version'`
 		);
-		expect(rows[0].value).toBe('5');
+		expect(rows[0].value).toBe('6');
 	});
 });
 
@@ -249,7 +249,7 @@ describe('runMigrations — recovery from a half-applied state', () => {
 		// `db` is already fully migrated by beforeEach. Simulate the stuck state:
 		// roll schema_version back to 3 while keeping the rollover_enabled column.
 		// This is exactly the on-disk state that bricked boot with "duplicate
-		// column name". runMigrations must converge to schema_version=5 cleanly.
+		// column name". runMigrations must converge to schema_version=6 cleanly.
 		await db.execute(
 			`UPDATE app_meta SET value = '3' WHERE key = 'schema_version'`
 		);
@@ -257,7 +257,7 @@ describe('runMigrations — recovery from a half-applied state', () => {
 		const rows = await db.query<{ value: string }>(
 			`SELECT value FROM app_meta WHERE key = 'schema_version'`
 		);
-		expect(rows[0].value).toBe('5');
+		expect(rows[0].value).toBe('6');
 	});
 
 	it('reports each applied migration in order', async () => {
@@ -266,16 +266,16 @@ describe('runMigrations — recovery from a half-applied state', () => {
 
 		await runMigrations(fresh, migrations, (migration) => seen.push(migration.version));
 
-		expect(seen).toEqual([1, 2, 3, 4, 5]);
+		expect(seen).toEqual([1, 2, 3, 4, 5, 6]);
 	});
 
 	it('does not modify a database from a newer schema', async () => {
-		await db.execute(`UPDATE app_meta SET value = '6' WHERE key = 'schema_version'`);
+		await db.execute(`UPDATE app_meta SET value = '7' WHERE key = 'schema_version'`);
 
-		await expect(runMigrations(db, migrations)).rejects.toThrow('database_schema_newer:6:5');
+		await expect(runMigrations(db, migrations)).rejects.toThrow('database_schema_newer:7:6');
 		expect(
 			await db.query<{ value: string }>(`SELECT value FROM app_meta WHERE key = 'schema_version'`)
-		).toEqual([{ value: '6' }]);
+		).toEqual([{ value: '7' }]);
 	});
 });
 
@@ -338,5 +338,237 @@ describe('migration sequence idempotency (no "duplicate column name" on re-run)'
 			)
 		).toEqual([{ value: String(LATEST_SCHEMA_VERSION) }]);
 		await fileDb.close();
+	});
+});
+
+describe('migration 006 — schedules', () => {
+	/** Insert a real account so a rejection can never be caused by a missing
+	 *  `account_id` FK/NOT NULL instead of the constraint under test (the app
+	 *  sets PRAGMA foreign_keys = ON; the harness does not today, but must not
+	 *  make these pass for the wrong reason if it ever does). */
+	async function insertAccount(id = 'acct_schedules'): Promise<string> {
+		await db.execute(
+			`INSERT INTO accounts (id, name, type, currency, created_at, updated_at)
+			 VALUES (?, 'Schedules test', 'checking', 'VND', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`,
+			[id]
+		);
+		return id;
+	}
+
+	/** Read a row back so acceptance tests prove the write landed — "did not
+	 *  throw" would also be satisfied by a silent no-op. */
+	async function readSchedule(id: string) {
+		const rows = await db.query<Record<string, string | number | null>>(
+			`SELECT id, name, kind, amount, account_id, transfer_account_id, tag_id, frequency,
+			        start_date, next_due_date, posts_transaction, completed, enabled, errored_at
+			 FROM schedules WHERE id = ?`,
+			[id]
+		);
+		return rows[0];
+	}
+
+	it('creates the schedules table with the recurrence columns', async () => {
+		const columns = await db.query<{ name: string }>('PRAGMA table_info(schedules)');
+		const names = columns.map((column) => column.name).sort();
+		expect(names).toEqual(
+			[
+				'account_id',
+				'amount',
+				'completed',
+				'created_at',
+				'deleted_at',
+				'description',
+				'enabled',
+				'end_date',
+				'errored_at',
+				'frequency',
+				'id',
+				'kind',
+				'last_posted_date',
+				'name',
+				'next_due_date',
+				'payee',
+				'posts_transaction',
+				'start_date',
+				'tag_id',
+				'transfer_account_id',
+				'updated_at',
+			].sort()
+		);
+	});
+
+	it('accepts a well-formed expense row with no destination and no tag', async () => {
+		const accountId = await insertAccount();
+		await db.execute(
+			`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+			 VALUES ('ok_expense', 'Rent', 'expense', 250000, ?, 'monthly', '2026-01-01', '2026-02-01', 'x', 'x')`,
+			[accountId]
+		);
+
+		expect(await readSchedule('ok_expense')).toEqual({
+			id: 'ok_expense',
+			name: 'Rent',
+			kind: 'expense',
+			amount: 250000,
+			account_id: accountId,
+			transfer_account_id: null,
+			tag_id: null,
+			frequency: 'monthly',
+			start_date: '2026-01-01',
+			next_due_date: '2026-02-01',
+			posts_transaction: 1,
+			completed: 0,
+			enabled: 1,
+			errored_at: null
+		});
+	});
+
+	it('accepts a transfer row with a destination account and no tag', async () => {
+		const accountId = await insertAccount();
+		const destinationId = await insertAccount('acct_schedules_dest');
+		await db.execute(
+			`INSERT INTO schedules (id, name, kind, amount, account_id, transfer_account_id, frequency, start_date, next_due_date, created_at, updated_at)
+			 VALUES ('ok_transfer', 'Move', 'transfer', 75000, ?, ?, 'monthly', '2026-01-01', '2026-02-01', 'x', 'x')`,
+			[accountId, destinationId]
+		);
+
+		expect(await readSchedule('ok_transfer')).toMatchObject({
+			id: 'ok_transfer',
+			kind: 'transfer',
+			amount: 75000,
+			account_id: accountId,
+			transfer_account_id: destinationId,
+			tag_id: null
+		});
+	});
+
+	it('rejects a recurrence the pure util cannot produce', async () => {
+		const accountId = await insertAccount();
+		await expect(
+			db.execute(
+				`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+				 VALUES ('s1', 'Rent', 'expense', 100, ?, 'fortnightly', '2026-01-01', '2026-01-01', 'x', 'x')`,
+				[accountId]
+			)
+		).rejects.toThrow(/CHECK constraint failed: frequency IN/);
+	});
+
+	it('rejects a non-positive amount', async () => {
+		const accountId = await insertAccount();
+		await expect(
+			db.execute(
+				`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+				 VALUES ('s2', 'Zero', 'expense', 0, ?, 'monthly', '2026-01-01', '2026-01-01', 'x', 'x')`,
+				[accountId]
+			)
+		).rejects.toThrow(/CHECK constraint failed: amount > 0/);
+	});
+
+	it('rejects a start date outside the range transactions.date allows', async () => {
+		const accountId = await insertAccount();
+		await expect(
+			db.execute(
+				`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+				 VALUES ('s3', 'Ancient', 'expense', 100, ?, 'monthly', '1899-12-31', '1899-12-31', 'x', 'x')`,
+				[accountId]
+			)
+		).rejects.toThrow(/CHECK constraint failed: start_date BETWEEN/);
+	});
+
+	it('rejects a nameless schedule (the lower bound the spec DDL lacked)', async () => {
+		const accountId = await insertAccount();
+		await expect(
+			db.execute(
+				`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+				 VALUES ('s7', '', 'expense', 100, ?, 'monthly', '2026-01-01', '2026-01-01', 'x', 'x')`,
+				[accountId]
+			)
+		).rejects.toThrow(/CHECK constraint failed: length\(name\) BETWEEN 1 AND 64/);
+	});
+
+	it('rejects a name one character over the bound', async () => {
+		const accountId = await insertAccount();
+		await expect(
+			db.execute(
+				`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+				 VALUES ('s8', ?, 'expense', 100, ?, 'monthly', '2026-01-01', '2026-01-01', 'x', 'x')`,
+				['X'.repeat(65), accountId]
+			)
+		).rejects.toThrow(/CHECK constraint failed: length\(name\) BETWEEN 1 AND 64/);
+	});
+
+	it('rejects a transfer with no destination account', async () => {
+		const accountId = await insertAccount();
+		await expect(
+			db.execute(
+				`INSERT INTO schedules (id, name, kind, amount, account_id, transfer_account_id, frequency, start_date, created_at, updated_at)
+				 VALUES ('s4', 'Move', 'transfer', 100, ?, NULL, 'monthly', '2026-01-01', 'x', 'x')`,
+				[accountId]
+			)
+		).rejects.toThrow(/CHECK constraint failed: kind <> 'transfer'/);
+	});
+
+	it('rejects a non-transfer carrying a destination account', async () => {
+		const accountId = await insertAccount();
+		const destinationId = await insertAccount('acct_schedules_dest');
+		await expect(
+			db.execute(
+				`INSERT INTO schedules (id, name, kind, amount, account_id, transfer_account_id, frequency, start_date, created_at, updated_at)
+				 VALUES ('s5', 'Move', 'expense', 100, ?, ?, 'monthly', '2026-01-01', 'x', 'x')`,
+				[accountId, destinationId]
+			)
+		).rejects.toThrow(/CHECK constraint failed: kind = 'transfer'/);
+	});
+
+	it('rejects a transfer carrying a category tag', async () => {
+		const accountId = await insertAccount();
+		const destinationId = await insertAccount('acct_schedules_dest');
+		await expect(
+			db.execute(
+				`INSERT INTO schedules (id, name, kind, amount, account_id, transfer_account_id, tag_id, frequency, start_date, created_at, updated_at)
+				 VALUES ('s6', 'Move', 'transfer', 100, ?, ?, ?, 'monthly', '2026-01-01', 'x', 'x')`,
+				[accountId, destinationId, 'tag_initial_balance']
+			)
+		).rejects.toThrow(/CHECK constraint failed: kind <> 'transfer'/);
+	});
+
+	it('accepts the inclusive amount bounds (1 and 999999999999)', async () => {
+		const accountId = await insertAccount();
+		for (const [id, amount] of [
+			['ok_amount_min', 1],
+			['ok_amount_max', 999999999999]
+		] as const) {
+			await db.execute(
+				`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+				 VALUES (?, 'Bounded', 'expense', ?, ?, 'monthly', '2026-01-01', '2026-02-01', 'x', 'x')`,
+				[id, amount, accountId]
+			);
+		}
+
+		expect(await readSchedule('ok_amount_min')).toMatchObject({ id: 'ok_amount_min', amount: 1 });
+		expect(await readSchedule('ok_amount_max')).toMatchObject({ id: 'ok_amount_max', amount: 999999999999 });
+	});
+
+	it('accepts the inclusive name-length bounds (1 and 64)', async () => {
+		const accountId = await insertAccount();
+		for (const [id, name] of [
+			['ok_name_min', 'X'],
+			['ok_name_max', 'X'.repeat(64)]
+		] as const) {
+			await db.execute(
+				`INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
+				 VALUES (?, ?, 'expense', 100, ?, 'monthly', '2026-01-01', '2026-02-01', 'x', 'x')`,
+				[id, name, accountId]
+			);
+		}
+
+		expect((await readSchedule('ok_name_min'))?.name).toBe('X');
+		expect((await readSchedule('ok_name_max'))?.name).toBe('X'.repeat(64));
+	});
+
+	it('is idempotent — re-running the registry is a no-op', async () => {
+		await runMigrations(db, migrations);
+		const columns = await db.query<{ name: string }>('PRAGMA table_info(schedules)');
+		expect(columns.length).toBe(21);
 	});
 });

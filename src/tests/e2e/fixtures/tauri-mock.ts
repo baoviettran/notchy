@@ -337,6 +337,10 @@ function repKindTotals(db, kf, params) {
 
 // Path helpers
 const join = (...parts) => parts.join('/').replace(/\\\\/g, '/').replace(/\\/+/g, '/').replace(/\\/+/g, '/').replace(/\\/+/g, '/');
+// Schedule column list shared by every read, mirroring the browser repo's
+// SCHEDULE_COLUMNS (src/lib/db/browser/repos/schedules.ts) and the Rust
+// SCHEDULE_COLUMNS, so the mock cannot drift from either adapter.
+const SCHEDULE_COLUMNS = 'id, name, kind, amount, account_id, transfer_account_id, tag_id, payee, description, frequency, start_date, end_date, posts_transaction, next_due_date, last_posted_date, completed, enabled, errored_at, created_at, updated_at';
 
 // --- install invoke SYNCHRONOUSLY -----------------------------------------
 // The app calls getDb() -> Database.load() -> invoke() on startup. By
@@ -347,6 +351,16 @@ window.__TAURI_INTERNALS__ = {
 		const SQL_JS = await sqlReady;
 		await faultInit;
 		args = args || {};
+		// --- event plugin (no-op bus) ---
+		// The root layout attaches a 'transaction:saved' listener during boot
+		// (attachTransactionSavedListener) BEFORE it runs the due-schedules pass.
+		// Without an arm here the listen invoke rejects and aborts the boot IIFE
+		// before the pass ever runs, so the mock offers a minimal stub: listen
+		// returns an id, and unlisten/emit are no-ops (the mock has no real
+		// cross-window bus — the test asserts on the DB, not on delivery).
+		if (cmd === 'plugin:event|listen') return 0;
+		if (cmd === 'plugin:event|unlisten') return {};
+		if (cmd === 'plugin:event|emit' || cmd === 'plugin:event|emit_to') return {};
 		// --- SQL plugin ---
 		// Normalize the connection string (strip '?readonly' etc.) so the live
 		// DB and a readonly candidate-open of the same file share one registry
@@ -487,11 +501,11 @@ window.__TAURI_INTERNALS__ = {
 		// After the cutover, the app uses NativeDatabaseClient which calls
 		// domain commands instead of plugin:sql|*. Translate them to SQL queries.
 		if (cmd === 'database_initialize' || cmd === 'database_retry' || cmd === 'database_status') {
-			// LATEST aligns to the JS registry (LATEST_SCHEMA_VERSION = 5 in
+			// LATEST aligns to the JS registry (LATEST_SCHEMA_VERSION = 6 in
 			// src/lib/db/migrations/index.ts): restoreCompatibleDatabase validates
-			// max 5, and the E2E fixtures/assertions are schema-5-based. Rust runs
-			// its own migration 006; the mock simulates the JS-visible contract.
-			const LATEST = 5;
+			// max 6, and the E2E fixtures/assertions are schema-6-based. Rust runs
+			// its own migration 007; the mock simulates the JS-visible contract.
+			const LATEST = 6;
 			const UPGRADE_DIR = APP_DATA_DIR + '/backups/upgrades';
 			const BACKUP_DIR = APP_DATA_DIR + '/backups';
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
@@ -524,7 +538,7 @@ window.__TAURI_INTERNALS__ = {
 				};
 			}
 
-			if (currentVersion < 5) {
+			if (currentVersion < LATEST) {
 				// Mirrors Rust: a verified pre-upgrade backup is written BEFORE any
 				// migration, so a failed migration still leaves a restorable snapshot.
 				if (!faults.failUpgradeBackup) {
@@ -580,7 +594,9 @@ window.__TAURI_INTERNALS__ = {
 				}
 				// Migration 005 (mirrors src/lib/db/migrations/005-*.ts: goals table).
 				db.run('CREATE TABLE IF NOT EXISTS goals (id TEXT PRIMARY KEY, name TEXT NOT NULL, goal_type TEXT NOT NULL, target_amount INTEGER NOT NULL, target_date TEXT NOT NULL, linked_account_id TEXT, starting_amount INTEGER DEFAULT 0, current_amount INTEGER DEFAULT 0, show_on_dashboard INTEGER DEFAULT 1, status TEXT DEFAULT active, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT)');
-				db.run("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', '5')");
+				// Migration 006 (mirrors src/lib/db/migrations/006-*.ts: schedules table).
+				db.run("CREATE TABLE IF NOT EXISTS schedules (id TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL, amount INTEGER NOT NULL, account_id TEXT NOT NULL, transfer_account_id TEXT, tag_id TEXT, payee TEXT, description TEXT, frequency TEXT NOT NULL, start_date TEXT NOT NULL, end_date TEXT, posts_transaction INTEGER NOT NULL DEFAULT 1, next_due_date TEXT, last_posted_date TEXT, completed INTEGER NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, errored_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT)");
+				db.run("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', '6')");
 			}
 
 			// Auto-backup simulation. runAutoBackup (src/lib/backup/index.ts) is no
@@ -888,6 +904,62 @@ window.__TAURI_INTERNALS__ = {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
 			const now = new Date().toISOString();
 			db.run('UPDATE goals SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [now, now, args.id]);
+			return {};
+		}
+		if (cmd === 'schedule_list') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			// Same ORDER BY as listSchedules / Rust list_schedules.
+			return select(db, 'SELECT ' + SCHEDULE_COLUMNS + ' FROM schedules WHERE deleted_at IS NULL ORDER BY created_at DESC, id DESC', []);
+		}
+		if (cmd === 'schedule_create') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const input = args.input;
+			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
+			const now = new Date().toISOString();
+			// next_due_date defaults to start_date — a NULL there would make the
+			// row invisible to listDue forever. Mirrors createSchedule.
+			db.run('INSERT INTO schedules (id, name, kind, amount, account_id, transfer_account_id, tag_id, payee, description, frequency, start_date, end_date, posts_transaction, next_due_date, last_posted_date, completed, enabled, errored_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, 1, NULL, ?, ?)',
+				[id, input.name, input.kind, input.amount, input.account_id, input.transfer_account_id || null, input.tag_id || null, input.payee || null, input.description || null, input.frequency, input.start_date, input.end_date || null, input.posts_transaction == null ? 1 : input.posts_transaction, input.start_date, now, now]);
+			return id;
+		}
+		if (cmd === 'schedule_update') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const input = args.input;
+			const now = new Date().toISOString();
+			// next_due_date = COALESCE(?, next_due_date) keeps a stored due date
+			// when the caller passes null (a parked backlog draining), and
+			// enabled = 1 clears the park — the two behaviours Task 4 exists for.
+			// Mirrors updateSchedule.
+			db.run('UPDATE schedules SET name = ?, kind = ?, amount = ?, account_id = ?, transfer_account_id = ?, tag_id = ?, payee = ?, description = ?, frequency = ?, start_date = ?, end_date = ?, posts_transaction = ?, enabled = ?, errored_at = CASE WHEN ? = 1 THEN NULL ELSE errored_at END, next_due_date = COALESCE(?, next_due_date), updated_at = ? WHERE id = ? AND deleted_at IS NULL',
+				[input.name, input.kind, input.amount, input.account_id, input.transfer_account_id || null, input.tag_id || null, input.payee || null, input.description || null, input.frequency, input.start_date, input.end_date || null, input.posts_transaction == null ? 1 : input.posts_transaction, input.enabled, input.enabled, input.next_due_date == null ? null : input.next_due_date, now, args.id]);
+			if (db.getRowsModified() === 0) throw new Error('invalid_input');
+			return {};
+		}
+		if (cmd === 'schedule_delete') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const now = new Date().toISOString();
+			db.run('UPDATE schedules SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [now, now, args.id]);
+			if (db.getRowsModified() === 0) throw new Error('invalid_input');
+			return {};
+		}
+		if (cmd === 'schedule_list_due') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			// The real predicate (listDueSchedules / Rust list_due_schedules): a mock
+			// that returned everything would make the boot pass look like it works
+			// while the native path posted nothing.
+			return select(db, 'SELECT ' + SCHEDULE_COLUMNS + ' FROM schedules WHERE enabled = 1 AND completed = 0 AND errored_at IS NULL AND deleted_at IS NULL AND next_due_date IS NOT NULL AND next_due_date <= ? ORDER BY next_due_date, id', [args.today]);
+		}
+		if (cmd === 'schedule_mark_posted') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const now = new Date().toISOString();
+			db.run('UPDATE schedules SET last_posted_date = ?, next_due_date = ?, completed = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL',
+				[args.lastPostedDate == null ? null : args.lastPostedDate, args.nextDueDate == null ? null : args.nextDueDate, args.completed, now, args.id]);
+			return {};
+		}
+		if (cmd === 'schedule_mark_errored') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const now = new Date().toISOString();
+			db.run('UPDATE schedules SET errored_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [now, now, args.id]);
 			return {};
 		}
 		if (cmd === 'rule_list' || cmd === 'rule_list_all') {

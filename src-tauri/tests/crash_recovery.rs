@@ -221,7 +221,7 @@ async fn restore_migrates_if_needed() {
         })
         .await
         .unwrap();
-    assert_eq!(version, "6");
+    assert_eq!(version, "7");
 
     manager.shutdown();
 }

@@ -25,9 +25,9 @@
 
 ## i18n Workflow (Paraglide JS)
 - **Source strings** live in `messages/en.json` and `messages/vi.json` — flat underscore keys (e.g. `forms_amount_placeholder`). **No dotted IDs** (Paraglide 1.11.8 rejects them).
-- Paraglide compiles to `src/lib/paraglide/messages/` — this is **gitignored/generated**; never hand-edit. It runs automatically as part of `dev`, `build`, and `check`.
+- Paraglide compiles to `src/lib/paraglide/messages/` — this is **gitignored/generated**; never hand-edit. It runs automatically as part of `dev` and `build` (`pnpm check` does **not** compile it).
 - Use in components: `import * as m from '$lib/paraglide/messages'; m.forms_amount_placeholder()`.
-- Adding a string: edit both `messages/en.json` and `messages/vi.json`, then run `pnpm check` (or `pnpm exec paraglide-js compile …`) to regenerate.
+- Adding a string: edit both `messages/en.json` and `messages/vi.json`, then run `pnpm exec paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide` to regenerate (`pnpm check` does **not** compile Paraglide).
 
 ## Conventions
 - Amounts are always integers (smallest currency unit). No floats.
@@ -36,6 +36,10 @@
 - IDs are ULIDs (custom implementation in `src/lib/utils/id.ts`)
 - Supports `en` and `vi` locales
 - Transactions are a single-row model (transfers share a `transfer_pair_id`).
+- **Adapter parity.** A Rust domain query and its browser repo query must carry the **identical**
+  `ORDER BY` and predicate (e.g. `rules.rs:62` ↔ `rules.ts:53`). When they disagree, the Rust domain
+  is canonical. E2E runs against the browser adapter, so a divergence is invisible to the suite while
+  the desktop and web builds behave differently.
 
 ## Repo Layout — `docs/` submodule & specs/plans
 - `docs/` is a **git submodule** (`notchy-docs`), not part of the main repo. Anything written under `docs/` is invisible to the main repo's commits.

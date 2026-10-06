@@ -1,6 +1,6 @@
 //! Version-specific schema manifests and validation (Task 3).
 //!
-//! Each supported schema version (3-6) has an exact manifest covering tables,
+//! Each supported schema version (3-7) has an exact manifest covering tables,
 //! columns, types, nullability, defaults, primary/foreign keys, indexes,
 //! triggers, and the CHECK constraints that carry business invariants.
 //! `validate_manifest` runs SQLite integrity and foreign-key checks and then
@@ -486,6 +486,69 @@ const OPERATION_RECEIPTS: TableManifest = TableManifest {
     check_constraints: &[],
 };
 
+const SCHEDULES: TableManifest = TableManifest {
+    name: "schedules",
+    columns: &[
+        text_pk!("id"),
+        text_nn!("name"),
+        text_nn!("kind"),
+        column!("amount", INTEGER, true, None, false),
+        text_nn!("account_id"),
+        text_opt!("transfer_account_id"),
+        text_opt!("tag_id"),
+        text_opt!("payee"),
+        text_opt!("description"),
+        text_nn!("frequency"),
+        text_nn!("start_date"),
+        text_opt!("end_date"),
+        int_default!("posts_transaction", "1"),
+        text_opt!("next_due_date"),
+        text_opt!("last_posted_date"),
+        int_default!("completed", "0"),
+        int_default!("enabled", "1"),
+        text_opt!("errored_at"),
+        text_nn!("created_at"),
+        text_nn!("updated_at"),
+        text_opt!("deleted_at"),
+    ],
+    foreign_keys: &[
+        ForeignKeyManifest {
+            column: "account_id",
+            references_table: "accounts",
+            references_column: "id",
+        },
+        ForeignKeyManifest {
+            column: "transfer_account_id",
+            references_table: "accounts",
+            references_column: "id",
+        },
+        ForeignKeyManifest {
+            column: "tag_id",
+            references_table: "category_tags",
+            references_column: "id",
+        },
+    ],
+    indexes: &["idx_schedules_due"],
+    triggers: &[],
+    // Every CHECK migration 007 writes, so `validate_manifest` fails if the
+    // migration and this manifest drift on an invariant rather than on a column.
+    check_constraints: &[
+        "length(name) BETWEEN 1 AND 64",
+        "kind IN ('expense', 'income', 'transfer')",
+        "amount > 0 AND amount <= 999999999999",
+        "payee IS NULL OR length(payee) <= 128",
+        "description IS NULL OR length(description) <= 1024",
+        "frequency IN ('weekly', 'biweekly', 'monthly', 'yearly')",
+        "start_date BETWEEN '1970-01-01' AND '2100-12-31'",
+        "end_date IS NULL OR end_date >= start_date",
+        "posts_transaction IN (0, 1)",
+        "completed IN (0, 1)",
+        "enabled IN (0, 1)",
+        "kind <> 'transfer' OR (transfer_account_id IS NOT NULL AND tag_id IS NULL)",
+        "kind = 'transfer' OR transfer_account_id IS NULL",
+    ],
+};
+
 // ---------------------------------------------------------------------------
 // Version manifests (table lists kept in alphabetical order to match the
 // `ORDER BY name` read in `validate_manifest`)
@@ -542,6 +605,21 @@ const TABLES_V6: &[TableManifest] = &[
     TRANSACTIONS,
 ];
 
+const TABLES_V7: &[TableManifest] = &[
+    ACCOUNTS,
+    APP_META,
+    BUDGETS,
+    CATEGORIZE_RULES,
+    CATEGORY_TAGS,
+    CATEGORY_TYPES_V4,
+    CHANGE_LOG,
+    GOALS,
+    OPERATION_RECEIPTS,
+    RECONCILIATIONS,
+    SCHEDULES,
+    TRANSACTIONS,
+];
+
 /// The manifest for a released schema version, or `None` for unsupported ones.
 pub fn manifest_for(version: i64) -> Option<&'static SchemaManifest> {
     match version {
@@ -549,6 +627,7 @@ pub fn manifest_for(version: i64) -> Option<&'static SchemaManifest> {
         4 => Some(&SchemaManifest { version: 4, tables: TABLES_V4 }),
         5 => Some(&SchemaManifest { version: 5, tables: TABLES_V5 }),
         6 => Some(&SchemaManifest { version: 6, tables: TABLES_V6 }),
+        7 => Some(&SchemaManifest { version: 7, tables: TABLES_V7 }),
         _ => None,
     }
 }
