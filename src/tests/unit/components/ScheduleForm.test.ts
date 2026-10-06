@@ -64,6 +64,16 @@ describe('ScheduleForm', () => {
 		expect(onsubmit).not.toHaveBeenCalled(); // destination is required
 	});
 
+	it('caps payee and description at the schema limits, not lower', () => {
+		render(ScheduleForm, { props: { accounts: accountList, tags: tagList, onsubmit: vi.fn() } });
+
+		// The schedules DDL allows payee <= 128 and description <= 1024
+		// (migrations.rs:754-755). A lower maxlength truncates a paste with no
+		// error, so the form must not be stricter than the schema accepts.
+		expect(screen.getByLabelText(m.schedules_payee())).toHaveAttribute('maxlength', '128');
+		expect(screen.getByLabelText(m.schedules_description())).toHaveAttribute('maxlength', '1024');
+	});
+
 	it('submits the existing schedule fields unchanged when only the amount is edited', async () => {
 		const onsubmit = vi.fn();
 		render(ScheduleForm, {

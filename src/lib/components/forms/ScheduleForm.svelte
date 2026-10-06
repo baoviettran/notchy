@@ -154,8 +154,8 @@
 		<Select label={m.schedules_category()} bind:value={tagId} options={tagOptions} />
 	{/if}
 
-	<Input label={m.schedules_payee()} bind:value={payee} maxlength={64} />
-	<Input label={m.schedules_description()} bind:value={description} maxlength={256} />
+	<Input label={m.schedules_payee()} bind:value={payee} maxlength={128} />
+	<Input label={m.schedules_description()} bind:value={description} maxlength={1024} />
 
 	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 		<DatePicker label={m.schedules_start_date()} bind:value={startDate} />
