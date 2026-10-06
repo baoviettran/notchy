@@ -2480,8 +2480,6 @@ Add the imports: `postDueSchedulesOnce` and `bootSummaryMessage` (`$lib/logic/po
 
 Every toast is conditional on a non-zero count, so a boot with nothing due is silent — that is what keeps the existing E2E suite's toast assertions meaningful.
 
-Every toast is conditional on a non-zero count, so a boot with nothing due is silent — that is what keeps the existing E2E suite's toast assertions meaningful.
-
 - [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pnpm test && pnpm check && pnpm test:e2e`

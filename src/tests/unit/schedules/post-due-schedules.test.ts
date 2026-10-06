@@ -273,9 +273,9 @@ describe('bootSummaryMessage', () => {
 	});
 
 	it('contains all three counts when posted, due, and errored all occur', () => {
-		// The assertion that would have caught the original bug: three consecutive
-		// toast.show calls in one tick meant only the last survived, so a message
-		// carrying all three counts is the only shape that proves the aggregation.
+		// Proves the aggregation keeps every part: if bootSummaryMessage dropped a
+		// branch, the matching toContain below fails. It does NOT guard the wiring —
+		// that +layout.svelte calls this once instead of three times is untested.
 		const msg = bootSummaryMessage({
 			...empty,
 			posted: 3,
