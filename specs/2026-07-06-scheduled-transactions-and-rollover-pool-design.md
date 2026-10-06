@@ -3,6 +3,7 @@
 **Date:** 2026-07-06
 **Status:** Part 1 (scheduled transactions) implemented by `specs/plans/2026-10-03-scheduled-transactions.md`; Part 2 (rollover to-budget pool) awaiting a plan.
 **Branch:** `feat/actual`
+**Serves:** STORY-009
 
 ## Summary
 
@@ -225,3 +226,4 @@ Parked during `2026-10-03-scheduled-transactions` (Task 13); all still open and 
 5. **The posting engine is not atomic across the port** — a `markPosted` failure after `create` wrote rows parks the schedule without advancing its date, so a later Resume re-posts those rows (duplicate financial posts). Touches `src/lib/db/browser/repos/schedules.ts` and `src-tauri/src/database/domains/schedules.rs`; the real fix is a design change (transaction support or `op_id` on the port).
 6. **The boot posting pass never runs in the web/browser build** — `attachTransactionSavedListener` (`src/lib/stores/quick-refresh.ts`) rejects there (`@tauri-apps/api` `invoke` dereferences `window.__TAURI_INTERNALS__` unguarded), aborting the boot IIFE before the pass; the bare IIFE also has no `.catch`, so an initial-query failure silently never posts. Desktop is unaffected; `pnpm dev` and the 28 browser-fallback E2E specs are. Task 12 (`95c142d`) added a `plugin:event|listen` stub to the Tauri mock, which finally let the pass run in the mock specs (the same missing-handler abort was hiding it there too); that half is fixed, the browser-build half is not. Touches the boot pass in `src/routes/+layout.svelte`.
 7. **Cross-window event delivery has no coverage anywhere** — the Tauri mock's event stub no-ops `emit`, so `emitTransactionsChanged`'s path (`src/lib/stores/quick-refresh.ts`) is untested. It masks nothing today (the layout refreshes its stores explicitly before emitting) but it is unproven.
+8. **Resume clears the badge but nothing posts until the next boot** — `src/lib/stores/schedules.svelte.ts:84-96` resumes a parked schedule with `next_due_date: null` (which keeps the stored, still-due date), but the posting pass runs **only at boot** (`src/routes/+layout.svelte`) and nothing on the schedules page re-triggers it: the user clicks Resume, the badge clears, and no transaction appears until they restart the app. Consistent with the documented boot-only design (a spec non-goal), so nothing is lost — the gap is the silent wait. It interacts with gap 5, where a later pass re-posts rows the parking never advanced past; closing it is a product decision (button copy or a "run now" path), not this round's.
