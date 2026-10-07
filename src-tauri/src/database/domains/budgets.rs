@@ -77,19 +77,32 @@ pub fn get_spent_for_bucket(conn: &Connection, type_id: &str, month: &str) -> Db
     Ok(total)
 }
 
-/// Compute cumulative rollover for a bucket before `month`.
-/// YNAB-style: only prior months with a budget row contribute.
+/// Cumulative rollover for a bucket before `month`.
+///
+/// Rollover ON: sum of `allocated - spent` over every prior budgeted month,
+/// negatives included. Rollover OFF: a running floor in chronological order,
+/// `C_m = max(0, C_{m-1} + L_{m-1})`, so the carry never goes negative. Only
+/// prior months with a budget row contribute (budget-row gating).
 pub fn get_rolled_over(conn: &Connection, type_id: &str, month: &str) -> DbResult<i64> {
+    let enabled: i32 = conn
+        .query_row(
+            "SELECT rollover_enabled FROM category_types WHERE id = ?1",
+            params![type_id],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(map_sqlite_error)?
+        .unwrap_or(1);
+
     let mut stmt = conn
         .prepare(
             "SELECT month, allocated FROM budgets
-             WHERE type_id = ?1 AND month < ?2 AND deleted_at IS NULL",
+             WHERE type_id = ?1 AND month < ?2 AND deleted_at IS NULL
+             ORDER BY month",
         )
         .map_err(map_sqlite_error)?;
     let months: Vec<(String, i64)> = stmt
-        .query_map(params![type_id, month], |row| {
-            Ok((row.get(0)?, row.get(1)?))
-        })
+        .query_map(params![type_id, month], |row| Ok((row.get(0)?, row.get(1)?)))
         .map_err(map_sqlite_error)?
         .collect::<Result<Vec<_>, _>>()
         .map_err(map_sqlite_error)?;
@@ -98,6 +111,9 @@ pub fn get_rolled_over(conn: &Connection, type_id: &str, month: &str) -> DbResul
     for (m, allocated) in months {
         let spent = get_spent_for_bucket(conn, type_id, &m)?;
         rolled += allocated - spent;
+        if enabled == 0 {
+            rolled = rolled.max(0);
+        }
     }
     Ok(rolled)
 }
@@ -136,42 +152,11 @@ pub fn get_budgets_for_month(conn: &Connection, month: &str) -> DbResult<Vec<Bud
         return Ok(Vec::new());
     }
 
-    // Bulk-load rollover flags.
-    let type_ids: Vec<String> = budgets.iter().map(|b| b.type_id.clone()).collect();
-    let placeholders: String = type_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-    let flag_sql = format!(
-        "SELECT id, rollover_enabled FROM category_types WHERE id IN ({})",
-        placeholders
-    );
-    let mut flag_stmt = conn.prepare(&flag_sql).map_err(map_sqlite_error)?;
-    let flag_params: Vec<Box<dyn rusqlite::types::ToSql>> = type_ids
-        .iter()
-        .map(|id| Box::new(id.clone()) as Box<dyn rusqlite::types::ToSql>)
-        .collect();
-    let flags: Vec<(String, i32)> = flag_stmt
-        .query_map(rusqlite::params_from_iter(flag_params.as_slice()), |row| {
-            Ok((row.get(0)?, row.get(1)?))
-        })
-        .map_err(map_sqlite_error)?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(map_sqlite_error)?;
-    let flag_map: std::collections::HashMap<String, i32> =
-        flags.into_iter().collect();
-
     let mut result = Vec::new();
     for b in &budgets {
         let spent = get_spent_for_bucket(conn, &b.type_id, month)?;
-        let enabled = *flag_map.get(&b.type_id).unwrap_or(&1) == 1;
-        let rolled_over = if enabled {
-            get_rolled_over(conn, &b.type_id, month)?
-        } else {
-            0
-        };
-        let available = if enabled {
-            b.allocated + rolled_over - spent
-        } else {
-            b.allocated - spent
-        };
+        let rolled_over = get_rolled_over(conn, &b.type_id, month)?;
+        let available = b.allocated + rolled_over - spent;
         result.push(BudgetSummary {
             type_id: b.type_id.clone(),
             month: b.month.clone(),

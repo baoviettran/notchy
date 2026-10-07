@@ -517,3 +517,70 @@ fn baseline_full_carry_over_budgeted_months() {
     assert_eq!(budgets::get_rolled_over(&db, &bucket, "2026-02").unwrap(), 100);
     assert_eq!(budgets::get_rolled_over(&db, &bucket, "2026-03").unwrap(), -50);
 }
+
+/// A rollover-OFF bucket's carry is a running floor in chronological month
+/// order: `C_m = max(0, C_{m-1} + L_{m-1})`, `L_m = allocated_m - spent_m`.
+/// Same counterexample fixture as the browser test, same numbers:
+///
+///   |     | income | allocated | spent | carry | available | lmo | toBudget | Σ   |
+///   |-----|--------|-----------|-------|-------|-----------|-----|----------|-----|
+///   | M1  | 100    | 100       | 0     | 0     | 100       | 0   | 0        | 100 |
+///   | M2  | 150    | 0         | 150   | 100   | -50       | 0   | 150      | 100 |
+///   | M3  | 0      | 0         | 0     | 0     | 0         | -50 | 100      | 100 |
+///
+/// A per-month sum would carry 100 into M3 and report Σ = 200 — it creates
+/// money. The floor makes Σ = 100 in every month.
+#[test]
+fn rollover_off_carry_is_a_running_floor() {
+    let mut db = fresh_db("pool_floor");
+    let bucket = create_test_bucket(&mut db, "Food");
+    let tag = create_test_tag(&mut db, "Groceries", &bucket);
+    categories::set_rollover_enabled(&mut db, op(), &bucket, false).unwrap();
+
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-01", 100).unwrap();
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-02", 0).unwrap();
+    let account = fresh_account(&mut db);
+    seed_expense(&mut db, &account, &tag, 150, "2026-02-10");
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-03", 0).unwrap();
+
+    assert_eq!(budgets::get_rolled_over(&db, &bucket, "2026-01").unwrap(), 0);
+    assert_eq!(budgets::get_rolled_over(&db, &bucket, "2026-02").unwrap(), 100);
+    // Floor: max(0, max(0, 0 + 100) - 150) = 0, not the per-month sum -50.
+    assert_eq!(budgets::get_rolled_over(&db, &bucket, "2026-03").unwrap(), 0);
+}
+
+/// Rollover ON keeps the full carry, negative included.
+#[test]
+fn rollover_on_carry_keeps_the_negative() {
+    let mut db = fresh_db("pool_on");
+    let bucket = create_test_bucket(&mut db, "Food");
+    let tag = create_test_tag(&mut db, "Groceries", &bucket);
+
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-01", 100).unwrap();
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-02", 0).unwrap();
+    let account = fresh_account(&mut db);
+    seed_expense(&mut db, &account, &tag, 150, "2026-02-10");
+
+    assert_eq!(budgets::get_rolled_over(&db, &bucket, "2026-03").unwrap(), -50);
+}
+
+/// The gate is gone: `available` has one formula for every bucket.
+#[test]
+fn get_budgets_for_month_drops_the_enabled_gate() {
+    let mut db = fresh_db("pool_gate");
+    let bucket = create_test_bucket(&mut db, "Food");
+    let tag = create_test_tag(&mut db, "Groceries", &bucket);
+    categories::set_rollover_enabled(&mut db, op(), &bucket, false).unwrap();
+
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-01", 100).unwrap();
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-02", 100).unwrap();
+    let account = fresh_account(&mut db);
+    seed_expense(&mut db, &account, &tag, 60, "2026-02-10");
+
+    let summaries = budgets::get_budgets_for_month(&db, "2026-02").unwrap();
+    let s = summaries.iter().find(|s| s.type_id == bucket).unwrap();
+    // rolled_over carries the rollover-OFF floor (100 - 0 = 100), and
+    // available = allocated + rolled_over - spent.
+    assert_eq!(s.rolled_over, 100);
+    assert_eq!(s.available, 140);
+}

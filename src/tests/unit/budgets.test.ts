@@ -124,25 +124,24 @@ describe('getBudgetsForMonth — roll-over aware', () => {
 		expect(b.remaining).toBe(700000); // back-compat: allocated - spent
 	});
 
-	it('available = allocated - spent (month-only) when rollover disabled', async () => {
-		// Prior month surplus that should NOT carry forward.
+	it('available = allocated + rolled_over - spent when rollover disabled', async () => {
+		// Prior month surplus that a rollover-OFF bucket now carries as a floor.
 		await repo.setAllocation(db, 'bucket_essentials', '2026-03', 1000000);
 		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
-		await seedExpense(tagId, 400000, '2026-03-10');
+		await seedExpense(tagId, 400000, '2026-03-10'); // surplus 600,000
 
-		// Disable roll-over for this bucket.
 		await db.execute(
 			`UPDATE category_types SET rollover_enabled = 0 WHERE id = 'bucket_essentials'`
 		);
 
-		// This month: allocated 1,000,000, spent 300,000
+		// This month: allocated 1,000,000, spent 300,000.
 		await repo.setAllocation(db, 'bucket_essentials', '2026-04', 1000000);
 		await seedExpense(tagId, 300000, '2026-04-10');
 
 		const budgets = await repo.getBudgetsForMonth(db, '2026-04');
 		const b = budgets.find((x) => x.type_id === 'bucket_essentials')!;
-		expect(b.rolled_over).toBe(0); // reported 0 when disabled
-		expect(b.available).toBe(700000); // 1,000,000 - 300,000 (no roll-over)
+		expect(b.rolled_over).toBe(600000); // the floor carries a positive surplus
+		expect(b.available).toBe(1300000); // 1,000,000 + 600,000 - 300,000
 	});
 });
 
@@ -153,21 +152,37 @@ describe('getRolledOver', () => {
 		expect(rolled).toBe(0);
 	});
 
-		it('ignores the rollover_enabled toggle (toggle gates display, not history)', async () => {
-			// Two budgeted prior months with surplus.
-			await repo.setAllocation(db, 'bucket_essentials', '2026-03', 1000000);
+		it('carries a running floor (not a per-month sum) when rollover is disabled', async () => {
+			// Counterexample fixture — same numbers as the Rust
+			// rollover_off_carry_is_a_running_floor test:
+			//   M1 2026-01: income 100, allocated 100, spent 0    -> carry 0
+			//   M2 2026-02: income 150, allocated 0,   spent 150  -> carry 100
+			//   M3 2026-03: income 0,   allocated 0,   spent 0    -> carry 0 (floor)
+			await repo.setAllocation(db, 'bucket_essentials', '2026-01', 100000);
 			const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
-			await seedExpense(tagId, 400000, '2026-03-10'); // surplus 600,000
-			await repo.setAllocation(db, 'bucket_essentials', '2026-04', 1000000);
-			await seedExpense(tagId, 500000, '2026-04-10'); // surplus 500,000
+			await repo.setAllocation(db, 'bucket_essentials', '2026-02', 0);
+			await seedExpense(tagId, 150000, '2026-02-10');
+			await repo.setAllocation(db, 'bucket_essentials', '2026-03', 0);
 
-			// Disable the toggle for the type — getRolledOver must still return full cumulative.
 			await db.execute(
 				`UPDATE category_types SET rollover_enabled = 0 WHERE id = 'bucket_essentials'`
 			);
 
-			const rolled = await repo.getRolledOver(db, 'bucket_essentials', '2026-05');
-			expect(rolled).toBe(1100000); // 600,000 + 500,000, toggle ignored
+			expect(await repo.getRolledOver(db, 'bucket_essentials', '2026-01')).toBe(0);
+			expect(await repo.getRolledOver(db, 'bucket_essentials', '2026-02')).toBe(100000);
+			// Running floor: max(0, max(0, 0 + 100,000) - 150,000) = 0.
+			// A per-month sum would return 100,000 - 150,000 = -50,000.
+			expect(await repo.getRolledOver(db, 'bucket_essentials', '2026-03')).toBe(0);
+		});
+
+		it('keeps the full carry (negative included) when rollover is enabled', async () => {
+			await repo.setAllocation(db, 'bucket_essentials', '2026-01', 100000);
+			const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+			await repo.setAllocation(db, 'bucket_essentials', '2026-02', 0);
+			await seedExpense(tagId, 150000, '2026-02-10');
+
+			// Flag left at the default 1.
+			expect(await repo.getRolledOver(db, 'bucket_essentials', '2026-03')).toBe(-50000);
 		});
 
 	it('sums surplus (allocated - spent) across prior budgeted months', async () => {
