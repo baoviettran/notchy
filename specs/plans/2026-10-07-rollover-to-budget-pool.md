@@ -530,7 +530,7 @@ The pool itself: a forward fold over consecutive calendar months. Rust only; the
   - `pub fn get_to_budget(conn: &Connection, month: &str) -> DbResult<ToBudgetBreakdown>` in `budgets.rs`.
   - Private helpers `month_income`, `month_assigned`, `last_month_overspent`, `pool_start_month`.
 
-- [ ] **Step 1: Write the failing tests.**
+- [x] **Step 1: Write the failing tests.**
 
 Append to `src-tauri/tests/domain_categories_budgets.rs`:
 
@@ -688,7 +688,7 @@ fn pool_start_month_includes_earlier_income() {
 }
 ```
 
-- [ ] **Step 2: Run and confirm they fail.**
+- [x] **Step 2: Run and confirm they fail.**
 
 ```bash
 cargo test --manifest-path src-tauri/Cargo.toml --test domain_categories_budgets to_budget
@@ -701,7 +701,7 @@ error[E0425]: cannot find function `get_to_budget` in module `budgets`
 error[E0433]: failed to resolve: could not find `ToBudgetBreakdown` in `types`
 ```
 
-- [ ] **Step 3: Add the DTO.**
+- [x] **Step 3: Add the DTO.**
 
 In `src-tauri/src/database/types.rs`, after `BudgetSummary` (`:434`), add:
 
@@ -730,7 +730,7 @@ In `src-tauri/src/database/domains/budgets.rs`, extend the `types` import:
 use crate::database::types::{Budget, BudgetSummary, OperationId, ToBudgetBreakdown};
 ```
 
-- [ ] **Step 4: Add the domain function and its helpers.**
+- [x] **Step 4: Add the domain function and its helpers.**
 
 In `src-tauri/src/database/domains/budgets.rs`, add after `get_budgets_for_month`:
 
@@ -873,7 +873,7 @@ pub fn get_to_budget(conn: &Connection, month: &str) -> DbResult<ToBudgetBreakdo
 
 Note: `query_row(...).optional()` yields `Option<Option<String>>` — the extra `.flatten()` collapses “no row” and “row with NULL” to `None`.
 
-- [ ] **Step 5: Run and confirm pass.**
+- [x] **Step 5: Run and confirm pass.**
 
 ```bash
 cargo test --manifest-path src-tauri/Cargo.toml --test domain_categories_budgets
@@ -881,7 +881,7 @@ cargo test --manifest-path src-tauri/Cargo.toml --test domain_categories_budgets
 
 Expected: all green.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
 
 ```bash
 git add src-tauri/src/database/types.rs src-tauri/src/database/domains/budgets.rs src-tauri/tests/domain_categories_budgets.rs
