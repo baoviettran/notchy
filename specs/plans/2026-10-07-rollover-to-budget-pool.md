@@ -918,7 +918,7 @@ The same fixture table, the same numbers, in TypeScript.
   - `export async function getToBudget(db: DatabaseService, month: string): Promise<ToBudgetBreakdown>`
   - Both re-exported from `src/lib/db/repos/budgets.ts`.
 
-- [ ] **Step 1: Write the failing tests.**
+- [x] **Step 1: Write the failing tests.**
 
 Append to `src/tests/unit/budgets.test.ts`:
 
@@ -1023,7 +1023,7 @@ async function seedIncome(amount: number, date: string) {
 }
 ```
 
-- [ ] **Step 2: Run and confirm they fail.**
+- [x] **Step 2: Run and confirm they fail.**
 
 ```bash
 pnpm vitest run src/tests/unit/budgets.test.ts
@@ -1035,7 +1035,7 @@ Expected failure:
 TypeError: repo.getToBudget is not a function
 ```
 
-- [ ] **Step 3: Implement the browser mirror.**
+- [x] **Step 3: Implement the browser mirror.**
 
 In `src/lib/db/browser/repos/budgets.ts`, after `getRolledOver`, add:
 
@@ -1153,7 +1153,7 @@ export {
 } from '../browser/repos/budgets';
 ```
 
-- [ ] **Step 4: Run and confirm pass.**
+- [x] **Step 4: Run and confirm pass.**
 
 ```bash
 pnpm vitest run src/tests/unit/budgets.test.ts
@@ -1161,7 +1161,7 @@ pnpm vitest run src/tests/unit/budgets.test.ts
 
 Expected: all green.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
 
 ```bash
 git add src/lib/db/browser/repos/budgets.ts src/lib/db/repos/budgets.ts src/tests/unit/budgets.test.ts

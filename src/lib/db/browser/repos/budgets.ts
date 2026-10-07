@@ -94,6 +94,101 @@ export async function getRolledOver(db: DatabaseService, typeId: string, month: 
 	return rolled;
 }
 
+export interface ToBudgetBreakdown {
+	income: number;
+	carried_forward: number;
+	last_month_overspent: number;
+	assigned: number;
+	to_budget: number;
+	overassigned: number;
+}
+
+/** Σ `kind = 'income'` transactions in `month` (no account predicate). */
+async function monthIncome(db: DatabaseService, month: string): Promise<number> {
+	const rows = await db.query<{ total: number | null }>(
+		`SELECT COALESCE(SUM(amount), 0) AS total FROM transactions
+		 WHERE kind = 'income' AND date >= ? || '-01' AND date < ? || '-01'
+		   AND deleted_at IS NULL`,
+		[month, nextMonth(month)]
+	);
+	return rows[0]?.total ?? 0;
+}
+
+/** Σ allocations across every bucket in `month`, as a positive count. */
+async function monthAssigned(db: DatabaseService, month: string): Promise<number> {
+	const rows = await db.query<{ total: number | null }>(
+		`SELECT COALESCE(SUM(allocated), 0) AS total FROM budgets
+		 WHERE month = ? AND deleted_at IS NULL`,
+		[month]
+	);
+	return rows[0]?.total ?? 0;
+}
+
+/**
+ * Σ min(0, available_{M−1}) over rollover-OFF buckets that have a budgets row
+ * in `M−1`. Rollover-ON buckets keep their negatives in-category.
+ */
+async function lastMonthOverspent(db: DatabaseService, month: string): Promise<number> {
+	const prev = previousMonth(month);
+	const rows = await db.query<{ type_id: string; allocated: number }>(
+		`SELECT b.type_id AS type_id, b.allocated AS allocated FROM budgets b
+		 JOIN category_types ct ON ct.id = b.type_id
+		 WHERE b.month = ? AND b.deleted_at IS NULL AND ct.rollover_enabled = 0`,
+		[prev]
+	);
+	let total = 0;
+	for (const b of rows) {
+		const carry = await getRolledOver(db, b.type_id, prev);
+		const spent = await getSpentForBucket(db, b.type_id, prev);
+		total += Math.min(0, b.allocated + carry - spent);
+	}
+	return total;
+}
+
+/** The earliest month with a budgets row or an income transaction. */
+async function poolStartMonth(db: DatabaseService): Promise<string | null> {
+	const rows = await db.query<{ m: string | null }>(
+		`SELECT MIN(m) AS m FROM (
+		   SELECT MIN(month) AS m FROM budgets WHERE deleted_at IS NULL
+		   UNION ALL
+		   SELECT MIN(substr(date, 1, 7)) AS m FROM transactions
+		     WHERE kind = 'income' AND deleted_at IS NULL
+		 )`
+	);
+	return rows[0]?.m ?? null;
+}
+
+/**
+ * The month's To Budget pool: a forward fold from the earliest
+ * budgeted-or-income month over every intervening calendar month.
+ */
+export async function getToBudget(db: DatabaseService, month: string): Promise<ToBudgetBreakdown> {
+	const zero: ToBudgetBreakdown = {
+		income: 0, carried_forward: 0, last_month_overspent: 0,
+		assigned: 0, to_budget: 0, overassigned: 0
+	};
+	const start = await poolStartMonth(db);
+	if (start === null || start > month) return zero;
+
+	let carried = 0;
+	let result = zero;
+	let cur = start;
+	for (;;) {
+		const income = await monthIncome(db, cur);
+		const assigned = await monthAssigned(db, cur);
+		const lmo = await lastMonthOverspent(db, cur);
+		const to_budget = income + carried + lmo - assigned;
+		result = {
+			income, carried_forward: carried, last_month_overspent: lmo,
+			assigned, to_budget, overassigned: Math.max(0, -to_budget)
+		};
+		carried = to_budget;
+		if (cur === month) break;
+		cur = nextMonth(cur);
+	}
+	return result;
+}
+
 export async function setAllocation(db: DatabaseService, typeId: string, month: string, allocated: number): Promise<void> {
 	const now = new Date().toISOString();
 	const existing = await db.query<{ id: string }>(

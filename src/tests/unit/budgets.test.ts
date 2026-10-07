@@ -18,6 +18,15 @@ async function seedExpense(tagId: string, amount: number, date: string) {
 	);
 }
 
+async function seedIncome(amount: number, date: string) {
+	const { ulid } = await import('$lib/utils/id');
+	await db.execute(
+		`INSERT INTO transactions (id, kind, date, amount, account_id, tag_id, created_at, updated_at)
+		 VALUES (?, 'income', ?, ?, 'acc1', NULL, ?, ?)`,
+		[ulid(), date, amount, NOW, NOW]
+	);
+}
+
 async function seedRefund(tagId: string, amount: number, date: string) {
 	const { ulid } = await import('$lib/utils/id');
 	await db.execute(
@@ -242,5 +251,126 @@ describe('getRolledOver', () => {
 
 		const rolled = await repo.getRolledOver(db, 'bucket_essentials', '2026-05');
 		expect(rolled).toBe(2000000);
+	});
+});
+
+describe('getToBudget', () => {
+	it('conserves on the counterexample fixture (rollover off)', async () => {
+		// Same table as the Rust to_budget_fold_conserves_on_the_counterexample:
+		//   M1 2026-01: income 100, allocated 100, spent 0    toBudget 0
+		//   M2 2026-02: income 150, allocated 0,   spent 150  toBudget 150
+		//   M3 2026-03: income 0,   allocated 0,   spent 0    toBudget 100
+		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+		await db.execute(
+			`UPDATE category_types SET rollover_enabled = 0 WHERE id = 'bucket_essentials'`
+		);
+		await seedIncome(100000, '2026-01-05');
+		await repo.setAllocation(db, 'bucket_essentials', '2026-01', 100000);
+		await seedIncome(150000, '2026-02-05');
+		await repo.setAllocation(db, 'bucket_essentials', '2026-02', 0);
+		await seedExpense(tagId, 150000, '2026-02-10');
+		await repo.setAllocation(db, 'bucket_essentials', '2026-03', 0);
+
+		const m1 = await repo.getToBudget(db, '2026-01');
+		expect(m1).toEqual({
+			income: 100000, carried_forward: 0, last_month_overspent: 0,
+			assigned: 100000, to_budget: 0, overassigned: 0
+		});
+
+		const m2 = await repo.getToBudget(db, '2026-02');
+		expect(m2.income).toBe(150000);
+		expect(m2.carried_forward).toBe(0);
+		expect(m2.last_month_overspent).toBe(0);
+		expect(m2.to_budget).toBe(150000);
+
+		const m3 = await repo.getToBudget(db, '2026-03');
+		expect(m3.income).toBe(0);
+		expect(m3.carried_forward).toBe(150000);
+		expect(m3.last_month_overspent).toBe(-50000);
+		expect(m3.assigned).toBe(0);
+		expect(m3.to_budget).toBe(100000);
+		expect(m3.overassigned).toBe(0);
+
+		// Σ available + toBudget is 100,000 in every month.
+		for (const [month, expectedAvailable] of [
+			['2026-01', 100000], ['2026-02', -50000], ['2026-03', 0]
+		] as const) {
+			const b = (await repo.getBudgetsForMonth(db, month))
+				.find((x) => x.type_id === 'bucket_essentials')!;
+			expect(b.available).toBe(expectedAvailable);
+			expect(b.available + (await repo.getToBudget(db, month)).to_budget).toBe(100000);
+		}
+	});
+
+	it('carries a negative pool into the next month without clamping', async () => {
+		await repo.setAllocation(db, 'bucket_essentials', '2026-01', 100000);
+		const m1 = await repo.getToBudget(db, '2026-01');
+		expect(m1.to_budget).toBe(-100000);
+		expect(m1.overassigned).toBe(100000);
+
+		const m2 = await repo.getToBudget(db, '2026-02');
+		expect(m2.carried_forward).toBe(-100000);
+		expect(m2.to_budget).toBe(-100000);
+		expect(m2.overassigned).toBe(100000);
+	});
+
+	it('claws back only rollover-off buckets with a prior-month row', async () => {
+		// bucket_essentials: rollover OFF, overspent by 200,000 in 2026-01.
+		const aTag = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+		await db.execute(
+			`UPDATE category_types SET rollover_enabled = 0 WHERE id = 'bucket_essentials'`
+		);
+		await repo.setAllocation(db, 'bucket_essentials', '2026-01', 100000);
+		await seedExpense(aTag, 300000, '2026-01-15');
+
+		// bucket_learning: rollover ON (default), overspent by 200,000 in 2026-01.
+		const bTag = await catRepo.createTag(db, 'Books', 'bucket_learning');
+		await repo.setAllocation(db, 'bucket_learning', '2026-01', 100000);
+		await seedExpense(bTag, 300000, '2026-01-15');
+
+		const m2 = await repo.getToBudget(db, '2026-02');
+		expect(m2.last_month_overspent).toBe(-200000);
+	});
+
+	it('returns zeros for an empty ledger', async () => {
+		expect(await repo.getToBudget(db, '2026-05')).toEqual({
+			income: 0, carried_forward: 0, last_month_overspent: 0,
+			assigned: 0, to_budget: 0, overassigned: 0
+		});
+	});
+
+	// Browser twin of the Rust every_intervening_month_is_folded_without_a_budget_row:
+	//   Jan: income 100, alloc 100, spent 150 -> Feb carry: lmo = -50, toBudget -50
+	//   Feb: (no budgets row, no income)      -> folds -50 into the carry
+	//   Mar: target                           -> carried_forward -50, not 0
+	// A fold keyed off "months with a budgets row" would skip February and
+	// report 0 for both fields — this test is the only guard for "every
+	// intervening calendar month" on the adapter Vitest and Playwright drive.
+	it('folds every intervening month even without a budget row', async () => {
+		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+		await db.execute(
+			`UPDATE category_types SET rollover_enabled = 0 WHERE id = 'bucket_essentials'`
+		);
+
+		// January: income 100,000, allocated 100,000, spent 150,000 -> overspent by 50,000.
+		await seedIncome(100000, '2026-01-05');
+		await repo.setAllocation(db, 'bucket_essentials', '2026-01', 100000);
+		await seedExpense(tagId, 150000, '2026-01-15');
+		// February deliberately has no budgets row (any bucket) and no income.
+
+		const jan = await repo.getToBudget(db, '2026-01');
+		expect(jan.to_budget).toBe(0);
+
+		const feb = await repo.getToBudget(db, '2026-02');
+		expect(feb.last_month_overspent).toBe(-50000);
+		expect(feb.to_budget).toBe(-50000);
+
+		const mar = await repo.getToBudget(db, '2026-03');
+		expect(mar.income).toBe(0);
+		expect(mar.assigned).toBe(0);
+		expect(mar.carried_forward).toBe(-50000);
+		expect(mar.last_month_overspent).toBe(0);
+		expect(mar.to_budget).toBe(-50000);
+		expect(mar.overassigned).toBe(50000);
 	});
 });
