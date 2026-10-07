@@ -736,3 +736,48 @@ fn pool_start_month_includes_earlier_income() {
     assert_eq!(m.assigned, 40);
     assert_eq!(m.to_budget, 60);
 }
+
+/// The fold visits every intervening calendar month, not only the months that
+/// have a `budgets` row. January overspends a rollover-OFF bucket; February has
+/// no `budgets` row at all and no income, so a fold that keyed off "months with
+/// a row" would skip it and lose its clawback before March.
+///
+///   Jan: income 100, alloc 100, spent 150 -> Feb carry: lmo = -50, toBudget -50
+///   Feb: (no budgets row, no income)      -> folds -50 into the carry
+///   Mar: target                           -> carried_forward -50, not 0
+///
+/// Rule A (every calendar month) carries -50 into March; rule B (only months
+/// with a budgets row) would skip February and carry 0. This is the fixture
+/// that separates them, so every field is pinned — a single safe-looking field
+/// is 0 under both rules.
+#[test]
+fn every_intervening_month_is_folded_without_a_budget_row() {
+    let mut db = fresh_db("pool_skip");
+    let account = fresh_account(&mut db);
+    let bucket = create_test_bucket(&mut db, "Food");
+    let tag = create_test_tag(&mut db, "Groceries", &bucket);
+    categories::set_rollover_enabled(&mut db, op(), &bucket, false).unwrap();
+
+    // January: income 100, allocated 100, spent 150 -> overspent by 50.
+    seed_income(&mut db, &account, 100, "2026-01-05");
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-01", 100).unwrap();
+    seed_expense(&mut db, &account, &tag, 150, "2026-01-15");
+    // February deliberately has no budgets row (any bucket) and no income.
+
+    let jan = budgets::get_to_budget(&db, "2026-01").unwrap();
+    assert_eq!(jan.to_budget, 0);
+
+    let feb = budgets::get_to_budget(&db, "2026-02").unwrap();
+    assert_eq!(feb.last_month_overspent, -50);
+    assert_eq!(feb.to_budget, -50);
+
+    // March still carries February's clawback: skipping the unbudgeted month
+    // would give carried_forward 0 / to_budget 0 instead of -50.
+    let mar = budgets::get_to_budget(&db, "2026-03").unwrap();
+    assert_eq!(mar.income, 0);
+    assert_eq!(mar.assigned, 0);
+    assert_eq!(mar.carried_forward, -50);
+    assert_eq!(mar.last_month_overspent, 0);
+    assert_eq!(mar.to_budget, -50);
+    assert_eq!(mar.overassigned, 50);
+}
