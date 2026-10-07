@@ -850,6 +850,11 @@ window.__TAURI_INTERNALS__ = {
 		if (cmd === 'budget_get_rolled_over') {
 			return 0;
 		}
+		if (cmd === 'budget_get_to_budget') {
+			// Test double: the pool's behaviour is proven by the browser-adapter
+			// E2E and the unit/Rust fixtures, not by this stub.
+			return { income: 0, carried_forward: 0, last_month_overspent: 0, assigned: 0, to_budget: 0, overassigned: 0 };
+		}
 		if (cmd === 'budget_set_allocation') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
 			const now = new Date().toISOString();

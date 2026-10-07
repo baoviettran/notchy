@@ -23,7 +23,7 @@ import type {
 import type { AccountType, AccountWithBalance, NewAccount } from './repos/accounts';
 import type { TransactionKind, Transaction, NewTransaction, TransactionFilter } from './repos/transactions';
 import type { Bucket, Tag, TagDeleteInfo } from './repos/categories';
-import type { BudgetSummary } from './repos/budgets';
+import type { BudgetSummary, ToBudgetBreakdown } from './repos/budgets';
 import type { GoalWithProgress, NewGoal, GoalStatus } from './repos/goals';
 import type { CategorizeRule, NewCategorizeRule, CategorizeRuleUpdate } from './repos/rules';
 import type { DebtAccount } from './repos/debts';
@@ -208,6 +208,10 @@ class BrowserBudgetOps implements BudgetOps {
 
 	getRolledOver(typeId: string, month: string): Promise<number> {
 		return budgetsRepo.getRolledOver(this.db, typeId, month);
+	}
+
+	getToBudget(month: string): Promise<ToBudgetBreakdown> {
+		return budgetsRepo.getToBudget(this.db, month);
 	}
 
 	setAllocation(typeId: string, month: string, allocated: number): Promise<void> {

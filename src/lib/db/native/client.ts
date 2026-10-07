@@ -25,7 +25,7 @@ import type {
 import type { AccountType, AccountWithBalance, NewAccount } from '../client';
 import type { TransactionKind, Transaction, NewTransaction, TransactionFilter } from '../client';
 import type { Bucket, Tag, TagDeleteInfo } from '../client';
-import type { BudgetSummary } from '../client';
+import type { BudgetSummary, ToBudgetBreakdown } from '../client';
 import type { GoalWithProgress, NewGoal, GoalStatus } from '../client';
 import type { CategorizeRule, NewCategorizeRule, CategorizeRuleUpdate } from '../client';
 import type { DebtAccount } from '../client';
@@ -247,6 +247,10 @@ class NativeBudgetOps implements BudgetOps {
 
 	getRolledOver(typeId: string, month: string): Promise<number> {
 		return invoke<number>('budget_get_rolled_over', { typeId, month });
+	}
+
+	getToBudget(month: string): Promise<ToBudgetBreakdown> {
+		return invoke<ToBudgetBreakdown>('budget_get_to_budget', { month });
 	}
 
 	setAllocation(typeId: string, month: string, allocated: number): Promise<void> {

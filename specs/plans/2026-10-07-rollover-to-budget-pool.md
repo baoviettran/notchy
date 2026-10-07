@@ -1202,7 +1202,7 @@ One task, all four sides plus the port declaration and the browser client — ot
   - `NativeBudgetOps.getToBudget(month)` → `invoke('budget_get_to_budget', { month })`.
   - Rust command `budget_get_to_budget`, registered in `generate_handler!`.
 
-- [ ] **Step 1: Write the failing test.**
+- [x] **Step 1: Write the failing test.**
 
 In `src/tests/unit/native-boundary.test.ts`, add a FIXTURES entry beside `budget_get_rolled_over` (`:95`):
 
@@ -1217,7 +1217,7 @@ and a sweep row beside `budgets.getRolledOver` (`:473`):
 		{ label: 'budgets.getToBudget', run: () => client.budgets.getToBudget('2026-01'), command: 'budget_get_to_budget' },
 ```
 
-- [ ] **Step 2: Run and confirm it fails.**
+- [x] **Step 2: Run and confirm it fails.**
 
 ```bash
 pnpm vitest run src/tests/unit/native-boundary.test.ts
@@ -1229,7 +1229,7 @@ Expected failure (the sweep row calls a method that does not exist on the port y
 TypeError: client.budgets.getToBudget is not a function
 ```
 
-- [ ] **Step 3: Declare the port method and re-export the type.**
+- [x] **Step 3: Declare the port method and re-export the type.**
 
 In `src/lib/db/client.ts`, change the budget type import/export (`:26`, `:59`) to include the new type:
 
@@ -1254,7 +1254,7 @@ export interface BudgetOps {
 }
 ```
 
-- [ ] **Step 4: Implement the browser and native adapters.**
+- [x] **Step 4: Implement the browser and native adapters.**
 
 In `src/lib/db/browser/client.ts`, add `ToBudgetBreakdown` to the budgets type import (line 26) so it reads:
 
@@ -1278,7 +1278,7 @@ In `src/lib/db/native/client.ts`, add `ToBudgetBreakdown` to the `../client` typ
 	}
 ```
 
-- [ ] **Step 5: Add the Rust command and register it.**
+- [x] **Step 5: Add the Rust command and register it.**
 
 In `src-tauri/src/database/commands.rs`, after `budget_get_rolled_over` (`:477`), add:
 
@@ -1312,7 +1312,7 @@ Regenerate the committed bindings:
 pnpm generate:db-contracts
 ```
 
-- [ ] **Step 6: Add the tauri-mock handler.**
+- [x] **Step 6: Add the tauri-mock handler.**
 
 In `src/tests/e2e/fixtures/tauri-mock.ts`, after the `budget_get_rolled_over` handler (`:850-852`), add:
 
@@ -1324,7 +1324,7 @@ In `src/tests/e2e/fixtures/tauri-mock.ts`, after the `budget_get_rolled_over` ha
 		}
 ```
 
-- [ ] **Step 7: Run and confirm pass.**
+- [x] **Step 7: Run and confirm pass.**
 
 ```bash
 pnpm vitest run src/tests/unit/native-boundary.test.ts src/tests/unit/rust-command-surface.test.ts
@@ -1333,7 +1333,7 @@ pnpm check:db-contracts
 
 Expected: green, and `bindings are current`.
 
-- [ ] **Step 8: Commit.**
+- [x] **Step 8: Commit.**
 
 ```bash
 git add src/lib/db/client.ts src/lib/db/browser/client.ts src/lib/db/native/client.ts src-tauri/src/database/commands.rs src-tauri/src/lib.rs src/lib/native/contracts.generated.ts src/tests/e2e/fixtures/tauri-mock.ts src/tests/unit/native-boundary.test.ts

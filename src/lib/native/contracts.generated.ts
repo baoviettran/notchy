@@ -54,6 +54,31 @@ export type Tag = { id: string, type_id: string, name: string, is_system: number
 export type TagDeleteInfo = { affected_count: number, affected_total: number, };
 export type Budget = { id: string, type_id: string, month: string, allocated: number, created_at: string, updated_at: string, };
 export type BudgetSummary = { type_id: string, month: string, allocated: number, spent: number, remaining: number, rolled_over: number, available: number, };
+export type ToBudgetBreakdown = { 
+/**
+ * Σ income transactions in the month (`kind = 'income'`, no account filter).
+ */
+income: number, 
+/**
+ * The prior month's `to_budget`, sign preserved (no `max(0, …)` clamp).
+ */
+carried_forward: number, 
+/**
+ * Σ min(0, prior-month available) over rollover-OFF budgeted buckets (≤ 0).
+ */
+last_month_overspent: number, 
+/**
+ * The month's allocations, as a positive count.
+ */
+assigned: number, 
+/**
+ * income + carried_forward + last_month_overspent − assigned.
+ */
+to_budget: number, 
+/**
+ * max(0, −to_budget).
+ */
+overassigned: number, };
 export type Reconciliation = { id: string, account_id: string, date: string, expected_balance: number, actual_balance: number, adjustment_transaction_id: string | null, notes: string | null, created_at: string, updated_at: string, };
 export type ReconcileResult = { discrepancy: number, reconciliation_id: string, adjustment_transaction_id: string | null, };
 export type DebtAccount = { id: string, name: string, type: string, counterparty: string, balance: number, last_activity: string | null, };

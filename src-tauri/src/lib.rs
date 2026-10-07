@@ -92,6 +92,7 @@ pub fn run() {
             budget_get_for_month,
             budget_get_spent_for_bucket,
             budget_get_rolled_over,
+            budget_get_to_budget,
             budget_set_allocation,
             budget_copy_from_previous_month,
             budget_has_allocations,

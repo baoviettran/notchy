@@ -23,7 +23,7 @@ import type {
 	Tag,
 	TagDeleteInfo,
 } from './browser/repos/categories';
-import type { BudgetSummary } from './browser/repos/budgets';
+import type { BudgetSummary, ToBudgetBreakdown } from './browser/repos/budgets';
 import type {
 	GoalWithProgress,
 	NewGoal,
@@ -56,7 +56,7 @@ export type { AccountType, AccountWithBalance, NewAccount };
 export { isAssetType, isLiabilityType, isLoanType } from './browser/repos/accounts';
 export type { TransactionKind, Transaction, NewTransaction, TransactionFilter };
 export type { Bucket, Tag, TagDeleteInfo };
-export type { BudgetSummary } from './browser/repos/budgets';
+export type { BudgetSummary, ToBudgetBreakdown } from './browser/repos/budgets';
 export type { GoalWithProgress, NewGoal, GoalStatus };
 export type { CategorizeRule, NewCategorizeRule, CategorizeRuleUpdate };
 export type { DebtAccount };
@@ -161,6 +161,7 @@ export interface BudgetOps {
 	getForMonth(month: string): Promise<BudgetSummary[]>;
 	getSpentForBucket(typeId: string, month: string): Promise<number>;
 	getRolledOver(typeId: string, month: string): Promise<number>;
+	getToBudget(month: string): Promise<ToBudgetBreakdown>;
 	setAllocation(typeId: string, month: string, allocated: number): Promise<void>;
 	copyFromPreviousMonth(targetMonth: string): Promise<void>;
 	hasAllocations(month: string): Promise<boolean>;
