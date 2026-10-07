@@ -373,4 +373,72 @@ describe('getToBudget', () => {
 		expect(mar.to_budget).toBe(-50000);
 		expect(mar.overassigned).toBe(50000);
 	});
+
+	// Browser twin of the Rust pool_start_month_includes_earlier_income:
+	// income dated before the first budget row still funds the pool, so the
+	// start is the earliest of (first budget month, first income month). This
+	// is the only test whose pool start resolves to the income arm of
+	// poolStartMonth's UNION — if that arm were broken, every other test would
+	// still pass because their income month is ≥ the first budget month.
+	it('folds from an income month that precedes the first budget row', async () => {
+		// Income in 2025-12, first budget row in 2026-01, requested 2026-01.
+		await seedIncome(100000, '2025-12-05');
+		await repo.setAllocation(db, 'bucket_essentials', '2026-01', 40000);
+
+		const m = await repo.getToBudget(db, '2026-01');
+		expect(m.income).toBe(0); // no income *in* January
+		expect(m.carried_forward).toBe(100000); // December's income carried forward
+		expect(m.last_month_overspent).toBe(0);
+		expect(m.assigned).toBe(40000);
+		expect(m.to_budget).toBe(60000);
+		expect(m.overassigned).toBe(0);
+	});
+
+	// Browser twin of the Rust unbudgeted_month_spending_is_ignored: the carry
+	// gate is the budget row, and the fold must not start counting a month's
+	// activity just because the fold now visits it.
+	it('ignores spending in an unbudgeted month', async () => {
+		const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+		await db.execute(
+			`UPDATE category_types SET rollover_enabled = 0 WHERE id = 'bucket_essentials'`
+		);
+
+		// 2026-01 funds the bucket; the 150,000 spent in 2026-02 has no budget row.
+		await seedIncome(100000, '2026-01-05');
+		await repo.setAllocation(db, 'bucket_essentials', '2026-01', 100000);
+		await seedExpense(tagId, 150000, '2026-02-10');
+
+		// The carry into 2026-03 is the January surplus (100,000), untouched by
+		// the unbudgeted February spend; nothing is clawed back.
+		expect(await repo.getRolledOver(db, 'bucket_essentials', '2026-03')).toBe(100000);
+
+		const m3 = await repo.getToBudget(db, '2026-03');
+		expect(m3.income).toBe(0);
+		expect(m3.carried_forward).toBe(0);
+		expect(m3.last_month_overspent).toBe(0);
+		expect(m3.assigned).toBe(0);
+		expect(m3.to_budget).toBe(0);
+		expect(m3.overassigned).toBe(0);
+	});
+
+	// The fold steps Dec → Jan through nextMonth's `m === 12` wrap, and a month
+	// before the pool start returns the all-zero breakdown rather than folding.
+	it('folds across a year boundary and rejects a pre-start month', async () => {
+		// December 2025: income 100,000, allocated 40,000 → toBudget 60,000.
+		await seedIncome(100000, '2025-12-05');
+		await repo.setAllocation(db, 'bucket_essentials', '2025-12', 40000);
+
+		// January 2026 is reached only by wrapping nextMonth('2025-12').
+		const jan = await repo.getToBudget(db, '2026-01');
+		expect(jan).toEqual({
+			income: 0, carried_forward: 60000, last_month_overspent: 0,
+			assigned: 0, to_budget: 60000, overassigned: 0
+		});
+
+		// A month before the pool start (2025-12) is the `start > month` guard.
+		expect(await repo.getToBudget(db, '2025-11')).toEqual({
+			income: 0, carried_forward: 0, last_month_overspent: 0,
+			assigned: 0, to_budget: 0, overassigned: 0
+		});
+	});
 });
