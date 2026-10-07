@@ -627,5 +627,7 @@
   "schedules_save": "Save",
   "schedules_cancel": "Cancel",
   "schedules_delete": "Delete",
-  "schedules_delete_confirm": "Delete this schedule?"
+  "schedules_delete_confirm": "Delete this schedule?",
+  "budgets_rollover_toggle": "Roll over",
+  "budgets_rollover_toggle_help": "Carry this bucket's leftover (or overspend) into next month."
 }

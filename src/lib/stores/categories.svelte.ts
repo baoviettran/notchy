@@ -66,6 +66,12 @@ class CategoriesStore {
 		await this.load();
 	}
 
+	async setRolloverEnabled(id: string, enabled: boolean): Promise<void> {
+		const db = getDb();
+		await db.categories.setRolloverEnabled(id, enabled);
+		await this.load();
+	}
+
 	async createTag(name: string, bucketId: string): Promise<string> {
 		const db = getDb();
 		const id = await db.categories.createTag(name, bucketId);

@@ -627,5 +627,7 @@
   "schedules_save": "Lưu",
   "schedules_cancel": "Huỷ",
   "schedules_delete": "Xoá",
-  "schedules_delete_confirm": "Xoá lịch này?"
+  "schedules_delete_confirm": "Xoá lịch này?",
+  "budgets_rollover_toggle": "Kết chuyển",
+  "budgets_rollover_toggle_help": "Chuyển số dư (hoặc chi vượt) của mục này sang tháng sau."
 }

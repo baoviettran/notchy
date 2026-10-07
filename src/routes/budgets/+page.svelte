@@ -69,6 +69,11 @@
 		editError = '';
 	}
 
+	async function toggleRollover(id: string, enabled: boolean) {
+		await categories.setRolloverEnabled(id, enabled);
+		await budgets.load();
+	}
+
 	let advancing = $state(false);
 
 	// Commit on blur when dirty — outside clicks and tab-aways land the
@@ -302,6 +307,16 @@
 					     while the figure itself carries the number. -->
 					<span class={available < 0 ? 'text-debit' : ''}>{formatCurrency(available, settings.currency, settings.locale)} {m.budgets_available()}</span>
 				</div>
+				<label class="flex items-center gap-2 text-xs text-dim" title={m.budgets_rollover_toggle_help()}>
+					<input
+						type="checkbox"
+						checked={bucket.rollover_enabled === 1}
+						onchange={(e) => void toggleRollover(bucket.id, e.currentTarget.checked)}
+						aria-label="{m.budgets_rollover_toggle()} — {bucket.name}"
+						class="min-w-5 min-h-5 accent-phosphor"
+					/>
+					<span>{m.budgets_rollover_toggle()}</span>
+				</label>
 			</div>
 		{/each}
 		{/if}

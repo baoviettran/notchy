@@ -1579,7 +1579,7 @@ The control that makes the flag reachable; an E2E that flips it and watches the 
 - Consumes: `db.categories.setRolloverEnabled(id, enabled)` (port + both repos already exist), `Bucket.rollover_enabled`, `budgets.load()`.
 - Produces: `CategoriesStore.setRolloverEnabled(id: string, enabled: boolean): Promise<void>`; a `role="checkbox"` toggle per bucket row.
 
-- [ ] **Step 1: Write the failing test — create `src/tests/e2e/budgets-rollover.spec.ts`.**
+- [x] **Step 1: Write the failing test — create `src/tests/e2e/budgets-rollover.spec.ts`.**
 
 ```typescript
 import { test, expect } from './fixtures/onboarded';
@@ -1653,7 +1653,7 @@ test.describe('budgets — rollover toggle', () => {
 });
 ```
 
-- [ ] **Step 2: Run and confirm it fails.**
+- [x] **Step 2: Run and confirm it fails.**
 
 ```bash
 pnpm exec playwright test src/tests/e2e/budgets-rollover.spec.ts
@@ -1661,7 +1661,7 @@ pnpm exec playwright test src/tests/e2e/budgets-rollover.spec.ts
 
 Expected failure: `expect(toggle).toBeVisible()` times out — no element matches `getByRole('checkbox', { name: /rollover/i })` (the toggle does not exist yet).
 
-- [ ] **Step 3: Expose the store method.**
+- [x] **Step 3: Expose the store method.**
 
 In `src/lib/stores/categories.svelte.ts`, after `renameBucket` (`:57-60`), add:
 
@@ -1673,7 +1673,7 @@ In `src/lib/stores/categories.svelte.ts`, after `renameBucket` (`:57-60`), add:
 	}
 ```
 
-- [ ] **Step 4: Add the toggle to the page and reload the pool on flip.**
+- [x] **Step 4: Add the toggle to the page and reload the pool on flip.**
 
 In `src/routes/budgets/+page.svelte`, add a handler near `startEdit` (`:85`):
 
@@ -1701,7 +1701,7 @@ Inside the bucket row surface, after the available row (`:313-318`) and before t
 
 `bucket` here is the loop variable of `{#each budgetableBuckets as bucket}` (`:262`), which iterates `categories.buckets` — and `Bucket` carries `rollover_enabled: number` (`src/lib/db/browser/repos/categories.ts:10`, selected by `listBuckets` at `:35`). No new query is needed.
 
-- [ ] **Step 5: Add the i18n keys to both locales.**
+- [x] **Step 5: Add the i18n keys to both locales.**
 
 Append to `messages/en.json`:
 
@@ -1723,7 +1723,7 @@ Then regenerate Paraglide:
 pnpm exec paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide
 ```
 
-- [ ] **Step 6: Run and confirm pass.**
+- [x] **Step 6: Run and confirm pass.**
 
 ```bash
 pnpm exec playwright test src/tests/e2e/budgets-rollover.spec.ts src/tests/e2e/budgets.spec.ts src/tests/e2e/budgets-extended.spec.ts
@@ -1731,7 +1731,7 @@ pnpm exec playwright test src/tests/e2e/budgets-rollover.spec.ts src/tests/e2e/b
 
 Expected: green. The budgets specs' `/Over budget by/` assertions still pass — that warning is now `overassigned`-driven, and an allocated-but-unfunded bucket makes `overassigned > 0`.
 
-- [ ] **Step 7: Commit.**
+- [x] **Step 7: Commit.**
 
 ```bash
 git add src/lib/stores/categories.svelte.ts src/routes/budgets/+page.svelte messages/en.json messages/vi.json src/tests/e2e/budgets-rollover.spec.ts
