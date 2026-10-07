@@ -12,6 +12,7 @@
 	import { getDb } from '$lib/db';
 	import { formatCurrency, formatCurrencyCompact, isLongCurrency } from '$lib/utils/currency';
 	import { parseAmount } from '$lib/utils/number_parse';
+	import { mapError } from '$lib/utils/errors';
 	import { formatMonth } from '$lib/utils/date';
 	import { nextBudgetableId, monthStepFromKey } from '$lib/utils/budgets';
 	import * as m from '$lib/paraglide/messages';
@@ -69,8 +70,22 @@
 		editError = '';
 	}
 
-	async function toggleRollover(id: string, enabled: boolean) {
-		await categories.setRolloverEnabled(id, enabled);
+	async function toggleRollover(id: string, enabled: boolean, el: HTMLInputElement) {
+		try {
+			await categories.setRolloverEnabled(id, enabled);
+		} catch (e) {
+			// The write did not land and the store never reloaded, so the checkbox
+			// would keep the flipped DOM state that neither the store nor the DB
+			// holds. Surface the failure (the toast-on-error idiom the other
+			// mutation handlers on this screen use), resync the buckets, then force
+			// the control back to the stored flag — Svelte does not re-apply
+			// `checked` when the bound value is unchanged, so the reload alone would
+			// leave the DOM flipped.
+			toast.show(mapError(e));
+			await categories.load();
+			el.checked = (categories.buckets.find((b) => b.id === id)?.rollover_enabled ?? 1) === 1;
+			return;
+		}
 		await budgets.load();
 	}
 
@@ -152,9 +167,17 @@
 		return mo === 1 ? `${y - 1}-12` : `${y}-${String(mo - 1).padStart(2, '0')}`;
 	}
 
+	// Monotonic token for the in-flight check. `checkPrevAllocations` re-runs on
+	// every `budgets.month`/`items` change, so a slow `hasAllocations(prev)` from
+	// an outgoing month could otherwise land last and set the "Copy from previous"
+	// guard for the wrong month. Only the newest pass may write.
+	let prevAllocToken = 0;
+
 	async function checkPrevAllocations() {
+		const token = ++prevAllocToken;
 		const prev = previousMonthKey(budgets.month);
-		hasPrevAllocations = await getDb().budgets.hasAllocations(prev);
+		const has = await getDb().budgets.hasAllocations(prev);
+		if (token === prevAllocToken) hasPrevAllocations = has;
 	}
 
 	function getBudget(typeId: string) {
@@ -246,6 +269,7 @@
 			</div>
 			<div class="mt-2 pt-2 border-t border-line flex flex-wrap gap-x-4 justify-between text-xs text-dim">
 				<span>{m.budgets_pool_income()}: <span class="figures">{formatCurrency(pool?.income ?? 0, settings.currency, settings.locale)}</span></span>
+				<span>{m.budgets_pool_carried_forward()}: <span class="figures">{formatCurrency(pool?.carried_forward ?? 0, settings.currency, settings.locale)}</span></span>
 				<span>{m.budgets_pool_assigned()}: <span class="figures">{formatCurrency(pool?.assigned ?? 0, settings.currency, settings.locale)}</span></span>
 				<span>{m.budgets_pool_overspent()}: <span class="figures">{formatCurrency(pool?.last_month_overspent ?? 0, settings.currency, settings.locale)}</span></span>
 			</div>
@@ -311,7 +335,7 @@
 					<input
 						type="checkbox"
 						checked={bucket.rollover_enabled === 1}
-						onchange={(e) => void toggleRollover(bucket.id, e.currentTarget.checked)}
+						onchange={(e) => void toggleRollover(bucket.id, e.currentTarget.checked, e.currentTarget)}
 						aria-label="{m.budgets_rollover_toggle()} — {bucket.name}"
 						class="min-w-5 min-h-5 accent-phosphor"
 					/>

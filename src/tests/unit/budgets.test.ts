@@ -194,6 +194,30 @@ describe('getRolledOver', () => {
 			expect(await repo.getRolledOver(db, 'bucket_essentials', '2026-03')).toBe(-50000);
 		});
 
+		// Browser twin of the Rust
+		// rollover_off_carry_floors_per_iteration_not_as_a_final_clamp: the
+		// counterexample above is surplus-then-overspend (Σ −50), which yields 0
+		// under BOTH the per-iteration floor and a lazy end-of-fold `max(0, rolled)`
+		// clamp. This is the discriminating ordering — overspend first, then
+		// surplus — where the floor gives 100,000 and a final-only clamp gives 0.
+		//   M1 2026-01: allocated 0,     spent 300,000 -> L = -300,000, floor -> 0
+		//   M2 2026-02: allocated 100,000, spent 0     -> L = +100,000, floor -> 100,000
+		it('applies the floor per iteration, not as a single final clamp', async () => {
+			await repo.setAllocation(db, 'bucket_essentials', '2026-01', 0);
+			const tagId = await catRepo.createTag(db, 'Food', 'bucket_essentials');
+			await seedExpense(tagId, 300000, '2026-01-10');
+			await repo.setAllocation(db, 'bucket_essentials', '2026-02', 100000);
+
+			await db.execute(
+				`UPDATE category_types SET rollover_enabled = 0 WHERE id = 'bucket_essentials'`
+			);
+
+			// Overspend first: M1's -300,000 is floored to 0.
+			expect(await repo.getRolledOver(db, 'bucket_essentials', '2026-02')).toBe(0);
+			// Surplus second: M2's +100,000 survives; a final clamp would give 0.
+			expect(await repo.getRolledOver(db, 'bucket_essentials', '2026-03')).toBe(100000);
+		});
+
 	it('sums surplus (allocated - spent) across prior budgeted months', async () => {
 		// 2026-03: allocated 1,000,000, spent 400,000 → surplus 600,000
 		await repo.setAllocation(db, 'bucket_essentials', '2026-03', 1000000);

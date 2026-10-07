@@ -7,7 +7,7 @@ use rusqlite::{Connection, OpenFlags};
 use notchy_lib::database::domains::{budgets, categories};
 use notchy_lib::database::error::ErrorCode;
 use notchy_lib::database::migrations::{bootstrap_current, FailurePoint};
-use notchy_lib::database::types::OperationId;
+use notchy_lib::database::types::{OperationId, ToBudgetBreakdown};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -549,6 +549,34 @@ fn rollover_off_carry_is_a_running_floor() {
     assert_eq!(budgets::get_rolled_over(&db, &bucket, "2026-03").unwrap(), 0);
 }
 
+/// The floor is applied **per iteration**, not as a single clamp at the end of
+/// the fold. The counterexample above is surplus-then-overspend (Σ −50), which
+/// yields `0` under BOTH the per-iteration floor and a lazy `max(0, rolled)`
+/// clamp — it cannot tell them apart. This is the discriminating ordering,
+/// overspend-then-surplus, where the two diverge:
+///
+///   M1 2026-01: allocated 0,   spent 300 -> L = -300, per-iteration floor -> 0
+///   M2 2026-02: allocated 100, spent 0   -> L = +100, floor stays at 100
+///   carry into 2026-03 = 100 (a single end-of-fold clamp would give
+///   `max(0, -300 + 100)` = 0, i.e. it would swallow M2's surplus).
+#[test]
+fn rollover_off_carry_floors_per_iteration_not_as_a_final_clamp() {
+    let mut db = fresh_db("pool_floor_order");
+    let bucket = create_test_bucket(&mut db, "Food");
+    let tag = create_test_tag(&mut db, "Groceries", &bucket);
+    categories::set_rollover_enabled(&mut db, op(), &bucket, false).unwrap();
+
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-01", 0).unwrap();
+    let account = fresh_account(&mut db);
+    seed_expense(&mut db, &account, &tag, 300, "2026-01-10");
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-02", 100).unwrap();
+
+    // Overspend first: the floor floors M1's -300, so M2 starts from 0.
+    assert_eq!(budgets::get_rolled_over(&db, &bucket, "2026-02").unwrap(), 0);
+    // Surplus second: the floor was already applied to M1, so M2's +100 survives.
+    assert_eq!(budgets::get_rolled_over(&db, &bucket, "2026-03").unwrap(), 100);
+}
+
 /// Rollover ON keeps the full carry, negative included.
 #[test]
 fn rollover_on_carry_keeps_the_negative() {
@@ -735,6 +763,40 @@ fn pool_start_month_includes_earlier_income() {
     assert_eq!(m.carried_forward, 100); // December's income carried forward
     assert_eq!(m.assigned, 40);
     assert_eq!(m.to_budget, 60);
+}
+
+/// A month before the pool start returns the all-zero breakdown rather than
+/// folding — the `start > month` early return. Rust twin of the browser test's
+/// `folds across a year boundary and rejects a pre-start month` case; without
+/// it the guard is exercised only indirectly.
+#[test]
+fn to_budget_before_the_pool_start_is_zero() {
+    let mut db = fresh_db("pool_prestart");
+    let account = fresh_account(&mut db);
+    let bucket = create_test_bucket(&mut db, "Food");
+
+    // The pool starts at 2025-12 (both an income month and a budgets row).
+    seed_income(&mut db, &account, 100, "2025-12-05");
+    budgets::set_allocation(&mut db, op(), &bucket, "2025-12", 40).unwrap();
+
+    // 2025-11 precedes the start: the early return yields all zeros.
+    let before = budgets::get_to_budget(&db, "2025-11").unwrap();
+    assert_eq!(
+        before,
+        ToBudgetBreakdown {
+            income: 0,
+            carried_forward: 0,
+            last_month_overspent: 0,
+            assigned: 0,
+            to_budget: 0,
+            overassigned: 0,
+        }
+    );
+
+    // The start month itself folds (non-zero), proving the guard is a boundary
+    // and not an always-zero short circuit.
+    let start = budgets::get_to_budget(&db, "2025-12").unwrap();
+    assert_eq!(start.to_budget, 60);
 }
 
 /// The fold visits every intervening calendar month, not only the months that

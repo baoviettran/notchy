@@ -1357,6 +1357,13 @@ EOF
 
 Retire the `loadMonthIncome()` approximation; read the pool through `BudgetsStore`; drive the over-allocation warning from `overassigned`.
 
+> **Annotation — the inline `budgets_overassigned` warning was deleted (Ruling 10).** Step 4/Step 5
+> below mandate an inline `budgets_overassigned` warning and its `messages/*` key; Ruling 10 dropped
+> both during execution, and the shipped page drives the over-allocation warning from
+> `pool.overassigned` via the pre-existing `budgets_over_allocated` string (no `budgets_overassigned`
+> key exists in either catalog). The steps are left verbatim as the original mandate; see the ledger
+> at `.superpowers/sdd/2026-10-07-rollover-to-budget-pool/progress.md` for the ruling.
+
 **Files:**
 - Modify: `src/lib/stores/budgets.svelte.ts`
 - Modify: `src/routes/budgets/+page.svelte`

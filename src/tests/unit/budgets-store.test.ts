@@ -31,18 +31,24 @@ describe('BudgetsStore.load', () => {
 	});
 
 	it('ignores a stale month load that resolves after a newer one', async () => {
+		const augustItem = { type_id: 'bucket_august', month: '2026-08', allocated: 1, spent: 0, remaining: 1, rolled_over: 0, available: 1 };
+		const septemberItem = { type_id: 'bucket_september', month: '2026-09', allocated: 2, spent: 0, remaining: 2, rolled_over: 0, available: 2 };
 		const august = { ...POOL, to_budget: 111 };
 		const september = { ...POOL, to_budget: 999 };
 		let resolveAugust!: (pool: typeof POOL) => void;
 		const db = {
 			budgets: {
-				getForMonth: vi.fn().mockResolvedValue([]),
-				getToBudget: vi
-					.fn()
-					// August's fold hangs; September's resolves immediately.
-					.mockImplementationOnce(() => new Promise((r) => { resolveAugust = r; }))
-					.mockResolvedValueOnce(september),
-				hasAllocations: vi.fn().mockResolvedValue(false)
+				// Month-keyed so each pass returns a distinguishable items/flag,
+				// letting the assertions prove the stale August pass leaked none
+				// of the three guarded fields.
+				getForMonth: vi.fn((m: string) => Promise.resolve(m === '2026-08' ? [augustItem] : [septemberItem])),
+				getToBudget: vi.fn((m: string) =>
+					m === '2026-08'
+						// August's fold hangs; September's resolves immediately.
+						? new Promise((r) => { resolveAugust = r; })
+						: Promise.resolve(september)
+				),
+				hasAllocations: vi.fn((m: string) => Promise.resolve(m === '2026-09'))
 			}
 		};
 		(getDb as ReturnType<typeof vi.fn>).mockReturnValue(db);
@@ -57,5 +63,9 @@ describe('BudgetsStore.load', () => {
 
 		expect(budgets.month).toBe('2026-09');
 		expect(budgets.toBudget).toEqual(september);
+		// items and hasAllocations share the same #loadToken guard, so a stale
+		// pass must not leak them either.
+		expect(budgets.items).toEqual([septemberItem]);
+		expect(budgets.hasAllocations).toBe(true);
 	});
 });
