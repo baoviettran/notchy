@@ -21,7 +21,7 @@ Both compose: scheduled transactions feed budgets; the pool defines how allocati
 - Define and auto-post recurring transactions on app open, catching up missed periods, without an OS-level scheduler.
 - Introduce a correct "to budget" pool — income minus assigned minus clawed-back overspending — sourced from transaction `kind` (no `is_income` schema change).
 - Fix rollover asymmetry: rollover-off buckets drop negatives to the pool; `rollover_enabled` buckets keep full pos+neg carryforward (escape hatch).
-- Keep the conservation invariant: `(Σ bucket available) + toBudget` never creates or destroys money.
+- Keep the conservation invariant: `(Σ bucket available) + to_budget` never creates or destroys money.
 - Keep all finance calculation in the repo layer (testable with the DB-pattern) and all date arithmetic in pure utils.
 
 ## Non-goals (explicit YAGNI)
@@ -142,27 +142,29 @@ backed by a new Rust command `budget_get_to_budget` → `domains::budgets::get_t
 
 ```typescript
 export interface ToBudgetBreakdown {
-    income: number;              // Σ kind='income' txns in month
-    carriedForward: number;      // prior month's toBudget, sign preserved (chained)
-    lastMonthOverspent: number;  // Σ min(0, prior-month available) over rollover-OFF buckets (≤0)
-    assigned: number;            // Σ allocations across buckets this month (positive count)
-    toBudget: number;            // income + carriedForward + lastMonthOverspent − assigned
-    overassigned: number;        // max(0, −toBudget) — assigned more than available
+    income: number;               // Σ kind='income' txns in month
+    carried_forward: number;      // prior month's to_budget, sign preserved (chained)
+    last_month_overspent: number; // Σ min(0, prior-month available) over rollover-OFF buckets (≤0)
+    assigned: number;             // Σ allocations across buckets this month (positive count)
+    to_budget: number;            // income + carried_forward + last_month_overspent − assigned
+    overassigned: number;         // max(0, −to_budget) — assigned more than available
 }
 ```
 
+The fields are snake_case, not camelCase, because the native adapter deserializes the Rust `ToBudgetBreakdown` struct and the ts-rs binding generator emits snake_case field names — a camelCase port type would read `undefined` at runtime rather than failing loudly.
+
 Formula (Actual's, adapted to source income from `kind` not category):
 ```
-toBudget = income + carriedForward + lastMonthOverspent − assigned
+to_budget = income + carried_forward + last_month_overspent − assigned
 ```
 
 - **`income`** — `Σ amount FROM transactions WHERE kind='income' AND date IN month AND deleted_at IS NULL`. Income is defined purely by `kind`; there is **no account predicate**, because Notchy has no per-account budgeting classification at all (`accounts` carries only identity/type/currency/archive fields) — every account's income counts. Sourced from `kind` (Notchy's model), *not* an income category → no `is_income` schema change. (Actual pairs the predicate with an income category group; Notchy tracks income by kind and needs neither.)
-- **`carriedForward`** — the prior month's `toBudget`, with **no `max(0, …)` clamp**. A month that ends overassigned carries a negative pool into the next, reducing what is available there until the user unassigns. Clamping to 0 was the bug: it let Σ available + toBudget grow by the overassigned amount, breaking the conservation invariant below.
-- **`lastMonthOverspent`** — `Σ min(0, available_{M−1}(bucket))` over **rollover-OFF buckets**, where "leftover" means the bucket's own prior-month **`available`** (its `allocated + carry − spent` balance), **not** its activity. The set enumerated is every rollover-off bucket that has a `budgets` row in month `M−1` (`deleted_at IS NULL`); a bucket with no prior-month row contributes nothing. Rollover-ON buckets are excluded because they keep their negatives in-category — and that exclusion is exactly what makes the conservation induction cancel: a rollover-off bucket's dropped negative is subtracted here, one-for-one, matching the positive the bucket no longer carries forward. Include the dropped negative and it would be counted twice.
+- **`carried_forward`** — the prior month's `to_budget`, with **no `max(0, …)` clamp**. A month that ends overassigned carries a negative pool into the next, reducing what is available there until the user unassigns. Clamping to 0 was the bug: it let Σ available + to_budget grow by the overassigned amount, breaking the conservation invariant below.
+- **`last_month_overspent`** — `Σ min(0, available_{M−1}(bucket))` over **rollover-OFF buckets**, where "leftover" means the bucket's own prior-month **`available`** (its `allocated + carry − spent` balance), **not** its activity. The set enumerated is every rollover-off bucket that has a `budgets` row in month `M−1` (`deleted_at IS NULL`); a bucket with no prior-month row contributes nothing. Rollover-ON buckets are excluded because they keep their negatives in-category — and that exclusion is exactly what makes the conservation induction cancel: a rollover-off bucket's dropped negative is subtracted here, one-for-one, matching the positive the bucket no longer carries forward. Include the dropped negative and it would be counted twice.
 - **`assigned`** — `Σ allocated FROM budgets WHERE month = this AND deleted_at IS NULL`, as a **positive** count of this month's allocations; the formula subtracts it. The sign lives in the subtraction, not in the value (an earlier draft "negated" it — that was self-contradictory with the `− assigned` in the formula).
 - **Base case and evaluation order** — the chain is **not** computed by unbounded backward recursion: every month wants its predecessor, so recursion never terminates. It is a **forward fold**, pinned as follows:
-  - **(a) Every intervening month is iterated** — from the start month through the requested month inclusive, *including* months that have neither a `budgets` row nor an income transaction. Such a month still has work to do: it is where a rollover-off bucket's prior-month negative is applied as `lastMonthOverspent`, and where `carriedForward` advances. Skipping it silently drops the clawback, so the fold is over consecutive calendar months — never over "the months that happen to have a row."
-  - **(b) The start month** is the minimum, over all months with a `budgets` row (`deleted_at IS NULL`) or an income transaction (`substr(date, 1, 7)`), of that month; the first iteration uses `carriedForward = 0` and `lastMonthOverspent = 0`. If no such month exists, `toBudget = 0`.
+  - **(a) Every intervening month is iterated** — from the start month through the requested month inclusive, *including* months that have neither a `budgets` row nor an income transaction. Such a month still has work to do: it is where a rollover-off bucket's prior-month negative is applied as `last_month_overspent`, and where `carried_forward` advances. Skipping it silently drops the clawback, so the fold is over consecutive calendar months — never over "the months that happen to have a row."
+  - **(b) The start month** is the minimum, over all months with a `budgets` row (`deleted_at IS NULL`) or an income transaction (`substr(date, 1, 7)`), of that month; the first iteration uses `carried_forward = 0` and `last_month_overspent = 0`. If no such month exists, `to_budget = 0`.
   - **(c) It terminates** — one calendar month per step from a fixed start to a fixed target: a bounded loop, not recursion.
   This is the concrete form of "chains month-to-month; bottoms out at the first budgeted month."
 
@@ -182,7 +184,7 @@ function getRolledOver(typeId, month):
 
 Why the floor must run: the per-month sum **creates money**. One rollover-off bucket, no others:
 
-| | income | allocated | spent | carry | available | lmo | toBudget | Σ |
+| | income | allocated | spent | carry | available | lmo | to_budget | Σ |
 |---|---|---|---|---|---|---|---|---|
 | M1 | 100 | 100 | 0 | 0 | 100 | 0 | 0 | 100 |
 | M2 | 150 | 0 | 150 | 100 | −50 | 0 | 150 | 100 |
@@ -192,7 +194,7 @@ Real money in = 250, out = 150 → 100, but the per-month scheme reports 200. Th
 
 Under the running floor the same three months conserve:
 
-| | income | allocated | spent | carry | available | lmo | toBudget | Σ |
+| | income | allocated | spent | carry | available | lmo | to_budget | Σ |
 |---|---|---|---|---|---|---|---|---|
 | M1 | 100 | 100 | 0 | 0 | 100 | 0 | 0 | 100 |
 | M2 | 150 | 0 | 150 | 100 | −50 | 0 | 150 | 100 |
@@ -206,9 +208,9 @@ Under the running floor the same three months conserve:
 
 **Gating is preserved.** The fold runs over the months that have a `budgets` row for that `type_id` (`deleted_at IS NULL`) — spending in a month with no budget row is ignored today and must stay ignored. Both adapters gate exactly this way: Rust `src-tauri/src/database/domains/budgets.rs:82-103` (`... WHERE type_id = ?1 AND month < ?2 AND deleted_at IS NULL`) and browser `src/lib/db/browser/repos/budgets.ts:85-99` (`... WHERE type_id = ? AND month < ? AND deleted_at IS NULL`). **Verified** at those lines. A month with no budget row contributes `L_m = 0` (neither its allocation nor its spending counts), so the *bucket carry* fold's intervening months are the budgeted ones — whereas the *to-budget* fold above iterates every calendar month.
 
-Consequence: `get_budgets_for_month` (Rust) / `getBudgetsForMonth` (browser) **drops its `enabled ? … : 0` gate**, and `available` stops having two formulas — for both rollover-on and rollover-off buckets it is `available = allocated + rolled_over − spent`. That single formula is exactly what makes a rollover-off bucket floor at 0: its running-floored `rolled_over` never carries a negative, so the bucket's red moves into the pool via `lastMonthOverspent`.
+Consequence: `get_budgets_for_month` (Rust) / `getBudgetsForMonth` (browser) **drops its `enabled ? … : 0` gate**, and `available` stops having two formulas — for both rollover-on and rollover-off buckets it is `available = allocated + rolled_over − spent`. That single formula is exactly what makes a rollover-off bucket floor at 0: its running-floored `rolled_over` never carries a negative, so the bucket's red moves into the pool via `last_month_overspent`.
 
-With the pool: **rollover-off buckets** drop negatives from the category (no persistent red), and those negatives resurface as `lastMonthOverspent` reducing the pool. **`rollover_enabled` buckets** keep full carryforward (escape hatch for savings). This is Actual's `leftover`/`leftover-pos` asymmetry without Actual's reactive spreadsheet engine — a flag read plus two query variants.
+With the pool: **rollover-off buckets** drop negatives from the category (no persistent red), and those negatives resurface as `last_month_overspent` reducing the pool. **`rollover_enabled` buckets** keep full carryforward (escape hatch for savings). This is Actual's `leftover`/`leftover-pos` asymmetry without Actual's reactive spreadsheet engine — a flag read plus two query variants.
 
 ### Contract change — `get_rolled_over` is now flag-aware (blast radius)
 
@@ -226,9 +228,9 @@ Making `get_rolled_over` / `getRolledOver` flag-aware is a **public contract cha
 
 ### Conservation invariant
 
-`(Σ bucket available) + toBudget` is conserved — money is never created or destroyed. A dropped negative in one bucket appears as a reduced pool. This is the property that makes envelope budgeting trustworthy and that Notchy currently lacks.
+`(Σ bucket available) + to_budget` is conserved — money is never created or destroyed. A dropped negative in one bucket appears as a reduced pool. This is the property that makes envelope budgeting trustworthy and that Notchy currently lacks.
 
-The negative-pool case is part of it: because `carriedForward` does not clamp, an overassigned month reduces the **next** month's pool rather than vanishing. Test fixtures must cover it — a month with `toBudget < 0` followed by another month — and assert the pair conserves.
+The negative-pool case is part of it: because `carried_forward` does not clamp, an overassigned month reduces the **next** month's pool rather than vanishing. Test fixtures must cover it — a month with `to_budget < 0` followed by another month — and assert the pair conserves.
 
 ### No migration for the pool
 
@@ -238,22 +240,22 @@ The negative-pool case is part of it: because `carriedForward` does not clamp, a
 
 | | Before (current) | After (with pool) |
 |---|---|---|
-| Overspent bucket, rollover **off** | `rolled_over = 0`; the month's `available = allocated − spent` already drops the negative — **nothing persists in-category today** (`src-tauri/src/database/domains/budgets.rs:164-174`). The "persistent red" behaviour belongs to the rollover-**on** row, not this one. | Negative **drops** from category; reduces `toBudget` |
+| Overspent bucket, rollover **off** | `rolled_over = 0`; the month's `available = allocated − spent` already drops the negative — **nothing persists in-category today** (`src-tauri/src/database/domains/budgets.rs:164-174`). The "persistent red" behaviour belongs to the rollover-**on** row, not this one. | Negative **drops** from category; reduces `to_budget` |
 | Overspent bucket, rollover **on** | Full pos+neg carryforward (persistent red) | **Unchanged** — full pos+neg carryforward |
 | Income | Tracked, not assignable | **Explicitly assignable** via the pool |
-| "Available" check | Soft warning vs month income | **Accurate** — `toBudget` can't go negative without `overassigned` |
+| "Available" check | Soft warning vs month income | **Accurate** — `to_budget` can't go negative without `overassigned` |
 
 The set of users whose displayed numbers change is **empty today**: `category_types.rollover_enabled` defaults to `1` for every row and no production UI ever sets it (see "Per-bucket rollover toggle" below), so every existing bucket is rollover-**on** and its numbers are unchanged. With the toggle kept and the default at `1`, **no existing user's numbers change until they flip a bucket**. The behaviour change is nonetheless deliberate and correct (the YNAB behavior requested); it is a release-note item, not a migration — no data rewrite, numbers recompute live from transactions.
 
-The existing soft warning is **replaced**. `src/routes/budgets/+page.svelte` currently approximates the pool in a local `loadMonthIncome()` as `db.reports.getOverview(month).total_income` **plus** `Σ max(0, bucket.rolled_over)`, and `remainingToAllocate` derives from that sum. That approximation is retired; the port method's `toBudget` replaces it.
+The existing soft warning is **replaced**. `src/routes/budgets/+page.svelte` currently approximates the pool in a local `loadMonthIncome()` as `db.reports.getOverview(month).total_income` **plus** `Σ max(0, bucket.rolled_over)`, and `remainingToAllocate` derives from that sum. That approximation is retired; the port method's `to_budget` replaces it.
 
 ### UI — budget screen
 
-- **"To Budget" summary card** at top of budget screen: `income` (in), `assigned` (out), `last month overspent` (clawback) → **`toBudget`** (big number). Negative → "Overassigned" (red).
+- **"To Budget" summary card** at top of budget screen: `income` (in), `assigned` (out), `last month overspent` (clawback) → **`to_budget`** (big number). Negative → "Overassigned" (red).
 - Per-bucket `available = allocated + rolled_over − spent` for **every** bucket; the flag-awareness lives inside `rolled_over`, so a rollover-off bucket floors at 0 and its red moves to the pool.
-- The card **replaces** `loadMonthIncome()`'s `db.reports.getOverview(month)` call on `src/routes/budgets/+page.svelte` — `toBudget` is the accurate ceiling, so the page no longer approximates it.
-- The existing `budgets_over_allocated` / `budgets_over_allocated_with_income` warning becomes driven by `overassigned` (`max(0, −toBudget)`) rather than an income-minus-allocated guess.
-- **No money-movement primitives** (deferred): user sets allocations manually; `toBudget` is a read-only accurate constraint + soft warning when `overassigned > 0`.
+- The card **replaces** `loadMonthIncome()`'s `db.reports.getOverview(month)` call on `src/routes/budgets/+page.svelte` — `to_budget` is the accurate ceiling, so the page no longer approximates it.
+- The existing `budgets_over_allocated` / `budgets_over_allocated_with_income` warning becomes driven by `overassigned` (`max(0, −to_budget)`) rather than an income-minus-allocated guess.
+- **No money-movement primitives** (deferred): user sets allocations manually; `to_budget` is a read-only accurate constraint + soft warning when `overassigned > 0`.
 - **Wiring — through `BudgetsStore`, not a direct `db.budgets.getToBudget` call.** `src/lib/stores/budgets.svelte.ts` today wraps only `getForMonth` (plus `setAllocation` / `copyFromPrevious`), so add a `toBudget` field to the store, populated in `load()` alongside `items`. Reason: the store already owns `month`, and the rollover toggle below must reload the buckets *and* the pool in one pass — reading `db.budgets.getToBudget(month)` straight from the page would re-introduce a second, independently-threaded month source (the exact pattern `loadMonthIncome()` is being retired for).
 
 ### Per-bucket rollover toggle (required Part 2 scope)
@@ -295,9 +297,9 @@ Following project TDD discipline (red-green-refactor) and the "do not mock the D
 
 - **`schedule_next_due.test.ts`** (pure) — weekly/biweekly/monthly/yearly advancement; month-end clamping (Jan 31 → Feb 28, Dec → Jan next year); leap-year yearly; `from` unaffected (pure).
 - **`schedules.test.ts`** (repo, DB-pattern) — CRUD; `postDueSchedules` posts one missed month vs many; catch-up safety cap (24) marks errored over cap; reminder-only advances date, writes no txn; `end_date` → `completed`; deleted-account schedule → errored not crash; each schedule isolated in its own transaction.
-- **`budgets.test.ts`** (extend) — `getToBudget`: income from `kind`; `carriedForward` chains; `lastMonthOverspent` claws back only rollover-off buckets that have a prior-month `budgets` row, using their prior-month `available`; `assigned` sums allocations as a positive count; conservation invariant (Σ available + toBudget stable across an overspend). Asymmetry: rollover-off uses the **running floor** (`C ← max(0, C + L_m)`) — not a per-month sum and not a single cumulative `max(0, Σ …)`; both alternatives are refuted by the counterexample above, which should be included verbatim as a fixture (it is the case that distinguishes the rule). Rollover-on keeps negatives. Negative-pool carry: a month with `toBudget < 0` reduces the next month's pool. Forward fold: it iterates every intervening month, the earliest budget-row-or-income month starts it, and the chain terminates. Empty month → zeros.
+- **`budgets.test.ts`** (extend) — `getToBudget`: income from `kind`; `carried_forward` chains; `last_month_overspent` claws back only rollover-off buckets that have a prior-month `budgets` row, using their prior-month `available`; `assigned` sums allocations as a positive count; conservation invariant (Σ available + to_budget stable across an overspend). Asymmetry: rollover-off uses the **running floor** (`C ← max(0, C + L_m)`) — not a per-month sum and not a single cumulative `max(0, Σ …)`; both alternatives are refuted by the counterexample above, which should be included verbatim as a fixture (it is the case that distinguishes the rule). Rollover-on keeps negatives. Negative-pool carry: a month with `to_budget < 0` reduces the next month's pool. Forward fold: it iterates every intervening month, the earliest budget-row-or-income month starts it, and the chain terminates. Empty month → zeros.
 
-  **Both sides are required — and the Rust side does not exist yet.** `src-tauri/src/database/domains/budgets.rs` has **no `#[cfg(test)]` module at all** (verified: the only Rust domain test modules in the tree are `civil_date.rs:46`, `reports.rs:582`, `export.rs:208`). The plan must **create the Rust test harness from scratch** — the `#[cfg(test)] mod tests`, an in-memory DB, and the fixture seeding — before it can mirror this fixture set. **Until that harness exists, adapter parity is unverifiable**: E2E drives only the browser adapter, so a green browser-only suite proves nothing about the native path and a Rust/browser divergence stays invisible.
+  **Both sides are required — and the Rust harness already exists.** The parity fixture set is added to the **existing integration harness** `src-tauri/tests/domain_categories_budgets.rs` — **extended, not created** — which already provides `fresh_db` (`bootstrap_current(&path, FailurePoint::None)` + `Connection::open_with_flags`) plus `create_test_bucket` / `create_test_tag`, and is mirrored by the same fixture table in the browser repo test. `src-tauri/src/database/domains/budgets.rs` has **no `#[cfg(test)]` module**, and the pure-function modules at `civil_date.rs:46`, `reports.rs:582`, `export.rs:208` are the wrong precedent (they have no database): **do not create a second, in-crate harness in `budgets.rs`.** E2E drives only the browser adapter, so a green browser-only suite proves nothing about the native path — the Rust integration harness is what pins adapter parity.
 - **Store test** — `postDueSchedules` runs once at boot, main window only (no duplicate across webviews).
 - **E2E** — create a monthly schedule dated in the past → reopen → transaction posted; budget screen shows to-budget summary with correct clawback after an overspend.
 
