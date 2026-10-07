@@ -1368,7 +1368,7 @@ Retire the `loadMonthIncome()` approximation; read the pool through `BudgetsStor
 - Consumes: `db.budgets.getToBudget` (Task 5), `ToBudgetBreakdown` from `$lib/db/client`.
 - Produces: `BudgetsStore.toBudget: ToBudgetBreakdown | null` (a `$state` field set in `load()`).
 
-- [ ] **Step 1: Write the failing test — create `src/tests/unit/budgets-store.test.ts`.**
+- [x] **Step 1: Write the failing test — create `src/tests/unit/budgets-store.test.ts`.**
 
 ```typescript
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -1405,7 +1405,7 @@ describe('BudgetsStore.load', () => {
 });
 ```
 
-- [ ] **Step 2: Run and confirm it fails.**
+- [x] **Step 2: Run and confirm it fails.**
 
 ```bash
 pnpm vitest run src/tests/unit/budgets-store.test.ts
@@ -1417,7 +1417,7 @@ Expected failure:
 AssertionError: expected undefined to deeply equal { income: 500000, ... }
 ```
 
-- [ ] **Step 3: Implement the store field.**
+- [x] **Step 3: Implement the store field.**
 
 In `src/lib/stores/budgets.svelte.ts`:
 
@@ -1452,7 +1452,7 @@ class BudgetsStore {
 
 (Keep `setAllocation` and `copyFromPrevious` unchanged; both already re-`load()`.)
 
-- [ ] **Step 4: Implement the card and the warning in the page.**
+- [x] **Step 4: Implement the card and the warning in the page.**
 
 In `src/routes/budgets/+page.svelte`:
 
@@ -1507,7 +1507,7 @@ In `src/routes/budgets/+page.svelte`:
 
 The `data-testid="to-budget"` hook exists because the card's four figures are localised and share their labels with the summary surface — a role/text locator would be ambiguous. Playwright's default `testIdAttribute` is `data-testid` (no `playwright.config` override), and `ContextMenu.svelte:57` already ships one.
 
-- [ ] **Step 5: Add the i18n keys to both locales.**
+- [x] **Step 5: Add the i18n keys to both locales.**
 
 Append to `messages/en.json` (alongside the other `budgets_*` keys near `:50-63`):
 
@@ -1535,7 +1535,7 @@ Then regenerate Paraglide:
 pnpm exec paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide
 ```
 
-- [ ] **Step 6: Run and confirm pass.**
+- [x] **Step 6: Run and confirm pass.**
 
 ```bash
 pnpm vitest run src/tests/unit/budgets-store.test.ts src/tests/unit/i18n-messages.test.ts
@@ -1544,7 +1544,7 @@ pnpm check
 
 Expected: green (the i18n test asserts en/vi key parity).
 
-- [ ] **Step 7: Commit.**
+- [x] **Step 7: Commit.**
 
 ```bash
 git add src/lib/stores/budgets.svelte.ts src/routes/budgets/+page.svelte messages/en.json messages/vi.json src/tests/unit/budgets-store.test.ts

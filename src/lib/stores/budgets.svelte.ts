@@ -1,10 +1,11 @@
 import { getDb } from '$lib/db';
-import type { BudgetSummary } from '$lib/db/client';
+import type { BudgetSummary, ToBudgetBreakdown } from '$lib/db/client';
 import { mapError } from '$lib/utils/errors';
 import { monthKey } from '$lib/logic/budget-calc';
 
 class BudgetsStore {
 	items = $state<BudgetSummary[]>([]);
+	toBudget = $state<ToBudgetBreakdown | null>(null);
 	month = $state(monthKey(new Date()));
 	loading = $state(false);
 	error = $state<string | null>(null);
@@ -17,6 +18,7 @@ class BudgetsStore {
 		try {
 			const db = getDb();
 			this.items = await db.budgets.getForMonth(this.month);
+			this.toBudget = await db.budgets.getToBudget(this.month);
 			this.hasAllocations = await db.budgets.hasAllocations(this.month);
 		} catch (e) {
 			this.error = mapError(e);
