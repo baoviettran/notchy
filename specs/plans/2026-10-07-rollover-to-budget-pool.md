@@ -53,7 +53,7 @@ Add shared seeding helpers and a characterization test that pins **today's** car
   - `fn seed_expense(conn: &mut Connection, account_id: &str, tag_id: &str, amount: i64, date: &str)`
   - `fn seed_income(conn: &mut Connection, account_id: &str, amount: i64, date: &str)`
 
-- [ ] **Step 1: Write the failing test — append the counterexample baseline to the harness.**
+- [x] **Step 1: Write the failing test — append the counterexample baseline to the harness.**
 
 Append to the end of `src-tauri/tests/domain_categories_budgets.rs`:
 
@@ -155,7 +155,7 @@ fn baseline_full_carry_over_budgeted_months() {
 }
 ```
 
-- [ ] **Step 2: Run it and confirm it fails.**
+- [x] **Step 2: Run it and confirm it fails.**
 
 ```bash
 cargo test --manifest-path src-tauri/Cargo.toml --test domain_categories_budgets baseline_full_carry
@@ -168,11 +168,11 @@ error[E0425]: cannot find function `seed_expense` in this scope
 error[E0425]: cannot find function `fresh_account` in this scope
 ```
 
-- [ ] **Step 3: Minimal implementation.**
+- [x] **Step 3: Minimal implementation.**
 
 The implementation *is* the three helpers added in Step 1; move them above the test if the compiler is happy but the file reads better with helpers first (it does — keep helpers under the `Rollover pool fixtures` banner, tests below). No production code changes.
 
-- [ ] **Step 4: Run and confirm pass.**
+- [x] **Step 4: Run and confirm pass.**
 
 ```bash
 cargo test --manifest-path src-tauri/Cargo.toml --test domain_categories_budgets
@@ -180,7 +180,7 @@ cargo test --manifest-path src-tauri/Cargo.toml --test domain_categories_budgets
 
 Expected: `baseline_full_carry_over_budgeted_months` passes, and the pre-existing tests in the file stay green.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
 
 ```bash
 git add src-tauri/tests/domain_categories_budgets.rs
@@ -212,7 +212,7 @@ One semantic rule, both adapters, same fixture table, in the same task. Invert t
 - Consumes: `category_types.rollover_enabled` (`INTEGER NOT NULL DEFAULT 1`, migration 004).
 - Produces: `get_rolled_over` / `getRolledOver` now read the flag; `get_budgets_for_month` / `getBudgetsForMonth` no longer gate.
 
-- [ ] **Step 1: Write the failing tests — the running floor in both adapters.**
+- [x] **Step 1: Write the failing tests — the running floor in both adapters.**
 
 Append to `src-tauri/tests/domain_categories_budgets.rs`:
 
@@ -345,7 +345,7 @@ Replace the whole `it('ignores the rollover_enabled toggle ...', ...)` block wit
 	});
 ```
 
-- [ ] **Step 2: Run both and confirm they fail.**
+- [x] **Step 2: Run both and confirm they fail.**
 
 ```bash
 cargo test --manifest-path src-tauri/Cargo.toml --test domain_categories_budgets rollover
@@ -357,7 +357,7 @@ Expected failures:
 - Rust: `get_budgets_for_month_drops_the_enabled_gate` fails — `left: 0, right: 100` for `s.rolled_over` (today's `enabled ? … : 0` gate).
 - Vitest: the running-floor test fails with `expected -50000 to be 0`; the enabled test fails with `expected -50000 to be -50000`-style mismatch only if the flag branch is untouched (it currently returns full carry either way, so the disabled-path assertion is the one that goes red with `expected -50000 to be 0`).
 
-- [ ] **Step 3: Implement the Rust side.**
+- [x] **Step 3: Implement the Rust side.**
 
 In `src-tauri/src/database/domains/budgets.rs`, replace `get_rolled_over` (`:82-103`) with:
 
@@ -425,7 +425,7 @@ Then in `get_budgets_for_month`, delete the bulk flag-loading block (`:139-159`)
     Ok(result)
 ```
 
-- [ ] **Step 4: Implement the browser mirror.**
+- [x] **Step 4: Implement the browser mirror.**
 
 In `src/lib/db/browser/repos/budgets.ts`, replace `getRolledOver` (`:85-99`) with:
 
@@ -484,7 +484,7 @@ Then in `getBudgetsForMonth`, delete the flag-resolution block (`:30-40`) and th
 
 Update the `BudgetSummary` doc comments at `:19-20` to drop “0 if rollover disabled” / the two-formula note.
 
-- [ ] **Step 5: Run and confirm pass.**
+- [x] **Step 5: Run and confirm pass.**
 
 ```bash
 cargo test --manifest-path src-tauri/Cargo.toml --test domain_categories_budgets
@@ -493,7 +493,7 @@ pnpm vitest run src/tests/unit/budgets.test.ts
 
 Expected: all green, including `baseline_full_carry_over_budgeted_months` — it must now be **inverted** by the reader's eye only (the rollover-ON default means it still reads −50; do not delete it — it is the ON-branch guard).
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
 
 ```bash
 git add src-tauri/src/database/domains/budgets.rs src-tauri/tests/domain_categories_budgets.rs src/lib/db/browser/repos/budgets.ts src/tests/unit/budgets.test.ts
