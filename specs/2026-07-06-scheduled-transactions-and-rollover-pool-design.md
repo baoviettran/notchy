@@ -1,10 +1,10 @@
 # Scheduled Transactions + Rollover To-Budget Pool — Design
 
 **Date:** 2026-07-06
-**Status:** Part 1 (scheduled transactions) implemented by `specs/plans/2026-10-03-scheduled-transactions.md`; Part 2 (rollover to-budget pool) design refined twice on 2026-10-07. First pass pinned four decisions (carried negative pool, no account filter, per-month floor, Rust-canonical port method). Second pass corrected the carry rule to a **running floor** (the earlier per-month note creates money — see the counterexample under "The asymmetry fix") and pulled the **per-bucket rollover toggle UI** into Part 2 scope (without it the flag is inert). A plan is still the next artifact.
+**Status:** Part 1 (scheduled transactions) implemented by `specs/plans/2026-10-03-scheduled-transactions.md`; Part 2 (rollover to-budget pool) design refined twice on 2026-10-07. First pass pinned four decisions (carried negative pool, no account filter, per-month floor, Rust-canonical port method). Second pass corrected the carry rule to a **running floor** (the earlier per-month note creates money — see the counterexample under "The asymmetry fix") and pulled the **per-bucket rollover toggle UI** into Part 2 scope (without it the flag is inert). On 2026-10-08 the toggle was split out of STORY-035 into its own story, **STORY-036**. A plan is still the next artifact.
 **Branch:** `feat/actual`
-**Serves:** STORY-009 (Part 1), STORY-035 (Part 2)
-**Open story question:** the per-bucket rollover toggle (new Part 2 scope) may warrant its own story rather than riding in STORY-035 — see "Open questions".
+**Serves:** STORY-009 (Part 1), STORY-035 (Part 2), STORY-036 (Part 2 toggle)
+**Open story question:** resolved 2026-10-08 — the per-bucket rollover toggle is **its own story, STORY-036** (see "Open questions").
 
 ## Summary
 
@@ -260,9 +260,11 @@ The existing soft warning is **replaced**. `src/routes/budgets/+page.svelte` cur
 
 ### Per-bucket rollover toggle (required Part 2 scope)
 
+**Story:** this toggle is its own story, **STORY-036** — the mechanism that makes the pool's clawback reachable is a separate need from the pool itself, not a rider on STORY-035.
+
 The pool is **dead code without this control.** `category_types.rollover_enabled` defaults to `1` for every row, and **no production UI ever sets it** — `setRolloverEnabled` has **no caller anywhere in `src/routes`, `src/lib/components`, or `src/lib/stores`** (verified: its only callers are the `CategoryOps` declarations, the browser/native clients, the repos, and tests). Every existing bucket is therefore rollover-**on**, `getRolledOver` always takes the full-carry branch, and the rollover-off running floor never runs. The decision taken: **keep the default at `1` and build the toggle UI**, so no existing user's numbers change until they choose to.
 
-**Placement — a per-bucket toggle on `src/routes/budgets/+page.svelte`, one per budgetable bucket row.** Rationale: rollover semantics only matter in the budgeting context; the "To Budget" card is on the same screen, so flipping a bucket's switch and watching the pool move is visible cause-and-effect; and there is **no bucket-management screen today** (`createBucket` / `renameBucket` have **no UI callers** — verified), so no existing surface is being extended. *Pinned by the controller — flag for review*: the toggle's home was not separately agreed, and a settings-screen home is a plausible alternative.
+**Placement — a per-bucket toggle on `src/routes/budgets/+page.svelte`, one per budgetable bucket row.** Rationale: rollover semantics only matter in the budgeting context; the "To Budget" card is on the same screen, so flipping a bucket's switch and watching the pool move is visible cause-and-effect; and there is **no bucket-management screen today** (`createBucket` / `renameBucket` have **no UI callers** — verified), so no existing surface is being extended. *Pinned by the controller*: the toggle's home was not separately agreed, and a settings-screen home is a plausible alternative.
 
 **Store method.** Add `CategoriesStore.setRolloverEnabled(id, enabled)` to `src/lib/stores/categories.svelte.ts`. The **port method already exists but the store does not expose it**, so without this method the page cannot flip the flag without reaching past the store to `getDb()`.
 
@@ -305,11 +307,11 @@ Following project TDD discipline (red-green-refactor) and the "do not mock the D
 
 ## Open questions
 
-One question is left open for the reviewer; everything else is pinned in the body.
+One question was left open for the reviewer; everything else is pinned in the body. That question is now decided (2026-10-08).
 
-- **Does the per-bucket toggle belong inside STORY-035, or in its own story?** The toggle is a user-facing capability that arguably carries its own need — "I can choose which buckets carry their balance over" — separate from "overspending claws back into a pool." Two readings: (a) keep it in **STORY-035**, because the toggle is the *mechanism that makes the clawback reachable* (without it the flag is inert — see "Per-bucket rollover toggle" above); (b) split it into its own story row, since a user can want the toggle without ever reasoning about a pool. **Not decided — the reviewer picks.**
+- **Does the per-bucket toggle belong inside STORY-035, or in its own story?** The toggle is a user-facing capability that arguably carries its own need — "I can choose which buckets carry their balance over" — separate from "overspending claws back into a pool." Two readings: (a) keep it in **STORY-035**, because the toggle is the *mechanism that makes the clawback reachable* (without it the flag is inert — see "Per-bucket rollover toggle" above); (b) split it into its own story row, since a user can want the toggle without ever reasoning about a pool. **Decided 2026-10-08: (b) — it is its own story, STORY-036.** A user can want to choose which buckets carry over without reasoning about a pool, and the toggle is the control surface that makes the pool's clawback reachable; keeping both needs in one row would blur two separate jobs.
 
-Defaults pinned in the body: catch-up cap 24 posts/schedule; income from `kind='income'`; rollover-off drops negatives to the pool via a **running floor**, rollover-on unchanged; no money-movement primitives; reminder schedules informational only; the per-bucket rollover toggle UI is in Part 2 scope, its placement pinned for review. The implementation plan may revisit the cap value and whether deleting an account blocks on active schedules, but should treat the above as the baseline.
+Defaults pinned in the body: catch-up cap 24 posts/schedule; income from `kind='income'`; rollover-off drops negatives to the pool via a **running floor**, rollover-on unchanged; no money-movement primitives; reminder schedules informational only; the per-bucket rollover toggle UI is in Part 2 scope (its own story, STORY-036), its placement pinned by the controller. The implementation plan may revisit the cap value and whether deleting an account blocks on active schedules, but should treat the above as the baseline.
 
 ## Known gaps and follow-ups (Part 1 scope — out of scope for a Part 2 plan)
 

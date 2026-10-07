@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Serves:** STORY-035
+**Serves:** STORY-035, STORY-036
 **Spec:** `specs/2026-07-06-scheduled-transactions-and-rollover-pool-design.md` (§Part 2 — read `## Part 2 — Rollover To-Budget Pool` through `## Testing` as the authority; Part 1 is shipped and out of scope)
 **Goal:** Replace the budget screen's ad-hoc income approximation with a real, conserved "To Budget" pool, computed by a forward fold in the Rust domain and mirrored exactly in the browser adapter.
 **Architecture:** `budgets.getToBudget(month)` joins the existing `BudgetOps` port. Rust (`domains::budgets::get_to_budget`, command `budget_get_to_budget`) is canonical; the browser repo is a byte-for-byte mirror driving Vitest and Playwright. A rollover-OFF bucket's carry becomes a stateful running floor (`C ← max(0, C + L_m)`) computed in chronological month order in both adapters, and `get_rolled_over` becomes flag-aware; `get_budgets_for_month` drops its `enabled ? … : 0` gate so `available = allocated + rolled_over − spent` for every bucket. The page reads the pool through `BudgetsStore`, and a new per-bucket rollover toggle makes the flag reachable.
@@ -33,7 +33,7 @@ The five input classes most likely to bite a user, most likely first. Each names
 
 Not part of the five lines above — process notes kept from the authoring brief. (The harness-location and snake_case points are now corrected in the spec itself, so they are dropped.)
 
-- **Toggle placement.** Pinned by the spec to the budget-screen bucket row. A settings-screen home is a plausible alternative — noted, not re-litigated here.
+- **Toggle placement.** Pinned by the spec to the budget-screen bucket row. A settings-screen home is a plausible alternative — noted, not re-litigated here. The toggle now serves **STORY-036**, its own story, rather than riding in STORY-035.
 - **The tauri-mock `budget_get_to_budget` handler returns a constant.** It exists to satisfy the four-sides boundary rule; the flip-behaviour E2E runs on the browser-adapter fixture, not the mock, so it is not the thing proving the fold.
 - **Task 5 is one large task on purpose.** The four sides of a new command (registration, `NativeBudgetOps`, tauri-mock, native-boundary row) plus the port declaration and the browser client must land together or the boundary suite leaves nothing red.
 
@@ -1575,6 +1575,7 @@ The control that makes the flag reachable; an E2E that flips it and watches the 
 - Test: `src/tests/e2e/budgets-rollover.spec.ts` (create)
 
 **Interfaces:**
+- Serves: **STORY-036** (the per-bucket rollover toggle is its own story, not STORY-035).
 - Consumes: `db.categories.setRolloverEnabled(id, enabled)` (port + both repos already exist), `Bucket.rollover_enabled`, `budgets.load()`.
 - Produces: `CategoriesStore.setRolloverEnabled(id: string, enabled: boolean): Promise<void>`; a `role="checkbox"` toggle per bucket row.
 
