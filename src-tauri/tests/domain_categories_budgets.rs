@@ -420,3 +420,100 @@ fn a_malformed_month_is_invalid_input() {
         assert_eq!(error.code, ErrorCode::InvalidInput, "month {month:?}");
     }
 }
+
+// ---------------------------------------------------------------------------
+// Rollover pool fixtures
+// ---------------------------------------------------------------------------
+
+/// A checking account for seeding transactions against.
+fn fresh_account(conn: &mut Connection) -> String {
+    use notchy_lib::database::domains::accounts;
+    accounts::create_account(
+        conn,
+        op(),
+        notchy_lib::database::types::NewAccount {
+            name: "A".to_string(),
+            account_type: notchy_lib::database::types::AccountType::Checking,
+            counterparty: None,
+            currency: "USD".to_string(),
+            initial_balance: None,
+            initial_balance_date: None,
+        },
+    )
+    .unwrap()
+}
+
+/// Seed an expense tagged into a bucket.
+fn seed_expense(conn: &mut Connection, account_id: &str, tag_id: &str, amount: i64, date: &str) {
+    use notchy_lib::database::domains::transactions;
+    use notchy_lib::database::types::{NewTransaction, TransactionKind};
+    transactions::create_transaction(
+        conn,
+        op(),
+        NewTransaction {
+            kind: TransactionKind::Expense,
+            date: date.to_string(),
+            amount,
+            account_id: account_id.to_string(),
+            transfer_account_id: None,
+            refund_of_id: None,
+            tag_id: Some(tag_id.to_string()),
+            payee: None,
+            description: None,
+        },
+    )
+    .unwrap();
+}
+
+/// Seed an income transaction (kind = 'income', no tag).
+fn seed_income(conn: &mut Connection, account_id: &str, amount: i64, date: &str) {
+    use notchy_lib::database::domains::transactions;
+    use notchy_lib::database::types::{NewTransaction, TransactionKind};
+    transactions::create_transaction(
+        conn,
+        op(),
+        NewTransaction {
+            kind: TransactionKind::Income,
+            date: date.to_string(),
+            amount,
+            account_id: account_id.to_string(),
+            transfer_account_id: None,
+            refund_of_id: None,
+            tag_id: None,
+            payee: None,
+            description: None,
+        },
+    )
+    .unwrap();
+}
+
+/// Baseline (today's) carry rule, before the running floor lands: a rollover
+/// bucket carries the full cumulative `allocated - spent` of every prior
+/// budgeted month, negatives included. The counterexample fixture
+/// (M1 = 2026-01, M2 = 2026-02, M3 = 2026-03):
+///
+///   |     | income | allocated | spent | carry | available | lmo | toBudget | Σ   |
+///   |-----|--------|-----------|-------|-------|-----------|-----|----------|-----|
+///   | M1  | 100    | 100       | 0     | 0     | 100       | 0   | 0        | 100 |
+///   | M2  | 150    | 0         | 150   | 100   | -50       | 0   | 150      | 100 |
+///   | M3  | 0      | 0         | 0     | 0 / 100 | 0 / 100 | -50 | 100      | 100 |
+///
+/// (M3's carry is `0` under the running floor and `100` under the wrong
+/// per-month sum; this test pins the pre-change full-carry reading, which
+/// Task 2 then inverts.)
+#[test]
+fn baseline_full_carry_over_budgeted_months() {
+    let mut db = fresh_db("pool_baseline");
+    let bucket = create_test_bucket(&mut db, "Food");
+    let tag = create_test_tag(&mut db, "Groceries", &bucket);
+
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-01", 100).unwrap();
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-02", 0).unwrap();
+    let account = fresh_account(&mut db);
+    seed_expense(&mut db, &account, &tag, 150, "2026-02-10");
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-03", 0).unwrap();
+
+    // Today: full cumulative carry, negative included.
+    assert_eq!(budgets::get_rolled_over(&db, &bucket, "2026-02").unwrap(), 100);
+    assert_eq!(budgets::get_rolled_over(&db, &bucket, "2026-03").unwrap(), -50);
+}
