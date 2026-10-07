@@ -244,9 +244,6 @@
 				<span>{m.budgets_pool_assigned()}: <span class="figures">{formatCurrency(pool?.assigned ?? 0, settings.currency, settings.locale)}</span></span>
 				<span>{m.budgets_pool_overspent()}: <span class="figures">{formatCurrency(pool?.last_month_overspent ?? 0, settings.currency, settings.locale)}</span></span>
 			</div>
-			{#if pool && pool.overassigned > 0}
-				<p class="mt-1 text-xs text-debit">{m.budgets_overassigned({ amount: formatCurrency(pool.overassigned, settings.currency, settings.locale) })}</p>
-			{/if}
 		</div>
 		{#each budgetableBuckets as bucket}
 			{@const b = getBudget(bucket.id)}

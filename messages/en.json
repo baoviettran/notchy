@@ -54,7 +54,6 @@
   "budgets_not_budgeted": "Not budgeted",
   "budgets_over_allocated": "Over budget by {amount} this month.",
   "budgets_over_allocated_with_income": "Spent {spent} of {available} available — over by {amount}.",
-  "budgets_overassigned": "Overassigned by {amount}",
   "budgets_pool_assigned": "Assigned",
   "budgets_pool_income": "Income",
   "budgets_pool_overspent": "Overspent",

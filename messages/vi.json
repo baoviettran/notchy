@@ -54,7 +54,6 @@
   "budgets_not_budgeted": "Chưa phân bổ",
   "budgets_over_allocated": "Vượt ngân sách {amount} trong tháng này.",
   "budgets_over_allocated_with_income": "Đã tiêu {spent} trên {available} khả dụng — vượt {amount}.",
-  "budgets_overassigned": "Phân bổ vượt {amount}",
   "budgets_pool_assigned": "Đã phân bổ",
   "budgets_pool_income": "Thu nhập",
   "budgets_pool_overspent": "Chi vượt",

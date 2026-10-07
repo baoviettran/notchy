@@ -29,4 +29,33 @@ describe('BudgetsStore.load', () => {
 		expect(db.budgets.getToBudget).toHaveBeenCalledWith('2026-08');
 		expect(budgets.toBudget).toEqual(POOL);
 	});
+
+	it('ignores a stale month load that resolves after a newer one', async () => {
+		const august = { ...POOL, to_budget: 111 };
+		const september = { ...POOL, to_budget: 999 };
+		let resolveAugust!: (pool: typeof POOL) => void;
+		const db = {
+			budgets: {
+				getForMonth: vi.fn().mockResolvedValue([]),
+				getToBudget: vi
+					.fn()
+					// August's fold hangs; September's resolves immediately.
+					.mockImplementationOnce(() => new Promise((r) => { resolveAugust = r; }))
+					.mockResolvedValueOnce(september),
+				hasAllocations: vi.fn().mockResolvedValue(false)
+			}
+		};
+		(getDb as ReturnType<typeof vi.fn>).mockReturnValue(db);
+
+		const augustLoad = budgets.load('2026-08');
+		const septemberLoad = budgets.load('2026-09');
+		await septemberLoad;
+
+		// The superseded August fold now lands — it must not overwrite September.
+		resolveAugust(august);
+		await augustLoad;
+
+		expect(budgets.month).toBe('2026-09');
+		expect(budgets.toBudget).toEqual(september);
+	});
 });
