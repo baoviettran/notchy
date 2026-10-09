@@ -1,5 +1,6 @@
 import type { DatabaseService } from '../service';
 import { ulid } from '../../../utils/id';
+import { AppError } from '../../../errors';
 
 export interface Budget {
 	id: string;
@@ -203,6 +204,7 @@ async function poolStartMonth(db: DatabaseService): Promise<string | null> {
  * budgeted-or-income month over every intervening calendar month.
  */
 export async function getToBudget(db: DatabaseService, month: string): Promise<ToBudgetBreakdown> {
+	assertValidMonth(month);
 	const zero: ToBudgetBreakdown = {
 		income: 0, carried_forward: 0, last_month_overspent: 0,
 		assigned: 0, to_budget: 0, overassigned: 0
@@ -269,6 +271,28 @@ export async function hasAllocations(db: DatabaseService, month: string): Promis
 		`SELECT COUNT(*) AS c FROM budgets WHERE month = ? AND deleted_at IS NULL`, [month]
 	);
 	return rows[0].c > 0;
+}
+
+/**
+ * Reject anything the schema would not accept, exactly as Rust's `parse_month`
+ * (`src-tauri/src/database/domains/budgets.rs:22-35`) does: split on `-`,
+ * require two parts, a 4-digit year, a 2-digit month, and a month in `1..=12`.
+ *
+ * `getToBudget` below folds month-by-month until it reaches the requested
+ * month (`cur === month`). `nextMonth` only ever emits well-formed `YYYY-MM`,
+ * so an unvalidated bad month can never be matched and the fold loops forever,
+ * freezing the webview. Rust cannot hang here — `get_to_budget` calls
+ * `parse_month(month)?` first and returns `InvalidInput`.
+ */
+function assertValidMonth(month: string): void {
+	const invalid = (): never => {
+		throw new AppError('invalid_input');
+	};
+	const parts = month.split('-');
+	if (parts.length !== 2 || parts[0].length !== 4 || parts[1].length !== 2) invalid();
+	if (!/^\d{4}$/.test(parts[0]) || !/^\d{2}$/.test(parts[1])) invalid();
+	const monthNumber = Number(parts[1]);
+	if (monthNumber < 1 || monthNumber > 12) invalid();
 }
 
 function nextMonth(month: string): string {

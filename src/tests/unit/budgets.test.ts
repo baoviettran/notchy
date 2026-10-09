@@ -4,10 +4,42 @@ import { runMigrations } from '$lib/db/migrations/runner';
 import { migrations } from '$lib/db/migrations/index';
 import * as repo from '$lib/db/repos/budgets';
 import * as catRepo from '$lib/db/repos/categories';
-import type { DatabaseService } from '$lib/db';
+import type { DatabaseService, Row } from '$lib/db';
 
 let db: DatabaseService;
 const NOW = new Date().toISOString();
+
+/**
+ * A `DatabaseService` that yields to the macrotask queue on every query.
+ *
+ * `TestDatabase` resolves synchronously (better-sqlite3, in-memory), so a
+ * runaway fold there is a pure microtask loop: it starves the event loop and
+ * vitest's test-timeout timer can never fire — the RED is an unkillable hang,
+ * not a timeout. Production is genuinely async (each browser `query` is a
+ * Tauri IPC round-trip), so the real webview yields between iterations. This
+ * wrapper restores that yield so a runaway loop surfaces as an observable
+ * vitest timeout.
+ */
+class YieldingDatabase implements DatabaseService {
+	constructor(private inner: DatabaseService) {}
+	private yield(): Promise<void> {
+		return new Promise((resolve) => setTimeout(resolve, 0));
+	}
+	async execute(sql: string, params: unknown[] = []) {
+		await this.yield();
+		return this.inner.execute(sql, params);
+	}
+	async query<T = Row>(sql: string, params: unknown[] = []) {
+		await this.yield();
+		return this.inner.query<T>(sql, params);
+	}
+	transaction<T>(fn: (tx: DatabaseService) => Promise<T>): Promise<T> {
+		return this.inner.transaction(fn);
+	}
+	close(): Promise<void> {
+		return this.inner.close();
+	}
+}
 
 async function seedExpense(tagId: string, amount: number, date: string) {
 	const { ulid } = await import('$lib/utils/id');
@@ -464,5 +496,30 @@ describe('getToBudget', () => {
 			income: 0, carried_forward: 0, last_month_overspent: 0,
 			assigned: 0, to_budget: 0, overassigned: 0
 		});
+	});
+
+	// Rust's `parse_month` (budgets.rs:22-35) rejects anything the schema would
+	// not accept before the fold starts; the browser twin must too. Without the
+	// guard this test *hangs* — the fold's `for (;;)` breaks only on
+	// `cur === month`, and `nextMonth` only ever emits well-formed `YYYY-MM`, so
+	// a bad month can never be matched. The short third-argument timeout is
+	// deliberate: unguarded, the RED presents as a timeout, not an assertion.
+	it('rejects a malformed month instead of hanging', async () => {
+		await seedIncome(100000, '2026-01-05');
+		const ydb = new YieldingDatabase(db);
+		await expect(repo.getToBudget(ydb, '2026-13')).rejects.toMatchObject({
+			code: 'invalid_input'
+		});
+		await expect(repo.getToBudget(ydb, '202613')).rejects.toMatchObject({
+			code: 'invalid_input'
+		});
+	}, 1500);
+
+	// The guard must accept exactly what `parse_month` accepts, so it cannot be
+	// a blanket rejection: December is the upper `1..=12` boundary.
+	it('accepts the boundary month December', async () => {
+		await seedIncome(100000, '2026-12-05');
+		const m = await repo.getToBudget(db, '2026-12');
+		expect(m.income).toBe(100000);
 	});
 });
