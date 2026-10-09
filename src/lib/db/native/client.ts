@@ -25,7 +25,7 @@ import type {
 import type { AccountType, AccountWithBalance, NewAccount } from '../client';
 import type { TransactionKind, Transaction, NewTransaction, TransactionFilter } from '../client';
 import type { Bucket, Tag, TagDeleteInfo } from '../client';
-import type { BudgetSummary } from '../client';
+import type { BudgetSummary, ToBudgetBreakdown } from '../client';
 import type { GoalWithProgress, NewGoal, GoalStatus } from '../client';
 import type { CategorizeRule, NewCategorizeRule, CategorizeRuleUpdate } from '../client';
 import type { DebtAccount } from '../client';
@@ -41,6 +41,7 @@ import type {
 } from '../client';
 import { NativeBackupOps } from './backup';
 import { NativeScheduleOps } from './schedules';
+import type { ToBudgetBreakdown as GeneratedToBudgetBreakdown } from '$lib/native/contracts.generated';
 
 /**
  * Every command goes through here: a Rust rejection is a `{code, meta}`
@@ -236,6 +237,27 @@ class NativeCategoryOps implements CategoryOps {
 // Budget operations
 // ---------------------------------------------------------------------------
 
+/**
+ * Compile-time provenance guard for `ToBudgetBreakdown`.
+ *
+ * `getToBudget` below types `invoke<ToBudgetBreakdown>('budget_get_to_budget')`
+ * from the *hand-written* interface in `src/lib/db/browser/repos/budgets.ts`
+ * (re-exported via `$lib/db/client`), while the Rust DTO's generated TS mirror
+ * lives in `src/lib/native/contracts.generated.ts`. `pnpm check:db-contracts`
+ * only compares that generated file to its own generator, so renaming or
+ * retyping a field on either side could leave every check green while the
+ * desktop build deserialized a renamed key and read `undefined` at runtime —
+ * exactly the snake_case-vs-camelCase hazard the spec calls out. This
+ * assignment makes the two shapes mutually assignable: change either one and
+ * `pnpm check` (which type-checks this file) fails here instead.
+ */
+type MutuallyAssignable<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+
+export const toBudgetBreakdownIsRustShaped: MutuallyAssignable<
+	ToBudgetBreakdown,
+	GeneratedToBudgetBreakdown
+> = true;
+
 class NativeBudgetOps implements BudgetOps {
 	getForMonth(month: string): Promise<BudgetSummary[]> {
 		return invoke<BudgetSummary[]>('budget_get_for_month', { month });
@@ -247,6 +269,10 @@ class NativeBudgetOps implements BudgetOps {
 
 	getRolledOver(typeId: string, month: string): Promise<number> {
 		return invoke<number>('budget_get_rolled_over', { typeId, month });
+	}
+
+	getToBudget(month: string): Promise<ToBudgetBreakdown> {
+		return invoke<ToBudgetBreakdown>('budget_get_to_budget', { month });
 	}
 
 	setAllocation(typeId: string, month: string, allocated: number): Promise<void> {

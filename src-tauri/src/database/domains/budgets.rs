@@ -2,12 +2,14 @@
 //!
 //! Budget allocation, rollover, copy-previous, and summary queries.
 
+use std::collections::HashMap;
+
 use rusqlite::{Connection, params, OptionalExtension};
 
 use crate::database::error::{DbError, DbResult, ErrorCode, map_sqlite_error};
 use crate::database::migrations::now_iso_utc;
 use crate::database::receipt::run_idempotent;
-use crate::database::types::{Budget, BudgetSummary, OperationId};
+use crate::database::types::{Budget, BudgetSummary, OperationId, ToBudgetBreakdown};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -77,29 +79,89 @@ pub fn get_spent_for_bucket(conn: &Connection, type_id: &str, month: &str) -> Db
     Ok(total)
 }
 
-/// Compute cumulative rollover for a bucket before `month`.
-/// YNAB-style: only prior months with a budget row contribute.
-pub fn get_rolled_over(conn: &Connection, type_id: &str, month: &str) -> DbResult<i64> {
-    let mut stmt = conn
-        .prepare(
-            "SELECT month, allocated FROM budgets
-             WHERE type_id = ?1 AND month < ?2 AND deleted_at IS NULL",
+/// A per-fold memo of `get_spent_for_bucket(type_id, month)`.
+///
+/// `last_month_overspent` runs once per fold step and, for each rollover-OFF
+/// bucket, walks that bucket's whole prior-month history through
+/// `get_rolled_over` — every step a full `get_spent_for_bucket` scan. Without a
+/// cache a single `get_to_budget` (which runs on every month switch, allocation
+/// save and toggle) is O(months² × buckets) scans. The memo is scoped to one
+/// `get_to_budget` call and keyed by `(type_id, month)`; `spent` is a pure read
+/// of a DB nothing mutates mid-fold, so a hit is identical to a recompute and
+/// every arithmetic expression stays literally unchanged.
+struct SpentCache<'a> {
+    conn: &'a Connection,
+    spent: HashMap<(String, String), i64>,
+}
+
+impl<'a> SpentCache<'a> {
+    fn new(conn: &'a Connection) -> Self {
+        Self { conn, spent: HashMap::new() }
+    }
+
+    /// `get_spent_for_bucket`, memoized on `(type_id, month)`.
+    fn spent(&mut self, type_id: &str, month: &str) -> DbResult<i64> {
+        let key = (type_id.to_string(), month.to_string());
+        if let Some(&total) = self.spent.get(&key) {
+            return Ok(total);
+        }
+        let total = get_spent_for_bucket(self.conn, type_id, month)?;
+        self.spent.insert(key, total);
+        Ok(total)
+    }
+}
+
+/// Cumulative rollover for a bucket before `month`, reading `spent` through the
+/// fold-scoped cache. Same arithmetic as the public `get_rolled_over`, which
+/// wraps this with a throwaway cache.
+fn get_rolled_over_cached(cache: &mut SpentCache, type_id: &str, month: &str) -> DbResult<i64> {
+    let conn = cache.conn;
+    let enabled: i32 = conn
+        .query_row(
+            "SELECT rollover_enabled FROM category_types WHERE id = ?1",
+            params![type_id],
+            |r| r.get(0),
         )
-        .map_err(map_sqlite_error)?;
-    let months: Vec<(String, i64)> = stmt
-        .query_map(params![type_id, month], |row| {
-            Ok((row.get(0)?, row.get(1)?))
-        })
+        .optional()
         .map_err(map_sqlite_error)?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(map_sqlite_error)?;
+        .unwrap_or(1);
+
+    let months: Vec<(String, i64)> = {
+        let mut stmt = conn
+            .prepare(
+                "SELECT month, allocated FROM budgets
+                 WHERE type_id = ?1 AND month < ?2 AND deleted_at IS NULL
+                 ORDER BY month",
+            )
+            .map_err(map_sqlite_error)?;
+        let rows = stmt
+            .query_map(params![type_id, month], |row| Ok((row.get(0)?, row.get(1)?)))
+            .map_err(map_sqlite_error)?;
+        // Bound before `stmt` drops: a bare tail expression would keep the
+        // query through `stmt`'s destructor.
+        rows.collect::<Result<Vec<_>, _>>().map_err(map_sqlite_error)?
+    };
 
     let mut rolled = 0i64;
     for (m, allocated) in months {
-        let spent = get_spent_for_bucket(conn, type_id, &m)?;
+        let spent = cache.spent(type_id, &m)?;
         rolled += allocated - spent;
+        if enabled == 0 {
+            rolled = rolled.max(0);
+        }
     }
     Ok(rolled)
+}
+
+/// Cumulative rollover for a bucket before `month`.
+///
+/// Rollover ON: sum of `allocated - spent` over every prior budgeted month,
+/// negatives included. Rollover OFF: a running floor in chronological order,
+/// `C_m = max(0, C_{m-1} + L_{m-1})`, so the carry never goes negative. Only
+/// prior months with a budget row contribute (budget-row gating).
+pub fn get_rolled_over(conn: &Connection, type_id: &str, month: &str) -> DbResult<i64> {
+    let mut cache = SpentCache::new(conn);
+    get_rolled_over_cached(&mut cache, type_id, month)
 }
 
 // ---------------------------------------------------------------------------
@@ -136,42 +198,11 @@ pub fn get_budgets_for_month(conn: &Connection, month: &str) -> DbResult<Vec<Bud
         return Ok(Vec::new());
     }
 
-    // Bulk-load rollover flags.
-    let type_ids: Vec<String> = budgets.iter().map(|b| b.type_id.clone()).collect();
-    let placeholders: String = type_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-    let flag_sql = format!(
-        "SELECT id, rollover_enabled FROM category_types WHERE id IN ({})",
-        placeholders
-    );
-    let mut flag_stmt = conn.prepare(&flag_sql).map_err(map_sqlite_error)?;
-    let flag_params: Vec<Box<dyn rusqlite::types::ToSql>> = type_ids
-        .iter()
-        .map(|id| Box::new(id.clone()) as Box<dyn rusqlite::types::ToSql>)
-        .collect();
-    let flags: Vec<(String, i32)> = flag_stmt
-        .query_map(rusqlite::params_from_iter(flag_params.as_slice()), |row| {
-            Ok((row.get(0)?, row.get(1)?))
-        })
-        .map_err(map_sqlite_error)?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(map_sqlite_error)?;
-    let flag_map: std::collections::HashMap<String, i32> =
-        flags.into_iter().collect();
-
     let mut result = Vec::new();
     for b in &budgets {
         let spent = get_spent_for_bucket(conn, &b.type_id, month)?;
-        let enabled = *flag_map.get(&b.type_id).unwrap_or(&1) == 1;
-        let rolled_over = if enabled {
-            get_rolled_over(conn, &b.type_id, month)?
-        } else {
-            0
-        };
-        let available = if enabled {
-            b.allocated + rolled_over - spent
-        } else {
-            b.allocated - spent
-        };
+        let rolled_over = get_rolled_over(conn, &b.type_id, month)?;
+        let available = b.allocated + rolled_over - spent;
         result.push(BudgetSummary {
             type_id: b.type_id.clone(),
             month: b.month.clone(),
@@ -183,6 +214,146 @@ pub fn get_budgets_for_month(conn: &Connection, month: &str) -> DbResult<Vec<Bud
         });
     }
     Ok(result)
+}
+
+// ---------------------------------------------------------------------------
+// To Budget pool
+// ---------------------------------------------------------------------------
+
+/// Σ `kind = 'income'` transactions in `month`. No account predicate: Notchy
+/// has no per-account budgeting classification, so every account's income counts.
+fn month_income(conn: &Connection, month: &str) -> DbResult<i64> {
+    let next = next_month(month)?;
+    conn.query_row(
+        "SELECT COALESCE(SUM(amount), 0) FROM transactions
+         WHERE kind = 'income'
+           AND date >= ?1 || '-01' AND date < ?2 || '-01'
+           AND deleted_at IS NULL",
+        params![month, next],
+        |r| r.get(0),
+    )
+    .map_err(map_sqlite_error)
+}
+
+/// Σ allocations across every bucket in `month`, as a positive count.
+fn month_assigned(conn: &Connection, month: &str) -> DbResult<i64> {
+    conn.query_row(
+        "SELECT COALESCE(SUM(allocated), 0) FROM budgets
+         WHERE month = ?1 AND deleted_at IS NULL",
+        params![month],
+        |r| r.get(0),
+    )
+    .map_err(map_sqlite_error)
+}
+
+/// `Σ min(0, available_{M-1})` over rollover-OFF buckets that have a budgets
+/// row in `M-1`. "Leftover" is the bucket's prior-month `available`
+/// (`allocated + carry − spent`), not its activity. Rollover-ON buckets are
+/// excluded: they keep their negatives in-category. `spent` and the per-bucket
+/// carry read through the fold-scoped cache.
+fn last_month_overspent_cached(cache: &mut SpentCache, month: &str) -> DbResult<i64> {
+    let conn = cache.conn;
+    let prev = previous_month(month)?;
+    let rows: Vec<(String, i64)> = {
+        let mut stmt = conn
+            .prepare(
+                "SELECT b.type_id, b.allocated FROM budgets b
+                 JOIN category_types ct ON ct.id = b.type_id
+                 WHERE b.month = ?1 AND b.deleted_at IS NULL AND ct.rollover_enabled = 0",
+            )
+            .map_err(map_sqlite_error)?;
+        let mapped = stmt
+            .query_map(params![prev], |row| Ok((row.get(0)?, row.get(1)?)))
+            .map_err(map_sqlite_error)?;
+        mapped.collect::<Result<Vec<_>, _>>().map_err(map_sqlite_error)?
+    };
+
+    let mut total = 0i64;
+    for (type_id, allocated) in rows {
+        let carry = get_rolled_over_cached(cache, &type_id, &prev)?;
+        let spent = cache.spent(&type_id, &prev)?;
+        total += (allocated + carry - spent).min(0);
+    }
+    Ok(total)
+}
+
+/// The earliest month with a budgets row or an income transaction, or `None`.
+fn pool_start_month(conn: &Connection) -> DbResult<Option<String>> {
+    let min_budget: Option<String> = conn
+        .query_row(
+            "SELECT MIN(month) FROM budgets WHERE deleted_at IS NULL",
+            [],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(map_sqlite_error)?
+        .flatten();
+    let min_income: Option<String> = conn
+        .query_row(
+            "SELECT MIN(substr(date, 1, 7)) FROM transactions
+             WHERE kind = 'income' AND deleted_at IS NULL",
+            [],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(map_sqlite_error)?
+        .flatten();
+    Ok(match (min_budget, min_income) {
+        (Some(a), Some(b)) => Some(a.min(b)),
+        (Some(a), None) => Some(a),
+        (None, Some(b)) => Some(b),
+        (None, None) => None,
+    })
+}
+
+/// Compute the month's To Budget pool.
+///
+/// A forward fold: start at the earliest budgeted-or-income month and walk
+/// every intervening calendar month up to `month`, so a month with no row
+/// still applies a rollover-off bucket's clawback and advances the carry.
+/// Bounded start + fixed target ⇒ it terminates.
+pub fn get_to_budget(conn: &Connection, month: &str) -> DbResult<ToBudgetBreakdown> {
+    parse_month(month)?;
+
+    let zero = ToBudgetBreakdown {
+        income: 0,
+        carried_forward: 0,
+        last_month_overspent: 0,
+        assigned: 0,
+        to_budget: 0,
+        overassigned: 0,
+    };
+
+    let start = match pool_start_month(conn)? {
+        Some(start) if start.as_str() <= month => start,
+        _ => return Ok(zero),
+    };
+
+    // One memo for the whole fold so each (bucket, month) pair's spend is
+    // scanned at most once (see `SpentCache`). The arithmetic below is unchanged.
+    let mut cache = SpentCache::new(conn);
+
+    let mut carried = 0i64;
+    let mut cur = start;
+    loop {
+        let income = month_income(conn, &cur)?;
+        let assigned = month_assigned(conn, &cur)?;
+        let lmo = last_month_overspent_cached(&mut cache, &cur)?;
+        let to_budget = income + carried + lmo - assigned;
+        let result = ToBudgetBreakdown {
+            income,
+            carried_forward: carried,
+            last_month_overspent: lmo,
+            assigned,
+            to_budget,
+            overassigned: (-to_budget).max(0),
+        };
+        carried = to_budget;
+        if cur == month {
+            return Ok(result);
+        }
+        cur = next_month(&cur)?;
+    }
 }
 
 /// Upsert a budget allocation for a (type_id, month) pair.

@@ -12,6 +12,7 @@
 	import { getDb } from '$lib/db';
 	import { formatCurrency, formatCurrencyCompact, isLongCurrency } from '$lib/utils/currency';
 	import { parseAmount } from '$lib/utils/number_parse';
+	import { mapError } from '$lib/utils/errors';
 	import { formatMonth } from '$lib/utils/date';
 	import { nextBudgetableId, monthStepFromKey } from '$lib/utils/budgets';
 	import * as m from '$lib/paraglide/messages';
@@ -19,45 +20,24 @@
 	let editing = $state<string | null>(null);
 	let editValue = $state('');
 	let editError = $state('');
-	let monthIncome = $state(0);
 	let hasPrevAllocations = $state(false);
 	let editInputEl = $state<HTMLInputElement>();
-
-	async function loadMonthIncome() {
-		// Soft over-allocation ceiling: this month's income (kind='income') plus
-		// cumulative rolled-over surpluses. A non-blocking warning fires when
-		// total allocated exceeds it.
-		try {
-			const db = getDb();
-			const overview = await db.reports.getOverview(budgets.month);
-			monthIncome = overview.total_income;
-			const rolled = budgets.items.reduce((s, b) => s + (b.rolled_over > 0 ? b.rolled_over : 0), 0);
-			monthIncome += rolled;
-		} catch {
-			// The ceiling warning is advisory — keep the last known value rather
-			// than throwing out of onMount/effect contexts.
-		}
-	}
 
 	onMount(async () => {
 		await categories.load();
 		await budgets.load();
-		await loadMonthIncome();
 	});
 
-	// Refresh the ceiling whenever allocations change (e.g. after a roll-over or
-	// a new month). loadMonthIncome re-reads budgets.items for the rolled total.
-	// Also re-check whether the previous month has allocations (for the
+	// Refresh when allocations change (e.g. after a roll-over or a new month),
+	// and re-check whether the previous month has allocations (for the
 	// "Copy from previous" guard).
 	$effect(() => { budgets.items; budgets.month; void checkPrevAllocations(); });
 
 	let totalAllocated = $derived(budgets.items.reduce((s, b) => s + b.allocated, 0));
 	let totalSpent = $derived(budgets.items.reduce((s, b) => s + b.spent, 0));
 	let totalAvailable = $derived(budgets.items.reduce((s, b) => s + (b.available ?? b.allocated - b.spent), 0));
-	let remainingToAllocate = $derived(Math.max(0, monthIncome - totalAllocated));
-	// Over-budget: spending exceeds what's available (allocated + rolled over).
-	// This is NOT "allocated > income" — that's an advisory ceiling, not a hard limit.
-	let overAmount = $derived(Math.max(0, totalSpent - totalAvailable));
+	let pool = $derived(budgets.toBudget);
+	let remainingToAllocate = $derived(Math.max(0, pool?.to_budget ?? 0));
 
 	function bucketName(typeId: string): string {
 		// System buckets have localised display names; user-created buckets
@@ -88,6 +68,25 @@
 		editOriginal = editValue;
 		editPrevAllocated = current;
 		editError = '';
+	}
+
+	async function toggleRollover(id: string, enabled: boolean, el: HTMLInputElement) {
+		try {
+			await categories.setRolloverEnabled(id, enabled);
+		} catch (e) {
+			// The write did not land and the store never reloaded, so the checkbox
+			// would keep the flipped DOM state that neither the store nor the DB
+			// holds. Surface the failure (the toast-on-error idiom the other
+			// mutation handlers on this screen use), resync the buckets, then force
+			// the control back to the stored flag — Svelte does not re-apply
+			// `checked` when the bound value is unchanged, so the reload alone would
+			// leave the DOM flipped.
+			toast.show(mapError(e));
+			await categories.load();
+			el.checked = (categories.buckets.find((b) => b.id === id)?.rollover_enabled ?? 1) === 1;
+			return;
+		}
+		await budgets.load();
 	}
 
 	let advancing = $state(false);
@@ -168,9 +167,17 @@
 		return mo === 1 ? `${y - 1}-12` : `${y}-${String(mo - 1).padStart(2, '0')}`;
 	}
 
+	// Monotonic token for the in-flight check. `checkPrevAllocations` re-runs on
+	// every `budgets.month`/`items` change, so a slow `hasAllocations(prev)` from
+	// an outgoing month could otherwise land last and set the "Copy from previous"
+	// guard for the wrong month. Only the newest pass may write.
+	let prevAllocToken = 0;
+
 	async function checkPrevAllocations() {
+		const token = ++prevAllocToken;
 		const prev = previousMonthKey(budgets.month);
-		hasPrevAllocations = await getDb().budgets.hasAllocations(prev);
+		const has = await getDb().budgets.hasAllocations(prev);
+		if (token === prevAllocToken) hasPrevAllocations = has;
 	}
 
 	function getBudget(typeId: string) {
@@ -220,13 +227,9 @@
 		</div>
 	{/if}
 
-	{#if overAmount > 0}
+	{#if pool && pool.overassigned > 0}
 		<div class="bg-debit/10 border border-debit/30 rounded-lg p-3">
-			{#if totalAvailable > 0}
-				<p class="text-sm text-debit">{m.budgets_over_allocated_with_income({ spent: formatCurrency(totalSpent, settings.currency, settings.locale), available: formatCurrency(totalAvailable, settings.currency, settings.locale), amount: formatCurrency(overAmount, settings.currency, settings.locale) })}</p>
-			{:else}
-				<p class="text-sm text-debit">{m.budgets_over_allocated({ amount: formatCurrency(overAmount, settings.currency, settings.locale) })}</p>
-			{/if}
+			<p class="text-sm text-debit">{m.budgets_over_allocated({ amount: formatCurrency(pool.overassigned, settings.currency, settings.locale) })}</p>
 		</div>
 	{/if}
 
@@ -241,7 +244,7 @@
 			<div class="grid grid-cols-3 gap-4 text-center">
 				<div>
 					<p class="plate">{m.budgets_summary_income()}</p>
-					<p class="figures-glow text-lg text-ledger">{formatCurrency(monthIncome, settings.currency, settings.locale)}</p>
+					<p class="figures-glow text-lg text-ledger">{formatCurrency(pool?.income ?? 0, settings.currency, settings.locale)}</p>
 				</div>
 				<div>
 					<p class="plate">{m.budgets_used()}</p>
@@ -252,12 +255,24 @@
 					<p class="figures text-lg {totalSpent > totalAllocated ? 'text-debit' : 'text-ledger'}">{formatCurrency(totalSpent, settings.currency, settings.locale)}</p>
 				</div>
 			</div>
-			{#if monthIncome > 0}
+			{#if pool}
 				<div class="mt-2 pt-2 border-t border-line flex justify-between text-xs text-dim">
 					<span>{m.budgets_remaining()}: <span class="figures">{formatCurrency(remainingToAllocate, settings.currency, settings.locale)}</span></span>
 					<span>{m.budgets_available()}: <span class="figures {totalAvailable < 0 ? 'text-debit' : ''}">{formatCurrency(totalAvailable, settings.currency, settings.locale)}</span></span>
 				</div>
 			{/if}
+		</div>
+		<div class="surface rounded-lg p-4" data-testid="to-budget">
+			<div class="flex items-center justify-between">
+				<p class="plate">{m.budgets_to_budget()}</p>
+				<p class="figures-glow text-lg {(pool?.to_budget ?? 0) < 0 ? 'text-debit' : 'text-ledger'}">{formatCurrency(pool?.to_budget ?? 0, settings.currency, settings.locale)}</p>
+			</div>
+			<div class="mt-2 pt-2 border-t border-line flex flex-wrap gap-x-4 justify-between text-xs text-dim">
+				<span>{m.budgets_pool_income()}: <span class="figures">{formatCurrency(pool?.income ?? 0, settings.currency, settings.locale)}</span></span>
+				<span>{m.budgets_pool_carried_forward()}: <span class="figures">{formatCurrency(pool?.carried_forward ?? 0, settings.currency, settings.locale)}</span></span>
+				<span>{m.budgets_pool_assigned()}: <span class="figures">{formatCurrency(pool?.assigned ?? 0, settings.currency, settings.locale)}</span></span>
+				<span>{m.budgets_pool_overspent()}: <span class="figures">{formatCurrency(pool?.last_month_overspent ?? 0, settings.currency, settings.locale)}</span></span>
+			</div>
 		</div>
 		{#each budgetableBuckets as bucket}
 			{@const b = getBudget(bucket.id)}
@@ -316,6 +331,16 @@
 					     while the figure itself carries the number. -->
 					<span class={available < 0 ? 'text-debit' : ''}>{formatCurrency(available, settings.currency, settings.locale)} {m.budgets_available()}</span>
 				</div>
+				<label class="flex items-center gap-2 text-xs text-dim" title={m.budgets_rollover_toggle_help()}>
+					<input
+						type="checkbox"
+						checked={bucket.rollover_enabled === 1}
+						onchange={(e) => void toggleRollover(bucket.id, e.currentTarget.checked, e.currentTarget)}
+						aria-label="{m.budgets_rollover_toggle()} — {bucket.name}"
+						class="min-w-5 min-h-5 accent-phosphor"
+					/>
+					<span>{m.budgets_rollover_toggle()}</span>
+				</label>
 			</div>
 		{/each}
 		{/if}

@@ -93,6 +93,8 @@ const { invokeMock, calls } = vi.hoisted(() => {
 		// Budgets
 		budget_get_spent_for_bucket: null,
 		budget_get_rolled_over: null,
+		budget_get_to_budget: { income: 0, carried_forward: 0, last_month_overspent: 0,
+			assigned: 0, to_budget: 0, overassigned: 0 },
 		budget_set_allocation: null,
 		budget_copy_from_previous_month: null,
 		budget_has_allocations: null,
@@ -471,6 +473,7 @@ describe('NativeDatabaseClient: full surface sweep (command name + camelCase arg
 
 		// Budgets
 		{ label: 'budgets.getRolledOver', run: () => client.budgets.getRolledOver('bt1', '2026-01'), command: 'budget_get_rolled_over' },
+		{ label: 'budgets.getToBudget', run: () => client.budgets.getToBudget('2026-01'), command: 'budget_get_to_budget' },
 		{ label: 'budgets.setAllocation', run: () => client.budgets.setAllocation('bt1', '2026-01', 100000), command: 'budget_set_allocation' },
 		{ label: 'budgets.copyFromPreviousMonth', run: () => client.budgets.copyFromPreviousMonth('2026-02'), command: 'budget_copy_from_previous_month' },
 		{ label: 'budgets.hasAllocations', run: () => client.budgets.hasAllocations('2026-01'), command: 'budget_has_allocations' },

@@ -7,7 +7,7 @@ use rusqlite::{Connection, OpenFlags};
 use notchy_lib::database::domains::{budgets, categories};
 use notchy_lib::database::error::ErrorCode;
 use notchy_lib::database::migrations::{bootstrap_current, FailurePoint};
-use notchy_lib::database::types::OperationId;
+use notchy_lib::database::types::{OperationId, ToBudgetBreakdown};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -419,4 +419,427 @@ fn a_malformed_month_is_invalid_input() {
         let error = budgets::get_budgets_for_month(&conn, month).unwrap_err();
         assert_eq!(error.code, ErrorCode::InvalidInput, "month {month:?}");
     }
+}
+
+// ---------------------------------------------------------------------------
+// Rollover pool fixtures
+// ---------------------------------------------------------------------------
+
+/// A checking account for seeding transactions against.
+fn fresh_account(conn: &mut Connection) -> String {
+    use notchy_lib::database::domains::accounts;
+    accounts::create_account(
+        conn,
+        op(),
+        notchy_lib::database::types::NewAccount {
+            name: "A".to_string(),
+            account_type: notchy_lib::database::types::AccountType::Checking,
+            counterparty: None,
+            currency: "USD".to_string(),
+            initial_balance: None,
+            initial_balance_date: None,
+        },
+    )
+    .unwrap()
+}
+
+/// Seed an expense tagged into a bucket.
+fn seed_expense(conn: &mut Connection, account_id: &str, tag_id: &str, amount: i64, date: &str) {
+    use notchy_lib::database::domains::transactions;
+    use notchy_lib::database::types::{NewTransaction, TransactionKind};
+    transactions::create_transaction(
+        conn,
+        op(),
+        NewTransaction {
+            kind: TransactionKind::Expense,
+            date: date.to_string(),
+            amount,
+            account_id: account_id.to_string(),
+            transfer_account_id: None,
+            refund_of_id: None,
+            tag_id: Some(tag_id.to_string()),
+            payee: None,
+            description: None,
+        },
+    )
+    .unwrap();
+}
+
+/// Seed an income transaction (kind = 'income', no tag).
+fn seed_income(conn: &mut Connection, account_id: &str, amount: i64, date: &str) {
+    use notchy_lib::database::domains::transactions;
+    use notchy_lib::database::types::{NewTransaction, TransactionKind};
+    transactions::create_transaction(
+        conn,
+        op(),
+        NewTransaction {
+            kind: TransactionKind::Income,
+            date: date.to_string(),
+            amount,
+            account_id: account_id.to_string(),
+            transfer_account_id: None,
+            refund_of_id: None,
+            tag_id: None,
+            payee: None,
+            description: None,
+        },
+    )
+    .unwrap();
+}
+
+/// Baseline (today's) carry rule, before the running floor lands: a rollover
+/// bucket carries the full cumulative `allocated - spent` of every prior
+/// budgeted month, negatives included. The counterexample fixture
+/// (M1 = 2026-01, M2 = 2026-02, M3 = 2026-03):
+///
+///   |     | income | allocated | spent | carry | available | lmo | toBudget | Σ   |
+///   |-----|--------|-----------|-------|-------|-----------|-----|----------|-----|
+///   | M1  | 100    | 100       | 0     | 0     | 100       | 0   | 0        | 100 |
+///   | M2  | 150    | 0         | 150   | 100   | -50       | 0   | 150      | 100 |
+///   | M3  | 0      | 0         | 0     | 0 / 100 | 0 / 100 | -50 | 100      | 100 |
+///
+/// (M3's carry is `0` under the running floor and `100` under the wrong
+/// per-month sum; this test pins the pre-change full-carry reading, which
+/// Task 2 then inverts.)
+#[test]
+fn baseline_full_carry_over_budgeted_months() {
+    let mut db = fresh_db("pool_baseline");
+    let bucket = create_test_bucket(&mut db, "Food");
+    let tag = create_test_tag(&mut db, "Groceries", &bucket);
+
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-01", 100).unwrap();
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-02", 0).unwrap();
+    let account = fresh_account(&mut db);
+    seed_expense(&mut db, &account, &tag, 150, "2026-02-10");
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-03", 0).unwrap();
+
+    // Today: full cumulative carry, negative included.
+    assert_eq!(budgets::get_rolled_over(&db, &bucket, "2026-02").unwrap(), 100);
+    assert_eq!(budgets::get_rolled_over(&db, &bucket, "2026-03").unwrap(), -50);
+}
+
+/// A rollover-OFF bucket's carry is a running floor in chronological month
+/// order: `C_m = max(0, C_{m-1} + L_{m-1})`, `L_m = allocated_m - spent_m`.
+/// Same counterexample fixture as the browser test, same numbers:
+///
+///   |     | income | allocated | spent | carry | available | lmo | toBudget | Σ   |
+///   |-----|--------|-----------|-------|-------|-----------|-----|----------|-----|
+///   | M1  | 100    | 100       | 0     | 0     | 100       | 0   | 0        | 100 |
+///   | M2  | 150    | 0         | 150   | 100   | -50       | 0   | 150      | 100 |
+///   | M3  | 0      | 0         | 0     | 0     | 0         | -50 | 100      | 100 |
+///
+/// A per-month sum would carry 100 into M3 and report Σ = 200 — it creates
+/// money. The floor makes Σ = 100 in every month.
+#[test]
+fn rollover_off_carry_is_a_running_floor() {
+    let mut db = fresh_db("pool_floor");
+    let bucket = create_test_bucket(&mut db, "Food");
+    let tag = create_test_tag(&mut db, "Groceries", &bucket);
+    categories::set_rollover_enabled(&mut db, op(), &bucket, false).unwrap();
+
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-01", 100).unwrap();
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-02", 0).unwrap();
+    let account = fresh_account(&mut db);
+    seed_expense(&mut db, &account, &tag, 150, "2026-02-10");
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-03", 0).unwrap();
+
+    assert_eq!(budgets::get_rolled_over(&db, &bucket, "2026-01").unwrap(), 0);
+    assert_eq!(budgets::get_rolled_over(&db, &bucket, "2026-02").unwrap(), 100);
+    // Floor: max(0, max(0, 0 + 100) - 150) = 0, not the per-month sum -50.
+    assert_eq!(budgets::get_rolled_over(&db, &bucket, "2026-03").unwrap(), 0);
+}
+
+/// The floor is applied **per iteration**, not as a single clamp at the end of
+/// the fold. The counterexample above is surplus-then-overspend (Σ −50), which
+/// yields `0` under BOTH the per-iteration floor and a lazy `max(0, rolled)`
+/// clamp — it cannot tell them apart. This is the discriminating ordering,
+/// overspend-then-surplus, where the two diverge:
+///
+///   M1 2026-01: allocated 0,   spent 300 -> L = -300, per-iteration floor -> 0
+///   M2 2026-02: allocated 100, spent 0   -> L = +100, floor stays at 100
+///   carry into 2026-03 = 100 (a single end-of-fold clamp would give
+///   `max(0, -300 + 100)` = 0, i.e. it would swallow M2's surplus).
+#[test]
+fn rollover_off_carry_floors_per_iteration_not_as_a_final_clamp() {
+    let mut db = fresh_db("pool_floor_order");
+    let bucket = create_test_bucket(&mut db, "Food");
+    let tag = create_test_tag(&mut db, "Groceries", &bucket);
+    categories::set_rollover_enabled(&mut db, op(), &bucket, false).unwrap();
+
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-01", 0).unwrap();
+    let account = fresh_account(&mut db);
+    seed_expense(&mut db, &account, &tag, 300, "2026-01-10");
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-02", 100).unwrap();
+
+    // Overspend first: the floor floors M1's -300, so M2 starts from 0.
+    assert_eq!(budgets::get_rolled_over(&db, &bucket, "2026-02").unwrap(), 0);
+    // Surplus second: the floor was already applied to M1, so M2's +100 survives.
+    assert_eq!(budgets::get_rolled_over(&db, &bucket, "2026-03").unwrap(), 100);
+}
+
+/// Rollover ON keeps the full carry, negative included.
+#[test]
+fn rollover_on_carry_keeps_the_negative() {
+    let mut db = fresh_db("pool_on");
+    let bucket = create_test_bucket(&mut db, "Food");
+    let tag = create_test_tag(&mut db, "Groceries", &bucket);
+
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-01", 100).unwrap();
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-02", 0).unwrap();
+    let account = fresh_account(&mut db);
+    seed_expense(&mut db, &account, &tag, 150, "2026-02-10");
+
+    assert_eq!(budgets::get_rolled_over(&db, &bucket, "2026-03").unwrap(), -50);
+}
+
+/// The gate is gone: `available` has one formula for every bucket.
+#[test]
+fn get_budgets_for_month_drops_the_enabled_gate() {
+    let mut db = fresh_db("pool_gate");
+    let bucket = create_test_bucket(&mut db, "Food");
+    let tag = create_test_tag(&mut db, "Groceries", &bucket);
+    categories::set_rollover_enabled(&mut db, op(), &bucket, false).unwrap();
+
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-01", 100).unwrap();
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-02", 100).unwrap();
+    let account = fresh_account(&mut db);
+    seed_expense(&mut db, &account, &tag, 60, "2026-02-10");
+
+    let summaries = budgets::get_budgets_for_month(&db, "2026-02").unwrap();
+    let s = summaries.iter().find(|s| s.type_id == bucket).unwrap();
+    // rolled_over carries the rollover-OFF floor (100 - 0 = 100), and
+    // available = allocated + rolled_over - spent.
+    assert_eq!(s.rolled_over, 100);
+    assert_eq!(s.available, 140);
+}
+
+/// The pool formula, on the spec's counterexample fixture (rollover OFF):
+///   toBudget = income + carried_forward + last_month_overspent - assigned.
+///   |     | income | allocated | spent | carry | available | lmo | toBudget | Σ   |
+///   |-----|--------|-----------|-------|-------|-----------|-----|----------|-----|
+///   | M1  | 100    | 100       | 0     | 0     | 100       | 0   | 0        | 100 |
+///   | M2  | 150    | 0         | 150   | 100   | -50       | 0   | 150      | 100 |
+///   | M3  | 0      | 0         | 0     | 0     | 0         | -50 | 100      | 100 |
+#[test]
+fn to_budget_fold_conserves_on_the_counterexample() {
+    let mut db = fresh_db("pool_fold");
+    let account = fresh_account(&mut db);
+    let bucket = create_test_bucket(&mut db, "Food");
+    let tag = create_test_tag(&mut db, "Groceries", &bucket);
+    categories::set_rollover_enabled(&mut db, op(), &bucket, false).unwrap();
+
+    seed_income(&mut db, &account, 100, "2026-01-05");
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-01", 100).unwrap();
+    seed_income(&mut db, &account, 150, "2026-02-05");
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-02", 0).unwrap();
+    seed_expense(&mut db, &account, &tag, 150, "2026-02-10");
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-03", 0).unwrap();
+
+    let m1 = budgets::get_to_budget(&db, "2026-01").unwrap();
+    assert_eq!(m1.income, 100);
+    assert_eq!(m1.assigned, 100);
+    assert_eq!(m1.to_budget, 0);
+
+    let m2 = budgets::get_to_budget(&db, "2026-02").unwrap();
+    assert_eq!(m2.income, 150);
+    assert_eq!(m2.carried_forward, 0);
+    assert_eq!(m2.last_month_overspent, 0);
+    assert_eq!(m2.to_budget, 150);
+
+    let m3 = budgets::get_to_budget(&db, "2026-03").unwrap();
+    assert_eq!(m3.income, 0);
+    assert_eq!(m3.carried_forward, 150);
+    assert_eq!(m3.last_month_overspent, -50);
+    assert_eq!(m3.assigned, 0);
+    assert_eq!(m3.to_budget, 100);
+    assert_eq!(m3.overassigned, 0);
+
+    // Σ bucket available + toBudget is 100 in every month.
+    for (month, expected_available) in [("2026-01", 100), ("2026-02", -50), ("2026-03", 0)] {
+        let s = budgets::get_budgets_for_month(&db, month).unwrap();
+        let avail = s.iter().find(|s| s.type_id == bucket).unwrap().available;
+        assert_eq!(avail, expected_available, "available {month}");
+        let pool = budgets::get_to_budget(&db, month).unwrap();
+        assert_eq!(avail + pool.to_budget, 100, "conservation {month}");
+    }
+}
+
+/// An overassigned month reduces the NEXT month's pool; carried_forward is not
+/// clamped to 0.
+#[test]
+fn to_budget_negative_pool_carries_without_a_clamp() {
+    let mut db = fresh_db("pool_negative");
+    let bucket = create_test_bucket(&mut db, "Food");
+
+    // 2026-01: allocated 100, no income -> toBudget -100, overassigned 100.
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-01", 100).unwrap();
+    let m1 = budgets::get_to_budget(&db, "2026-01").unwrap();
+    assert_eq!(m1.to_budget, -100);
+    assert_eq!(m1.overassigned, 100);
+
+    // 2026-02: nothing new -> carries the -100, still overassigned.
+    let m2 = budgets::get_to_budget(&db, "2026-02").unwrap();
+    assert_eq!(m2.carried_forward, -100);
+    assert_eq!(m2.to_budget, -100);
+    assert_eq!(m2.overassigned, 100);
+}
+
+/// last_month_overspent counts only rollover-OFF buckets that have a prior-month
+/// budgets row, using their prior-month `available`.
+#[test]
+fn to_budget_claws_back_only_rollover_off_buckets() {
+    let mut db = fresh_db("pool_lmo");
+    let account = fresh_account(&mut db);
+
+    let off = create_test_bucket(&mut db, "Off");
+    let off_tag = create_test_tag(&mut db, "OffTag", &off);
+    categories::set_rollover_enabled(&mut db, op(), &off, false).unwrap();
+    budgets::set_allocation(&mut db, op(), &off, "2026-01", 100).unwrap();
+    seed_expense(&mut db, &account, &off_tag, 300, "2026-01-15"); // available -200
+
+    let on = create_test_bucket(&mut db, "On");
+    let on_tag = create_test_tag(&mut db, "OnTag", &on);
+    budgets::set_allocation(&mut db, op(), &on, "2026-01", 100).unwrap();
+    seed_expense(&mut db, &account, &on_tag, 300, "2026-01-15"); // available -200
+
+    // Only the rollover-OFF bucket's -200 is clawed back, not -400.
+    let m2 = budgets::get_to_budget(&db, "2026-02").unwrap();
+    assert_eq!(m2.last_month_overspent, -200);
+}
+
+/// No data -> all zeros.
+#[test]
+fn to_budget_empty_month_is_zero() {
+    let db = fresh_db("pool_empty");
+    let b = budgets::get_to_budget(&db, "2026-05").unwrap();
+    assert_eq!(b.income, 0);
+    assert_eq!(b.carried_forward, 0);
+    assert_eq!(b.last_month_overspent, 0);
+    assert_eq!(b.assigned, 0);
+    assert_eq!(b.to_budget, 0);
+    assert_eq!(b.overassigned, 0);
+}
+
+/// Spending in a month that has no `budgets` row is ignored — the carry gate
+/// is the budget row, and the new fold must not start counting unbudgeted
+/// activity (doing so would shift every existing user's numbers silently).
+#[test]
+fn unbudgeted_month_spending_is_ignored() {
+    let mut db = fresh_db("pool_unbudgeted");
+    let account = fresh_account(&mut db);
+    let bucket = create_test_bucket(&mut db, "Food");
+    let tag = create_test_tag(&mut db, "Groceries", &bucket);
+    categories::set_rollover_enabled(&mut db, op(), &bucket, false).unwrap();
+
+    // 2026-01 funds the bucket; the 150 spent in 2026-02 has no budget row.
+    seed_income(&mut db, &account, 100, "2026-01-05");
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-01", 100).unwrap();
+    seed_expense(&mut db, &account, &tag, 150, "2026-02-10");
+
+    // The carry into 2026-03 is the January surplus (100), untouched by the
+    // unbudgeted February spend; nothing is clawed back.
+    assert_eq!(budgets::get_rolled_over(&db, &bucket, "2026-03").unwrap(), 100);
+
+    let m3 = budgets::get_to_budget(&db, "2026-03").unwrap();
+    assert_eq!(m3.last_month_overspent, 0);
+    assert_eq!(m3.carried_forward, 0);
+    assert_eq!(m3.to_budget, 0);
+}
+
+/// The pool starts at the earliest of (first `budgets` row, first income month):
+/// income dated before the first budget row still funds the pool.
+#[test]
+fn pool_start_month_includes_earlier_income() {
+    let mut db = fresh_db("pool_start");
+    let account = fresh_account(&mut db);
+    let bucket = create_test_bucket(&mut db, "Food");
+
+    // Income in 2025-12, first budget row in 2026-01, requested 2026-01.
+    seed_income(&mut db, &account, 100, "2025-12-05");
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-01", 40).unwrap();
+
+    let m = budgets::get_to_budget(&db, "2026-01").unwrap();
+    assert_eq!(m.income, 0); // no income *in* January
+    assert_eq!(m.carried_forward, 100); // December's income carried forward
+    assert_eq!(m.assigned, 40);
+    assert_eq!(m.to_budget, 60);
+}
+
+/// A month before the pool start returns the all-zero breakdown rather than
+/// folding — the `start > month` early return. Rust twin of the browser test's
+/// `folds across a year boundary and rejects a pre-start month` case; without
+/// it the guard is exercised only indirectly.
+#[test]
+fn to_budget_before_the_pool_start_is_zero() {
+    let mut db = fresh_db("pool_prestart");
+    let account = fresh_account(&mut db);
+    let bucket = create_test_bucket(&mut db, "Food");
+
+    // The pool starts at 2025-12 (both an income month and a budgets row).
+    seed_income(&mut db, &account, 100, "2025-12-05");
+    budgets::set_allocation(&mut db, op(), &bucket, "2025-12", 40).unwrap();
+
+    // 2025-11 precedes the start: the early return yields all zeros.
+    let before = budgets::get_to_budget(&db, "2025-11").unwrap();
+    assert_eq!(
+        before,
+        ToBudgetBreakdown {
+            income: 0,
+            carried_forward: 0,
+            last_month_overspent: 0,
+            assigned: 0,
+            to_budget: 0,
+            overassigned: 0,
+        }
+    );
+
+    // The start month itself folds (non-zero), proving the guard is a boundary
+    // and not an always-zero short circuit.
+    let start = budgets::get_to_budget(&db, "2025-12").unwrap();
+    assert_eq!(start.to_budget, 60);
+}
+
+/// The fold visits every intervening calendar month, not only the months that
+/// have a `budgets` row. January overspends a rollover-OFF bucket; February has
+/// no `budgets` row at all and no income, so a fold that keyed off "months with
+/// a row" would skip it and lose its clawback before March.
+///
+///   Jan: income 100, alloc 100, spent 150 -> Feb carry: lmo = -50, toBudget -50
+///   Feb: (no budgets row, no income)      -> folds -50 into the carry
+///   Mar: target                           -> carried_forward -50, not 0
+///
+/// Rule A (every calendar month) carries -50 into March; rule B (only months
+/// with a budgets row) would skip February and carry 0. This is the fixture
+/// that separates them, so every field is pinned — a single safe-looking field
+/// is 0 under both rules.
+#[test]
+fn every_intervening_month_is_folded_without_a_budget_row() {
+    let mut db = fresh_db("pool_skip");
+    let account = fresh_account(&mut db);
+    let bucket = create_test_bucket(&mut db, "Food");
+    let tag = create_test_tag(&mut db, "Groceries", &bucket);
+    categories::set_rollover_enabled(&mut db, op(), &bucket, false).unwrap();
+
+    // January: income 100, allocated 100, spent 150 -> overspent by 50.
+    seed_income(&mut db, &account, 100, "2026-01-05");
+    budgets::set_allocation(&mut db, op(), &bucket, "2026-01", 100).unwrap();
+    seed_expense(&mut db, &account, &tag, 150, "2026-01-15");
+    // February deliberately has no budgets row (any bucket) and no income.
+
+    let jan = budgets::get_to_budget(&db, "2026-01").unwrap();
+    assert_eq!(jan.to_budget, 0);
+
+    let feb = budgets::get_to_budget(&db, "2026-02").unwrap();
+    assert_eq!(feb.last_month_overspent, -50);
+    assert_eq!(feb.to_budget, -50);
+
+    // March still carries February's clawback: skipping the unbudgeted month
+    // would give carried_forward 0 / to_budget 0 instead of -50.
+    let mar = budgets::get_to_budget(&db, "2026-03").unwrap();
+    assert_eq!(mar.income, 0);
+    assert_eq!(mar.assigned, 0);
+    assert_eq!(mar.carried_forward, -50);
+    assert_eq!(mar.last_month_overspent, 0);
+    assert_eq!(mar.to_budget, -50);
+    assert_eq!(mar.overassigned, 50);
 }
