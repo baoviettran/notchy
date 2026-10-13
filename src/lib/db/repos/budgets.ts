@@ -2,9 +2,11 @@
 export {
 	type Budget,
 	type BudgetSummary,
+	type ToBudgetBreakdown,
 	getBudgetsForMonth,
 	getSpentForBucket,
 	getRolledOver,
+	getToBudget,
 	setAllocation,
 	copyFromPreviousMonth,
 	hasAllocations

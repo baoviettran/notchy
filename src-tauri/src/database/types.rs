@@ -433,6 +433,23 @@ pub struct BudgetSummary {
     pub available: i64,
 }
 
+/// The month's To Budget pool, as a breakdown the UI can itemise.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct ToBudgetBreakdown {
+    /// Σ income transactions in the month (`kind = 'income'`, no account filter).
+    pub income: i64,
+    /// The prior month's `to_budget`, sign preserved (no `max(0, …)` clamp).
+    pub carried_forward: i64,
+    /// Σ min(0, prior-month available) over rollover-OFF budgeted buckets (≤ 0).
+    pub last_month_overspent: i64,
+    /// The month's allocations, as a positive count.
+    pub assigned: i64,
+    /// income + carried_forward + last_month_overspent − assigned.
+    pub to_budget: i64,
+    /// max(0, −to_budget).
+    pub overassigned: i64,
+}
+
 // ---------------------------------------------------------------------------
 // Reconciliation types
 // ---------------------------------------------------------------------------

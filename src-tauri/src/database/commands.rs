@@ -477,6 +477,16 @@ pub async fn budget_get_rolled_over(
 }
 
 #[tauri::command]
+pub async fn budget_get_to_budget(
+    manager: State<'_, Arc<DatabaseManager>>,
+    month: String,
+) -> Result<ToBudgetBreakdown, DbError> {
+    manager.data_job(move |state| {
+        domains::budgets::get_to_budget(state.connection()?, &month)
+    }).await
+}
+
+#[tauri::command]
 pub async fn budget_set_allocation(
     manager: State<'_, Arc<DatabaseManager>>,
     type_id: String,
@@ -1125,6 +1135,7 @@ pub fn generate_bindings() -> String {
     push_decl(&mut out, TagDeleteInfo::decl(&cfg));
     push_decl(&mut out, Budget::decl(&cfg));
     push_decl(&mut out, BudgetSummary::decl(&cfg));
+    push_decl(&mut out, ToBudgetBreakdown::decl(&cfg));
 
     push_decl(&mut out, Reconciliation::decl(&cfg));
     push_decl(&mut out, ReconcileResult::decl(&cfg));

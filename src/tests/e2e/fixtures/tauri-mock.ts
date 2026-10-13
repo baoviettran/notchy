@@ -335,6 +335,75 @@ function repKindTotals(db, kf, params) {
 	);
 }
 
+// --- budget helpers: faithful ports of src/lib/db/browser/repos/budgets.ts ---
+// The pool numbers must be COMPUTED, not stubbed: hard-coding the pre-pool shape
+// (rolled_over: 0, available: allocated - spent) turns this the only
+// Tauri-realistic fixture into a silent trap for any future pool E2E. These
+// mirror the browser adapter clause by clause (same predicate, ORDER BY, arithmetic).
+function budNextMonth(m) {
+	const parts = m.split('-').map(Number);
+	return parts[1] === 12 ? (parts[0] + 1) + '-01' : parts[0] + '-' + String(parts[1] + 1).padStart(2, '0');
+}
+function budPrevMonth(m) {
+	const parts = m.split('-').map(Number);
+	return parts[1] === 1 ? (parts[0] - 1) + '-12' : parts[0] + '-' + String(parts[1] - 1).padStart(2, '0');
+}
+// getSpentForBucket: expenses positive, refunds negative (transfers/net excluded).
+function budSpentForBucket(db, typeId, month) {
+	const r = select(db, "SELECT COALESCE(SUM(CASE WHEN t.kind = 'expense' THEN t.amount WHEN t.kind = 'refund' THEN -t.amount ELSE 0 END), 0) AS spent FROM transactions t JOIN category_tags ct ON t.tag_id = ct.id WHERE ct.type_id = ? AND t.date >= ? AND t.date < ? AND t.kind IN ('expense', 'refund') AND t.deleted_at IS NULL", [typeId, month + '-01', budNextMonth(month) + '-01']);
+	return r[0] ? (r[0].spent || 0) : 0;
+}
+// getRolledOver: ON = full carry; OFF = running floor per prior budgeted month.
+function budRolledOver(db, typeId, month) {
+	const flag = select(db, 'SELECT rollover_enabled FROM category_types WHERE id = ?', [typeId]);
+	const enabled = (flag[0] ? flag[0].rollover_enabled : 1) === 1;
+	const months = select(db, 'SELECT month, allocated FROM budgets WHERE type_id = ? AND month < ? AND deleted_at IS NULL ORDER BY month', [typeId, month]);
+	let rolled = 0;
+	for (const m of months) {
+		rolled += m.allocated - budSpentForBucket(db, typeId, m.month);
+		if (!enabled) rolled = Math.max(0, rolled);
+	}
+	return rolled;
+}
+// lastMonthOverspent: Σ min(0, allocated + carry - spent) over rollover-OFF buckets.
+function budLastMonthOverspent(db, month) {
+	const prev = budPrevMonth(month);
+	const rows = select(db, 'SELECT b.type_id AS type_id, b.allocated AS allocated FROM budgets b JOIN category_types ct ON ct.id = b.type_id WHERE b.month = ? AND b.deleted_at IS NULL AND ct.rollover_enabled = 0', [prev]);
+	let total = 0;
+	for (const b of rows) {
+		const carry = budRolledOver(db, b.type_id, prev);
+		const spent = budSpentForBucket(db, b.type_id, prev);
+		total += Math.min(0, b.allocated + carry - spent);
+	}
+	return total;
+}
+function budPoolStartMonth(db) {
+	const rows = select(db, "SELECT MIN(m) AS m FROM (SELECT MIN(month) AS m FROM budgets WHERE deleted_at IS NULL UNION ALL SELECT MIN(substr(date, 1, 7)) AS m FROM transactions WHERE kind = 'income' AND deleted_at IS NULL)");
+	return rows[0] ? rows[0].m : null;
+}
+// getToBudget: forward fold over every intervening calendar month.
+function budToBudget(db, month) {
+	const zero = { income: 0, carried_forward: 0, last_month_overspent: 0, assigned: 0, to_budget: 0, overassigned: 0 };
+	const start = budPoolStartMonth(db);
+	if (start === null || start > month) return zero;
+	let carried = 0;
+	let result = zero;
+	let cur = start;
+	for (;;) {
+		const ir = select(db, "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE kind = 'income' AND date >= ? AND date < ? AND deleted_at IS NULL", [cur + '-01', budNextMonth(cur) + '-01']);
+		const income = ir[0] ? (ir[0].total || 0) : 0;
+		const ar = select(db, 'SELECT COALESCE(SUM(allocated), 0) AS total FROM budgets WHERE month = ? AND deleted_at IS NULL', [cur]);
+		const assigned = ar[0] ? (ar[0].total || 0) : 0;
+		const lmo = budLastMonthOverspent(db, cur);
+		const to_budget = income + carried + lmo - assigned;
+		result = { income, carried_forward: carried, last_month_overspent: lmo, assigned, to_budget, overassigned: Math.max(0, -to_budget) };
+		carried = to_budget;
+		if (cur === month) break;
+		cur = budNextMonth(cur);
+	}
+	return result;
+}
+
 // Path helpers
 const join = (...parts) => parts.join('/').replace(/\\\\/g, '/').replace(/\\/+/g, '/').replace(/\\/+/g, '/').replace(/\\/+/g, '/');
 // Schedule column list shared by every read, mirroring the browser repo's
@@ -829,15 +898,14 @@ window.__TAURI_INTERNALS__ = {
 		}
 		if (cmd === 'budget_get_for_month') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
-			// Mirror the Rust BudgetSummary contract: type_id + spent/remaining.
-			// Spent counts expenses positive and refunds negative (mirrors
-			// browser/repos/budgets.ts getSpentForBucket).
+			// Mirror the Rust BudgetSummary contract: rolled_over is the flag-aware
+			// carry (rollover OFF = running floor), and available = allocated +
+			// rolled_over - spent. Computed from the fixture DB, not stubbed.
 			const rows = select(db, 'SELECT b.type_id, b.month, b.allocated FROM budgets b WHERE b.month = ? AND b.deleted_at IS NULL', [args.month]);
 			return rows.map((b) => {
-				const s = select(db, "SELECT COALESCE(SUM(CASE WHEN t.kind = 'expense' THEN t.amount WHEN t.kind = 'refund' THEN -t.amount ELSE 0 END), 0) AS spent FROM transactions t JOIN category_tags ct ON t.tag_id = ct.id WHERE ct.type_id = ? AND t.date >= ? AND t.date < ? AND t.kind IN ('expense', 'refund') AND t.deleted_at IS NULL",
-					[b.type_id, args.month + '-01', args.month + '-32']);
-				const spent = s[0]?.spent || 0;
-				return { type_id: b.type_id, month: b.month, allocated: b.allocated, spent, remaining: b.allocated - spent, rolled_over: 0, available: b.allocated - spent };
+				const spent = budSpentForBucket(db, b.type_id, args.month);
+				const rolled_over = budRolledOver(db, b.type_id, args.month);
+				return { type_id: b.type_id, month: b.month, allocated: b.allocated, spent, remaining: b.allocated - spent, rolled_over, available: b.allocated + rolled_over - spent };
 			});
 		}
 		if (cmd === 'budget_get_spent_for_bucket') {
@@ -848,7 +916,12 @@ window.__TAURI_INTERNALS__ = {
 			return r[0]?.spent || 0;
 		}
 		if (cmd === 'budget_get_rolled_over') {
-			return 0;
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			return budRolledOver(db, args.typeId, args.month);
+		}
+		if (cmd === 'budget_get_to_budget') {
+			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			return budToBudget(db, args.month);
 		}
 		if (cmd === 'budget_set_allocation') {
 			const db = await loadDb(LIVE_DB_PATH, SQL_JS);

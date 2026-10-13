@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures/onboarded';
+import { addTransaction } from './helpers/ui';
 
 // Extended budget coverage for the AUTO-tagged checklist items in §5.
 // Conventions match budgets.spec.ts: SPA navigation only, comments cite source
@@ -78,8 +79,10 @@ test.describe('budgets — extended', () => {
 		const trigger = page.locator('main button.figures').first();
 		await expect(trigger).toContainText('100,000');
 		await expect(trigger).toContainText('500,000');
-		// Remaining = 500000 − 100000 = 400000. The remaining line shows it.
-		await expect(page.getByRole('main').getByText(/400,000/)).toBeVisible();
+		// Available = allocated − spent = 500000 − 100000 = 400000; the bucket's
+		// available line shows it. Scoped to that line because the summary footer
+		// now also renders an available figure whenever the pool is loaded.
+		await expect(page.getByRole('main').getByText('400,000 available')).toBeVisible();
 	});
 
 	test('empty-month banner offers Copy from previous', async ({ onboardedPage: page }) => {
@@ -116,20 +119,36 @@ test.describe('budgets — extended', () => {
 		await expect(page.locator('main button.figures').first()).toContainText('Not budgeted');
 	});
 
-	test('spending beyond budget shows a soft warning', async ({ onboardedPage: page }) => {
-		// Create a tag, allocate 500k, then spend 600k in that bucket.
-		// The over-budget banner surfaces when spending exceeds the available
-		// budget (totalSpent > totalAvailable), not when allocation exceeds
-		// income — allocation-only overages are an advisory ceiling, not a
-		// hard warning trigger.
-		await createTagInFirstBucket(page, 'Groceries');
-
-		// Allocate 500k to the first bucket.
+	test('over-assigning beyond the To Budget pool shows the soft warning', async ({ onboardedPage: page }) => {
+		// The banner fires on OVER-ASSIGNMENT now: total allocation exceeding the
+		// To Budget pool (income + carried-forward + prior overspend). It is NOT a
+		// spend trigger. This fixture has no income and no spend, so the pool is
+		// ₫0 — allocating 500k over-assigns it and the banner surfaces. Because
+		// nothing was spent, this stays red if the condition ever reverts to a
+		// spending-based trigger (totalSpent > totalAvailable).
 		await page.getByRole('link', { name: 'Budgets', exact: true }).click();
 		await allocateFirstBucket(page, '500000');
 		await expect(page.locator('main button.figures').first()).toContainText('500,000');
+		await expect(page.getByRole('main').getByText(/Over budget by/)).toBeVisible();
+	});
 
-		// Spend 600k in that bucket — exceeds the 500k allocation.
+	test('a bucket overspent while allocations stay within the pool shows no warning', async ({ onboardedPage: page }) => {
+		// Negative case pinning the semantic change. A bucket can be overspent
+		// (spent > allocated) while TOTAL allocations remain inside the pool — the
+		// banner must stay hidden, because the banner means "over-assigned", not
+		// "overspent". Under the retired spend-based condition this fixture WOULD
+		// have shown the banner, so this fails if the condition ever reverts.
+		await createTagInFirstBucket(page, 'Groceries');
+
+		// Fund a pool large enough that the allocation stays inside it: income 1,000k.
+		await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
+		await addTransaction(page, { kind: 'income', amount: '1000000' });
+		await expect(page.getByRole('dialog')).toBeHidden();
+
+		// Allocate 500k (within the 1,000k pool), then spend 600k in that bucket.
+		await page.getByRole('link', { name: 'Budgets', exact: true }).click();
+		await allocateFirstBucket(page, '500000');
+
 		await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
 		await page.getByRole('button', { name: 'Add transaction' }).first().click();
 		const txModal = page.getByRole('dialog');
@@ -141,9 +160,11 @@ test.describe('budgets — extended', () => {
 		await txModal.getByRole('button', { name: 'Save' }).click();
 		await expect(txModal).not.toBeVisible();
 
-		// Navigate to budgets — over-budget banner surfaces.
+		// The bucket is overspent (600k spent / 500k allocated) ...
 		await page.getByRole('link', { name: 'Budgets', exact: true }).click();
-		await expect(page.getByRole('main').getByText(/Over budget by/)).toBeVisible();
+		await expect(page.locator('main button.figures').first()).toContainText('600,000');
+		// ... yet the pool is not over-assigned, so no banner appears.
+		await expect(page.getByRole('main').getByText(/Over budget by/)).toHaveCount(0);
 	});
 
 	test('prior-month allocation persists, and roll-over surfaces in the next month', async ({ onboardedPage: page }) => {

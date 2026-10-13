@@ -54,11 +54,16 @@
   "budgets_not_budgeted": "Not budgeted",
   "budgets_over_allocated": "Over budget by {amount} this month.",
   "budgets_over_allocated_with_income": "Spent {spent} of {available} available — over by {amount}.",
+  "budgets_pool_assigned": "Assigned",
+  "budgets_pool_carried_forward": "Carried forward",
+  "budgets_pool_income": "Income",
+  "budgets_pool_overspent": "Overspent",
   "budgets_remaining": "remaining",
   "budgets_rolled_in": "Includes {amount} rolled over",
   "budgets_summary_income": "Income",
   "budgets_summary_spent": "Spent",
   "budgets_title": "Budgets",
+  "budgets_to_budget": "To Budget",
   "budgets_updated": "Budget updated.",
   "budgets_used": "used",
   "categories_action": "Action",
@@ -623,5 +628,7 @@
   "schedules_save": "Save",
   "schedules_cancel": "Cancel",
   "schedules_delete": "Delete",
-  "schedules_delete_confirm": "Delete this schedule?"
+  "schedules_delete_confirm": "Delete this schedule?",
+  "budgets_rollover_toggle": "Roll over",
+  "budgets_rollover_toggle_help": "Carry this bucket's leftover (or overspend) into next month."
 }
