@@ -12,6 +12,7 @@ use tauri::{
 };
 
 use database::commands::*;
+use profiles::commands::*;
 use database::executor::DatabaseManager;
 use database::connection::DatabasePaths;
 
@@ -49,6 +50,20 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             quit_app,
+            profiles_load,
+            profile_paths,
+            profile_discover_backups,
+            profile_create,
+            profile_rename,
+            profile_activate,
+            profile_backup,
+            profile_export_backup,
+            profile_inspect_restore,
+            profile_cancel_restore,
+            profile_restore,
+            profile_reset,
+            profile_delete,
+            app_preferences_set,
             // Lifecycle commands
             database_initialize,
             database_retry,

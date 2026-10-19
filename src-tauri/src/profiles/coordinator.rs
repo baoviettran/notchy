@@ -7,7 +7,7 @@ use crate::database::{DbError, DbResult, ErrorCode, OperationId, ProcessLock};
 use super::paths::ProfilePaths;
 use super::backup::PreviewEntry;
 use super::registry::RegistryStore;
-use super::types::{AppPreferences, ProfileRegistry, ProfileSession, ProfileSnapshot};
+use super::types::{AppPreferences, ProfileRegistry, ProfileSession, ProfileSnapshot, ProfileRecovery};
 
 pub(super) struct ActiveProfile {
     session: ProfileSession,
@@ -62,11 +62,30 @@ impl ProfileCoordinator {
         let state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         if !state.active.as_ref().is_some_and(|active| active.session.profile_id == id) { return Ok(()); }
         drop(state);
-        let Some(token) = token else { return Err(DbError::new(ErrorCode::InvalidInput)); };
+        let Some(token) = token else { return Err(DbError::new(ErrorCode::ProfileTransitionBlocked)); };
         if !self.transition_tokens.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).remove(token) {
-            return Err(DbError::new(ErrorCode::InvalidInput));
+            return Err(DbError::new(ErrorCode::ProfileTransitionBlocked));
         }
         Ok(())
+    }
+
+    pub async fn set_preferences(&self, preferences: AppPreferences) -> DbResult<()> {
+        let _permit = self.transition.write().await;
+        self.store.save_preferences(&preferences)
+    }
+
+    pub async fn activate_with_token(&self, id: &str, token: Option<&str>) -> DbResult<ProfileSession> {
+        {
+            let state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            if state.active.as_ref().is_some_and(|active| active.session.profile_id != id) && token.is_none() {
+                return Err(DbError::new(ErrorCode::ProfileTransitionBlocked));
+            }
+        }
+        if token.is_some() {
+            let active_id = { self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).active.as_ref().map(|active| active.session.profile_id.clone()) };
+            if let Some(active_id) = active_id { self.require_transition_token(&active_id, token)?; }
+        }
+        self.activate(id).await
     }
 
     pub fn load(&self) -> ProfileSnapshot {
@@ -76,6 +95,7 @@ impl ProfileCoordinator {
             active: state.active.as_ref().map(|active| active.session.clone()),
             phase: if state.recovery { "recovery" } else { "idle" }.into(),
             preferences: self.store.load_preferences().ok().flatten().unwrap_or(AppPreferences { locale: "en".into(), theme: "light".into() }),
+            recovery: if state.recovery { Some(ProfileRecovery { profile_id: state.registry.last_active_id.clone(), code: ErrorCode::DatabaseNotReady, retryable: true }) } else { None },
         }
     }
 
@@ -88,8 +108,8 @@ impl ProfileCoordinator {
         let _permit = self.transition.read().await;
         let manager = {
             let state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-            let active = state.active.as_ref().ok_or_else(|| DbError::new(ErrorCode::DatabaseNotReady))?;
-            if active.session != *session { return Err(DbError::new(ErrorCode::DatabaseNotReady)); }
+            let active = state.active.as_ref().ok_or_else(|| DbError::new(ErrorCode::ProfileSessionExpired))?;
+            if active.session != *session { return Err(DbError::new(ErrorCode::ProfileSessionExpired)); }
             Arc::clone(&active.manager)
         };
         manager.data_job(job).await
@@ -100,7 +120,7 @@ impl ProfileCoordinator {
         let old = {
             let mut state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
             if !state.registry.profiles.iter().any(|profile| profile.id == id) {
-                return Err(DbError::new(ErrorCode::InvalidInput));
+                return Err(DbError::new(ErrorCode::ProfileNotFound));
             }
             state.active.take()
         };

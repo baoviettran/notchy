@@ -697,6 +697,8 @@ impl BackupToken {
         })
     }
 
+    pub fn id(&self) -> &str { self.id.as_str() }
+
     /// The canonical, approved filesystem path of the published backup.
     pub fn path(&self) -> &std::path::Path {
         &self.canonical_path
@@ -718,7 +720,7 @@ impl BackupToken {
 /// Paths shown are canonical approved paths. Contains no raw SQLite strings,
 /// no SQL parameters, no monetary values, and no payees. Not exported to
 /// TypeScript in this task; the TS bindings are regenerated from Task 7 onward.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct BackupSummary {
     /// Stable identifier: the backup's ULID.
     pub id: String,

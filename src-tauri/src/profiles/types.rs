@@ -14,6 +14,7 @@ pub struct ProfileRecord {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ProfileRegistry {
+    #[ts(type = "1")]
     pub version: u8,
     pub profiles: Vec<ProfileRecord>,
     pub last_active_id: Option<String>,
@@ -46,7 +47,9 @@ impl ProfileRegistry {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AppPreferences {
+    #[ts(type = "\"en\" | \"vi\"")]
     pub locale: String,
+    #[ts(type = "\"auto\" | \"light\" | \"dark\"")]
     pub theme: String,
 }
 
@@ -62,7 +65,7 @@ impl AppPreferences {
 pub fn validate_name(input: &str) -> DbResult<String> {
     let name = input.trim();
     if name.is_empty() || name.chars().count() > 80 || name.chars().any(char::is_control) {
-        return Err(DbError::new(ErrorCode::InvalidInput));
+        return Err(DbError::new(ErrorCode::ProfileNameInvalid));
     }
     Ok(name.to_owned())
 }
@@ -76,11 +79,21 @@ pub struct ProfileSession {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+pub struct ProfileRecovery {
+    pub profile_id: Option<String>,
+    pub code: ErrorCode,
+    pub retryable: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct ProfileSnapshot {
     pub profiles: Vec<ProfileRecord>,
     pub active: Option<ProfileSession>,
+    #[ts(type = "\"idle\" | \"transitioning\" | \"recovery\"")]
     pub phase: String,
     pub preferences: AppPreferences,
+    pub recovery: Option<ProfileRecovery>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

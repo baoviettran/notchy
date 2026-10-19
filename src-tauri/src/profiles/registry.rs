@@ -24,8 +24,8 @@ impl RegistryStore {
         match read_json(&self.paths.registry_file())? {
             None => Ok(ProfileRegistry::empty()),
             Some(bytes) => {
-                let registry: ProfileRegistry = serde_json::from_slice(&bytes).map_err(invalid)?;
-                registry.validate()?;
+                let registry: ProfileRegistry = serde_json::from_slice(&bytes).map_err(|_| DbError::new(ErrorCode::ProfileRegistryInvalid))?;
+                registry.validate().map_err(|_| DbError::new(ErrorCode::ProfileRegistryInvalid))?;
                 Ok(registry)
             }
         }

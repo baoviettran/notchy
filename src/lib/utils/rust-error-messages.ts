@@ -45,4 +45,11 @@ export const RUST_ERROR_MESSAGES: Record<ErrorCode, (params: ErrorParams) => str
 			: m.errors_account_delete_linked_goals({ count, names });
 	},
 	recovery_required: generic,
+	profile_not_found: () => m.errors_profile_not_found(),
+	profile_name_invalid: () => m.errors_profile_name_invalid(),
+	profile_session_expired: () => m.errors_profile_session_expired(),
+	profile_registry_invalid: () => m.errors_profile_registry_invalid(),
+	profile_transition_blocked: () => m.errors_profile_transition_blocked(),
+	profile_operation_conflict: () => m.errors_profile_operation_conflict(),
+	profile_export_unsafe: () => m.errors_profile_export_unsafe(),
 };

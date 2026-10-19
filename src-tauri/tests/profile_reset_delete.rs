@@ -52,7 +52,7 @@ async fn active_reset_advances_generation_and_delete_last_returns_to_picker() {
     let a = coordinator.create("A", &context()).await.unwrap();
     let old = coordinator.activate(&a.id).await.unwrap();
     let missing_token = coordinator.reset(&a.id, &context()).await.unwrap_err();
-    assert_eq!(missing_token.code, ErrorCode::InvalidInput);
+    assert_eq!(missing_token.code, ErrorCode::ProfileTransitionBlocked);
     let reset_context = OperationContext { operation_id: OperationId::generate().as_str().to_owned(), transition_token: Some(coordinator.issue_transition_token()) };
     coordinator.reset(&a.id, &reset_context).await.unwrap();
     assert_ne!(coordinator.load().active.unwrap().generation, old.generation);

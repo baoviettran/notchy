@@ -27,6 +27,8 @@ fn preview_digest(path: &Path) -> DbResult<blake3::Hash> {
 fn validate_compatible(path: &Path) -> DbResult<i64> {
     let version = match inspect_schema(path) {
         SchemaInspection::Older { version } | SchemaInspection::Current { version } => version,
+        SchemaInspection::TooOld { .. } => return Err(DbError::new(ErrorCode::SchemaTooOld)),
+        SchemaInspection::Newer { .. } => return Err(DbError::new(ErrorCode::SchemaTooNew)),
         _ => return Err(invalid()),
     };
     validate_manifest(&open_read_only_at(path)?, version)?;
@@ -38,7 +40,7 @@ impl ProfileCoordinator {
 
     pub(super) fn profile_source(&self, id: &str) -> DbResult<PathBuf> {
         let state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-        if !state.registry.profiles.iter().any(|profile| profile.id == id) { return Err(DbError::new(ErrorCode::InvalidInput)); }
+        if !state.registry.profiles.iter().any(|profile| profile.id == id) { return Err(DbError::new(ErrorCode::ProfileNotFound)); }
         Ok(self.paths.profile_dir(id)?.join("notchy.db"))
     }
 
@@ -112,7 +114,7 @@ impl ProfileCoordinator {
         }
         let mut resolved = fs::canonicalize(existing).map_err(|_| invalid())?;
         for name in missing.iter().rev() { resolved.push(name); }
-        if resolved.starts_with(&owned) || resolved.starts_with(&config) { return Err(DbError::new(ErrorCode::InvalidInput)); }
+        if resolved.starts_with(&owned) || resolved.starts_with(&config) { return Err(DbError::new(ErrorCode::ProfileExportUnsafe)); }
         Ok(())
     }
 

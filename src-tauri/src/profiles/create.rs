@@ -48,7 +48,7 @@ impl ProfileCoordinator {
         let _permit = self.transition.write().await;
         let mut state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         let mut next = state.registry.clone();
-        let profile = next.profiles.iter_mut().find(|profile| profile.id == id).ok_or_else(|| DbError::new(ErrorCode::InvalidInput))?;
+        let profile = next.profiles.iter_mut().find(|profile| profile.id == id).ok_or_else(|| DbError::new(ErrorCode::ProfileNotFound))?;
         profile.name = name;
         let result = profile.clone();
         self.store.save(&next)?;

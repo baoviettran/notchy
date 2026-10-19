@@ -35,11 +35,18 @@ pub enum ErrorCode {
     InvalidInput,
     AccountDeleteLinkedGoals,
     RecoveryRequired,
+    ProfileNotFound,
+    ProfileNameInvalid,
+    ProfileSessionExpired,
+    ProfileRegistryInvalid,
+    ProfileTransitionBlocked,
+    ProfileOperationConflict,
+    ProfileExportUnsafe,
 }
 
 impl ErrorCode {
     /// Every variant, for parity tests that must read the union at runtime.
-    pub const ALL: [ErrorCode; 18] = [
+    pub const ALL: [ErrorCode; 25] = [
         ErrorCode::DatabaseBusy,
         ErrorCode::DatabaseLocked,
         ErrorCode::DatabaseNotReady,
@@ -58,6 +65,13 @@ impl ErrorCode {
         ErrorCode::InvalidInput,
         ErrorCode::AccountDeleteLinkedGoals,
         ErrorCode::RecoveryRequired,
+        ErrorCode::ProfileNotFound,
+        ErrorCode::ProfileNameInvalid,
+        ErrorCode::ProfileSessionExpired,
+        ErrorCode::ProfileRegistryInvalid,
+        ErrorCode::ProfileTransitionBlocked,
+        ErrorCode::ProfileOperationConflict,
+        ErrorCode::ProfileExportUnsafe,
     ];
 }
 
@@ -83,6 +97,14 @@ impl ErrorCode {
             ErrorCode::InvalidInput => "invalid_input",
             ErrorCode::AccountDeleteLinkedGoals => "account_delete_linked_goals",
             ErrorCode::RecoveryRequired => "recovery_required",
+            ErrorCode::ProfileNotFound => "profile_not_found",
+            ErrorCode::ProfileNameInvalid => "profile_name_invalid",
+            ErrorCode::ProfileSessionExpired => "profile_session_expired",
+            ErrorCode::ProfileRegistryInvalid => "profile_registry_invalid",
+            ErrorCode::ProfileTransitionBlocked => "profile_transition_blocked",
+            ErrorCode::ProfileOperationConflict => "profile_operation_conflict",
+            ErrorCode::ProfileExportUnsafe => "profile_export_unsafe",
+
         }
     }
 }
