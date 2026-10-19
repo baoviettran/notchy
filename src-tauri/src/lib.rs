@@ -3,6 +3,7 @@
 #![allow(clippy::should_implement_trait)]
 
 pub mod database;
+pub mod profiles;
 
 use tauri::{
     Manager,

@@ -77,11 +77,11 @@ Tasks 1–6 build tested native units without changing production startup. Tasks
 **Files:** Create `src-tauri/src/profiles/{mod,types,paths,registry}.rs`, `src-tauri/tests/profile_registry.rs`; modify `src-tauri/src/lib.rs` to export the module only.
 **Interfaces:** Produces shared DTOs, `ProfilePaths::new(config: PathBuf, data: PathBuf)`, `profile_dir(id: &str) -> DbResult<PathBuf>`, `validate_name(&str) -> DbResult<String>`, `RegistryStore::load() -> DbResult<ProfileRegistry>`, `save(&ProfileRegistry) -> DbResult<()>`, preference load/save. Missing registry is empty; malformed registry is an error. Missing preferences use detected locale/current theme defaults supplied by bootstrap.
 
-- [ ] **Step 1: Add failing native tests** for missing versus corrupt registry, atomic replacement, duplicate IDs, invalid/traversal IDs, preferences independent of profiles, and private Unix permissions. Pin names with `assert_eq!(validate_name("  Cá nhân  ")?, "Cá nhân"); assert!(validate_name(&"😀".repeat(81)).is_err()); assert!(validate_name(&"😀".repeat(80)).is_ok());`. Duplicate names with different IDs are accepted. Inject a failed publish and assert old registry bytes remain readable.
-- [ ] **Step 2: Run red:** `cargo test --manifest-path src-tauri/Cargo.toml --test profile_registry`; expect missing profile API or intended assertion failures, not unrelated build failures.
-- [ ] **Step 3: Implement registry/path primitives.** Version 1 JSON, ULID-only path segments, 0700 directories/0600 files on Unix, temp write → file sync → rename → parent sync. Expose injected filesystem failure points for deterministic tests; never use real user directories in tests.
-- [ ] **Step 4: Run green:** repeat Task 1 command; all assertions pass, including failed-publication preservation.
-- [ ] **Step 5: Commit** — Commit with `feat(profiles): add durable registry and profile paths`.
+- [x] **Step 1: Add failing native tests** for missing versus corrupt registry, atomic replacement, duplicate IDs, invalid/traversal IDs, preferences independent of profiles, and private Unix permissions. Pin names with `assert_eq!(validate_name("  Cá nhân  ")?, "Cá nhân"); assert!(validate_name(&"😀".repeat(81)).is_err()); assert!(validate_name(&"😀".repeat(80)).is_ok());`. Duplicate names with different IDs are accepted. Inject a failed publish and assert old registry bytes remain readable.
+- [x] **Step 2: Run red:** `cargo test --manifest-path src-tauri/Cargo.toml --test profile_registry`; expect missing profile API or intended assertion failures, not unrelated build failures.
+- [x] **Step 3: Implement registry/path primitives.** Version 1 JSON, ULID-only path segments, 0700 directories/0600 files on Unix, temp write → file sync → rename → parent sync. Expose injected filesystem failure points for deterministic tests; never use real user directories in tests.
+- [x] **Step 4: Run green:** repeat Task 1 command; all assertions pass, including failed-publication preservation.
+- [x] **Step 5: Commit** — Commit with `feat(profiles): add durable registry and profile paths`.
 
 ### Task 2: Session admission and application lock ownership
 
