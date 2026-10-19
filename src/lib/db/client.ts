@@ -4,7 +4,7 @@
  * Exposes domain services only: no `execute`, no `transaction`, no raw SQL.
  * Two adapters implement this interface:
  * - `BrowserDatabaseClient` — owns sql.js; used by Vitest and Playwright E2E.
- * - `NativeDatabaseClient` — wraps Tauri invoke(); inactive until Task 14.
+ * - `NativeDatabaseClient` — production desktop adapter over Tauri IPC.
  */
 import type { DatabaseService } from './browser/service';
 import type {

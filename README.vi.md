@@ -16,11 +16,11 @@ Các bản dựng sẵn có sẵn tại [bản phát hành mới nhất](https:/
 
 | Nền tảng | Tệp |
 |---|---|
-| Linux (Debian/Ubuntu) | `Notchy_0.2.0_amd64.deb` |
-| Linux (Fedora/RHEL) | `Notchy-0.2.0-1.x86_64.rpm` |
-| Linux (bất kỳ) | `Notchy_0.2.0_amd64.AppImage` |
-| macOS (ARM) | `Notchy_0.2.0_aarch64.dmg` |
-| Windows | `Notchy_0.2.0_x64-setup.exe` |
+| Linux (Debian/Ubuntu) | `Notchy_0.2.1_amd64.deb` |
+| Linux (Fedora/RHEL) | `Notchy-0.2.1-1.x86_64.rpm` |
+| Linux (bất kỳ) | `Notchy_0.2.1_amd64.AppImage` |
+| macOS (ARM) | `Notchy_0.2.1_aarch64.dmg` |
+| Windows | `Notchy_0.2.1_x64-setup.exe` |
 
 ### Build từ mã nguồn
 
@@ -70,11 +70,12 @@ Xong rồi, bắt đầu dùng thôi.
 | Tổng quan | Tiến độ ngân sách, giao dịch gần đây, mục tiêu, tài sản ròng |
 | Giao dịch | Danh sách đầy đủ với tìm kiếm và bộ lọc |
 | Ngân sách | Ngân sách phong bì hằng tháng theo nhóm |
-| Báo cáo | Tổng quan, Xu hướng (6/12/24 tháng), So sánh (hai tháng) |
+| Báo cáo | Tổng quan, xu hướng, so sánh, cơ cấu, nhãn, so sánh năm và tài sản ròng |
 | Tài khoản | Tất cả tài khoản kèm số dư |
 | Mục tiêu | Đích tiết kiệm với theo dõi tiến độ |
 | Công nợ | Khoản vay cá nhân — ai nợ ai |
-| Cài đặt | Nhóm, sao lưu/xuất, giao diện, ngôn ngữ |
+| Định kỳ | Thu, chi và chuyển khoản định kỳ, ghi khi mở ứng dụng |
+| Cài đặt | Nhóm, quy tắc phân loại, sao lưu/xuất, giao diện, ngôn ngữ |
 
 ### Phím tắt
 
@@ -86,15 +87,23 @@ Xong rồi, bắt đầu dùng thôi.
 
 ### Sao lưu & dữ liệu
 
-- **Sao lưu tự động** — một bản chụp được lưu mỗi lần mở app (giữ lại 10 bản gần nhất)
+- **Sao lưu** — tạo bản sao trong Cài đặt → Sao lưu & dữ liệu. Bản desktop còn tạo bản sao an toàn trước khi nâng cấp schema hoặc khôi phục; mở app thông thường không tạo bản sao và chưa bật tự động dọn bản cũ.
 - **Xuất** — Cài đặt → Sao lưu → Xuất ra tệp SQLite hoặc CSV
 - **Nhập** — Cài đặt → Sao lưu → Nhập (thay thế dữ liệu hiện tại)
 - **Tệp dữ liệu của bạn** nằm tại:
-  - Linux: `~/.local/share/com.notchy.app/notchy.db`
+  - Linux: `~/.config/com.notchy.app/notchy.db`
   - macOS: `~/Library/Application Support/com.notchy.app/notchy.db`
   - Windows: `%APPDATA%\com.notchy.app\notchy.db`
 
+Các bản sao nằm riêng trong thư mục dữ liệu ứng dụng, tại `backups/` và `backups/upgrades/`. Cài đặt → Sao lưu & dữ liệu hiển thị đường dẫn thực tế. Dùng xuất/nhập SQLite để khôi phục toàn bộ cơ sở dữ liệu; CSV từng bảng là bản xuất lưu trữ, còn nhập CSV giao dịch nhận định dạng ngân hàng với số tiền có dấu.
+
 Bạn có thể mở tệp này bằng bất kỳ công cụ SQLite nào. Xem [RECOVERY.md](RECOVERY.md) để biết các câu truy vấn.
+
+## Phát triển
+
+Chạy `pnpm check`, `pnpm test`, `pnpm test:coverage`, `pnpm test:roadmap` và `pnpm build`. Các gate native gồm `cargo test --manifest-path src-tauri/Cargo.toml`, Clippy với `--all-targets -- -D warnings` và `pnpm check:db-contracts`. Dùng Node 22 cho `pnpm test:e2e`: loader của Playwright 1.52 đang bị treo trên Node 24. Cấu hình repo hỗ trợ cả pnpm 10 và 11.
+
+Khởi tạo kho tài liệu riêng bằng `git submodule update --init docs`. Xem [ROADMAP.md](ROADMAP.md) để biết phạm vi hiện tại và [checklist desktop](specs/2026-07-27-desktop-release-smoke-checklist.md) trước khi phát hành.
 
 ## Nguyên tắc
 
@@ -107,7 +116,7 @@ Bạn có thể mở tệp này bằng bất kỳ công cụ SQLite nào. Xem [R
 
 - [Tauri v2](https://tauri.app) — vỏ ứng dụng desktop
 - [SvelteKit](https://kit.svelte.dev) + [Svelte 5](https://svelte.dev) — giao diện
-- [SQLite](https://sqlite.org) — cơ sở dữ liệu (qua `@tauri-apps/plugin-sql`)
+- [SQLite](https://sqlite.org) — `rusqlite` trong Rust trên desktop; adapter `sql.js` trong bộ nhớ cho phát triển và kiểm thử bằng trình duyệt
 - [Tailwind CSS](https://tailwindcss.com) — kiểu dáng
 
 ## Tài liệu

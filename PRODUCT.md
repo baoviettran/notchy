@@ -16,7 +16,7 @@ Notchy is a local-first personal finance application: track transactions, envelo
 
 ## Positioning
 
-Data outlives the application. SQLite is the single source of truth, readable by any tool in any era (`RECOVERY.md` documents how), with auto-backup on every launch and full export/import. A cloud fintech app could copy the features but could not truthfully claim "your data stays on your device, forever readable, no network required."
+Data outlives the application. SQLite is the single source of truth, readable by any tool in any era (`RECOVERY.md` documents how), with manual backups, safety snapshots before upgrades/restores, and full SQLite export/import. A cloud fintech app could copy the features but could not truthfully claim "your data stays on your device, forever readable, no network required."
 
 ## Operating Context
 
@@ -24,7 +24,7 @@ Data outlives the application. SQLite is the single source of truth, readable by
 - `/` focuses global search; most-used transactions surface as one-tap dashboard cards.
 - Monthly rituals: envelope budget review, reconciliation with adjustments, report reading (overview / trend / compare).
 - Auto-categorization rules learn from behavior (3+ consistent transactions) with Vietnamese diacritic normalization.
-- Runs as a Tauri v2 desktop app on Linux today; browser build planned for v0.2, file-based sync v0.3, P2P sync v0.4.
+- Runs as a Tauri v2 desktop app on Linux today; browser persistence and synchronization remain exploratory directions (see ROADMAP.md).
 
 ## Capabilities and Constraints
 
@@ -32,7 +32,7 @@ Data outlives the application. SQLite is the single source of truth, readable by
 - 6 account types; 5 transaction kinds (expense, income, transfer, refund, adjustment).
 - Envelope budgets per category with optional roll-overs; goals with velocity tracking; personal debts (I owe / owed to me).
 - Bilingual English/Vietnamese via Paraglide flat keys in `messages/en.json` + `messages/vi.json`; Vietnamese is a first-class locale (diacritic legibility, ~15–30% longer strings).
-- Built for a decade: pinned dependencies, reproducible builds, small and shippable releases (v0.1.x line).
+- Built for a decade: pinned dependencies, reproducible builds, small and shippable releases (current source v0.2.1).
 - Filtering happens in SQL (`TransactionFilter`), never client-side.
 - Undecided: whether macOS/Windows builds ship (planned but unbuilt).
 

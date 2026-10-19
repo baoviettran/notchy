@@ -14,7 +14,7 @@ import { migrations } from '$lib/db/browser/migrations/index';
 import { ulid } from '$lib/utils/id';
 
 describe('NativeDatabaseClient', () => {
-	it('throws "native client not wired" on every operation', async () => {
+	it('propagates IPC failures from every operation', async () => {
 		const client = new NativeDatabaseClient();
 
 		await expect(client.accounts.list()).rejects.toThrow();

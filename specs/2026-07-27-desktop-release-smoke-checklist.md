@@ -106,3 +106,19 @@ Both defects are fixed on `fix/native-backup-upgrades-dir` (`1ecb590`, after the
 **Re-verified on the `0.2.1` package (2026-10-01).** `artifacts/0.2.1/notchy_0.2.1_amd64.deb` (`sha256 03303e6a…`) was driven by WebKitWebDriver against an isolated XDG tree, and both previously-blocked GUI cases pass there: **Manual backup** (a real click on *Create backup now* published a verified backup) and **Backup/restore round-trip** (probe change replaced on restore) — see the *Backup and restore (destructive)* row above. **Export SQLite / CSV**, recorded `fail` for `0.2.0`, also works on the `0.2.1` command side.
 
 This row nonetheless stays `partial`, because what it describes is the package-manager upgrade and Step 7's full checkpoint, and neither was replayed: the `0.2.1` run used a **fresh** tree from an extracted `.deb` (no `apt install`, no `0.1.4 → 0.2.1` upgrade), the native file pickers are not WebDriver-drivable, **Restart after injected failure** still stands `fail` (the sweep in `1ecb590` is unverified), and the `Ctrl+Shift+N` chord and tray activation remain undrivable (no reliable OS-level key injection on Wayland; no StatusNotifierHost exposed). Detail: `specs/notes/2026-08-17-v0.2.0.md`.
+
+## Current-source follow-up (2026-10-19, Fedora 44)
+
+See [the verification record](notes/2026-10-19-desktop-and-rules-verification.md).
+Development-native CRUD, transfer, backup/restore, exports, tray and restart were
+exercised with real Rust/SQLite in isolated XDG directories. The final 0.2.1 DEB
+was extracted and its binary rechecked for persisted data/locale, orphan backup
+sidecar cleanup, rules CRUD/toggle/learned-only clearing and tray Quick Add
+(focus, save, hide). The user manually confirmed Ctrl+Shift+N opens Quick Add.
+DEB and RPM builds pass.
+
+These results supersede the earlier “unverified sweep” and “tray unavailable”
+limitations for this current-source run. They do not turn the historical upgrade
+row into a pass: no package-manager upgrade or native file-picker round-trip was
+performed. Raw archival CSV export is also distinct from bank-style CSV import
+and full SQLite restore. Evidence: `artifacts/0.2.1/fedora-smoke/evidence/`.
