@@ -4,6 +4,7 @@
   "description": "Capabilities for the quick-add window",
   "windows": ["quick-add"],
   "permissions": [
-    "core:default"
+    "core:default",
+    "core:window:allow-hide"
   ]
 }

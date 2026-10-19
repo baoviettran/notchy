@@ -727,10 +727,10 @@ window.__TAURI_INTERNALS__ = {
 			const patch = args.patch;
 			const sets = ['updated_at = ?'];
 			const vals = [new Date().toISOString()];
-			if (patch.name !== undefined) { sets.push('name = ?'); vals.push(patch.name); }
-			if (patch.type !== undefined) { sets.push('type = ?'); vals.push(patch.type); }
-			if (patch.counterparty !== undefined) { sets.push('counterparty = ?'); vals.push(patch.counterparty); }
-			if (patch.archived !== undefined) { sets.push('archived = ?'); vals.push(patch.archived); }
+			if (patch.name != null) { sets.push('name = ?'); vals.push(patch.name); }
+			if (patch.type != null) { sets.push('type = ?'); vals.push(patch.type); }
+			if (patch.counterparty.kind !== 'omitted') { sets.push('counterparty = ?'); vals.push(patch.counterparty.kind === 'explicit_null' ? null : patch.counterparty.value); }
+			if (patch.archived != null) { sets.push('archived = ?'); vals.push(patch.archived); }
 			vals.push(args.id);
 			db.run('UPDATE accounts SET ' + sets.join(', ') + ' WHERE id = ?', vals);
 			return {};
@@ -787,8 +787,11 @@ window.__TAURI_INTERNALS__ = {
 			const patch = args.patch;
 			const sets = ['updated_at = ?'];
 			const vals = [new Date().toISOString()];
-			for (const key of ['kind', 'date', 'amount', 'account_id', 'transfer_account_id', 'tag_id', 'payee', 'description']) {
-				if (patch[key] !== undefined) { sets.push(key + ' = ?'); vals.push(patch[key]); }
+			for (const key of ['kind', 'date', 'amount', 'transfer_account_id']) {
+				if (patch[key] != null) { sets.push(key + ' = ?'); vals.push(patch[key]); }
+			}
+			for (const key of ['tag_id', 'payee', 'description']) {
+				if (patch[key].kind !== 'omitted') { sets.push(key + ' = ?'); vals.push(patch[key].kind === 'explicit_null' ? null : patch[key].value); }
 			}
 			vals.push(args.id);
 			db.run('UPDATE transactions SET ' + sets.join(', ') + ' WHERE id = ?', vals);
