@@ -56,6 +56,19 @@ class RulesStore {
 		await this.load();
 	}
 
+	async clearLearned(): Promise<number> {
+		const db = getDb();
+		const learned = (await db.rules.listAll()).filter((r) => r.source === 'learned' && r.deleted_at === null);
+		try {
+			for (const rule of learned) await db.rules.delete(rule.id);
+			return learned.length;
+		} finally {
+			// A failed batch may already have deleted some rules; always refresh
+			// so retrying targets only the learned rules that still exist.
+			await this.load();
+		}
+	}
+
 	async learnRule(payee: string, tag_id: string): Promise<{ learned: boolean; ruleId?: string }> {
 		if (!payee || !tag_id) {
 			return { learned: false };

@@ -27,6 +27,28 @@ beforeEach(async () => {
 });
 
 describe('RulesStore', () => {
+	it('clears learned rules while preserving manual rules and transaction history', async () => {
+		const manual = await rules.create({ payee_term: 'Manual', match_mode: 'contains', tag_id: 'tag_gift', source: 'manual' });
+		const learned = await rules.create({ payee_term: 'Learned', match_mode: 'is', tag_id: 'tag_gift', source: 'learned' });
+		const disabled = await rules.create({ payee_term: 'Disabled', match_mode: 'is', tag_id: 'tag_gift', source: 'learned' });
+		await rules.update(disabled.id, { enabled: 0 });
+		const deleted = await rules.create({ payee_term: 'Deleted', match_mode: 'is', tag_id: 'tag_gift', source: 'learned' });
+		await rules.delete(deleted.id);
+		const deletedAt = (await appDb.rules.listAll()).find(r => r.id === deleted.id)!.deleted_at;
+		const accountId = await accounts.createAccount(db, { name: 'Cash', type: 'cash', currency: 'VND' });
+		const txId = await transactions.createTransaction(db, { kind: 'expense', date: '2026-10-19', amount: 50000, account_id: accountId, tag_id: 'tag_gift', payee: 'Learned' });
+
+		expect(await rules.clearLearned()).toBe(2);
+		const remaining = await appDb.rules.listAll();
+		expect(remaining.find(r => r.id === manual.id)?.deleted_at).toBeNull();
+		expect(remaining.find(r => r.id === learned.id)?.deleted_at).toBeTruthy();
+		expect(remaining.find(r => r.id === disabled.id)?.deleted_at).toBeTruthy();
+		expect(remaining.find(r => r.id === deleted.id)?.deleted_at).toBe(deletedAt);
+		expect((await appDb.transactions.get(txId))?.tag_id).toBe('tag_gift');
+		expect(rules.matchTag('Manual')).toBe('tag_gift');
+		expect(rules.matchTag('Learned')).toBeNull();
+	});
+
 	it('matchTag returns null when no rules', () => {
 		expect(rules.matchTag('starbucks')).toBeNull();
 	});
