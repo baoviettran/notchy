@@ -66,3 +66,19 @@ pub fn validate_name(input: &str) -> DbResult<String> {
     }
     Ok(name.to_owned())
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ProfileSession {
+    pub profile_id: String,
+    pub generation: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ProfileSnapshot {
+    pub profiles: Vec<ProfileRecord>,
+    pub active: Option<ProfileSession>,
+    pub phase: String,
+    pub preferences: AppPreferences,
+}

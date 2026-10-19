@@ -88,11 +88,11 @@ Tasks 1–6 build tested native units without changing production startup. Tasks
 **Files:** Create `src-tauri/src/profiles/coordinator.rs`, `src-tauri/tests/profile_sessions.rs`; modify `src-tauri/src/database/{executor,connection}.rs`, `src-tauri/tests/{database_executor,process_lock}.rs`.
 **Interfaces:** Consumes registry/paths. Produces `ProfileCoordinator::open(paths: ProfilePaths) -> DbResult<Arc<Self>>`, `load`, and `with_session<T,F>(&self, session: &ProfileSession, job: F) -> DbResult<T>` where `F` consumes the admitted manager for exactly the awaited operation. Add `DatabaseManager::spawn_with_lock(paths, queue_capacity, Arc<ProcessLock>)`; existing `spawn` delegates for current callers. Coordinator holds the app lock across zero-profile and switching states.
 
-- [ ] **Step 1: Add failing tests** that hold an admitted A write while requesting B, then assert `write_destination == A`, `active == B` only after A drains, and an A-generation request returns `ProfileSessionExpired`. Assert reset/reopen gets a different generation, concurrent lifecycle requests serialize, and another process cannot acquire the lock when no database is open.
-- [ ] **Step 2: Run red:** `cargo test --manifest-path src-tauri/Cargo.toml --test profile_sessions --test process_lock --test database_executor`.
-- [ ] **Step 3: Implement admission and manager lifetime.** A read permit covers the full awaited job; lifecycle changes take the exclusive permit, drain work, then close/open. Never export a manager handle beyond admission. Add coordinator activation internals with explicit rollback; last-active is persisted only after success. Error states are typed, not panics.
-- [ ] **Step 4: Run green:** repeat tests and assert both target-open failure with successful rollback and double-open failure (recovery with no writable session). Existing single-manager tests still pass.
-- [ ] **Step 5: Commit** — Commit with `refactor(profiles): bind database work to profile sessions`.
+- [x] **Step 1: Add failing tests** that hold an admitted A write while requesting B, then assert `write_destination == A`, `active == B` only after A drains, and an A-generation request returns `ProfileSessionExpired`. Assert reset/reopen gets a different generation, concurrent lifecycle requests serialize, and another process cannot acquire the lock when no database is open.
+- [x] **Step 2: Run red:** `cargo test --manifest-path src-tauri/Cargo.toml --test profile_sessions --test process_lock --test database_executor`.
+- [x] **Step 3: Implement admission and manager lifetime.** A read permit covers the full awaited job; lifecycle changes take the exclusive permit, drain work, then close/open. Never export a manager handle beyond admission. Add coordinator activation internals with explicit rollback; last-active is persisted only after success. Error states are typed, not panics.
+- [x] **Step 4: Run green:** repeat tests and assert both target-open failure with successful rollback and double-open failure (recovery with no writable session). Existing single-manager tests still pass.
+- [x] **Step 5: Commit** — Commit with `refactor(profiles): bind database work to profile sessions`.
 
 ### Task 3: Journaled creation, rename and replay
 
