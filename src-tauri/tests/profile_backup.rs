@@ -17,7 +17,7 @@ async fn restore_uses_verified_preview_and_creates_new_identity() {
     let (paths, coordinator) = fixture();
     let original = coordinator.create("Personal", &context()).await.unwrap();
     let source = paths.profile_dir(&original.id).unwrap().join("notchy.db");
-    let export = paths.data_dir.join("portable.sqlite");
+    let export = paths.data_dir.parent().unwrap().join("portable.sqlite");
     coordinator.export_backup(&original.id, &export).await.unwrap();
     let source_before = fs::read(&source).unwrap();
     let preview = coordinator.inspect_restore(&export).await.unwrap();
@@ -101,7 +101,7 @@ async fn failed_export_preserves_existing_target_and_other_profiles() {
     let b = coordinator.create("B", &context()).await.unwrap();
     let b_source = paths.profile_dir(&b.id).unwrap().join("notchy.db");
     let b_before = fs::read(&b_source).unwrap();
-    let target = paths.data_dir.join("saved.sqlite");
+    let target = paths.data_dir.parent().unwrap().join("saved.sqlite");
     fs::write(&target, b"old export").unwrap();
     assert!(coordinator.export_backup_with_failpoint(&a.id, &target, BackupFailurePoint::AfterCopy).await.is_err());
     assert_eq!(fs::read(&target).unwrap(), b"old export");

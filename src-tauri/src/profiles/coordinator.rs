@@ -28,6 +28,7 @@ pub struct ProfileCoordinator {
     pub(super) transition: tokio::sync::RwLock<()>,
     pub(super) state: Mutex<State>,
     pub(super) previews: Mutex<HashMap<String, PreviewEntry>>,
+    transition_tokens: Mutex<std::collections::HashSet<String>>,
 }
 
 impl ProfileCoordinator {
@@ -42,9 +43,30 @@ impl ProfileCoordinator {
             transition: tokio::sync::RwLock::new(()),
             state: Mutex::new(State { registry, active: None, recovery: false }),
             previews: Mutex::new(HashMap::new()),
+            transition_tokens: Mutex::new(std::collections::HashSet::new()),
         });
         coordinator.reconcile_operations()?;
+        coordinator.reconcile_resets()?;
+        coordinator.reconcile_deletes()?;
         Ok(coordinator)
+    }
+
+    /// A one-use process token; the window draft barrier will be its only command caller.
+    pub fn issue_transition_token(&self) -> String {
+        let token = OperationId::generate().as_str().to_owned();
+        self.transition_tokens.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).insert(token.clone());
+        token
+    }
+
+    pub(super) fn require_transition_token(&self, id: &str, token: Option<&str>) -> DbResult<()> {
+        let state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if !state.active.as_ref().is_some_and(|active| active.session.profile_id == id) { return Ok(()); }
+        drop(state);
+        let Some(token) = token else { return Err(DbError::new(ErrorCode::InvalidInput)); };
+        if !self.transition_tokens.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).remove(token) {
+            return Err(DbError::new(ErrorCode::InvalidInput));
+        }
+        Ok(())
     }
 
     pub fn load(&self) -> ProfileSnapshot {
@@ -115,7 +137,15 @@ impl ProfileCoordinator {
         Ok(session)
     }
 
-    async fn reopen_previous(&self, id: Option<&str>) {
+    pub(super) fn suspend_active(&self, id: &str) -> bool {
+        let active = {
+            let mut state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            if state.active.as_ref().is_some_and(|active| active.session.profile_id == id) { state.active.take() } else { None }
+        };
+        if let Some(active) = active { active.manager.shutdown(); true } else { false }
+    }
+
+    pub(super) async fn reopen_previous(&self, id: Option<&str>) {
         let reopened = match id {
             Some(id) => self.open_manager(id).await.ok().map(|manager| ActiveProfile { session: Self::new_session(id), manager }),
             None => None,
@@ -138,5 +168,12 @@ impl ProfileCoordinator {
 
     fn new_session(id: &str) -> ProfileSession {
         ProfileSession { profile_id: id.to_owned(), generation: OperationId::generate().as_str().to_owned() }
+    }
+}
+
+impl Drop for ProfileCoordinator {
+    fn drop(&mut self) {
+        let state = self.state.get_mut().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(active) = state.active.take() { active.manager.shutdown(); }
     }
 }

@@ -36,13 +36,13 @@ fn validate_compatible(path: &Path) -> DbResult<i64> {
 impl ProfileCoordinator {
     fn preview_root(&self) -> PathBuf { self.paths.data_dir.join("profile-operations/previews") }
 
-    fn profile_source(&self, id: &str) -> DbResult<PathBuf> {
+    pub(super) fn profile_source(&self, id: &str) -> DbResult<PathBuf> {
         let state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         if !state.registry.profiles.iter().any(|profile| profile.id == id) { return Err(DbError::new(ErrorCode::InvalidInput)); }
         Ok(self.paths.profile_dir(id)?.join("notchy.db"))
     }
 
-    fn labeled_snapshot(&self, id: &str) -> DbResult<PathBuf> {
+    pub(super) fn labeled_snapshot(&self, id: &str) -> DbResult<PathBuf> {
         let source = self.profile_source(id)?;
         validate_compatible(&source)?;
         let name = {
@@ -69,7 +69,11 @@ impl ProfileCoordinator {
         self.profile_source(id)?;
         let directory = self.paths.profile_dir(id)?.join("backups");
         if !directory.exists() { return Ok(Vec::new()); }
-        discover_verified_backups(directory)
+        let mut backups = discover_verified_backups(&directory)?;
+        let reset_dir = directory.join("resets");
+        if reset_dir.exists() { backups.extend(discover_verified_backups(reset_dir)?); }
+        backups.sort_by(|a, b| b.id.cmp(&a.id));
+        Ok(backups)
     }
 
     pub async fn backup(&self, id: &str) -> DbResult<BackupToken> {
@@ -87,14 +91,29 @@ impl ProfileCoordinator {
 
     pub async fn export_backup_with_failpoint(&self, id: &str, destination: &Path, failpoint: BackupFailurePoint) -> DbResult<PathBuf> {
         let _permit = self.transition.write().await;
-        let profile_dir = self.paths.profile_dir(id)?;
-        if destination.starts_with(&profile_dir) || destination.starts_with(self.paths.data_dir.join("profile-operations")) {
-            return Err(DbError::new(ErrorCode::InvalidInput));
-        }
+        self.profile_source(id)?;
+        self.validate_external_export(destination)?;
         let snapshot = self.labeled_snapshot(id)?;
         let result = export_backup_to_at(&snapshot, destination, failpoint);
         let _ = fs::remove_file(snapshot);
         result
+    }
+
+    pub fn validate_external_export(&self, destination: &Path) -> DbResult<()> {
+        let absolute = if destination.is_absolute() { destination.to_path_buf() } else { std::env::current_dir().map_err(|_| invalid())?.join(destination) };
+        let owned = fs::canonicalize(&self.paths.data_dir).unwrap_or_else(|_| self.paths.data_dir.clone());
+        let config = fs::canonicalize(&self.paths.config_dir).unwrap_or_else(|_| self.paths.config_dir.clone());
+        let mut existing = absolute.as_path();
+        let mut missing = Vec::new();
+        while !existing.exists() {
+            let name = existing.file_name().ok_or_else(|| DbError::new(ErrorCode::InvalidInput))?;
+            missing.push(name.to_owned());
+            existing = existing.parent().ok_or_else(|| DbError::new(ErrorCode::InvalidInput))?;
+        }
+        let mut resolved = fs::canonicalize(existing).map_err(|_| invalid())?;
+        for name in missing.iter().rev() { resolved.push(name); }
+        if resolved.starts_with(&owned) || resolved.starts_with(&config) { return Err(DbError::new(ErrorCode::InvalidInput)); }
+        Ok(())
     }
 
     pub async fn inspect_restore(&self, source: &Path) -> DbResult<RestorePreview> {
