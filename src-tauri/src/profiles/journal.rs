@@ -22,6 +22,8 @@ pub struct JournalRecord {
     pub staging_path: String,
     pub target_path: String,
     pub result: ProfileRecord,
+    #[serde(default)]
+    pub source_token: Option<String>,
 }
 
 pub struct JournalStore { paths: ProfilePaths }
@@ -86,7 +88,9 @@ impl JournalStore {
     fn validate(&self, record: &JournalRecord) -> DbResult<()> {
         OperationId::parse(&record.operation_id).map_err(|_| DbError::new(ErrorCode::DatabaseInvalid))?;
         OperationId::parse(&record.target_id).map_err(|_| DbError::new(ErrorCode::DatabaseInvalid))?;
-        if record.kind != "create" || record.result.id != record.target_id ||
+        if !matches!(record.kind.as_str(), "create" | "restore") ||
+            (record.kind == "restore" && record.source_token.as_deref().and_then(|token| OperationId::parse(token).ok()).is_none()) ||
+            record.result.id != record.target_id ||
             record.staging_path != self.stage_dir(&record.operation_id)?.to_string_lossy() ||
             record.target_path != self.paths.profile_dir(&record.target_id)?.to_string_lossy() {
             return Err(DbError::new(ErrorCode::DatabaseInvalid));

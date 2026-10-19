@@ -4,3 +4,4 @@ pub mod types;
 pub mod coordinator;
 pub mod journal;
 pub mod create;
+pub mod backup;

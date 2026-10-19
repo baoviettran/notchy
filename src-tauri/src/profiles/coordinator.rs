@@ -1,9 +1,11 @@
 use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
 
 use crate::database::connection::DatabasePaths;
 use crate::database::executor::{DatabaseManager, ExecutorState};
 use crate::database::{DbError, DbResult, ErrorCode, OperationId, ProcessLock};
 use super::paths::ProfilePaths;
+use super::backup::PreviewEntry;
 use super::registry::RegistryStore;
 use super::types::{AppPreferences, ProfileRegistry, ProfileSession, ProfileSnapshot};
 
@@ -25,6 +27,7 @@ pub struct ProfileCoordinator {
     lock: Arc<ProcessLock>,
     pub(super) transition: tokio::sync::RwLock<()>,
     pub(super) state: Mutex<State>,
+    pub(super) previews: Mutex<HashMap<String, PreviewEntry>>,
 }
 
 impl ProfileCoordinator {
@@ -32,10 +35,13 @@ impl ProfileCoordinator {
         let lock = Arc::new(ProcessLock::acquire(&paths.config_dir.join("notchy.lock"))?);
         let store = RegistryStore::new(paths.clone());
         let registry = store.load()?;
+        let preview_root = paths.data_dir.join("profile-operations/previews");
+        if preview_root.exists() { std::fs::remove_dir_all(&preview_root).map_err(|_| DbError::new(ErrorCode::DatabaseInvalid))?; }
         let coordinator = Arc::new(Self {
             paths, store, lock,
             transition: tokio::sync::RwLock::new(()),
             state: Mutex::new(State { registry, active: None, recovery: false }),
+            previews: Mutex::new(HashMap::new()),
         });
         coordinator.reconcile_operations()?;
         Ok(coordinator)

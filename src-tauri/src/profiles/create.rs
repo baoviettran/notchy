@@ -34,7 +34,7 @@ impl ProfileCoordinator {
                     phase: JournalPhase::Prepared,
                     staging_path: journals.stage_dir(&context.operation_id)?.to_string_lossy().into_owned(),
                     target_path: self.paths.profile_dir(&target_id)?.to_string_lossy().into_owned(),
-                    result,
+                    result, source_token: None,
                 };
                 journals.save(&record)?;
                 record
@@ -64,7 +64,7 @@ impl ProfileCoordinator {
         Ok(())
     }
 
-    fn finish_create(&self, mut record: JournalRecord, failpoint: CreateFailurePoint) -> DbResult<ProfileRecord> {
+    pub(super) fn finish_create(&self, mut record: JournalRecord, failpoint: CreateFailurePoint) -> DbResult<ProfileRecord> {
         let journals = JournalStore::new(self.paths.clone());
         let stage_dir = journals.stage_dir(&record.operation_id)?;
         let target_dir = self.paths.profile_dir(&record.target_id)?;
@@ -75,6 +75,7 @@ impl ProfileCoordinator {
         }
         if !target_dir.exists() {
             if !stage_dir.exists() {
+                if record.kind == "restore" { return Err(DbError::new(ErrorCode::DatabaseInvalid)); }
                 journals.ensure_staging_root()?;
                 create_dir_private(&stage_dir).map_err(|_| DbError::new(ErrorCode::DatabaseInvalid))?;
                 bootstrap_current(&stage_dir.join("notchy.db"), FailurePoint::None)?;
