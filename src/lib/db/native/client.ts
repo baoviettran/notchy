@@ -40,6 +40,7 @@ import type {
 	NetWorthPoint,
 } from '../client';
 import { NativeBackupOps } from './backup';
+import type { SessionInvoker } from '$lib/profiles/session';
 import { NativeScheduleOps } from './schedules';
 import type { ToBudgetBreakdown as GeneratedToBudgetBreakdown } from '$lib/native/contracts.generated';
 import type { AccountPatch, Patch, TransactionPatch } from '$lib/native/contracts.generated';
@@ -103,24 +104,25 @@ export function databaseStatus(): Promise<DatabaseStatus> {
 // ---------------------------------------------------------------------------
 
 class NativeAccountOps implements AccountOps {
+	constructor(private readonly invoke: SessionInvoker) {}
 	list(): Promise<AccountWithBalance[]> {
-		return invoke<AccountWithBalance[]>('account_list');
+		return this.invoke<AccountWithBalance[]>('account_list');
 	}
 
 	get(id: string): Promise<AccountWithBalance | null> {
-		return invoke<AccountWithBalance | null>('account_get', { id });
+		return this.invoke<AccountWithBalance | null>('account_get', { id });
 	}
 
 	getBalance(accountId: string): Promise<number> {
-		return invoke<number>('account_get_balance', { accountId });
+		return this.invoke<number>('account_get_balance', { accountId });
 	}
 
 	getBalanceAsOf(accountId: string, date: string): Promise<number> {
-		return invoke<number>('account_get_balance_as_of', { accountId, date });
+		return this.invoke<number>('account_get_balance_as_of', { accountId, date });
 	}
 
 	create(input: NewAccount): Promise<string> {
-		return invoke<string>('account_create', { input });
+		return this.invoke<string>('account_create', { input });
 	}
 
 	update(id: string, patch: { name?: string; type?: AccountType; counterparty?: string | null; archived?: number }): Promise<void> {
@@ -130,15 +132,15 @@ class NativeAccountOps implements AccountOps {
 			counterparty: nullablePatch(patch.counterparty),
 			archived: patch.archived ?? null
 		};
-		return invoke<void>('account_update', { id, patch: nativePatch });
+		return this.invoke<void>('account_update', { id, patch: nativePatch });
 	}
 
 	delete(id: string): Promise<void> {
-		return invoke<void>('account_delete', { id });
+		return this.invoke<void>('account_delete', { id });
 	}
 
 	restore(id: string): Promise<void> {
-		return invoke<void>('account_restore', { id });
+		return this.invoke<void>('account_restore', { id });
 	}
 }
 
@@ -147,20 +149,21 @@ class NativeAccountOps implements AccountOps {
 // ---------------------------------------------------------------------------
 
 class NativeTransactionOps implements TransactionOps {
+	constructor(private readonly invoke: SessionInvoker) {}
 	list(filter?: TransactionFilter): Promise<Transaction[]> {
-		return invoke<Transaction[]>('transaction_list', { filter: filter ?? null });
+		return this.invoke<Transaction[]>('transaction_list', { filter: filter ?? null });
 	}
 
 	get(id: string): Promise<Transaction | null> {
-		return invoke<Transaction | null>('transaction_get', { id });
+		return this.invoke<Transaction | null>('transaction_get', { id });
 	}
 
 	create(input: NewTransaction): Promise<string> {
-		return invoke<string>('transaction_create', { input });
+		return this.invoke<string>('transaction_create', { input });
 	}
 
 	createBatch(inputs: NewTransaction[]): Promise<string[]> {
-		return invoke<string[]>('transaction_create_batch', { inputs });
+		return this.invoke<string[]>('transaction_create_batch', { inputs });
 	}
 
 	update(id: string, patch: Partial<NewTransaction>): Promise<void> {
@@ -173,35 +176,35 @@ class NativeTransactionOps implements TransactionOps {
 			payee: nullablePatch(patch.payee),
 			description: nullablePatch(patch.description)
 		};
-		return invoke<void>('transaction_update', { id, patch: nativePatch });
+		return this.invoke<void>('transaction_update', { id, patch: nativePatch });
 	}
 
 	delete(id: string): Promise<void> {
-		return invoke<void>('transaction_delete', { id });
+		return this.invoke<void>('transaction_delete', { id });
 	}
 
 	restore(id: string): Promise<void> {
-		return invoke<void>('transaction_restore', { id });
+		return this.invoke<void>('transaction_restore', { id });
 	}
 
 	duplicate(id: string): Promise<string> {
-		return invoke<string>('transaction_duplicate', { id });
+		return this.invoke<string>('transaction_duplicate', { id });
 	}
 
 	deleteMany(ids: string[]): Promise<void> {
-		return invoke<void>('transaction_delete_many', { ids });
+		return this.invoke<void>('transaction_delete_many', { ids });
 	}
 
 	setTagMany(ids: string[], tagId: string | null): Promise<void> {
-		return invoke<void>('transaction_set_tag_many', { ids, tagId });
+		return this.invoke<void>('transaction_set_tag_many', { ids, tagId });
 	}
 
 	setAccountMany(ids: string[], accountId: string): Promise<void> {
-		return invoke<void>('transaction_set_account_many', { ids, accountId });
+		return this.invoke<void>('transaction_set_account_many', { ids, accountId });
 	}
 
 	getFrequent(_sinceDate: string): Promise<import('../client').FrequentTx[]> {
-		return invoke<import('../client').FrequentTx[]>('transaction_frequent', { sinceDate: _sinceDate });
+		return this.invoke<import('../client').FrequentTx[]>('transaction_frequent', { sinceDate: _sinceDate });
 	}
 }
 
@@ -210,48 +213,49 @@ class NativeTransactionOps implements TransactionOps {
 // ---------------------------------------------------------------------------
 
 class NativeCategoryOps implements CategoryOps {
+	constructor(private readonly invoke: SessionInvoker) {}
 	listBuckets(): Promise<Bucket[]> {
-		return invoke<Bucket[]>('category_list_buckets');
+		return this.invoke<Bucket[]>('category_list_buckets');
 	}
 
 	createBucket(name: string, budgetable?: number): Promise<string> {
-		return invoke<string>('category_create_bucket', { name, budgetable: budgetable ?? null });
+		return this.invoke<string>('category_create_bucket', { name, budgetable: budgetable ?? null });
 	}
 
 	renameBucket(id: string, name: string): Promise<void> {
-		return invoke<void>('category_rename_bucket', { id, name });
+		return this.invoke<void>('category_rename_bucket', { id, name });
 	}
 
 	setRolloverEnabled(id: string, enabled: boolean): Promise<void> {
-		return invoke<void>('category_set_rollover_enabled', { id, enabled });
+		return this.invoke<void>('category_set_rollover_enabled', { id, enabled });
 	}
 
 	deleteBucket(id: string): Promise<void> {
-		return invoke<void>('category_delete_bucket', { id });
+		return this.invoke<void>('category_delete_bucket', { id });
 	}
 
 	listTags(bucketId?: string): Promise<Tag[]> {
-		return invoke<Tag[]>('category_list_tags', { bucketId: bucketId ?? null });
+		return this.invoke<Tag[]>('category_list_tags', { bucketId: bucketId ?? null });
 	}
 
 	createTag(name: string, bucketId: string): Promise<string> {
-		return invoke<string>('category_create_tag', { name, bucketId });
+		return this.invoke<string>('category_create_tag', { name, bucketId });
 	}
 
 	renameTag(id: string, name: string): Promise<void> {
-		return invoke<void>('category_rename_tag', { id, name });
+		return this.invoke<void>('category_rename_tag', { id, name });
 	}
 
 	moveTag(tagId: string, newBucketId: string): Promise<TagDeleteInfo> {
-		return invoke<TagDeleteInfo>('category_move_tag', { tagId, newBucketId });
+		return this.invoke<TagDeleteInfo>('category_move_tag', { tagId, newBucketId });
 	}
 
 	getTagTransactionInfo(tagId: string): Promise<TagDeleteInfo> {
-		return invoke<TagDeleteInfo>('category_get_tag_transaction_info', { tagId });
+		return this.invoke<TagDeleteInfo>('category_get_tag_transaction_info', { tagId });
 	}
 
 	deleteTag(id: string, option: 'uncategorise' | { merge_into: string }): Promise<void> {
-		return invoke<void>('category_delete_tag', { id, option: typeof option === 'string' ? option : JSON.stringify(option) });
+		return this.invoke<void>('category_delete_tag', { id, option: typeof option === 'string' ? option : JSON.stringify(option) });
 	}
 }
 
@@ -262,7 +266,7 @@ class NativeCategoryOps implements CategoryOps {
 /**
  * Compile-time provenance guard for `ToBudgetBreakdown`.
  *
- * `getToBudget` below types `invoke<ToBudgetBreakdown>('budget_get_to_budget')`
+ * `getToBudget` below types `this.invoke<ToBudgetBreakdown>('budget_get_to_budget')`
  * from the *hand-written* interface in `src/lib/db/browser/repos/budgets.ts`
  * (re-exported via `$lib/db/client`), while the Rust DTO's generated TS mirror
  * lives in `src/lib/native/contracts.generated.ts`. `pnpm check:db-contracts`
@@ -281,32 +285,33 @@ export const toBudgetBreakdownIsRustShaped: MutuallyAssignable<
 > = true;
 
 class NativeBudgetOps implements BudgetOps {
+	constructor(private readonly invoke: SessionInvoker) {}
 	getForMonth(month: string): Promise<BudgetSummary[]> {
-		return invoke<BudgetSummary[]>('budget_get_for_month', { month });
+		return this.invoke<BudgetSummary[]>('budget_get_for_month', { month });
 	}
 
 	getSpentForBucket(typeId: string, month: string): Promise<number> {
-		return invoke<number>('budget_get_spent_for_bucket', { typeId, month });
+		return this.invoke<number>('budget_get_spent_for_bucket', { typeId, month });
 	}
 
 	getRolledOver(typeId: string, month: string): Promise<number> {
-		return invoke<number>('budget_get_rolled_over', { typeId, month });
+		return this.invoke<number>('budget_get_rolled_over', { typeId, month });
 	}
 
 	getToBudget(month: string): Promise<ToBudgetBreakdown> {
-		return invoke<ToBudgetBreakdown>('budget_get_to_budget', { month });
+		return this.invoke<ToBudgetBreakdown>('budget_get_to_budget', { month });
 	}
 
 	setAllocation(typeId: string, month: string, allocated: number): Promise<void> {
-		return invoke<void>('budget_set_allocation', { typeId, month, allocated });
+		return this.invoke<void>('budget_set_allocation', { typeId, month, allocated });
 	}
 
 	copyFromPreviousMonth(targetMonth: string): Promise<void> {
-		return invoke<void>('budget_copy_from_previous_month', { targetMonth });
+		return this.invoke<void>('budget_copy_from_previous_month', { targetMonth });
 	}
 
 	hasAllocations(month: string): Promise<boolean> {
-		return invoke<boolean>('budget_has_allocations', { month });
+		return this.invoke<boolean>('budget_has_allocations', { month });
 	}
 }
 
@@ -315,16 +320,17 @@ class NativeBudgetOps implements BudgetOps {
 // ---------------------------------------------------------------------------
 
 class NativeGoalOps implements GoalOps {
+	constructor(private readonly invoke: SessionInvoker) {}
 	list(): Promise<GoalWithProgress[]> {
-		return invoke<GoalWithProgress[]>('goal_list');
+		return this.invoke<GoalWithProgress[]>('goal_list');
 	}
 
 	get(id: string): Promise<GoalWithProgress | null> {
-		return invoke<GoalWithProgress | null>('goal_get', { id });
+		return this.invoke<GoalWithProgress | null>('goal_get', { id });
 	}
 
 	create(input: NewGoal): Promise<string> {
-		return invoke<string>('goal_create', {
+		return this.invoke<string>('goal_create', {
 			name: input.name,
 			goalType: input.type,
 			targetAmount: input.target_amount,
@@ -336,7 +342,7 @@ class NativeGoalOps implements GoalOps {
 	}
 
 	update(id: string, patch: Partial<NewGoal> & { status?: GoalStatus }): Promise<void> {
-		return invoke<void>('goal_update', {
+		return this.invoke<void>('goal_update', {
 			id,
 			name: patch.name ?? null,
 			targetAmount: patch.target_amount ?? null,
@@ -347,11 +353,11 @@ class NativeGoalOps implements GoalOps {
 	}
 
 	delete(id: string): Promise<void> {
-		return invoke<void>('goal_delete', { id });
+		return this.invoke<void>('goal_delete', { id });
 	}
 
 	restore(id: string): Promise<void> {
-		return invoke<void>('goal_restore', { id });
+		return this.invoke<void>('goal_restore', { id });
 	}
 }
 
@@ -360,16 +366,17 @@ class NativeGoalOps implements GoalOps {
 // ---------------------------------------------------------------------------
 
 class NativeRuleOps implements RuleOps {
+	constructor(private readonly invoke: SessionInvoker) {}
 	list(): Promise<CategorizeRule[]> {
-		return invoke<CategorizeRule[]>('rule_list');
+		return this.invoke<CategorizeRule[]>('rule_list');
 	}
 
 	listAll(): Promise<CategorizeRule[]> {
-		return invoke<CategorizeRule[]>('rule_list_all');
+		return this.invoke<CategorizeRule[]>('rule_list_all');
 	}
 
 	create(input: NewCategorizeRule): Promise<CategorizeRule> {
-		return invoke<CategorizeRule>('rule_create', {
+		return this.invoke<CategorizeRule>('rule_create', {
 			payeeTerm: input.payee_term,
 			matchMode: input.match_mode,
 			tagId: input.tag_id,
@@ -378,7 +385,7 @@ class NativeRuleOps implements RuleOps {
 	}
 
 	update(id: string, patch: CategorizeRuleUpdate): Promise<CategorizeRule> {
-		return invoke<CategorizeRule>('rule_update', {
+		return this.invoke<CategorizeRule>('rule_update', {
 			id,
 			payeeTerm: patch.payee_term ?? null,
 			matchMode: patch.match_mode ?? null,
@@ -389,11 +396,11 @@ class NativeRuleOps implements RuleOps {
 	}
 
 	delete(id: string): Promise<void> {
-		return invoke<void>('rule_delete', { id });
+		return this.invoke<void>('rule_delete', { id });
 	}
 
 	upsertLearned(payeeTerm: string, tagId: string): Promise<CategorizeRule> {
-		return invoke<CategorizeRule>('rule_upsert_learned', { payeeTerm, tagId });
+		return this.invoke<CategorizeRule>('rule_upsert_learned', { payeeTerm, tagId });
 	}
 }
 
@@ -402,52 +409,53 @@ class NativeRuleOps implements RuleOps {
 // ---------------------------------------------------------------------------
 
 class NativeMetaOps implements MetaOps {
+	constructor(private readonly invoke: SessionInvoker) {}
 	get(key: string): Promise<string | null> {
-		return invoke<string | null>('meta_get', { key });
+		return this.invoke<string | null>('meta_get', { key });
 	}
 
 	set(key: string, value: string): Promise<void> {
-		return invoke<void>('meta_set', { key, value });
+		return this.invoke<void>('meta_set', { key, value });
 	}
 
 	delete(key: string): Promise<void> {
-		return invoke<void>('meta_delete', { key });
+		return this.invoke<void>('meta_delete', { key });
 	}
 
 	isFirstRunComplete(): Promise<boolean> {
-		return invoke<boolean>('meta_is_first_run_complete');
+		return this.invoke<boolean>('meta_is_first_run_complete');
 	}
 
 	getLocale(): Promise<string> {
-		return invoke<string>('meta_get_locale');
+		return this.invoke<string>('meta_get_locale');
 	}
 
 	getCurrency(): Promise<string> {
-		return invoke<string>('meta_get_currency');
+		return this.invoke<string>('meta_get_currency');
 	}
 
 	isTourComplete(): Promise<boolean> {
-		return invoke<boolean>('meta_is_tour_complete');
+		return this.invoke<boolean>('meta_is_tour_complete');
 	}
 
 	setTourComplete(): Promise<void> {
-		return invoke<void>('meta_set_tour_complete');
+		return this.invoke<void>('meta_set_tour_complete');
 	}
 
 	setFirstRunComplete(): Promise<void> {
-		return invoke<void>('meta_set_first_run_complete');
+		return this.invoke<void>('meta_set_first_run_complete');
 	}
 
 	getDefaultQuickAccount(): Promise<string | null> {
-		return invoke<string | null>('meta_get_default_quick_account');
+		return this.invoke<string | null>('meta_get_default_quick_account');
 	}
 
 	setDefaultQuickAccount(accountId: string): Promise<void> {
-		return invoke<void>('meta_set_default_quick_account', { accountId });
+		return this.invoke<void>('meta_set_default_quick_account', { accountId });
 	}
 
 	clearDefaultQuickAccount(): Promise<void> {
-		return invoke<void>('meta_clear_default_quick_account');
+		return this.invoke<void>('meta_clear_default_quick_account');
 	}
 }
 
@@ -456,12 +464,13 @@ class NativeMetaOps implements MetaOps {
 // ---------------------------------------------------------------------------
 
 class NativeDebtOps implements DebtOps {
+	constructor(private readonly invoke: SessionInvoker) {}
 	list(): Promise<{ i_owe: DebtAccount[]; owed_to_me: DebtAccount[] }> {
-		return invoke<{ i_owe: DebtAccount[]; owed_to_me: DebtAccount[] }>('debt_list');
+		return this.invoke<{ i_owe: DebtAccount[]; owed_to_me: DebtAccount[] }>('debt_list');
 	}
 
 	writeOff(accountId: string, amount: number, tagId?: string): Promise<string> {
-		return invoke<string>('debt_write_off', { accountId, amount, tagId: tagId ?? null });
+		return this.invoke<string>('debt_write_off', { accountId, amount, tagId: tagId ?? null });
 	}
 }
 
@@ -470,12 +479,13 @@ class NativeDebtOps implements DebtOps {
 // ---------------------------------------------------------------------------
 
 class NativeReconciliationOps implements ReconciliationOps {
+	constructor(private readonly invoke: SessionInvoker) {}
 	getHistory(accountId: string): Promise<Reconciliation[]> {
-		return invoke<Reconciliation[]>('reconciliation_get_history', { accountId });
+		return this.invoke<Reconciliation[]>('reconciliation_get_history', { accountId });
 	}
 
 	reconcile(accountId: string, actualBalance: number, createAdjustment: boolean, notes?: string): Promise<ReconcileResult> {
-		return invoke<ReconcileResult>('reconciliation_reconcile', {
+		return this.invoke<ReconcileResult>('reconciliation_reconcile', {
 			accountId,
 			actualBalance,
 			createAdjustment,
@@ -489,32 +499,33 @@ class NativeReconciliationOps implements ReconciliationOps {
 // ---------------------------------------------------------------------------
 
 class NativeReportOps implements ReportOps {
+	constructor(private readonly invoke: SessionInvoker) {}
 	getOverview(month: string, includeAdjustments?: boolean): Promise<OverviewReport> {
-		return invoke<OverviewReport>('report_get_overview', { month, includeAdjustments: includeAdjustments ?? null });
+		return this.invoke<OverviewReport>('report_get_overview', { month, includeAdjustments: includeAdjustments ?? null });
 	}
 
 	getTrend(months: number, includeAdjustments?: boolean, bucketId?: string): Promise<TrendPoint[]> {
-		return invoke<TrendPoint[]>('report_get_trend', { months, includeAdjustments: includeAdjustments ?? null, bucketId: bucketId ?? null });
+		return this.invoke<TrendPoint[]>('report_get_trend', { months, includeAdjustments: includeAdjustments ?? null, bucketId: bucketId ?? null });
 	}
 
 	getComparison(monthA: string, monthB: string, includeAdjustments?: boolean): Promise<CompareRow[]> {
-		return invoke<CompareRow[]>('report_get_comparison', { monthA, monthB, includeAdjustments: includeAdjustments ?? null });
+		return this.invoke<CompareRow[]>('report_get_comparison', { monthA, monthB, includeAdjustments: includeAdjustments ?? null });
 	}
 
 	getCategoryTrend(tagId: string, months: number, includeAdjustments?: boolean): Promise<CategoryTrendPoint[]> {
-		return invoke<CategoryTrendPoint[]>('report_get_category_trend', { tagId, months, includeAdjustments: includeAdjustments ?? null });
+		return this.invoke<CategoryTrendPoint[]>('report_get_category_trend', { tagId, months, includeAdjustments: includeAdjustments ?? null });
 	}
 
 	getStackedCategorySeries(months: number, includeAdjustments?: boolean): Promise<StackedCategoryPoint[]> {
-		return invoke<StackedCategoryPoint[]>('report_get_stacked_category_series', { months, includeAdjustments: includeAdjustments ?? null });
+		return this.invoke<StackedCategoryPoint[]>('report_get_stacked_category_series', { months, includeAdjustments: includeAdjustments ?? null });
 	}
 
 	getYearOverYear(yearA: number, yearB: number, includeAdjustments?: boolean): Promise<YearOverYearPoint[]> {
-		return invoke<YearOverYearPoint[]>('report_get_year_over_year', { yearA, yearB, includeAdjustments: includeAdjustments ?? null });
+		return this.invoke<YearOverYearPoint[]>('report_get_year_over_year', { yearA, yearB, includeAdjustments: includeAdjustments ?? null });
 	}
 
 	getNetWorthSeries(months: number, includeAdjustments?: boolean): Promise<NetWorthPoint[]> {
-		return invoke<NetWorthPoint[]>('report_get_net_worth_series', { months, includeAdjustments: includeAdjustments ?? null });
+		return this.invoke<NetWorthPoint[]>('report_get_net_worth_series', { months, includeAdjustments: includeAdjustments ?? null });
 	}
 }
 
@@ -523,19 +534,31 @@ class NativeReportOps implements ReportOps {
 // ---------------------------------------------------------------------------
 
 export class NativeDatabaseClient implements AppDatabase {
-	readonly accounts: AccountOps = new NativeAccountOps();
-	readonly transactions: TransactionOps = new NativeTransactionOps();
-	readonly categories: CategoryOps = new NativeCategoryOps();
-	readonly budgets: BudgetOps = new NativeBudgetOps();
-	readonly goals: GoalOps = new NativeGoalOps();
-	readonly rules: RuleOps = new NativeRuleOps();
-	readonly meta: MetaOps = new NativeMetaOps();
-	readonly debts: DebtOps = new NativeDebtOps();
-	readonly reconciliations: ReconciliationOps = new NativeReconciliationOps();
-	readonly reports: ReportOps = new NativeReportOps();
-	readonly backup: BackupOps = new NativeBackupOps();
-	readonly schedules: ScheduleOps = new NativeScheduleOps();
+	readonly accounts: AccountOps;
+	readonly transactions: TransactionOps;
+	readonly categories: CategoryOps;
+	readonly budgets: BudgetOps;
+	readonly goals: GoalOps;
+	readonly rules: RuleOps;
+	readonly meta: MetaOps;
+	readonly debts: DebtOps;
+	readonly reconciliations: ReconciliationOps;
+	readonly reports: ReportOps;
+	readonly backup: BackupOps;
+	readonly schedules: ScheduleOps;
 
-	// NativeDatabaseClient delegates raw SQL operations to Rust commands.
-	// No DatabaseService instance is available here.
+	constructor(invoker: SessionInvoker = invoke) {
+		this.accounts = new NativeAccountOps(invoker);
+		this.transactions = new NativeTransactionOps(invoker);
+		this.categories = new NativeCategoryOps(invoker);
+		this.budgets = new NativeBudgetOps(invoker);
+		this.goals = new NativeGoalOps(invoker);
+		this.rules = new NativeRuleOps(invoker);
+		this.meta = new NativeMetaOps(invoker);
+		this.debts = new NativeDebtOps(invoker);
+		this.reconciliations = new NativeReconciliationOps(invoker);
+		this.reports = new NativeReportOps(invoker);
+		this.backup = new NativeBackupOps(invoker);
+		this.schedules = new NativeScheduleOps(invoker);
+	}
 }

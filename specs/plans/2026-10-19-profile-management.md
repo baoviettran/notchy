@@ -154,11 +154,11 @@ Tasks 1–6 build tested native units without changing production startup. Tasks
 **Files:** Create `src/lib/profiles/{types,port,native,browser,session}.ts`, `src/tests/unit/profiles-port.test.ts`, `src/tests/unit/profile-session.test.ts`; modify `src/lib/db/native/{client,backup,schedules}.ts` and `src/lib/db/browser/client.ts` to support explicit bound invocation without activating it in bootstrap yet; extend `src/tests/unit/native-boundary.test.ts`.
 **Interfaces:** Implements shared `ProfilePort` including `cancelRestore`. `createSessionInvoker(session: ProfileSession): <T>(command: string, args?: Record<string, unknown>) => Promise<T>` always captures the immutable session. `assertCurrentSession(expected, actual): void` throws on profile or generation mismatch. Browser port accepts injected `createDatabase: () => Promise<DatabaseService>` and snapshot import/export functions; tests supply `createTestDb()`.
 
-- [ ] **Step 1: Add failing tests** with two real SQLite databases asserting isolated accounts/rules/currency, identical name validation and duplicate restore naming. Pin `expect(() => assertCurrentSession(oldSession, newSession)).toThrow()` for same-ID/new-generation; assert invoking a delayed A command still sends A, never reads a mutable global B token.
-- [ ] **Step 2: Run red:** `pnpm exec vitest run src/tests/unit/profiles-port.test.ts src/tests/unit/profile-session.test.ts src/tests/unit/native-boundary.test.ts`.
-- [ ] **Step 3: Implement both ports and bound clients.** Browser operations retain existing development persistence guarantees; adapters enforce generation checks at admission and response consumption. Keep profile services callable without `getDb()`. Add injectable invoker constructors to native domain ops, so all operations including backup/schedules share one bound session.
-- [ ] **Step 4: Run green:** repeat focused tests and `pnpm check`. Assert metadata preferences never bleed from a restored DB; no SQL-mocking shortcuts.
-- [ ] **Step 5: Commit** — Commit with `feat(profiles): add profile ports and session-bound adapters`.
+- [x] **Step 1: Add failing tests** with two real SQLite databases asserting isolated accounts/rules/currency, identical name validation and duplicate restore naming. Pin `expect(() => assertCurrentSession(oldSession, newSession)).toThrow()` for same-ID/new-generation; assert invoking a delayed A command still sends A, never reads a mutable global B token.
+- [x] **Step 2: Run red:** `pnpm exec vitest run src/tests/unit/profiles-port.test.ts src/tests/unit/profile-session.test.ts src/tests/unit/native-boundary.test.ts`.
+- [x] **Step 3: Implement both ports and bound clients.** Browser operations retain existing development persistence guarantees; adapters enforce generation checks at admission and response consumption. Keep profile services callable without `getDb()`. Add injectable invoker constructors to native domain ops, so all operations including backup/schedules share one bound session.
+- [x] **Step 4: Run green:** repeat focused tests and `pnpm check`. Assert metadata preferences never bleed from a restored DB; no SQL-mocking shortcuts.
+- [x] **Step 5: Commit** — Commit with `feat(profiles): add profile ports and session-bound adapters`.
 
 ### Task 9: Cross-window draft barrier
 
