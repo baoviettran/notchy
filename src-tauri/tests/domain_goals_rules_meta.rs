@@ -299,6 +299,21 @@ fn list_rules_filters_disabled() {
 }
 
 #[test]
+fn rule_payloads_distinguish_live_and_deleted_rules() {
+    let mut db = fresh_db("rule_deleted_payload");
+    let rule = rules::create_rule(
+        &mut db, op(), "Coffee".to_string(), MatchMode::Is,
+        "tag_gift".to_string(), RuleSource::Learned,
+    ).unwrap();
+    let live = serde_json::to_value(&rule).unwrap();
+    assert_eq!(live.get("deleted_at"), Some(&serde_json::Value::Null));
+    rules::delete_rule(&mut db, op(), &rule.id).unwrap();
+    let all = serde_json::to_value(rules::list_all_rules(&db).unwrap()).unwrap();
+    assert!(all[0]["deleted_at"].is_string());
+    assert!(rules::list_rules(&db).unwrap().is_empty());
+}
+
+#[test]
 fn update_rule() {
     let mut db = fresh_db("rule_update");
     let rule = rules::create_rule(

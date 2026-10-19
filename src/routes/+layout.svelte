@@ -30,6 +30,7 @@
 	import ShortcutRef from '$lib/components/layout/ShortcutRef.svelte';
 	import Modal from '$lib/components/primitives/Modal.svelte';
 	import TransactionForm from '$lib/components/forms/TransactionForm.svelte';
+	import RuleDialogs from '$lib/components/modals/RuleDialogs.svelte';
 	import GlobalToast from '$lib/components/primitives/GlobalToast.svelte';
 	import TourOverlay from '$lib/components/tour/TourOverlay.svelte';
 	import RecoveryScreen from '$lib/components/system/RecoveryScreen.svelte';
@@ -44,13 +45,9 @@
 	let tourInitialized = false;
 
 	onMount(async () => {
-		// Only the main window owns DB lifecycle (migrations, integrity checks,
-		// runAutoBackup → VACUUM INTO, an exclusive lock). tauri-plugin-sql pools
-		// one connection per DB path across all webview windows, so if the
-		// quick-add window also ran dbStore.init() its runAutoBackup would
-		// contend with the main window's writes — bricking them after a 5s
-		// busy_timeout with "no such savepoint". quick-add reuses the pool via
-		// getDb() directly (see src/routes/quick-add/+page.svelte).
+		// The main window initializes Rust's protected database lifecycle.
+		// Quick Add creates its own JS adapter with initDb(), then uses the
+		// same Rust manager without rerunning startup or migrations.
 		const isQuickAddWindow = $page.url.pathname.startsWith('/quick-add');
 		if (isQuickAddWindow) {
 			// quick-add still needs settings + its own transaction:saved handling
@@ -188,5 +185,6 @@
 		<TransactionForm onclose={() => showTxModal = false} />
 	</Modal>
 	<GlobalToast />
+	<RuleDialogs />
 	<ShortcutRef bind:open={showShortcuts} />
 {/if}

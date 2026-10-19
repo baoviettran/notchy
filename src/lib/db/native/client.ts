@@ -42,6 +42,13 @@ import type {
 import { NativeBackupOps } from './backup';
 import { NativeScheduleOps } from './schedules';
 import type { ToBudgetBreakdown as GeneratedToBudgetBreakdown } from '$lib/native/contracts.generated';
+import type { AccountPatch, Patch, TransactionPatch } from '$lib/native/contracts.generated';
+
+function nullablePatch<T>(value: T | null | undefined): Patch<T> {
+	if (value === undefined) return { kind: 'omitted' };
+	if (value === null) return { kind: 'explicit_null' };
+	return { kind: 'replace', value };
+}
 
 /**
  * Every command goes through here: a Rust rejection is a `{code, meta}`
@@ -117,7 +124,13 @@ class NativeAccountOps implements AccountOps {
 	}
 
 	update(id: string, patch: { name?: string; type?: AccountType; counterparty?: string | null; archived?: number }): Promise<void> {
-		return invoke<void>('account_update', { id, patch });
+		const nativePatch: AccountPatch = {
+			name: patch.name ?? null,
+			type: patch.type ?? null,
+			counterparty: nullablePatch(patch.counterparty),
+			archived: patch.archived ?? null
+		};
+		return invoke<void>('account_update', { id, patch: nativePatch });
 	}
 
 	delete(id: string): Promise<void> {
@@ -151,7 +164,16 @@ class NativeTransactionOps implements TransactionOps {
 	}
 
 	update(id: string, patch: Partial<NewTransaction>): Promise<void> {
-		return invoke<void>('transaction_update', { id, patch });
+		const nativePatch: TransactionPatch = {
+			kind: patch.kind ?? null,
+			date: patch.date ?? null,
+			amount: patch.amount ?? null,
+			transfer_account_id: patch.transfer_account_id ?? null,
+			tag_id: nullablePatch(patch.tag_id),
+			payee: nullablePatch(patch.payee),
+			description: nullablePatch(patch.description)
+		};
+		return invoke<void>('transaction_update', { id, patch: nativePatch });
 	}
 
 	delete(id: string): Promise<void> {

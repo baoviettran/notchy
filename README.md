@@ -16,11 +16,11 @@ Pre-built binaries are available from the [latest release](https://github.com/ba
 
 | Platform | File |
 |---|---|
-| Linux (Debian/Ubuntu) | `Notchy_0.2.0_amd64.deb` |
-| Linux (Fedora/RHEL) | `Notchy-0.2.0-1.x86_64.rpm` |
-| Linux (any) | `Notchy_0.2.0_amd64.AppImage` |
-| macOS (ARM) | `Notchy_0.2.0_aarch64.dmg` |
-| Windows | `Notchy_0.2.0_x64-setup.exe` |
+| Linux (Debian/Ubuntu) | `Notchy_0.2.1_amd64.deb` |
+| Linux (Fedora/RHEL) | `Notchy-0.2.1-1.x86_64.rpm` |
+| Linux (any) | `Notchy_0.2.1_amd64.AppImage` |
+| macOS (ARM) | `Notchy_0.2.1_aarch64.dmg` |
+| Windows | `Notchy_0.2.1_x64-setup.exe` |
 
 ### Build from Source
 
@@ -70,11 +70,12 @@ You're ready to go.
 | Dashboard | Budget progress, recent transactions, goals, net position |
 | Transactions | Full list with search and filters |
 | Budgets | Monthly envelope budgets per category |
-| Reports | Overview, Trend (6/12/24 months), Compare (two months) |
+| Reports | Overview, trends, comparisons, composition, categories, year-over-year and net worth |
 | Accounts | All accounts with balances |
 | Goals | Savings targets with progress tracking |
 | Debts | Personal loans — who owes whom |
-| Settings | Categories, backup/export, theme, language |
+| Scheduled | Recurring income, expenses and transfers, posted on app launch |
+| Settings | Categories, classification rules, backup/export, theme, language |
 
 ### Keyboard Shortcuts
 
@@ -86,15 +87,23 @@ You're ready to go.
 
 ### Backup & Data
 
-- **Auto-backup** — a snapshot is saved every time you launch the app (10 most recent kept)
+- **Backups** — create one in Settings → Backup & Data. Desktop also saves a safety snapshot before a schema upgrade or restore; ordinary launches do not create backups, and automatic retention is not enabled.
 - **Export** — Settings → Backup → Export as SQLite file or CSV
 - **Import** — Settings → Backup → Import (replaces current data)
 - **Your data file** is at:
-  - Linux: `~/.local/share/com.notchy.app/notchy.db`
+  - Linux: `~/.config/com.notchy.app/notchy.db`
   - macOS: `~/Library/Application Support/com.notchy.app/notchy.db`
   - Windows: `%APPDATA%\com.notchy.app\notchy.db`
 
+Backups are stored separately under the application data directory, in `backups/` and `backups/upgrades/`. Settings → Backup & Data shows the actual database and backup paths. Use SQLite export/import for a full database round-trip; per-table CSV exports are archival dumps, while transaction CSV import expects bank-style signed amounts.
+
 You can open this file with any SQLite tool. See [RECOVERY.md](RECOVERY.md) for queries.
+
+## Development
+
+Run `pnpm check`, `pnpm test`, `pnpm test:coverage`, `pnpm test:roadmap`, and `pnpm build`. Native gates are `cargo test --manifest-path src-tauri/Cargo.toml`, Clippy with `--all-targets -- -D warnings`, and `pnpm check:db-contracts`. Run `pnpm test:e2e` with Node 22 for the pinned Playwright 1.52 loader; Node 24 currently stalls in that loader. Both pnpm 10 and 11 are supported by the repository configuration.
+
+Initialize the separate documentation checkout with `git submodule update --init docs`. See [ROADMAP.md](ROADMAP.md) for current scope and [the desktop smoke checklist](specs/2026-07-27-desktop-release-smoke-checklist.md) before a release.
 
 ## Principles
 
@@ -107,7 +116,7 @@ You can open this file with any SQLite tool. See [RECOVERY.md](RECOVERY.md) for 
 
 - [Tauri v2](https://tauri.app) — desktop shell
 - [SvelteKit](https://kit.svelte.dev) + [Svelte 5](https://svelte.dev) — UI
-- [SQLite](https://sqlite.org) — database (via `@tauri-apps/plugin-sql`)
+- [SQLite](https://sqlite.org) — Rust `rusqlite` on desktop; an in-memory `sql.js` adapter for browser development and tests
 - [Tailwind CSS](https://tailwindcss.com) — styling
 
 ## Documentation

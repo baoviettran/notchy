@@ -643,6 +643,7 @@ pub struct CategorizeRule {
     pub enabled: i64,
     pub created_at: String,
     pub updated_at: String,
+    pub deleted_at: Option<String>,
 }
 
 /// An opaque, in-memory handle to one verified published backup.

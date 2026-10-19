@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import { emit } from '@tauri-apps/api/event';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import * as m from '$lib/paraglide/messages';
@@ -67,44 +67,33 @@
 		activeAccount = next;
 	}
 
-	onMount(async () => {
-		// quick-add must NOT run dbStore.init(): that re-runs migrations,
-		// integrity checks, and runAutoBackup (VACUUM INTO — an exclusive lock)
-		// from this window's JS context. The main window owns DB lifecycle.
-		// tauri-plugin-sql pools one connection per DB path shared across all
-		// webview windows, so getDb() here reuses the connection the main
-		// window already initialized — no second boot, no lock contention.
-		// Concurrent VACUUM from two windows was bricking writes
-		// ("no such savepoint" after a 5s busy_timeout). While the main window
-		// is still migrating an older schema, getDb() rejects with
-		// `database_update_required` — show that explicitly instead of failing
-		// silently.
+	async function loadQuickState(): Promise<void> {
 		try {
-			// The Tauri-only skip above means the quick-add window reuses the main
-			// window's pooled connection. On the web there is no pool and no
-			// second window — a fresh /quick-add navigation must initialize its
-			// own sql.js database or getDb() throws "database not initialized".
-			if (!isTauri()) await initDb();
-			await getDb();
+			// Each webview has its own JS modules. Native initDb only creates
+			// this window's adapter; the main window retains Rust lifecycle ownership.
+			await initDb();
 			await settings.load();
 			await loadDefaultAccount();
+			error = null;
 			ready = true;
+			await tick();
+			document.getElementById('qa-input')?.focus();
 		} catch (e) {
+			ready = false;
 			error = updateRequiredError(e) ?? mapError(e);
-			return;
 		}
-		queueMicrotask(() => document.getElementById('qa-input')?.focus());
+	}
 
-		// The quick-add window is shown/hidden (not destroyed) for the app's
-		// lifetime, so onMount runs once. Re-resolve the default account each
-		// time the window gains focus: the user may have changed the default
-		// (or created the first account) in the main window since the last show.
+	onMount(async () => {
+		// Register before loading: the hidden window can mount while Rust is
+		// still starting. A later focus must retry even if the first load failed.
 		if (isTauri()) {
 			const win = getCurrentWindow();
 			unlistenFocus = await win.onFocusChanged(({ payload: focused }) => {
-				if (focused) void loadDefaultAccount();
+				if (focused) void loadQuickState();
 			});
 		}
+		await loadQuickState();
 	});
 
 	onDestroy(() => { unlistenFocus?.(); });

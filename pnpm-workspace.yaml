@@ -1,0 +1,5 @@
+allowBuilds:
+  esbuild: true
+  better-sqlite3: true
+patchedDependencies:
+  '@sveltejs/vite-plugin-svelte': patches/@sveltejs__vite-plugin-svelte.patch

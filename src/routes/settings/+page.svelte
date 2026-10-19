@@ -116,6 +116,14 @@
 				</div>
 				<span class="text-dim mt-0.5 shrink-0" aria-hidden="true">→</span>
 			</a>
+			<div class="border-t border-line"></div>
+			<a href="/settings/rules" class="flex items-start justify-between gap-2 hover:bg-line/30 rounded-md p-2 -mx-2 transition-colors">
+				<div>
+					<div class="font-medium text-ledger">{m.rules_title()}</div>
+					<div class="text-sm text-dim">{m.rules_settings_description()}</div>
+				</div>
+				<span class="text-dim mt-0.5 shrink-0" aria-hidden="true">→</span>
+			</a>
 		</div>
 
 		<!-- Preferences: look, language, currency -->

@@ -45,6 +45,7 @@ fn parse_rule_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<CategorizeRule> {
         enabled: row.get(5)?,
         created_at: row.get(6)?,
         updated_at: row.get(7)?,
+        deleted_at: row.get(8)?,
     })
 }
 
@@ -56,7 +57,7 @@ fn parse_rule_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<CategorizeRule> {
 pub fn list_rules(conn: &Connection) -> DbResult<Vec<CategorizeRule>> {
     let mut stmt = conn
         .prepare(
-            "SELECT id, payee_term, match_mode, tag_id, source, enabled, created_at, updated_at
+            "SELECT id, payee_term, match_mode, tag_id, source, enabled, created_at, updated_at, deleted_at
              FROM categorize_rules
              WHERE enabled = 1 AND deleted_at IS NULL
              ORDER BY created_at DESC",
@@ -74,7 +75,7 @@ pub fn list_rules(conn: &Connection) -> DbResult<Vec<CategorizeRule>> {
 pub fn list_all_rules(conn: &Connection) -> DbResult<Vec<CategorizeRule>> {
     let mut stmt = conn
         .prepare(
-            "SELECT id, payee_term, match_mode, tag_id, source, enabled, created_at, updated_at
+            "SELECT id, payee_term, match_mode, tag_id, source, enabled, created_at, updated_at, deleted_at
              FROM categorize_rules
              ORDER BY created_at DESC",
         )
@@ -248,7 +249,7 @@ pub fn update_rule(
 pub fn get_rule(conn: &Connection, id: &str) -> DbResult<Option<CategorizeRule>> {
     let rule = conn
         .query_row(
-            "SELECT id, payee_term, match_mode, tag_id, source, enabled, created_at, updated_at
+            "SELECT id, payee_term, match_mode, tag_id, source, enabled, created_at, updated_at, deleted_at
              FROM categorize_rules WHERE id = ?1 AND deleted_at IS NULL",
             [id],
             parse_rule_row,
@@ -305,7 +306,7 @@ pub fn upsert_learned(
     let existing: Option<CategorizeRule> = {
         let mut stmt = conn
             .prepare(
-                "SELECT id, payee_term, match_mode, tag_id, source, enabled, created_at, updated_at
+                "SELECT id, payee_term, match_mode, tag_id, source, enabled, created_at, updated_at, deleted_at
                  FROM categorize_rules WHERE source = 'learned' AND deleted_at IS NULL",
             )
             .map_err(map_sqlite_error)?;

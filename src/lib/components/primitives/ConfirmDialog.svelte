@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { label } from '$lib/utils/i18n.svelte';
 	import { tick } from 'svelte';
 	import type { Snippet } from 'svelte';
 	import Button from './Button.svelte';
@@ -52,8 +53,8 @@
 				{@render children()}
 			{/if}
 			<div class="flex justify-end gap-2 pt-2">
-				<Button variant="ghost" onclick={close}>{m.common_cancel()}</Button>
-				<Button variant={danger ? 'danger' : 'primary'} onclick={confirm}>{confirmLabel || m.common_delete()}</Button>
+				<Button variant="ghost" onclick={close}>{label(() => m.common_cancel())}</Button>
+				<Button variant={danger ? 'danger' : 'primary'} onclick={confirm}>{confirmLabel || label(() => m.common_delete())}</Button>
 			</div>
 		</div>
 	</div>

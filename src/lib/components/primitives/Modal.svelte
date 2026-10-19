@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { label } from '$lib/utils/i18n.svelte';
 	import type { Snippet } from 'svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { createFocusTrap } from '$lib/utils/focusTrap';
@@ -35,7 +36,7 @@
 			{#if title}
 				<div class="flex items-center justify-between px-6 py-4 border-b border-line">
 					<h2 id={titleId} class="figures text-ledger tracking-wide">{title}</h2>
-					<button onclick={() => { if (!locked) open = false; }} disabled={locked} class="w-11 h-11 -mr-3 flex items-center justify-center text-dim hover:text-ledger disabled:opacity-40 disabled:cursor-not-allowed" aria-label={m.common_close()}>
+					<button onclick={() => { if (!locked) open = false; }} disabled={locked} class="w-11 h-11 -mr-3 flex items-center justify-center text-dim hover:text-ledger disabled:opacity-40 disabled:cursor-not-allowed" aria-label={label(() => m.common_close())}>
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" class="w-5 h-5"><path d="M6 6l12 12M18 6L6 18" /></svg>
 					</button>
 				</div>

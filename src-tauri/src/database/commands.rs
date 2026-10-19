@@ -84,6 +84,36 @@ pub async fn database_restore<R: tauri::Runtime>(
     manager.restore_database(token, crate::database::restore::RestoreFailurePoint::None).await
 }
 
+/// Import a user-selected SQLite file through the protected restore protocol.
+/// Stage a validated snapshot in app-owned storage before replacing live data.
+#[tauri::command]
+pub async fn database_import<R: tauri::Runtime>(
+    window: tauri::WebviewWindow<R>,
+    manager: State<'_, Arc<DatabaseManager>>,
+    source_path: String,
+) -> Result<i64, DbError> {
+    assert_main_window(&window)?;
+    let backup_dir = manager.backup_dir();
+    let token = tokio::task::spawn_blocking(move || {
+        use crate::database::manifest::{inspect_schema, SchemaInspection};
+        let source = std::path::Path::new(&source_path);
+        match inspect_schema(source) {
+            SchemaInspection::Older { .. } | SchemaInspection::Current { .. } => {}
+            SchemaInspection::TooOld { .. } => return Err(DbError::new(ErrorCode::SchemaTooOld)),
+            SchemaInspection::Newer { .. } => return Err(DbError::new(ErrorCode::SchemaTooNew)),
+            _ => return Err(DbError::new(ErrorCode::DatabaseInvalid)),
+        }
+        crate::database::backup::publish_backup(
+            source,
+            &backup_dir,
+            crate::database::backup::BackupFailurePoint::None,
+        )
+    }).await.map_err(|_| DbError::new(ErrorCode::RestoreFailed))??;
+    let schema = token.schema();
+    manager.restore_database(token, crate::database::restore::RestoreFailurePoint::None).await?;
+    Ok(schema)
+}
+
 // ===========================================================================
 // Account commands
 // ===========================================================================

@@ -1,8 +1,8 @@
 # Categorize Rules Engine — Design
-**Serves:** STORY-007
+**Serves:** STORY-007, STORY-026
 
 **Date:** 2026-07-06
-**Status:** Design (pending implementation plan)
+**Status:** Engine implemented; management UI reviewed 2026-10-19
 **Branch:** `feat/actual`
 
 ## Summary
@@ -186,7 +186,17 @@ The manual-entry-only trigger. Integration is two small additions to the existin
 
 ## Management UI (minimal)
 
-A simple route/view to list, create, edit, enable/disable, and delete rules — so learned rules are inspectable (the core trust requirement of auto-learn). Distinguishes `manual` vs `learned` via the `source` column. Scope: list + create + edit + delete + toggle. Out of scope for this design's first pass if time-constrained, but the schema and store support it from day one; the engine is fully usable via auto-learn even without a manual-creation UI.
+Reviewed on 2026-10-19 as a bounded extension of the existing Settings surface:
+
+- Settings → Classification rules lists live manual and learned rules, including disabled rules. Each row shows payee text, match mode, target tag, provenance, and enabled state.
+- Create manual rules; edit a rule without changing its provenance; enable/disable; confirm before deleting. These operations affect future classification only.
+- A separate confirmed action clears all live learned rules, including disabled ones, while preserving manual rules and transaction history. Learning remains enabled, so rules may be learned again on later saves.
+- Use the existing Input, Select, Modal, ConfirmDialog, loading, error, empty-state, and design-token conventions. Keyboard and English/Vietnamese support are required.
+- Stateful editor and confirmation surfaces live outside the root locale key. Their copy tracks locale explicitly; switching languages keeps the draft and selected tag.
+- Desktop and browser rule payloads both include nullable `deleted_at`. Native DTO serialization must distinguish live and soft-deleted rows so the shared store can filter and match consistently.
+- No database migration or new IPC operation is required. Clearing learned rules uses the existing soft-delete operation and refreshes after partial failures, allowing a safe retry.
+
+Verification: real SQLite store tests for learned-only clearing and history preservation; Rust payload regression; E2E CRUD/toggle/clear and locale-draft survival; desktop and narrow-window screenshots; native package smoke.
 
 ## Error handling
 

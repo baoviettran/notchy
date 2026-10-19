@@ -2,6 +2,8 @@
 
 This document describes every table in the Notchy SQLite database in plain language. It is intended for anyone who needs to understand or query the data directly using the `sqlite3` CLI.
 
+Current desktop schema: **7**. The browser test adapter is schema **6**; desktop migration 6 adds internal operation receipts, and desktop migration 7 corresponds to browser migration 6 (schedules). Read `app_meta.schema_version` when inspecting an existing file.
+
 ## app_meta
 
 Key-value store for application settings and state.
@@ -172,3 +174,42 @@ Auto-categorization rules that learn from user behavior.
 | deleted_at | TEXT | Soft-delete timestamp (NULL = active) |
 
 Rules are created automatically when the user categorizes 3+ transactions with the same payee and tag. Vietnamese diacritics are normalized (cà phê = ca phe). Specificity ranking: `is` > `starts_with` > `contains`. When multiple rules match, the most specific wins; ties with different tags are ambiguous and return no match.
+
+Settings → Classification rules also manages manual and learned rules. Disabling or deleting rules does not rewrite existing transactions. Clearing learned rules preserves manual rules.
+
+## operation_receipts (desktop only)
+
+Internal idempotency records used by Rust mutations. This table is not financial history and must not be edited to change balances.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| operation_id | TEXT (PK) | Operation ULID |
+| command_kind | TEXT | Mutation name |
+| request_hash | TEXT | Hash of the request |
+| result_json | TEXT | Cached serialized result |
+| completed_at | TEXT | Completion timestamp |
+
+## schedules
+
+Recurring transaction templates. Posted occurrences become ordinary transactions.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | TEXT (PK) | ULID |
+| name | TEXT | Name, 1–64 characters |
+| kind | TEXT | `expense`, `income`, or `transfer` |
+| amount | INTEGER | Positive smallest currency units, at most 999999999999 |
+| account_id | TEXT (FK) | Source account |
+| transfer_account_id | TEXT (FK) | Destination for a transfer; otherwise NULL |
+| tag_id | TEXT (FK) | Category tag; NULL for transfers |
+| payee | TEXT | Optional payee, at most 128 characters |
+| description | TEXT | Optional notes, at most 1024 characters |
+| frequency | TEXT | `weekly`, `biweekly`, `monthly`, or `yearly` |
+| start_date, end_date | TEXT | ISO calendar dates; end date is optional |
+| posts_transaction | INTEGER | 1 posts automatically; 0 is a reminder |
+| next_due_date, last_posted_date | TEXT | Posting cursor and last processed due date |
+| completed, enabled | INTEGER | 0/1 lifecycle flags |
+| errored_at | TEXT | Parked after a posting error or catch-up limit |
+| created_at, updated_at, deleted_at | TEXT | Timestamps; NULL `deleted_at` means live |
+
+The posting pass runs on app launch and catches up at most 24 occurrences per schedule per pass. Monthly steps clamp to the last valid day and then use that day for the next step: January 31 → February 28 → March 28.

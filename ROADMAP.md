@@ -1,10 +1,16 @@
 # Notchy — Roadmap
 
-## Current release: v0.1.3 ✅
+## Current source: v0.2.1
 
-Quality-of-life improvements and UX polish. Local-first desktop application.
+The active product backlog is [product/stories/index.md](product/stories/index.md). [specs/STATUS.md](specs/STATUS.md) is generated from implementation plans and Git history; regenerate it with `pnpm test:roadmap`.
 
-**Next release: v0.1.4 — Categorize Rules Engine (implemented; unreleased).**
+The desktop app uses a Rust-owned SQLite boundary, verified upgrade/restore snapshots, recurring transactions, a visible To Budget pool with per-bucket rollover controls, and extended reporting. Settings includes classification-rule management. The browser adapter is currently an in-memory development/test environment, not durable browser storage.
+
+Release readiness also requires the [desktop smoke checklist](specs/2026-07-27-desktop-release-smoke-checklist.md). Routine backups are manual; a schema-current launch does not create one, and automatic retention is not wired.
+
+## Historical milestones
+
+The following milestones describe earlier work. The exploratory ideas below them are not an approved release schedule; each new feature needs an evidence-backed user story before a spec or plan.
 
 **v0.1.0 — Foundation:**
 - 6 account types (checking, savings, cash, credit card, personal loans)
@@ -41,7 +47,7 @@ Quality-of-life improvements and UX polish. Local-first desktop application.
 - Dashboard inline quick-entry removed, EmptyState adopted for recent list
 - App icon and favicon updated to match VFD design system
 
-**v0.1.4 — Categorize Rules Engine (implemented; unreleased):**
+**v0.1.4 — Categorize Rules Engine:**
 - Auto-categorization rules that learn from user behavior (3+ consistent transactions)
 - Vietnamese diacritic normalization (cà phê = ca phe)
 - Specificity ranking (exact > starts_with > contains)
@@ -51,7 +57,7 @@ Quality-of-life improvements and UX polish. Local-first desktop application.
 
 ---
 
-## v0.2 — Web Build
+## Exploratory — Durable Browser App
 
 **Goal:** Run Notchy in a browser with the same data model.
 
@@ -64,7 +70,7 @@ Quality-of-life improvements and UX polish. Local-first desktop application.
 
 ---
 
-## v0.3 — File-Based Sync
+## Exploratory — File-Based Sync
 
 **Goal:** Sync between devices via a shared folder (Syncthing, iCloud Drive, Dropbox).
 
@@ -75,7 +81,7 @@ Quality-of-life improvements and UX polish. Local-first desktop application.
 
 ---
 
-## v0.4 — Peer-to-Peer Sync
+## Exploratory — Peer-to-Peer Sync
 
 **Goal:** Real-time sync between devices without a server.
 
@@ -92,7 +98,7 @@ Quality-of-life improvements and UX polish. Local-first desktop application.
 
 ---
 
-## v0.5 — Power-User Features
+## Exploratory — Power-User Features
 
 **Goal:** Features requested after daily use.
 
@@ -104,13 +110,15 @@ Quality-of-life improvements and UX polish. Local-first desktop application.
 
 ---
 
-## v0.6+ — Future
+## Other ideas without committed scope
 
 Features planned but not yet scheduled:
 
-- [ ] Recurring transactions (daily, weekly, monthly, custom)
+- [x] Recurring transactions (weekly, biweekly, monthly, yearly; posted on launch)
+- [ ] Additional recurrence patterns (daily, custom)
 - [ ] Multi-currency with exchange rates
-- [ ] CSV and OFX bank import
+- [x] CSV bank import with mapping and duplicate detection
+- [ ] OFX bank import
 - [ ] Receipt-photo attachments
 - [ ] Encrypted backup (passphrase-based)
 - [ ] App lock with PIN / biometric
