@@ -82,3 +82,10 @@ pub struct ProfileSnapshot {
     pub phase: String,
     pub preferences: AppPreferences,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct OperationContext {
+    pub operation_id: String,
+    pub transition_token: Option<String>,
+}

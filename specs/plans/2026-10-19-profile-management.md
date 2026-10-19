@@ -99,11 +99,11 @@ Tasks 1–6 build tested native units without changing production startup. Tasks
 **Files:** Create `src-tauri/src/profiles/{journal,create}.rs`, `src-tauri/tests/profile_lifecycle.rs`; modify coordinator and profile types.
 **Interfaces:** Produces `create(name, context)`, `rename(id, name)` and `reconcile_operations() -> DbResult<()>`. `JournalRecord` contains operation ID/kind, target ID, phase (`prepared`, `published`, `committed`, `cleanup_pending`), staged paths and serialized result. Repeated operation IDs return the original result; a conflicting payload fails. Tests use isolated real SQLite seeded via the current startup/migration functions.
 
-- [ ] **Step 1: Add failing tests**: create two distinct empty seeded profiles; rename preserves ID/path; repeated create returns one ID; crash after directory publication before registry commit is reconciled once. Assert `profiles.len() == 1` after retry and `original_database_hash == hash_after_rename`.
-- [ ] **Step 2: Run red:** `cargo test --manifest-path src-tauri/Cargo.toml --test profile_lifecycle`.
-- [ ] **Step 3: Implement staged initialization and commit journal.** Validate new DB, sync and publish directory, commit registry/result receipt, then clear transient staging. Replay is deterministic from phase plus actual files. Do not treat arbitrary orphan directories as profiles; clean only validated operation-owned staging.
-- [ ] **Step 4: Run green:** repeat Task 3 command; failed create never produces a selectable partial database and retry never duplicates a committed profile.
-- [ ] **Step 5: Commit** — Commit with `feat(profiles): create and rename profiles with crash recovery`.
+- [x] **Step 1: Add failing tests**: create two distinct empty seeded profiles; rename preserves ID/path; repeated create returns one ID; crash after directory publication before registry commit is reconciled once. Assert `profiles.len() == 1` after retry and `original_database_hash == hash_after_rename`.
+- [x] **Step 2: Run red:** `cargo test --manifest-path src-tauri/Cargo.toml --test profile_lifecycle`.
+- [x] **Step 3: Implement staged initialization and commit journal.** Validate new DB, sync and publish directory, commit registry/result receipt, then clear transient staging. Replay is deterministic from phase plus actual files. Do not treat arbitrary orphan directories as profiles; clean only validated operation-owned staging.
+- [x] **Step 4: Run green:** repeat Task 3 command; failed create never produces a selectable partial database and retry never duplicates a committed profile.
+- [x] **Step 5: Commit** — Commit with `feat(profiles): create and rename profiles with crash recovery`.
 
 ### Task 4: Per-profile backup and restore as new
 

@@ -55,7 +55,7 @@ impl RegistryStore {
 
 fn invalid(_: impl std::fmt::Display) -> DbError { DbError::new(ErrorCode::DatabaseInvalid) }
 
-fn read_json(path: &Path) -> DbResult<Option<Vec<u8>>> {
+pub(crate) fn read_json(path: &Path) -> DbResult<Option<Vec<u8>>> {
     match fs::symlink_metadata(path) {
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
         Err(error) => Err(invalid(error)),
@@ -64,7 +64,7 @@ fn read_json(path: &Path) -> DbResult<Option<Vec<u8>>> {
     }
 }
 
-fn publish_json(path: &Path, value: &impl serde::Serialize, failpoint: PublishFailurePoint) -> DbResult<()> {
+pub(crate) fn publish_json(path: &Path, value: &impl serde::Serialize, failpoint: PublishFailurePoint) -> DbResult<()> {
     let parent = path.parent().ok_or_else(|| DbError::new(ErrorCode::DatabaseInvalid))?;
     create_dir_private(parent).map_err(invalid)?;
     let bytes = serde_json::to_vec(value).map_err(invalid)?;
@@ -89,7 +89,7 @@ fn publish_json(path: &Path, value: &impl serde::Serialize, failpoint: PublishFa
     result
 }
 
-fn sync_directory(path: &Path) -> DbResult<()> {
+pub(crate) fn sync_directory(path: &Path) -> DbResult<()> {
     #[cfg(unix)]
     File::open(path).and_then(|file| file.sync_all()).map_err(invalid)?;
     #[cfg(not(unix))]

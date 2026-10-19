@@ -12,19 +12,19 @@ struct ActiveProfile {
     manager: Arc<DatabaseManager>,
 }
 
-struct State {
-    registry: ProfileRegistry,
+pub(super) struct State {
+    pub(super) registry: ProfileRegistry,
     active: Option<ActiveProfile>,
     recovery: bool,
 }
 
 /// Owns the application lock even when no profile database is open.
 pub struct ProfileCoordinator {
-    paths: ProfilePaths,
-    store: RegistryStore,
+    pub(super) paths: ProfilePaths,
+    pub(super) store: RegistryStore,
     lock: Arc<ProcessLock>,
-    transition: tokio::sync::RwLock<()>,
-    state: Mutex<State>,
+    pub(super) transition: tokio::sync::RwLock<()>,
+    pub(super) state: Mutex<State>,
 }
 
 impl ProfileCoordinator {
@@ -32,11 +32,13 @@ impl ProfileCoordinator {
         let lock = Arc::new(ProcessLock::acquire(&paths.config_dir.join("notchy.lock"))?);
         let store = RegistryStore::new(paths.clone());
         let registry = store.load()?;
-        Ok(Arc::new(Self {
+        let coordinator = Arc::new(Self {
             paths, store, lock,
             transition: tokio::sync::RwLock::new(()),
             state: Mutex::new(State { registry, active: None, recovery: false }),
-        }))
+        });
+        coordinator.reconcile_operations()?;
+        Ok(coordinator)
     }
 
     pub fn load(&self) -> ProfileSnapshot {
