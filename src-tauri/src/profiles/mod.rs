@@ -7,3 +7,4 @@ pub mod create;
 pub mod backup;
 pub mod reset;
 pub mod delete;
+pub mod legacy;

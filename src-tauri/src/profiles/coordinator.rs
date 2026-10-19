@@ -9,15 +9,15 @@ use super::backup::PreviewEntry;
 use super::registry::RegistryStore;
 use super::types::{AppPreferences, ProfileRegistry, ProfileSession, ProfileSnapshot};
 
-struct ActiveProfile {
+pub(super) struct ActiveProfile {
     session: ProfileSession,
     manager: Arc<DatabaseManager>,
 }
 
 pub(super) struct State {
     pub(super) registry: ProfileRegistry,
-    active: Option<ActiveProfile>,
-    recovery: bool,
+    pub(super) active: Option<ActiveProfile>,
+    pub(super) recovery: bool,
 }
 
 /// Owns the application lock even when no profile database is open.

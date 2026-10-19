@@ -132,11 +132,11 @@ Tasks 1–6 build tested native units without changing production startup. Tasks
 **Files:** Create `src-tauri/src/profiles/legacy.rs`, `src-tauri/tests/profile_legacy.rs`; modify registry/journal/coordinator as needed.
 **Interfaces:** Produces `adopt_legacy() -> DbResult<()>` and `bootstrap() -> DbResult<ProfileSnapshot>`. Bootstrap acquires the already-owned app lock, reconciles operations, adopts once, loads shared preferences, and attempts last-active activation. Missing selection returns picker state; corrupt selected data returns recovery state with the record preserved.
 
-- [ ] **Step 1: Add failing tests** for legacy data plus routine/upgrade backups and WAL transactions; interruption before/after registry commit; corrupt legacy DB with usable backup; stored locale/currency/tour preservation. Assert `profile.name == "Cá nhân"`, exactly one adopted profile, backup bytes preserved, and after deleting it `bootstrap().profiles.is_empty()` despite leftover old files.
-- [ ] **Step 2: Run red:** `cargo test --manifest-path src-tauri/Cargo.toml --test profile_legacy`.
-- [ ] **Step 3: Implement copy/verify/commit/retire adoption.** Use existing WAL checkpoint and integrity handling; do not assume config/data roots share a filesystem. Commit the adoption marker with registration before retiring legacy owned files. Corrupt DB is quarantined as the registered legacy profile's recoverable data, with backups copied unchanged; never replace corruption with a seeded blank DB. Existing application preferences win over legacy metadata.
-- [ ] **Step 4: Run green:** repeat Task 6 tests; also assert fresh install with no legacy DB starts empty and registry corruption never triggers automatic legacy adoption.
-- [ ] **Step 5: Commit** — Commit with `feat(profiles): adopt existing data into the first profile`.
+- [x] **Step 1: Add failing tests** for legacy data plus routine/upgrade backups and WAL transactions; interruption before/after registry commit; corrupt legacy DB with usable backup; stored locale/currency/tour preservation. Assert `profile.name == "Cá nhân"`, exactly one adopted profile, backup bytes preserved, and after deleting it `bootstrap().profiles.is_empty()` despite leftover old files.
+- [x] **Step 2: Run red:** `cargo test --manifest-path src-tauri/Cargo.toml --test profile_legacy`.
+- [x] **Step 3: Implement copy/verify/commit/retire adoption.** Use existing WAL checkpoint and integrity handling; do not assume config/data roots share a filesystem. Commit the adoption marker with registration before retiring legacy owned files. Corrupt DB is quarantined as the registered legacy profile's recoverable data, with backups copied unchanged; never replace corruption with a seeded blank DB. Existing application preferences win over legacy metadata.
+- [x] **Step 4: Run green:** repeat Task 6 tests; also assert fresh install with no legacy DB starts empty and registry corruption never triggers automatic legacy adoption.
+- [x] **Step 5: Commit** — Commit with `feat(profiles): adopt existing data into the first profile`.
 
 ### Task 7: Native profile commands and generated contracts
 
