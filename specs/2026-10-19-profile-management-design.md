@@ -2,7 +2,9 @@
 
 **Serves:** STORY-037
 **Date:** 2026-10-19
-**Status:** Design recorded after conversational approval; written-spec review pending. Not implemented.
+**Status:** Written spec approved by the owner on 2026-10-19. Implementation plan pending review; not implemented.
+
+**Plan:** [Profile management implementation plan](plans/2026-10-19-profile-management.md)
 
 ## 1. Intent and evidence
 
