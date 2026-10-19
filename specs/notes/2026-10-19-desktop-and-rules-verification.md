@@ -92,9 +92,51 @@ the packaged binary, not a package-manager installation.
 
 ## Limits
 
-This run does not certify a package-manager upgrade or native operating-system
-file-picker interaction. Direct SQLite restore and export command verification
-is distinguished from clicking through a file picker. Raw per-table CSV exports
+The initial run did not certify a package-manager upgrade or native operating-system
+file-picker interaction; the follow-up below records those additional checks.
+Direct SQLite restore and export command verification is distinguished from
+clicking through a file picker. Raw per-table CSV exports
 are archival data, not a lossless full-database import format; use SQLite backup
 for full restore. Historical release-checklist results retain their original
 scope and limitations.
+
+## Follow-up: package installation and native file picker
+
+- Rootless Fedora 44 container: DNF installed the actual 0.2.1 RPM;
+  `rpm -V notchy` succeeded. Ubuntu 24.04 container: APT installed the released
+  0.2.0 DEB, upgraded to the 0.2.1 DEB, and `dpkg -V notchy` succeeded. A file
+  placed in the container's app-data directory survived the package upgrade.
+  These checks cover package transactions, not launching the app in a container.
+  Logs are local under `artifacts/0.2.1/package-manager-smoke/`.
+- The user confirmed the real Save dialog exported a SQLite file. Read-only
+  inspection reported integrity `ok`, schema 7, and no restore probe transaction.
+- Importing that file through Settings failed before replacement: the UI still
+  used the removed JavaScript SQL plugin. A native-dispatch regression test
+  reproduced the missing-package error. Direct restore-command smoke testing
+  above did not cover this broken entry point.
+- The fix routes selected-file imports to the main-window-only `database_import`
+  command. Rust classifies the source, publishes a validated snapshot in owned
+  backup storage, then uses the existing rollback and atomic-restore protocol.
+  Unsupported schema versions retain their specific import messages.
+- Native regression tests cover export/diverge/import, rollback publication,
+  supported older-schema migration, source preservation, invalid-source
+  rejection, and the window guard. Browser E2E hooks explicitly exercise their
+  legacy validation adapter; they do not certify the native picker flow.
+- The user retried import on the rebuilt DEB binary through the real file
+  picker: import succeeded and the `TEST PHUC HOI` transaction disappeared.
+  Read-only verification confirmed integrity `ok`, all three original live
+  transaction IDs exactly matching the exported backup, and an unchanged hash
+  for the selected source file (`import-picker-before.json`,
+  `import-picker-after.json` under the local evidence directory).
+- The user exported CSV into the project directory through the folder picker.
+  All seven table files parsed with consistent columns, including two accounts
+  and three transactions (`csv-picker-results.json`).
+- The user confirmed cancel/reopen works for SQLite Save, CSV folder selection,
+  and SQLite Import (including its confirmation). No busy state or confirmation
+  blocked the second attempt. Native picker verification is complete for this
+  Fedora 44 session.
+- Final fix verification: 1,154 unit/component tests in 128 files; 17 native
+  command tests; 11 browser backup/recovery E2E tests; type check (0 errors,
+  three existing CSS warnings), Clippy with warnings denied, frontend build,
+  and rebuilt DEB/RPM bundles passed. Independent review found no remaining
+  blocker. The new commit's CI must complete before merging PR #40.

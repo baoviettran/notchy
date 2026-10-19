@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tauri::Manager;
 
 use notchy_lib::database::commands::{
-    backup_create, backup_export_csv, backup_export_sqlite, database_initialize, database_retry,
+    backup_create, backup_export_csv, backup_export_sqlite, database_import, database_initialize, database_retry,
     database_status, schedule_create, schedule_delete, schedule_mark_errored, schedule_mark_posted,
     schedule_update,
 };
@@ -29,6 +29,78 @@ use common::{
 // ---------------------------------------------------------------------------
 // Main-only window guard
 // ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn selected_file_import_restores_export_and_keeps_rollback() {
+    let manager = manager_fresh().await;
+    manager.initialize().await.unwrap();
+    let app = mock_app(Arc::clone(&manager));
+    let export = scratch_root("selected-file").with_extension("sqlite");
+    backup_export_sqlite(export.to_string_lossy().into_owned(), app.app.state())
+        .await.unwrap();
+    manager.data_job(|state| {
+        state.connection()?.execute("INSERT INTO app_meta (key, value) VALUES ('import_probe', 'present')", [])
+            .map_err(|_| notchy_lib::database::error::DbError::new(ErrorCode::DatabaseInvalid))?;
+        Ok(())
+    }).await.unwrap();
+
+    let schema = database_import(app.main.clone(), app.app.state(), export.to_string_lossy().into_owned())
+        .await.unwrap();
+
+    assert_eq!(schema, 7);
+    assert_eq!(manager.snapshot(), LifecycleState::Ready);
+    let probe = manager.data_job(|state| get_meta(state.connection()?, "import_probe")).await.unwrap();
+    assert_eq!(probe, None);
+    assert!(manager.discover_restore_points().unwrap().len() >= 2);
+    std::fs::remove_file(export).unwrap();
+}
+
+#[tokio::test]
+async fn selected_file_import_rejects_invalid_files_without_changing_live_database() {
+    let manager = manager_fresh().await;
+    manager.initialize().await.unwrap();
+    let app = mock_app(Arc::clone(&manager));
+    for (fixture, expected) in [
+        ("v008.sqlite", ErrorCode::SchemaTooNew),
+        ("v002.sqlite", ErrorCode::SchemaTooOld),
+        ("invalid-zero-byte.sqlite", ErrorCode::DatabaseInvalid),
+    ] {
+        let source = common::fixtures_dir().join(fixture);
+        let before = std::fs::read(&source).unwrap();
+        let error = database_import(app.main.clone(), app.app.state(), source.to_string_lossy().into_owned())
+            .await.unwrap_err();
+        assert_eq!(error.code, expected);
+        assert_eq!(manager.snapshot(), LifecycleState::Ready);
+        assert_eq!(std::fs::read(&source).unwrap(), before);
+    }
+}
+
+#[tokio::test]
+async fn non_main_window_cannot_import_selected_file() {
+    let manager = manager_fresh().await;
+    let app = mock_app(Arc::clone(&manager));
+    let error = database_import(app.quick_add.clone(), app.app.state(), "/missing.sqlite".into())
+        .await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::InvalidInput);
+    assert_eq!(manager.snapshot(), LifecycleState::Uninitialized);
+}
+
+#[tokio::test]
+async fn selected_file_import_migrates_a_supported_older_database() {
+    let manager = manager_fresh().await;
+    manager.initialize().await.unwrap();
+    let app = mock_app(Arc::clone(&manager));
+    let source = common::fixtures_dir().join("v004.sqlite");
+    let before = std::fs::read(&source).unwrap();
+
+    let schema = database_import(app.main.clone(), app.app.state(), source.to_string_lossy().into_owned())
+        .await.unwrap();
+
+    assert_eq!(schema, 4);
+    let live_schema = manager.data_job(|state| get_meta(state.connection()?, "schema_version")).await.unwrap();
+    assert_eq!(live_schema.as_deref(), Some("7"));
+    assert_eq!(std::fs::read(source).unwrap(), before);
+}
 
 #[tokio::test]
 async fn non_main_window_cannot_initialize() {

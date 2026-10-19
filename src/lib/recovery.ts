@@ -2,6 +2,8 @@ import type { DatabaseService, RecoveryContext } from '$lib/db';
 import { validateDatabase, type DatabaseValidation } from '$lib/backup/validation';
 import { MIN_SUPPORTED_SCHEMA_VERSION, LATEST_SCHEMA_VERSION } from '$lib/db/migrations/index';
 import { AppError } from '$lib/errors';
+import { isTauri } from '$lib/db';
+import { toAppError } from '$lib/native/to-app-error';
 
 export interface RestoreDependencies {
 	openReadOnly(path: string): Promise<DatabaseService>;
@@ -9,15 +11,28 @@ export interface RestoreDependencies {
 }
 
 /**
- * Restore a candidate backup with validate-close-replace: open the candidate
- * read-only, validate it against the supported schema range, close the candidate,
- * and only on success replace the live database. Never copies while the candidate
- * connection is open, and never touches the live file when validation fails.
+ * Native imports use Rust's validated snapshot and crash-safe restore protocol.
+ * Browser tests can inject the legacy validation/copy adapter to exercise their
+ * real SQLite fixtures without a Tauri host.
  */
 export async function restoreCompatibleDatabase(
 	sourcePath: string,
-	dependencies: RestoreDependencies = tauriRestoreDependencies
+	dependencies?: RestoreDependencies
 ): Promise<{ schemaVersion: number }> {
+	if (!dependencies && isTauri()) {
+		const { invoke } = await import('@tauri-apps/api/core');
+		try {
+			const schemaVersion = await invoke<number>('database_import', { sourcePath });
+			return { schemaVersion };
+		} catch (error) {
+			if (typeof error === 'object' && error !== null && 'code' in error) {
+				if (error.code === 'schema_too_old') throw new AppError('backup_schema_too_old');
+				if (error.code === 'schema_too_new') throw new AppError('backup_schema_newer');
+			}
+			throw toAppError(error);
+		}
+	}
+	dependencies ??= tauriRestoreDependencies;
 	const candidate = await dependencies.openReadOnly(sourcePath);
 	let validation: DatabaseValidation;
 	try {

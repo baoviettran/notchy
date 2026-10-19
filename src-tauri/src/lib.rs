@@ -53,6 +53,7 @@ pub fn run() {
             database_retry,
             database_status,
             database_restore,
+            database_import,
             discover_restore_points,
             // Account commands
             account_list,
