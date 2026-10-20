@@ -1,253 +1,73 @@
-import { test, expect } from './fixtures/tauri-mock';
+import { test, expect, rawQuery, rawExecute, writeVirtualFs, readVirtualFs, flushDb } from './fixtures/tauri-mock';
 import { onboard } from './helpers/ui';
-import { writeVirtualFs, listVirtualFs, flushDb, rawQuery, rawExecute, createMockBackup } from './fixtures/tauri-mock';
 import type { Page } from '@playwright/test';
 
-const APP_DATA_DIR = '/notchy/appdata';
-const BACKUP_DIR = APP_DATA_DIR + '/backups';
+const invoke = <T>(page: Page, command: string, args: Record<string, unknown> = {}): Promise<T> =>
+	page.evaluate(({ command, args }) => (window as any).__TAURI_INTERNALS__.invoke(command, args), { command, args });
+const active = (page: Page) => invoke<{ active: { profileId: string; generation: string } }>(page, 'profiles_load').then((snapshot) => snapshot.active);
 
-// Shape of the accounts row we INSERT to diverge the live DB from the backup.
-// Mirrors the NOT NULL columns the onboarding migration creates.
-const DIVERGE_INSERT = `INSERT INTO accounts (id, name, type, currency, created_at, updated_at)
-	VALUES ('01DIVERGE', 'Diverged', 'checking', 'VND', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`;
-
-// Read the app-exposed test hooks inside the page (functions can't be passed
-// across page.evaluate — structured clone drops them). db.svelte.ts gates these
-// on the e2e mock marker, so they exist only under Playwright + the mock.
-function hookExpr(fnBody: string): string {
-	return `(async () => {
-		const h = window.__notchyTestHooks;
-		if (!h) throw new Error('__notchyTestHooks not exposed (mock marker missing?)');
-		${fnBody}
-	})()`;
-}
-
-async function liveQuery<T>(page: Page, sql: string): Promise<T[]> {
-	return rawQuery<T>(page, sql);
-}
-
-/**
- * backup / restore (Tauri IPC mock).
- *
- * Drives the REAL backup/restore plugin code (createBackup issues a real
- * VACUUM INTO; restoreCompatibleDatabase opens a real sql.js connection,
- * validates against the supported schema range, and copies bytes via the FS
- * plugin) against the Task 8 Tauri IPC mock. The OS file-picker dialog is
- * scoped out — we invoke the library functions directly via page.evaluate and
- * assert on the virtual filesystem / live DB state.
- *
- * Mock path normalization: the mock strips '?readonly' (and the 'sqlite:'
- * prefix for FS lookups) so a readonly candidate-open of a backup file resolves
- * to the same bytes the VACUUM INTO override / writeVirtualFs placed in the
- * virtual FS. The virtual FS is per-page-load (a Map in the page context) and
- * does NOT survive page.reload(); the round-trip tests enable persist mode so
- * the restore's copyFile (mirrored into IndexedDB by the mock) rehydrates on
- * reload — mirroring a real disk write that survives process restart.
- */
-test.describe('backup -> diverge -> restore round-trip', () => {
-	// Persist mode so the restored live-DB bytes (copy_file mirrors them into
-	// IndexedDB) survive the post-restore page.reload().
+test.describe('profile backup and restore', () => {
 	test.use({ tauriMockOptions: { persist: true } });
 
-	test('restores the pre-diverge state after reload', async ({ tauriMockPage: page }) => {
-		await onboard(page, { accountName: 'RoundTrip' });
-
-		// Capture the live account ids/count BEFORE backup (post-onboarding).
-		const beforeRows = await liveQuery<{ id: string }>(
-			page,
-			'SELECT id FROM accounts WHERE deleted_at IS NULL'
-		);
-		const beforeCount = beforeRows.length;
-		expect(beforeCount).toBeGreaterThan(0);
-
-		// Back up via the real createBackup -> VACUUM INTO (mock intercepts and
-		// exports the live sql.js bytes into the virtual FS at the target path).
-		const backupPath = await createMockBackup(page, BACKUP_DIR);
-		expect(backupPath).toMatch(/notchy-backup-.*\.sqlite$/);
-
-		// Diverge: add a second account directly via SQL through the live DB.
-		await rawExecute(page, DIVERGE_INSERT);
-		const divergedCount = await liveQuery<{ c: number }>(
-			page,
-			'SELECT COUNT(*) AS c FROM accounts WHERE deleted_at IS NULL'
-		);
-		expect(divergedCount[0].c).toBe(beforeCount + 1);
-
-		// Restore from the backup file. restoreCompatibleDatabase opens the
-		// candidate read-only, validates it against the supported range, closes
-		// the live DB, and copies the backup bytes over the live path.
-		const result = await page.evaluate(
-			hookExpr(`return h.restoreCompatibleDatabase(${JSON.stringify(backupPath)});`)
-		);
-		expect(result).toEqual({ schemaVersion: 6 });
-
-		// Reload so getDb() reopens the copied file (the live connection was
-		// closed by restoreCompatibleDatabase; the copied bytes live in the
-		// virtual FS at the live path, which loadDb rehydrates from after reload).
-		await page.reload();
-		await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
-
-		// The divergent account is gone; the original accounts are back.
-		const afterRows = await liveQuery<{ id: string }>(
-			page,
-			'SELECT id FROM accounts WHERE deleted_at IS NULL'
-		);
-		const afterIds = afterRows.map((r) => r.id);
-		expect(afterRows.length).toBe(beforeCount);
-		expect(afterIds).not.toContain('01DIVERGE');
-		for (const id of beforeRows.map((r) => r.id)) {
-			expect(afterIds).toContain(id);
-		}
-	});
-
-	test('restores a compatible schema-4 backup and migrates it forward on reload', async ({ tauriMockPage: page }) => {
-		await onboard(page, { accountName: 'V4Migrate' });
-
-		// Capture the original account ids before downgrading the schema claim.
-		const beforeRows = await liveQuery<{ id: string }>(
-			page,
-			'SELECT id FROM accounts WHERE deleted_at IS NULL'
-		);
-		const beforeIds = beforeRows.map((r) => r.id);
-		expect(beforeIds.length).toBeGreaterThan(0);
-
-		// Claim an older schema on the live DB, then back up those bytes so the
-		// backup presents as a supported v4 database (schema-6 structure with a
-		// v4 schema_version claim).
-		await rawExecute(page, "UPDATE app_meta SET value='4' WHERE key='schema_version'");
-		const backupPath = await createMockBackup(page, BACKUP_DIR);
-		expect(backupPath).toMatch(/notchy-backup-.*\.sqlite$/);
-
-		// Restore the supported v4 backup.
-		const result = await page.evaluate(
-			hookExpr(`return h.restoreCompatibleDatabase(${JSON.stringify(backupPath)});`)
-		);
-		expect(result).toEqual({ schemaVersion: 4 });
-
-		// The restored live-DB bytes (mirrored into IndexedDB by copy_file) must
-		// survive reload; startup then detects schema 4, creates a verified
-		// pre-upgrade backup, re-runs the migrations (idempotent no-op), and
-		// reaches schema 6 while preserving the original account rows.
-		await flushDb(page);
-		await page.reload();
-		await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
-
-		const afterRows = await liveQuery<{ id: string }>(
-			page,
-			'SELECT id FROM accounts WHERE deleted_at IS NULL'
-		);
-		expect(afterRows.map((r) => r.id)).toEqual(expect.arrayContaining(beforeIds));
-
-		// Forward migration completed: the live DB is back on the current schema.
-		const schema = await liveQuery<{ value: string }>(
-			page,
-			"SELECT value FROM app_meta WHERE key = 'schema_version'"
-		);
-		expect(schema[0].value).toBe('6');
-	});
+test('restores a backup as a new profile and preserves the original', async ({ tauriMockPage: page }) => {
+	await onboard(page, { accountName: 'Original account' });
+	const original = await active(page);
+	const path = await invoke<string>(page, 'profile_backup', { id: original.profileId });
+	const before = await rawQuery<{ id: string }>(page, 'SELECT id FROM accounts WHERE deleted_at IS NULL');
+	expect(before).toHaveLength(1);
+	await rawExecute(page, `INSERT INTO accounts (id, name, type, currency, created_at, updated_at) VALUES ('diverged', 'After backup', 'checking', 'VND', '2026-01-01', '2026-01-01')`);
+	await flushDb(page);
+	const preview = await invoke<{ token: string; schemaVersion: number }>(page, 'profile_inspect_restore', { sourcePath: path });
+	expect(preview.schemaVersion).toBe(6);
+	await invoke(page, 'profile_restore', { token: preview.token, name: 'Recovered', context: { operationId: 'restore-1', transitionToken: null } });
+	expect(await rawQuery<{ id: string }>(page, 'SELECT id FROM accounts WHERE deleted_at IS NULL')).toHaveLength(2);
+	await page.reload();
+	await page.getByRole('link', { name: 'Settings' }).click();
+	await page.getByRole('link', { name: 'Profiles' }).click();
+	await page.getByRole('button', { name: /^Open Recovered/ }).click();
+	await page.getByRole('link', { name: 'Accounts', exact: true }).click();
+	await expect(page.getByText('Original account')).toBeVisible();
+	await expect(page.getByText('After backup')).toHaveCount(0);
 });
 
-test.describe('import rejection (Tauri IPC mock)', () => {
-	test.use({ tauriMockOptions: {} });
-
-	test('corrupt import is rejected, live DB untouched', async ({ tauriMockPage: page }) => {
-		await onboard(page, { accountName: 'CorruptGuard' });
-
-		const before = await liveQuery<{ c: number }>(
-			page,
-			'SELECT COUNT(*) AS c FROM accounts WHERE deleted_at IS NULL'
-		);
-
-		// Mint a sql.js DB that is structurally valid SQLite (so it opens) but
-		// whose trailing bytes are truncated — PRAGMA integrity_check reports
-		// corruption instead of 'ok', so validateDatabase maps it to backup_corrupt.
-		const corruptBytes = await page.evaluate(async () => {
-			const mock = (window as unknown as { __notchyMock?: { sqlReady: () => Promise<unknown> } })
-				.__notchyMock;
-			const SQL = (await mock!.sqlReady()) as {
-				Database: new () => { run: (s: string, params?: unknown[]) => void; export: () => Uint8Array };
-			};
-			const db = new SQL.Database();
-			db.run('CREATE TABLE junk (x INTEGER)');
-			for (let i = 0; i < 50; i++) db.run('INSERT INTO junk VALUES (?)', [i]);
-			const bytes = db.export();
-			return Array.from(bytes.slice(0, bytes.length - 512));
-		});
-		await writeVirtualFs(page, APP_DATA_DIR + '/corrupt.sqlite', new Uint8Array(corruptBytes));
-
-		// page.evaluate rejects when the hook throws, so wrap the hook body in
-		// .catch to surface the AppError code across the boundary.
-		const result = await page.evaluate(
-			hookExpr(`return h.restoreCompatibleDatabase(${JSON.stringify(APP_DATA_DIR + '/corrupt.sqlite')}).catch((e) => ({ error: { code: e?.code, message: e?.message } }));`)
-		) as { error?: { code?: string; message?: string } };
-		expect(result.error?.code).toBe('backup_corrupt');
-
-		// Live DB unchanged: the restore path must never copyFile on validation
-		// failure, so the account count is identical to before.
-		const after = await liveQuery<{ c: number }>(
-			page,
-			'SELECT COUNT(*) AS c FROM accounts WHERE deleted_at IS NULL'
-		);
-		expect(after[0].c).toBe(before[0].c);
-	});
-
-	test('schema-version newer is rejected, live DB untouched', async ({ tauriMockPage: page }) => {
-		await onboard(page, { accountName: 'VersionGuard' });
-
-		const before = await liveQuery<{ c: number }>(
-			page,
-			'SELECT COUNT(*) AS c FROM accounts WHERE deleted_at IS NULL'
-		);
-
-		// Build a full-shape DB (passes integrity + required-tables) but with a
-		// schema_version newer than the app supports.
-		const newerBytes = await page.evaluate(async () => {
-			const mock = (window as unknown as { __notchyMock?: { sqlReady: () => Promise<unknown> } })
-				.__notchyMock;
-			const SQL = (await mock!.sqlReady()) as {
-				Database: new () => { run: (s: string) => void; export: () => Uint8Array };
-			};
-			const db = new SQL.Database();
-			db.run('CREATE TABLE app_meta (key TEXT PRIMARY KEY, value TEXT)');
-			db.run('CREATE TABLE accounts (id TEXT, name TEXT, type TEXT, currency TEXT)');
-			db.run('CREATE TABLE transactions (id TEXT)');
-			db.run('CREATE TABLE category_types (id TEXT)');
-			db.run('CREATE TABLE category_tags (id TEXT)');
-			db.run("INSERT INTO app_meta (key, value) VALUES ('schema_version', '7')");
-			return Array.from(db.export());
-		});
-		await writeVirtualFs(page, APP_DATA_DIR + '/wrongver.sqlite', new Uint8Array(newerBytes));
-
-		const result = await page.evaluate(
-			hookExpr(`return h.restoreCompatibleDatabase(${JSON.stringify(APP_DATA_DIR + '/wrongver.sqlite')}).catch((e) => ({ error: { code: e?.code, message: e?.message } }));`)
-		) as { error?: { code?: string; message?: string } };
-		expect(result.error?.code).toBe('backup_schema_newer');
-
-		// Live DB unchanged: validation failed, so restoreCompatibleDatabase must
-		// never reach copyFile. The account count is identical to before.
-		const after = await liveQuery<{ c: number }>(
-			page,
-			'SELECT COUNT(*) AS c FROM accounts WHERE deleted_at IS NULL'
-		);
-		expect(after[0].c).toBe(before[0].c);
-	});
+test('rejects corrupt backup bytes without changing the selected profile', async ({ tauriMockPage: page }) => {
+	await onboard(page);
+	const original = await active(page);
+	await writeVirtualFs(page, '/outside/broken.sqlite', new TextEncoder().encode('broken'));
+	await expect(invoke(page, 'profile_inspect_restore', { sourcePath: '/outside/broken.sqlite' })).rejects.toThrow();
+	expect((await active(page)).profileId).toBe(original.profileId);
+	expect(await rawQuery<{ id: string }>(page, 'SELECT id FROM accounts WHERE deleted_at IS NULL')).toHaveLength(1);
 });
 
-/**
- * Auto-backup runs on app launch when last_backup_at is stale. This needs a
- * custom seedMeta (old last_backup_at) injected before the page loads, so it
- * lives in its own describe with test.use({ tauriMockOptions }).
- */
-test.describe('auto-backup on launch', () => {
-	test.use({ tauriMockOptions: { seedMeta: { last_backup_at: '2020-01-01T00:00:00.000Z' } } });
+test('rejects a backup from a newer schema without changing the selected profile', async ({ tauriMockPage: page }) => {
+	await onboard(page);
+	const original = await active(page);
+	await rawExecute(page, "UPDATE app_meta SET value='7' WHERE key='schema_version'");
+	const path = await invoke<string>(page, 'profile_backup', { id: original.profileId });
+	await rawExecute(page, "UPDATE app_meta SET value='6' WHERE key='schema_version'");
+	await expect(invoke(page, 'profile_inspect_restore', { sourcePath: path })).rejects.toThrow();
+	expect((await active(page)).profileId).toBe(original.profileId);
+});
 
-	test('writes a backup file to the virtual FS', async ({ tauriMockPage: page }) => {
-		await onboard(page, { accountName: 'AutoBak' });
+test('exports a backup to the requested path', async ({ tauriMockPage: page }) => {
+	await onboard(page);
+	const original = await active(page);
+	await invoke(page, 'profile_export_backup', { id: original.profileId, targetPath: '/outside/personal.sqlite' });
+	const bytes = await readVirtualFs(page, '/outside/personal.sqlite');
+	expect(bytes?.length).toBeGreaterThan(100);
+});
 
-		// runAutoBackup is fire-and-forget during dbStore.init(); poll the
-		// virtual FS until a notchy-backup-*.sqlite file appears under backups/.
-		await expect.poll(async () => listVirtualFs(page, BACKUP_DIR), { timeout: 10_000 }).toEqual(
-			expect.arrayContaining([expect.stringMatching(/notchy-backup-.*\.sqlite$/)])
-		);
-	});
+test('reset leaves a recoverable snapshot and an empty selected profile', async ({ tauriMockPage: page }) => {
+	await onboard(page);
+	const original = await active(page);
+	await invoke(page, 'profile_reset', { id: original.profileId, context: { operationId: 'reset-1', transitionToken: 'test-token' } });
+	const next = await active(page);
+	expect(next.profileId).toBe(original.profileId);
+	expect(next.generation).not.toBe(original.generation);
+	expect(await rawQuery<{ id: string }>(page, 'SELECT id FROM accounts WHERE deleted_at IS NULL')).toHaveLength(0);
+	const backups = await invoke<Array<{ path: string }>>(page, 'profile_discover_backups', { id: original.profileId });
+	expect(backups.some((backup) => backup.path.includes('/resets/'))).toBe(true);
+	await page.reload();
+	await expect(page.getByRole('radiogroup').first()).toBeVisible();
+});
 });
