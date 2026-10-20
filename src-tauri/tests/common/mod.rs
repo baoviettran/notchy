@@ -6,12 +6,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use tauri::Manager;
 
 use notchy_lib::database::connection::DatabasePaths;
 use notchy_lib::database::error::DbResult;
 use notchy_lib::database::executor::DatabaseManager;
-use notchy_lib::database::startup::DatabaseStatus;
 use notchy_lib::database::types::StartupStage;
 
 /// Path of the committed native fixtures, anchored to the crate manifest so the
@@ -80,26 +78,6 @@ pub fn mock_app(manager: Arc<DatabaseManager>) -> MockApp {
         main,
         quick_add,
     }
-}
-
-/// Invoke `database_initialize` as if called from the window named `label`.
-// `common/` is compiled into every test binary that declares `mod common`.
-// Only `startup.rs` drives the initialize path, so `command_guards.rs` sees
-// this as dead code. Allowed per-item rather than module-wide so the lint
-// still catches genuinely dead helpers here.
-#[allow(dead_code)]
-pub async fn initialize_as(
-    label: &str,
-    manager: &Arc<DatabaseManager>,
-) -> DbResult<DatabaseStatus> {
-    let app = mock_app(Arc::clone(manager));
-    let window = if label == "main" {
-        app.main.clone()
-    } else {
-        app.quick_add.clone()
-    };
-    let state = app.app.state::<Arc<DatabaseManager>>();
-    notchy_lib::database::commands::database_initialize(window, state).await
 }
 
 /// Run a data-job write as if issued from the window named `label`. Writes are

@@ -63,6 +63,9 @@ pub fn profile_prepare_transition<R: tauri::Runtime>(window: tauri::WebviewWindo
 pub fn profile_ack_transition<R: tauri::Runtime>(window: tauri::WebviewWindow<R>, app: tauri::AppHandle<R>, coordinator: State<'_, Arc<ProfileCoordinator>>, request_id: String, dirty: bool, resolved: bool) -> DbResult<()> {
     if let Some(transition_token) = coordinator.ack_transition(&request_id, window.label(), dirty, resolved)? {
         app.emit_to("main", "profile:transition-ready", TransitionReady { request_id, transition_token }).map_err(|_| DbError::new(ErrorCode::ProfileTransitionBlocked))?;
+    } else if !resolved {
+        coordinator.cancel_transition(&request_id)?;
+        app.emit("profile:transition-canceled", serde_json::json!({ "requestId": request_id })).map_err(|_| DbError::new(ErrorCode::ProfileTransitionBlocked))?;
     }
     Ok(())
 }
@@ -72,6 +75,12 @@ pub fn profile_cancel_transition<R: tauri::Runtime>(window: tauri::WebviewWindow
     coordinator.cancel_transition(&request_id)?;
     app.emit("profile:transition-canceled", serde_json::json!({ "requestId": request_id })).map_err(|_| DbError::new(ErrorCode::ProfileTransitionBlocked))?;
     Ok(())
+}
+
+#[tauri::command]
+pub async fn profiles_bootstrap<R: tauri::Runtime>(window: tauri::WebviewWindow<R>, coordinator: State<'_, Arc<ProfileCoordinator>>) -> DbResult<ProfileSnapshot> {
+    authorize(&window)?;
+    coordinator.bootstrap().await
 }
 
 #[tauri::command]

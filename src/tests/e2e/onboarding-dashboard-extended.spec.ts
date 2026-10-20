@@ -1,3 +1,4 @@
+import { startOnboarding } from './helpers/ui';
 import { test, expect } from './fixtures/onboarded';
 import { test as baseTest } from '@playwright/test';
 
@@ -26,7 +27,7 @@ baseTest.describe('onboarding — extended (§1)', () => {
 		// advances unconditionally. There is no "advance without a selection"
 		// state because a currency is always chosen. We assert Continue is
 		// enabled and the step advances — the genuine behaviour.
-		await page.goto('/');
+		await startOnboarding(page);
 		await page.getByRole('radio', { name: /^English/ }).click();
 		await page.getByRole('button', { name: 'Continue →' }).click();
 		// Now on step 2 (currency). Continue is enabled.
@@ -39,7 +40,7 @@ baseTest.describe('onboarding — extended (§1)', () => {
 
 	baseTest('Finish setup is disabled until an account name is entered', async ({ page }) => {
 		// onboarding/+page.svelte:141 disabled={!accountName || saving}.
-		await page.goto('/');
+		await startOnboarding(page);
 		await page.getByRole('radio', { name: /^English/ }).click();
 		await page.getByRole('button', { name: 'Continue →' }).click();
 		await page.getByRole('button', { name: 'Continue →' }).click();
@@ -51,7 +52,7 @@ baseTest.describe('onboarding — extended (§1)', () => {
 	baseTest('whitespace-only account name is rejected (trim validation)', async ({ page }) => {
 		// onboarding finish() must trim-check the name so a spaces-only name is
 		// rejected — matching AccountForm's name.trim() validation.
-		await page.goto('/');
+		await startOnboarding(page);
 		await page.getByRole('radio', { name: /^English/ }).click();
 		await page.getByRole('button', { name: 'Continue →' }).click();
 		await page.getByRole('button', { name: 'Continue →' }).click();
@@ -65,7 +66,7 @@ baseTest.describe('onboarding — extended (§1)', () => {
 		// onboarding finish() must surface a validation error when the initial
 		// balance can't be parsed, rather than swallowing it and creating the
 		// account with no opening balance.
-		await page.goto('/');
+		await startOnboarding(page);
 		await page.getByRole('radio', { name: /^English/ }).click();
 		await page.getByRole('button', { name: 'Continue →' }).click();
 		await page.getByRole('button', { name: 'Continue →' }).click();

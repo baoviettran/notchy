@@ -114,13 +114,15 @@
 		try {
 			if (mode === 'create') { await actions.createAndOpen(name.trim()); profileDialog.close(); await goto(settings.firstRunComplete ? '/' : '/onboarding'); }
 			else if (mode === 'rename' && target) { await actions.rename(target.id, name.trim()); profileDialog.close(); }
-			else if (mode === 'reset' && target) { await actions.reset(target.id); toast.show(L.resetDone); profileDialog.close(); }
+			else if (mode === 'reset' && target) { await actions.reset(target.id); toast.show(L.resetDone); profileDialog.close(); if (profiles.snapshot?.active?.profileId === target.id) await goto('/onboarding'); }
 			else if (mode === 'delete' && target) {
+				const wasActive = profiles.snapshot?.active?.profileId === target.id;
 				let path: string | null = null;
 				if (exportFirst) { path = await chooseSavePath(); if (!path) return; }
 				const result = await actions.remove(target.id, path);
 				toast.show(result.cleanupPending ? L.cleanupPending : L.deleted);
 				profileDialog.close();
+				if (wasActive) await goto('/profiles');
 			} else if (mode === 'restore' && preview) {
 				const record = await actions.restore(preview.token, name.trim());
 				preview = null;

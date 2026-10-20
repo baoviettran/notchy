@@ -14,7 +14,7 @@ export async function onboard(
 	const currency = opts.currency ?? /VND — Vietnamese đồng/;
 	const accountName = opts.accountName ?? 'Test Checking';
 
-	await page.goto('/');
+	await startOnboarding(page);
 	// Wait for the Svelte app to hydrate and sql.js WASM to finish initializing
 	// before interacting — prevents race-condition timeouts under parallel workers.
 	// 60s: WASM init + Svelte hydration under parallel CI workers can exceed the
@@ -85,4 +85,15 @@ export async function addTransaction(
 
 function capitalize(s: string): string {
 	return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Start the first profile explicitly, then reach the onboarding wizard. */
+export async function startOnboarding(page: Page): Promise<void> {
+	await page.goto('/');
+	await expect(page.getByRole('heading', { name: 'Choose a profile' })).toBeVisible({ timeout: 60_000 });
+	await page.getByRole('button', { name: 'Create profile' }).click();
+	const dialog = page.getByRole('dialog', { name: 'Create profile' });
+	await dialog.getByLabel('Profile name').fill('Personal');
+	await dialog.getByRole('button', { name: 'Create profile' }).click();
+	await expect(page.getByRole('radiogroup').first()).toBeVisible({ timeout: 60_000 });
 }

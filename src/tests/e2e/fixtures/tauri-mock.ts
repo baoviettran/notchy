@@ -95,10 +95,12 @@ const opts = window.__NOTCHY_TAURI_MOCK_OPTIONS__ || {};
 const APP_DATA_DIR = '/notchy/appdata';
 const LIVE_PATH = 'sqlite:notchy.db';
 const LIVE_DB_PATH = '/notchy/appdata/notchy.db';
+let activeDbPath = LIVE_DB_PATH;
+const profilePath = (id) => APP_DATA_DIR + '/profiles/' + id + '/notchy.db';
 // Native boot loads LIVE_DB_PATH; the legacy plugin:sql connection string
 // resolves to the same file via fsKeyFor. "Live" means either key.
 function isLivePath(p) {
-	return p === LIVE_PATH || p === LIVE_DB_PATH;
+	return p === LIVE_PATH || p === LIVE_DB_PATH || p === activeDbPath;
 }
 const GLUE_B64 = ${JSON.stringify(glueB64)};
 const WASM_B64 = ${JSON.stringify(WASM_B64)};
@@ -198,10 +200,10 @@ let flushInFlight = null;
 function flushLiveDb() {
 	if (flushInFlight) return flushInFlight;
 	flushInFlight = (async () => {
-		const db = dbs.get(LIVE_DB_PATH) || dbs.get(LIVE_PATH);
+		const db = dbs.get(activeDbPath) || dbs.get(LIVE_PATH);
 		if (db) {
 			const bytes = db.export();
-			try { await idbSet(idbKey(LIVE_DB_PATH), bytes); } catch {}
+			try { await idbSet(idbKey(activeDbPath), bytes); } catch {}
 			try { await idbSet(idbKey(LIVE_PATH), bytes); } catch {}
 		}
 		flushInFlight = null;
@@ -411,6 +413,34 @@ const join = (...parts) => parts.join('/').replace(/\\\\/g, '/').replace(/\\/+/g
 // SCHEDULE_COLUMNS, so the mock cannot drift from either adapter.
 const SCHEDULE_COLUMNS = 'id, name, kind, amount, account_id, transfer_account_id, tag_id, payee, description, frequency, start_date, end_date, posts_transaction, next_due_date, last_posted_date, completed, enabled, errored_at, created_at, updated_at';
 
+// The profile registry is separate from the per-profile SQLite files. A full
+// reload reconstructs it before the first startup command, as the Rust host does.
+let profileRegistry = { profiles: [], activeId: null, preferences: { locale: 'en', theme: 'light' } };
+let activeSession = null;
+let profileRecovery = null;
+const profileReady = (async () => {
+	const saved = await idbGet('notchy-mock:profile-registry');
+	if (saved) profileRegistry = saved;
+	else if (opts.initialSchemaVersion != null) {
+		const legacy = { id: 'legacy-profile', name: 'Personal', createdAt: new Date().toISOString() };
+		profileRegistry = { ...profileRegistry, profiles: [legacy], activeId: legacy.id };
+	}
+	if (profileRegistry.activeId) activeDbPath = profilePath(profileRegistry.activeId);
+})();
+const saveProfiles = () => idbSet('notchy-mock:profile-registry', profileRegistry);
+const profileSnapshot = () => ({
+	profiles: profileRegistry.profiles, active: activeSession,
+	phase: profileRecovery ? 'recovery' : 'idle', preferences: profileRegistry.preferences, recovery: profileRecovery
+});
+const eventCallbacks = new Map();
+const eventListeners = new Map();
+let nextCallback = 1;
+let nextListener = 1;
+function emitMock(event, payload) {
+	for (const listener of eventListeners.values()) {
+		if (listener.event === event) queueMicrotask(() => eventCallbacks.get(listener.handler)?.({ event, id: listener.id, payload }));
+	}
+}
 // --- install invoke SYNCHRONOUSLY -----------------------------------------
 // The app calls getDb() -> Database.load() -> invoke() on startup. By
 // installing invoke here (before any app script), every startup call resolves
@@ -419,6 +449,7 @@ window.__TAURI_INTERNALS__ = {
 	invoke: async (cmd, args) => {
 		const SQL_JS = await sqlReady;
 		await faultInit;
+		await profileReady;
 		args = args || {};
 		// --- event plugin (no-op bus) ---
 		// The root layout attaches a 'transaction:saved' listener during boot
@@ -427,9 +458,170 @@ window.__TAURI_INTERNALS__ = {
 		// before the pass ever runs, so the mock offers a minimal stub: listen
 		// returns an id, and unlisten/emit are no-ops (the mock has no real
 		// cross-window bus — the test asserts on the DB, not on delivery).
-		if (cmd === 'plugin:event|listen') return 0;
-		if (cmd === 'plugin:event|unlisten') return {};
-		if (cmd === 'plugin:event|emit' || cmd === 'plugin:event|emit_to') return {};
+		if (cmd === 'plugin:event|listen') {
+			const id = nextListener++;
+			eventListeners.set(id, { id, event: args.event, handler: args.handler });
+			return id;
+		}
+		if (cmd === 'plugin:event|unlisten') { eventListeners.delete(args.eventId); return {}; }
+		if (cmd === 'plugin:event|emit' || cmd === 'plugin:event|emit_to') { emitMock(args.event, args.payload); return {}; }
+		// Profile commands mirror the registry/session boundary used by the host.
+		if (cmd === 'profiles_bootstrap') {
+			if (profileRegistry.activeId) {
+				activeDbPath = profilePath(profileRegistry.activeId);
+				const status = await window.__TAURI_INTERNALS__.invoke('database_initialize');
+				if (status.lifecycle !== 'ready') {
+					profileRecovery = { profileId: profileRegistry.activeId, code: status.recovery.code, retryable: status.recovery.retryable };
+					return profileSnapshot();
+				}
+				profileRecovery = null;
+				activeSession = { profileId: profileRegistry.activeId, generation: crypto.randomUUID() };
+			}
+			return profileSnapshot();
+		}
+		if (cmd === 'profiles_load') return profileSnapshot();
+		if (cmd === 'profile_window_ready') return null;
+		if (cmd === 'profile_prepare_transition') {
+			const request = { requestId: crypto.randomUUID(), expectedSession: args.expected || null, requiredLabels: ['main'] };
+			emitMock('profile:prepare-transition', request);
+			return request;
+		}
+		if (cmd === 'profile_ack_transition') {
+			if (args.resolved) emitMock('profile:transition-ready', { requestId: args.requestId, transitionToken: crypto.randomUUID() });
+			else emitMock('profile:transition-canceled', { requestId: args.requestId });
+			return {};
+		}
+		if (cmd === 'profile_cancel_transition') { emitMock('profile:transition-canceled', { requestId: args.requestId }); return {}; }
+		if (cmd === 'profile_create') {
+			const id = crypto.randomUUID();
+			const record = { id, name: args.name, createdAt: new Date().toISOString() };
+			const previous = activeDbPath;
+			activeDbPath = profilePath(id);
+			try {
+				const status = await window.__TAURI_INTERNALS__.invoke('database_initialize');
+				if (status.lifecycle !== 'ready') throw new Error(status.recovery?.code || 'profile create failed');
+				if (opts.persist) await idbSet(idbKey(activeDbPath), dbs.get(activeDbPath).export());
+			} finally { activeDbPath = previous; }
+			profileRegistry.profiles.push(record);
+			await saveProfiles();
+			return record;
+		}
+		if (cmd === 'profile_activate') {
+			if (!profileRegistry.profiles.some((p) => p.id === args.id)) throw new Error('profile not found');
+			activeDbPath = profilePath(args.id);
+			profileRegistry.activeId = args.id;
+			activeSession = { profileId: args.id, generation: crypto.randomUUID() };
+			await saveProfiles();
+			emitMock('profile:session-changed', { session: activeSession });
+			return activeSession;
+		}
+		if (cmd === 'profile_rename') {
+			const record = profileRegistry.profiles.find((p) => p.id === args.id);
+			if (!record) throw new Error('profile not found');
+			record.name = args.name;
+			await saveProfiles();
+			return record;
+		}
+		if (cmd === 'profile_backup' || cmd === 'profile_export_backup') {
+			const record = profileRegistry.profiles.find((p) => p.id === args.id);
+			if (!record) throw new Error('profile not found');
+			const path = profilePath(args.id);
+			const db = await loadDb(path, SQL_JS);
+			const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+			const destination = cmd === 'profile_backup'
+				? APP_DATA_DIR + '/profiles/' + args.id + '/backups/notchy-backup-' + stamp + '.sqlite'
+				: args.targetPath;
+			const bytes = db.export();
+			fs.set(destination, bytes);
+			return cmd === 'profile_backup' ? destination : {};
+		}
+		if (cmd === 'profile_discover_backups') {
+			const root = APP_DATA_DIR + '/profiles/' + args.id + '/backups/';
+			return [...fs.keys()].filter((p) => p.startsWith(root)).map((path) => ({
+				id: path, path, schema_version: 6, source_app_version: '0.2.1',
+				created_at: new Date().toISOString(), verified: true
+			}));
+		}
+		if (cmd === 'profile_inspect_restore') {
+			const bytes = fs.get(args.sourcePath);
+			if (!bytes || bytes.length < 16 || String.fromCharCode(...bytes.slice(0, 16)) !== ('SQLite format 3' + String.fromCharCode(0))) throw new Error('invalid backup');
+			let candidate;
+			try {
+				candidate = new SQL_JS.Database(bytes);
+				const rows = select(candidate, "SELECT value FROM app_meta WHERE key = 'schema_version'", []);
+				const version = Number(rows[0]?.value);
+				if (!Number.isInteger(version) || version < 4 || version > 6) throw new Error('incompatible backup');
+				const token = crypto.randomUUID();
+				const name = args.sourcePath.split('/').pop().replace(/\\.sqlite$/, '') || 'Recovered profile';
+				fs.set('preview:' + token, bytes);
+				return { token, suggestedName: name, schemaVersion: version };
+			} finally { candidate?.close(); }
+		}
+		if (cmd === 'profile_cancel_restore') { fs.delete('preview:' + args.token); return {}; }
+		if (cmd === 'profile_restore') {
+			const bytes = fs.get('preview:' + args.token);
+			if (!bytes) throw new Error('restore preview expired');
+			const id = crypto.randomUUID();
+			const record = { id, name: args.name, createdAt: new Date().toISOString() };
+			const path = profilePath(id);
+			fs.set(path, bytes);
+			if (opts.persist) await idbSet(idbKey(path), bytes);
+			const previous = activeDbPath;
+			activeDbPath = path;
+			try {
+				const status = await window.__TAURI_INTERNALS__.invoke('database_initialize');
+				if (status.lifecycle !== 'ready') throw new Error(status.recovery?.code || 'restore failed');
+				if (opts.persist) await idbSet(idbKey(activeDbPath), dbs.get(activeDbPath).export());
+			} finally { activeDbPath = previous; }
+			profileRegistry.profiles.push(record);
+			fs.delete('preview:' + args.token);
+			await saveProfiles();
+			return record;
+		}
+		if (cmd === 'profile_reset') {
+			if (!profileRegistry.profiles.some((p) => p.id === args.id)) throw new Error('profile not found');
+			const path = profilePath(args.id);
+			const old = dbs.get(path);
+			if (old) fs.set(APP_DATA_DIR + '/profiles/' + args.id + '/backups/resets/reset-' + Date.now() + '.sqlite', old.export());
+			dbs.delete(path); fs.delete(path);
+			if (opts.persist) await idbSet(idbKey(path), null);
+			const previous = activeDbPath;
+			activeDbPath = path;
+			try {
+				await window.__TAURI_INTERNALS__.invoke('database_initialize');
+				if (opts.persist) await idbSet(idbKey(activeDbPath), dbs.get(activeDbPath).export());
+			} finally { activeDbPath = previous; }
+			if (activeSession?.profileId === args.id) {
+				activeSession = { profileId: args.id, generation: crypto.randomUUID() };
+				emitMock('profile:session-changed', { session: activeSession });
+			}
+			return {};
+		}
+		if (cmd === 'profile_delete') {
+			const record = profileRegistry.profiles.find((p) => p.id === args.id);
+			if (!record) throw new Error('profile not found');
+			const path = profilePath(args.id);
+			if (args.exportPath) {
+				const db = await loadDb(path, SQL_JS);
+				fs.set(args.exportPath, db.export());
+			}
+			profileRegistry.profiles = profileRegistry.profiles.filter((p) => p.id !== args.id);
+			if (profileRegistry.activeId === args.id) {
+				profileRegistry.activeId = null;
+				activeSession = null;
+				emitMock('profile:session-changed', { session: null });
+			}
+			dbs.delete(path); fs.delete(path);
+			if (opts.persist) await idbSet(idbKey(path), null);
+			await saveProfiles();
+			return { cleanupPending: false };
+		}
+		if (cmd === 'profile_paths') {
+			const dataDir = APP_DATA_DIR + '/profiles/' + args.id;
+			return { dataDir, databasePath: dataDir + '/notchy.db', routineBackupDir: dataDir + '/backups', upgradeBackupDir: dataDir + '/backups/upgrades', resetBackupDir: dataDir + '/backups/resets' };
+		}
+		if (cmd === 'app_preferences_set') { profileRegistry.preferences = args.preferences; await saveProfiles(); emitMock('app:preferences-changed', args.preferences); return {}; }
+		if (args.session && (!activeSession || args.session.profileId !== activeSession.profileId || args.session.generation !== activeSession.generation)) throw new Error('profile session expired');
 		// --- SQL plugin ---
 		// Normalize the connection string (strip '?readonly' etc.) so the live
 		// DB and a readonly candidate-open of the same file share one registry
@@ -575,9 +767,9 @@ window.__TAURI_INTERNALS__ = {
 			// max 6, and the E2E fixtures/assertions are schema-6-based. Rust runs
 			// its own migration 007; the mock simulates the JS-visible contract.
 			const LATEST = 6;
-			const UPGRADE_DIR = APP_DATA_DIR + '/backups/upgrades';
-			const BACKUP_DIR = APP_DATA_DIR + '/backups';
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const BACKUP_DIR = profileRegistry.activeId ? APP_DATA_DIR + '/profiles/' + profileRegistry.activeId + '/backups' : APP_DATA_DIR + '/backups';
+			const UPGRADE_DIR = BACKUP_DIR + '/upgrades';
+			const db = await loadDb(activeDbPath, SQL_JS);
 			// Ensure app_meta exists so the schema-version query works on fresh DBs
 			// (mirrors the migration runner bootstrap in browser/migrations/runner.ts).
 			db.run("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
@@ -681,13 +873,13 @@ window.__TAURI_INTERNALS__ = {
 			return { lifecycle: 'ready', stage: null, recovery: null, backups: upgrades };
 		}
 		if (cmd === 'account_list') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const today = new Date().toISOString().slice(0, 10);
 			const rows = select(db, "SELECT a.id, a.name, a.type, a.counterparty, a.currency, a.archived, a.created_at, a.updated_at, COALESCE((SELECT SUM(CASE WHEN kind='income' THEN amount WHEN kind='adjustment' THEN amount WHEN kind='refund' THEN amount WHEN kind='expense' THEN -amount WHEN kind='transfer' AND account_id=a.id THEN -amount WHEN kind='transfer' AND transfer_account_id=a.id THEN amount ELSE 0 END) FROM transactions WHERE (account_id=a.id OR (kind='transfer' AND transfer_account_id=a.id)) AND deleted_at IS NULL AND date<=?), 0) AS balance FROM accounts a WHERE a.deleted_at IS NULL ORDER BY a.archived, a.created_at", [today]);
 			return rows.map(r => ({ ...r, balance: r.balance || 0, counterparty: r.counterparty || null }));
 		}
 		if (cmd === 'account_get') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const rows = select(db, 'SELECT id, name, type, counterparty, currency, archived, created_at, updated_at FROM accounts WHERE id = ? AND deleted_at IS NULL', [args.id]);
 			if (rows.length === 0) return null;
 			const r = rows[0];
@@ -696,18 +888,18 @@ window.__TAURI_INTERNALS__ = {
 			return { ...r, balance: bal[0]?.balance || 0, counterparty: r.counterparty || null };
 		}
 		if (cmd === 'account_get_balance') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const today = new Date().toISOString().slice(0, 10);
 			const bal = select(db, 'SELECT COALESCE(SUM(CASE WHEN kind=\\'income\\' THEN amount WHEN kind=\\'adjustment\\' THEN amount WHEN kind=\\'refund\\' THEN amount WHEN kind=\\'expense\\' THEN -amount WHEN kind=\\'transfer\\' AND account_id=? THEN -amount WHEN kind=\\'transfer\\' AND transfer_account_id=? THEN amount ELSE 0 END), 0) AS balance FROM transactions WHERE (account_id=? OR (kind=\\'transfer\\' AND transfer_account_id=?)) AND deleted_at IS NULL AND date<=?', [args.accountId, args.accountId, args.accountId, args.accountId, today]);
 			return bal[0]?.balance || 0;
 		}
 		if (cmd === 'account_get_balance_as_of') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const bal = select(db, 'SELECT COALESCE(SUM(CASE WHEN kind=\\'income\\' THEN amount WHEN kind=\\'adjustment\\' THEN amount WHEN kind=\\'refund\\' THEN amount WHEN kind=\\'expense\\' THEN -amount WHEN kind=\\'transfer\\' AND account_id=? THEN -amount WHEN kind=\\'transfer\\' AND transfer_account_id=? THEN amount ELSE 0 END), 0) AS balance FROM transactions WHERE (account_id=? OR (kind=\\'transfer\\' AND transfer_account_id=?)) AND deleted_at IS NULL AND date<=?', [args.accountId, args.accountId, args.accountId, args.accountId, args.date]);
 			return bal[0]?.balance || 0;
 		}
 		if (cmd === 'account_create') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const input = args.input;
 			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
 			const now = new Date().toISOString();
@@ -723,7 +915,7 @@ window.__TAURI_INTERNALS__ = {
 			return id;
 		}
 		if (cmd === 'account_update') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const patch = args.patch;
 			const sets = ['updated_at = ?'];
 			const vals = [new Date().toISOString()];
@@ -736,13 +928,13 @@ window.__TAURI_INTERNALS__ = {
 			return {};
 		}
 		if (cmd === 'account_delete') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const now = new Date().toISOString();
 			db.run('UPDATE accounts SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [now, now, args.id]);
 			return {};
 		}
 		if (cmd === 'transaction_list') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			let where = 'deleted_at IS NULL';
 			const vals = [];
 			const f = args.filter || {};
@@ -757,12 +949,12 @@ window.__TAURI_INTERNALS__ = {
 			return select(db, 'SELECT * FROM transactions WHERE ' + where + ' ORDER BY date DESC, created_at DESC LIMIT ? OFFSET ?', [...vals, limit, offset]);
 		}
 		if (cmd === 'transaction_get') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const rows = select(db, 'SELECT * FROM transactions WHERE id = ? AND deleted_at IS NULL', [args.id]);
 			return rows.length > 0 ? rows[0] : null;
 		}
 		if (cmd === 'transaction_create') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const input = args.input;
 			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
 			const now = new Date().toISOString();
@@ -771,7 +963,7 @@ window.__TAURI_INTERNALS__ = {
 			return id;
 		}
 		if (cmd === 'transaction_create_batch') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const ids = [];
 			for (const input of args.inputs) {
 				const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
@@ -783,7 +975,7 @@ window.__TAURI_INTERNALS__ = {
 			return ids;
 		}
 		if (cmd === 'transaction_update') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const patch = args.patch;
 			const sets = ['updated_at = ?'];
 			const vals = [new Date().toISOString()];
@@ -798,18 +990,18 @@ window.__TAURI_INTERNALS__ = {
 			return {};
 		}
 		if (cmd === 'transaction_delete') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const now = new Date().toISOString();
 			db.run('UPDATE transactions SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [now, now, args.id]);
 			return {};
 		}
 		if (cmd === 'transaction_restore') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			db.run('UPDATE transactions SET deleted_at = NULL, updated_at = ? WHERE id = ?', [new Date().toISOString(), args.id]);
 			return {};
 		}
 		if (cmd === 'transaction_duplicate') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const rows = select(db, 'SELECT * FROM transactions WHERE id = ? AND deleted_at IS NULL', [args.id]);
 			if (rows.length === 0) throw new Error('transaction not found');
 			const orig = rows[0];
@@ -820,13 +1012,13 @@ window.__TAURI_INTERNALS__ = {
 			return newId;
 		}
 		if (cmd === 'category_list_buckets') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			// Schema mirrors the real migration 002/003 tables (category_types),
 			// NOT the legacy categories/tags names.
 			return select(db, 'SELECT id, name, is_system, budgetable, rollover_enabled, sort_order, created_at, updated_at FROM category_types WHERE deleted_at IS NULL ORDER BY sort_order', []);
 		}
 		if (cmd === 'category_create_bucket') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
 			const now = new Date().toISOString();
 			const maxSort = select(db, 'SELECT MAX(sort_order) as m FROM category_types WHERE deleted_at IS NULL', []);
@@ -836,23 +1028,23 @@ window.__TAURI_INTERNALS__ = {
 			return id;
 		}
 		if (cmd === 'category_rename_bucket') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			db.run('UPDATE category_types SET name = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [args.name, new Date().toISOString(), args.id]);
 			return {};
 		}
 		if (cmd === 'category_set_rollover_enabled') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			db.run('UPDATE category_types SET rollover_enabled = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [args.enabled ? 1 : 0, new Date().toISOString(), args.id]);
 			return {};
 		}
 		if (cmd === 'category_delete_bucket') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const now = new Date().toISOString();
 			db.run('UPDATE category_types SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [now, now, args.id]);
 			return {};
 		}
 		if (cmd === 'category_list_tags') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			let q = 'SELECT id, type_id, name, is_system, sort_order, created_at, updated_at FROM category_tags WHERE deleted_at IS NULL';
 			const vals = [];
 			if (args.bucketId) { q += ' AND type_id = ?'; vals.push(args.bucketId); }
@@ -860,7 +1052,7 @@ window.__TAURI_INTERNALS__ = {
 			return select(db, q, vals);
 		}
 		if (cmd === 'category_create_tag') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
 			const now = new Date().toISOString();
 			const maxSort = select(db, 'SELECT MAX(sort_order) as m FROM category_tags WHERE type_id = ? AND deleted_at IS NULL', [args.bucketId]);
@@ -870,22 +1062,22 @@ window.__TAURI_INTERNALS__ = {
 			return id;
 		}
 		if (cmd === 'category_rename_tag') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			db.run('UPDATE category_tags SET name = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [args.name, new Date().toISOString(), args.id]);
 			return {};
 		}
 		if (cmd === 'category_move_tag') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			db.run('UPDATE category_tags SET type_id = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [args.newBucketId, new Date().toISOString(), args.tagId]);
 			return { tag_id: args.tagId, affected_count: 0, affected_total: 0 };
 		}
 		if (cmd === 'category_get_tag_transaction_info') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const cnt = select(db, 'SELECT COUNT(*) as count FROM transactions WHERE tag_id = ? AND deleted_at IS NULL', [args.tagId]);
 			return { tag_id: args.tagId, transaction_count: cnt[0]?.count || 0 };
 		}
 		if (cmd === 'category_delete_tag') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const now = new Date().toISOString();
 			const opt = args.option;
 			if (opt === 'uncategorise') {
@@ -900,7 +1092,7 @@ window.__TAURI_INTERNALS__ = {
 			return {};
 		}
 		if (cmd === 'budget_get_for_month') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			// Mirror the Rust BudgetSummary contract: rolled_over is the flag-aware
 			// carry (rollover OFF = running floor), and available = allocated +
 			// rolled_over - spent. Computed from the fixture DB, not stubbed.
@@ -912,22 +1104,22 @@ window.__TAURI_INTERNALS__ = {
 			});
 		}
 		if (cmd === 'budget_get_spent_for_bucket') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const start = args.month + '-01';
 			const end = args.month + '-32';
 			const r = select(db, "SELECT COALESCE(SUM(CASE WHEN t.kind = 'expense' THEN t.amount WHEN t.kind = 'refund' THEN -t.amount ELSE 0 END), 0) as spent FROM transactions t JOIN category_tags ct ON t.tag_id = ct.id WHERE ct.type_id = ? AND t.date >= ? AND t.date < ? AND t.kind IN ('expense', 'refund') AND t.deleted_at IS NULL", [args.typeId, start, end]);
 			return r[0]?.spent || 0;
 		}
 		if (cmd === 'budget_get_rolled_over') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			return budRolledOver(db, args.typeId, args.month);
 		}
 		if (cmd === 'budget_get_to_budget') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			return budToBudget(db, args.month);
 		}
 		if (cmd === 'budget_set_allocation') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const now = new Date().toISOString();
 			const existing = select(db, 'SELECT id FROM budgets WHERE type_id = ? AND month = ? AND deleted_at IS NULL', [args.typeId, args.month]);
 			if (existing.length > 0) {
@@ -942,21 +1134,21 @@ window.__TAURI_INTERNALS__ = {
 			return {};
 		}
 		if (cmd === 'budget_has_allocations') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const r = select(db, 'SELECT COUNT(*) as count FROM budgets WHERE month = ? AND deleted_at IS NULL', [args.month]);
 			return (r[0]?.count || 0) > 0;
 		}
 		if (cmd === 'goal_list') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			return select(db, 'SELECT * FROM goals WHERE deleted_at IS NULL ORDER BY created_at', []);
 		}
 		if (cmd === 'goal_get') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const r = select(db, 'SELECT * FROM goals WHERE id = ? AND deleted_at IS NULL', [args.id]);
 			return r.length > 0 ? r[0] : null;
 		}
 		if (cmd === 'goal_create') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
 			const now = new Date().toISOString();
 			db.run('INSERT INTO goals (id, name, goal_type, target_amount, target_date, linked_account_id, starting_amount, show_on_dashboard, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, \\'active\\', ?, ?)',
@@ -964,7 +1156,7 @@ window.__TAURI_INTERNALS__ = {
 			return id;
 		}
 		if (cmd === 'goal_update') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const sets = ['updated_at = ?'];
 			const vals = [new Date().toISOString()];
 			if (args.name !== null && args.name !== undefined) { sets.push('name = ?'); vals.push(args.name); }
@@ -977,18 +1169,18 @@ window.__TAURI_INTERNALS__ = {
 			return {};
 		}
 		if (cmd === 'goal_delete') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const now = new Date().toISOString();
 			db.run('UPDATE goals SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [now, now, args.id]);
 			return {};
 		}
 		if (cmd === 'schedule_list') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			// Same ORDER BY as listSchedules / Rust list_schedules.
 			return select(db, 'SELECT ' + SCHEDULE_COLUMNS + ' FROM schedules WHERE deleted_at IS NULL ORDER BY created_at DESC, id DESC', []);
 		}
 		if (cmd === 'schedule_create') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const input = args.input;
 			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
 			const now = new Date().toISOString();
@@ -999,7 +1191,7 @@ window.__TAURI_INTERNALS__ = {
 			return id;
 		}
 		if (cmd === 'schedule_update') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const input = args.input;
 			const now = new Date().toISOString();
 			// next_due_date = COALESCE(?, next_due_date) keeps a stored due date
@@ -1012,41 +1204,41 @@ window.__TAURI_INTERNALS__ = {
 			return {};
 		}
 		if (cmd === 'schedule_delete') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const now = new Date().toISOString();
 			db.run('UPDATE schedules SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [now, now, args.id]);
 			if (db.getRowsModified() === 0) throw new Error('invalid_input');
 			return {};
 		}
 		if (cmd === 'schedule_list_due') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			// The real predicate (listDueSchedules / Rust list_due_schedules): a mock
 			// that returned everything would make the boot pass look like it works
 			// while the native path posted nothing.
 			return select(db, 'SELECT ' + SCHEDULE_COLUMNS + ' FROM schedules WHERE enabled = 1 AND completed = 0 AND errored_at IS NULL AND deleted_at IS NULL AND next_due_date IS NOT NULL AND next_due_date <= ? ORDER BY next_due_date, id', [args.today]);
 		}
 		if (cmd === 'schedule_mark_posted') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const now = new Date().toISOString();
 			db.run('UPDATE schedules SET last_posted_date = ?, next_due_date = ?, completed = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL',
 				[args.lastPostedDate == null ? null : args.lastPostedDate, args.nextDueDate == null ? null : args.nextDueDate, args.completed, now, args.id]);
 			return {};
 		}
 		if (cmd === 'schedule_mark_errored') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const now = new Date().toISOString();
 			db.run('UPDATE schedules SET errored_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [now, now, args.id]);
 			return {};
 		}
 		if (cmd === 'rule_list' || cmd === 'rule_list_all') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			let q = 'SELECT id, payee_term, match_mode, tag_id, source, enabled, created_at, updated_at FROM rules WHERE deleted_at IS NULL';
 			if (cmd === 'rule_list') q += ' AND enabled = 1';
 			q += ' ORDER BY created_at';
 			return select(db, q, []);
 		}
 		if (cmd === 'rule_create') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
 			const now = new Date().toISOString();
 			db.run('INSERT INTO rules (id, payee_term, match_mode, tag_id, source, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?)',
@@ -1054,7 +1246,7 @@ window.__TAURI_INTERNALS__ = {
 			return { id, payee_term: args.payeeTerm, match_mode: args.matchMode, tag_id: args.tagId, source: args.source || 'manual', enabled: 1, created_at: now, updated_at: now };
 		}
 		if (cmd === 'rule_update') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const sets = ['updated_at = ?'];
 			const vals = [new Date().toISOString()];
 			if (args.payeeTerm !== null && args.payeeTerm !== undefined) { sets.push('payee_term = ?'); vals.push(args.payeeTerm); }
@@ -1068,13 +1260,13 @@ window.__TAURI_INTERNALS__ = {
 			return r[0] || {};
 		}
 		if (cmd === 'rule_delete') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const now = new Date().toISOString();
 			db.run('UPDATE rules SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [now, now, args.id]);
 			return {};
 		}
 		if (cmd === 'rule_upsert_learned') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const existing = select(db, 'SELECT id FROM rules WHERE payee_term = ? AND source = \\'learned\\' AND deleted_at IS NULL', [args.payeeTerm]);
 			const now = new Date().toISOString();
 			if (existing.length > 0) {
@@ -1087,73 +1279,73 @@ window.__TAURI_INTERNALS__ = {
 			return { id, payee_term: args.payeeTerm, match_mode: 'contains', tag_id: args.tagId, source: 'learned', enabled: 1, created_at: now, updated_at: now };
 		}
 		if (cmd === 'meta_get') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const r = select(db, 'SELECT value FROM app_meta WHERE key = ?', [args.key]);
 			return r.length > 0 ? r[0].value : null;
 		}
 		if (cmd === 'meta_set') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			db.run('INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)', [args.key, args.value]);
 			return {};
 		}
 		if (cmd === 'meta_delete') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			db.run('DELETE FROM app_meta WHERE key = ?', [args.key]);
 			return {};
 		}
 		if (cmd === 'meta_is_first_run_complete') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const r = select(db, 'SELECT value FROM app_meta WHERE key = \\'first_run_complete\\'', []);
 			return r.length > 0 && r[0].value === '1';
 		}
 		if (cmd === 'meta_get_locale') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const r = select(db, 'SELECT value FROM app_meta WHERE key = \\'locale\\'', []);
 			return r.length > 0 ? r[0].value : 'en';
 		}
 		if (cmd === 'meta_get_currency') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const r = select(db, 'SELECT value FROM app_meta WHERE key = \\'currency\\'', []);
 			return r.length > 0 ? r[0].value : 'VND';
 		}
 		if (cmd === 'meta_is_tour_complete') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const r = select(db, 'SELECT value FROM app_meta WHERE key = \\'tour_complete\\'', []);
 			return r.length > 0 && r[0].value === '1';
 		}
 		if (cmd === 'meta_set_tour_complete') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			db.run('INSERT OR REPLACE INTO app_meta (key, value) VALUES (\\'tour_complete\\', \\'1\\')', []);
 			return {};
 		}
 		if (cmd === 'meta_set_first_run_complete') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			db.run('INSERT OR REPLACE INTO app_meta (key, value) VALUES (\\'first_run_complete\\', \\'1\\')', []);
 			return {};
 		}
 		if (cmd === 'meta_get_default_quick_account') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const r = select(db, 'SELECT value FROM app_meta WHERE key = \\'default_quick_account\\'', []);
 			return r.length > 0 ? r[0].value : null;
 		}
 		if (cmd === 'meta_set_default_quick_account') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			db.run('INSERT OR REPLACE INTO app_meta (key, value) VALUES (\\'default_quick_account\\', ?)', [args.accountId]);
 			return {};
 		}
 		if (cmd === 'meta_clear_default_quick_account') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			db.run('DELETE FROM app_meta WHERE key = \\'default_quick_account\\'', []);
 			return {};
 		}
 		if (cmd === 'debt_list') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const iOwe = select(db, 'SELECT a.*, COALESCE(SUM(CASE WHEN t.kind=\\'expense\\' THEN t.amount WHEN t.kind=\\'transfer\\' AND t.transfer_account_id=a.id THEN t.amount ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN t.kind=\\'transfer\\' AND t.account_id=a.id THEN t.amount ELSE 0 END), 0) as balance FROM accounts a LEFT JOIN transactions t ON (t.account_id=a.id OR t.transfer_account_id=a.id) AND t.deleted_at IS NULL WHERE a.type=\\'loan_to_person\\' AND a.deleted_at IS NULL GROUP BY a.id', []);
 			const owedToMe = select(db, 'SELECT a.*, COALESCE(SUM(CASE WHEN t.kind=\\'expense\\' THEN t.amount WHEN t.kind=\\'transfer\\' AND t.transfer_account_id=a.id THEN t.amount ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN t.kind=\\'transfer\\' AND t.account_id=a.id THEN t.amount ELSE 0 END), 0) as balance FROM accounts a LEFT JOIN transactions t ON (t.account_id=a.id OR t.transfer_account_id=a.id) AND t.deleted_at IS NULL WHERE a.type=\\'loan_from_person\\' AND a.deleted_at IS NULL GROUP BY a.id', []);
 			return { i_owe: iOwe, owed_to_me: owedToMe };
 		}
 		if (cmd === 'debt_write_off') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
 			const now = new Date().toISOString();
 			db.run('INSERT INTO transactions (id, kind, date, amount, account_id, tag_id, description, created_at, updated_at) VALUES (?, \\'adjustment\\', ?, ?, ?, ?, \\'Debt write-off\\', ?, ?)',
@@ -1161,11 +1353,11 @@ window.__TAURI_INTERNALS__ = {
 			return id;
 		}
 		if (cmd === 'reconciliation_get_history') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			return select(db, 'SELECT * FROM reconciliations WHERE account_id = ? ORDER BY reconciled_at DESC', [args.accountId]);
 		}
 		if (cmd === 'reconciliation_reconcile') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const id = crypto.randomUUID().replace(/-/g, '').slice(0, 26);
 			const now = new Date().toISOString();
 			db.run('INSERT INTO reconciliations (id, account_id, actual_balance, book_balance, difference, notes, reconciled_at, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?)',
@@ -1178,7 +1370,7 @@ window.__TAURI_INTERNALS__ = {
 			return { reconciliation_id: id, difference: args.actualBalance };
 		}
 		if (cmd === 'report_get_overview') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const inc = !!args.includeAdjustments;
 			const start = repMonthStart(args.month);
 			const end = repNextMonthStart(args.month);
@@ -1228,7 +1420,7 @@ window.__TAURI_INTERNALS__ = {
 			};
 		}
 		if (cmd === 'report_get_trend') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const inc = !!args.includeAdjustments;
 			const kf = repKindFilter(inc);
 			const points = [];
@@ -1250,7 +1442,7 @@ window.__TAURI_INTERNALS__ = {
 			return points;
 		}
 		if (cmd === 'report_get_comparison') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const inc = !!args.includeAdjustments;
 			const kf = repKindFilter(inc);
 			const q =
@@ -1282,7 +1474,7 @@ window.__TAURI_INTERNALS__ = {
 			return rows;
 		}
 		if (cmd === 'report_get_category_trend') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const inc = !!args.includeAdjustments;
 			const kf = inc ? "t.kind IN ('expense', 'refund', 'adjustment')" : "t.kind IN ('expense', 'refund')";
 			const points = [];
@@ -1314,7 +1506,7 @@ window.__TAURI_INTERNALS__ = {
 			return points;
 		}
 		if (cmd === 'report_get_stacked_category_series') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const inc = !!args.includeAdjustments;
 			const kf = inc ? "t.kind IN ('expense', 'refund', 'adjustment')" : "t.kind IN ('expense', 'refund')";
 			const points = [];
@@ -1351,7 +1543,7 @@ window.__TAURI_INTERNALS__ = {
 			return points;
 		}
 		if (cmd === 'report_get_year_over_year') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const inc = !!args.includeAdjustments;
 			const kf = repKindFilter(inc);
 			const points = [];
@@ -1366,7 +1558,7 @@ window.__TAURI_INTERNALS__ = {
 			return points;
 		}
 		if (cmd === 'report_get_net_worth_series') {
-			const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+			const db = await loadDb(activeDbPath, SQL_JS);
 			const accounts = select(db, 'SELECT id FROM accounts WHERE deleted_at IS NULL', []);
 			const now = new Date();
 			let y = now.getFullYear();
@@ -1409,8 +1601,8 @@ window.__TAURI_INTERNALS__ = {
 			// Replace the live file bytes and persist to IndexedDB so the
 			// post-restore reload rehydrates the restored database (mirrors a real
 			// disk write that survives process restart).
-			fs.set(LIVE_DB_PATH, bytes);
-			await idbSet(idbKey(LIVE_DB_PATH), bytes);
+			fs.set(activeDbPath, bytes);
+			await idbSet(idbKey(activeDbPath), bytes);
 			return {};
 		}
 		if (cmd === 'transaction_frequent') {
@@ -1419,8 +1611,9 @@ window.__TAURI_INTERNALS__ = {
 		}
 		throw new Error('tauri-mock: unhandled invoke ' + cmd);
 	},
-	transformCallback: () => 0,
+	transformCallback: (callback) => { const id = nextCallback++; eventCallbacks.set(id, callback); return id; },
 	convertFileSrc: (p) => p,
+	metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main' } },
 };
 
 // Expose a way for tests to read the virtual FS + flush the persist DB, plus a
@@ -1444,18 +1637,18 @@ window.__notchyMock = {
 	},
 	lastOpenedPath: () => lastOpenedPath,
 	rawQuery: (query, values) => {
-		const db = dbs.get(LIVE_DB_PATH);
+		const db = dbs.get(activeDbPath);
 		if (!db) throw new Error('tauri-mock: live DB not open');
 		return select(db, query, values || []);
 	},
 	rawExecute: (query, values) => {
-		const db = dbs.get(LIVE_DB_PATH);
+		const db = dbs.get(activeDbPath);
 		if (!db) throw new Error('tauri-mock: live DB not open');
 		db.run(query, values || []);
 		return db.getRowsModified();
 	},
 	createBackup: (backupDir) => {
-		const db = dbs.get(LIVE_DB_PATH);
+		const db = dbs.get(activeDbPath);
 		if (!db) throw new Error('tauri-mock: live DB not open');
 		const stamp = new Date().toISOString().replace(/[:.]/g, '-');
 		const path = backupDir + '/notchy-backup-' + stamp + '.sqlite';

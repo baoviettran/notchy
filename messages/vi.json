@@ -669,6 +669,9 @@
   "profiles_title": "Hồ sơ",
   "profiles_picker_title": "Chọn hồ sơ",
   "profiles_picker_desc": "Mỗi hồ sơ có dữ liệu tài chính và thiết lập riêng.",
+  "profiles_recovery_title": "Không thể mở hồ sơ đã chọn",
+  "profiles_recovery_desc": "Các hồ sơ khác vẫn còn. Hãy thử mở lại hoặc phục hồi bản sao lưu thành hồ sơ mới.",
+  "profiles_recovery_retry": "Thử mở lại hồ sơ",
   "profiles_empty": "Chưa có hồ sơ. Hãy tạo mới hoặc phục hồi bản sao lưu.",
   "profiles_create": "Tạo hồ sơ",
   "profiles_restore": "Phục hồi bản sao lưu",
@@ -705,5 +708,14 @@
   "profiles_name_too_long": "Hãy dùng tối đa 80 ký tự.",
   "profiles_close": "Đóng",
   "profiles_cancel": "Hủy",
-  "profiles_unselected": "Chưa mở hồ sơ"
+  "profiles_unselected": "Chưa mở hồ sơ",
+  "quick_add_open_main_hint": "Chọn hoặc hoàn tất thiết lập profile trong cửa sổ chính.",
+  "quick_add_open_main": "Mở cửa sổ chính",
+  "quick_add_unsaved_draft": "Quick Add có nội dung chưa lưu.",
+  "quick_add_stay": "Ở lại",
+  "quick_add_discard": "Bỏ nội dung",
+  "profiles_unsaved_drafts": "Bạn có thay đổi chưa lưu. Bỏ chúng trước khi đổi profile?",
+  "profiles_stay": "Ở lại",
+  "profiles_discard": "Bỏ thay đổi",
+  "profiles_manage_desc": "Tạo, chuyển, sao lưu, reset và xóa profile."
 }

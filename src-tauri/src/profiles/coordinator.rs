@@ -11,7 +11,7 @@ use super::registry::RegistryStore;
 use super::types::{AppPreferences, ProfileRegistry, ProfileSession, ProfileSnapshot, ProfileRecovery};
 
 pub(super) struct ActiveProfile {
-    session: ProfileSession,
+    pub(super) session: ProfileSession,
     manager: Arc<DatabaseManager>,
 }
 

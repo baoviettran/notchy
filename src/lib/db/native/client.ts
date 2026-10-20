@@ -87,18 +87,6 @@ export interface DatabaseStatus {
 	backups: BackupSummary[];
 }
 
-export function databaseInitialize(): Promise<DatabaseStatus> {
-	return invoke<DatabaseStatus>('database_initialize');
-}
-
-export function databaseRetry(): Promise<DatabaseStatus> {
-	return invoke<DatabaseStatus>('database_retry');
-}
-
-export function databaseStatus(): Promise<DatabaseStatus> {
-	return invoke<DatabaseStatus>('database_status');
-}
-
 // ---------------------------------------------------------------------------
 // Account operations
 // ---------------------------------------------------------------------------

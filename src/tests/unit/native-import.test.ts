@@ -1,38 +1,20 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { invoke } from '@tauri-apps/api/core';
-import { restoreCompatibleDatabase } from '$lib/recovery';
+import { describe, expect, it, vi } from 'vitest';
+import { NativeProfilePort } from '$lib/profiles/native';
 
-vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
+const session = { profileId: 'A', generation: 'g1' };
 
-afterEach(() => {
-	vi.unstubAllGlobals();
-	vi.resetAllMocks();
-});
-
-describe('native file import', () => {
-	it('restores a selected file through Rust without loading the removed SQL plugin', async () => {
-		vi.stubGlobal('window', { __TAURI_INTERNALS__: {} });
-		vi.mocked(invoke).mockResolvedValue(7);
-
-		await expect(restoreCompatibleDatabase('/chosen/backup.sqlite')).resolves.toEqual({ schemaVersion: 7 });
-		expect(invoke).toHaveBeenCalledExactlyOnceWith('database_import', { sourcePath: '/chosen/backup.sqlite' });
-	});
-
-	it('converts native validation failures into localized application errors', async () => {
-		vi.stubGlobal('window', { __TAURI_INTERNALS__: {} });
-		vi.mocked(invoke).mockRejectedValue({ code: 'database_corrupt', meta: {} });
-
-		await expect(restoreCompatibleDatabase('/chosen/broken.sqlite')).rejects.toMatchObject({
-			name: 'NativeAppError', code: 'database_corrupt'
+describe('native backup recovery', () => {
+	it('inspects a selected backup and restores it as a separate profile', async () => {
+		const preview = { token: 'preview-token', suggestedName: 'Recovered', schemaVersion: 7 };
+		const created = { id: 'B', name: 'Recovered', createdAt: '2026-01-01T00:00:00Z' };
+		const invoke = vi.fn(async (command: string) => command === 'profile_inspect_restore' ? preview : created);
+		const port = new NativeProfilePort(invoke as any);
+		expect(await port.inspectRestore('/chosen/backup.sqlite')).toEqual(preview);
+		expect(await port.restore(preview.token, 'Recovered', { operationId: 'op', transitionToken: null })).toEqual(created);
+		expect(invoke.mock.calls.map(([command]) => command)).toEqual(['profile_inspect_restore', 'profile_restore']);
+		expect(invoke).toHaveBeenNthCalledWith(2, 'profile_restore', {
+			token: preview.token, name: 'Recovered', context: { operationId: 'op', transitionToken: null }
 		});
-	});
-
-	it.each([
-		['schema_too_old', 'backup_schema_too_old'],
-		['schema_too_new', 'backup_schema_newer']
-	])('preserves the import rejection message for %s', async (code, expected) => {
-		vi.stubGlobal('window', { __TAURI_INTERNALS__: {} });
-		vi.mocked(invoke).mockRejectedValue({ code, meta: {} });
-		await expect(restoreCompatibleDatabase('/chosen/unsupported.sqlite')).rejects.toMatchObject({ code: expected });
+		void session;
 	});
 });

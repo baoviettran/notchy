@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { onboard, expectOnDashboard, addTransaction } from './helpers/ui';
+import { onboard, expectOnDashboard, addTransaction, startOnboarding } from './helpers/ui';
 
 test('onboarding → dashboard → add transaction', async ({ page }) => {
 	await onboard(page);
@@ -10,7 +10,7 @@ test('onboarding → dashboard → add transaction', async ({ page }) => {
 });
 
 test('Finish setup is disabled until an account name is entered', async ({ page }) => {
-	await page.goto('/');
+	await startOnboarding(page);
 	await page.getByRole('radio', { name: /^English/ }).click();
 	await page.getByRole('button', { name: 'Continue →' }).click();
 	await page.getByRole('radio', { name: /VND — Vietnamese đồng/ }).click();
@@ -26,7 +26,7 @@ test('currency step: code plates render as designed dies, not inline glyphs', as
 	// a two-letter plate rather than an emoji flag, which Windows (Tauri's
 	// primary desktop) does not render. The code + name still form the
 	// button's accessible name.
-	await page.goto('/');
+	await startOnboarding(page);
 	await page.getByRole('radio', { name: /^English/ }).click();
 	await page.getByRole('button', { name: 'Continue →' }).click();
 	// The code is its own exact-text element inside the row.

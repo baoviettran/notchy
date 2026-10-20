@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { computeDatabasePaths } from '$lib/db';
+import { getDatabasePaths } from '$lib/db';
 
-describe('computeDatabasePaths', () => {
-	it('keeps the live database under the config dir and backups under the data dir', () => {
-		expect(computeDatabasePaths('/data', '/config')).toEqual({
-			dataDir: '/data',
-			databasePath: '/config/notchy.db',
-			routineBackupDir: '/data/backups',
-			upgradeBackupDir: '/data/backups/upgrades'
+describe('browser database paths', () => {
+	it('returns synthetic paths without opening a native global database', async () => {
+		expect(await getDatabasePaths()).toEqual({
+			dataDir: '/web',
+			databasePath: '/web/notchy.db',
+			routineBackupDir: '/web/backups',
+			upgradeBackupDir: '/web/backups/upgrades'
 		});
 	});
 });

@@ -3,6 +3,7 @@
 	import { transactionsSearchUrl } from '$lib/utils/search';
 	import { settings } from '$lib/stores/settings.svelte';
 	import * as m from '$lib/paraglide/messages';
+	import ProfileSwitcher from '$lib/components/profiles/ProfileSwitcher.svelte';
 
 	let { onOpenShortcuts }: { onOpenShortcuts: () => void } = $props();
 
@@ -19,6 +20,7 @@
 </script>
 
 <header class="h-14 flex items-center gap-3 px-4 border-b border-line bg-tape shrink-0">
+	<div class="w-36 md:hidden"><ProfileSwitcher compact /></div>
 	<label class="relative block flex-1 max-w-md mx-auto">
 		<span class="sr-only">{m.layout_search()}</span>
 		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-dim pointer-events-none"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" stroke-linecap="round" /></svg>

@@ -5,8 +5,10 @@
  * Under browser (Vitest / Playwright): BrowserDatabaseClient owns sql.js.
  *
  * The Rust side owns the full lifecycle (integrity, migration, backup).
- * The JS side only calls `database_initialize` to trigger it.
+ * The profile coordinator owns startup and activation.
  */
+import { getBoundProfileSession, setBoundProfileSession } from '$lib/profiles/current';
+import { invoke } from '@tauri-apps/api/core';
 import type { UpgradeBackupRecord } from '$lib/backup/upgrade';
 import { parseUpgradeBackupName } from '$lib/backup/upgrade';
 import type { DatabaseService } from './browser/service';
@@ -14,15 +16,12 @@ import { createTauriDb, type QueryResult, type Row, uniqueSavepointName, TauriDa
 import { runIntegrityCheck } from './browser/integrity';
 import { inspectSchema, type SchemaInspection } from './browser/schema';
 import type { AppDatabase } from './client';
-import { NativeDatabaseClient, databaseInitialize, databaseRetry, databaseStatus } from './native/client';
-import type { DatabaseStatus } from './native/client';
+import { NativeDatabaseClient } from './native/client';
 
 // ---------------------------------------------------------------------------
 // Re-exports
 // ---------------------------------------------------------------------------
 
-export { databaseInitialize, databaseRetry, databaseStatus } from './native/client';
-export type { DatabaseStatus } from './native/client';
 export type { AppDatabase } from './client';
 export type { DatabaseService, QueryResult, Row };
 export { uniqueSavepointName, TauriDatabase, createTauriDb };
@@ -48,22 +47,6 @@ export interface DatabasePaths {
 }
 
 /**
- * Derive the live DB and backup paths from the two base directories. The live
- * database must agree with where the connection actually opens: the
- * tauri-plugin-sql resolves `sqlite:notchy.db` relative to the app CONFIG dir,
- * so the DB lives at `configDir/notchy.db`, while backups stay below the app
- * DATA dir (design intent). Pure + sync so it is unit-testable without Tauri.
- */
-export function computeDatabasePaths(dataDir: string, configDir: string): DatabasePaths {
-	return {
-		dataDir,
-		databasePath: `${configDir}/notchy.db`,
-		routineBackupDir: `${dataDir}/backups`,
-		upgradeBackupDir: `${dataDir}/backups/upgrades`
-	};
-}
-
-/**
  * Resolve the app-config/app-data directories and the paths derived from them.
  * In a plain browser (web build / E2E without Tauri) these are synthetic —
  * never call the Tauri path plugin — so startup can still report a stable live
@@ -78,9 +61,15 @@ export async function getDatabasePaths(): Promise<DatabasePaths> {
 			upgradeBackupDir: '/web/backups/upgrades'
 		};
 	}
-	const { appDataDir, appConfigDir } = await import('@tauri-apps/api/path');
-	const [dataDir, configDir] = await Promise.all([appDataDir(), appConfigDir()]);
-	return computeDatabasePaths(dataDir, configDir);
+	const session = getBoundProfileSession();
+	if (!session) throw new Error('no active profile');
+	const paths = await invoke<DatabasePaths>('profile_paths', { id: session.profileId });
+	return {
+		dataDir: paths.dataDir,
+		databasePath: paths.databasePath,
+		routineBackupDir: paths.routineBackupDir,
+		upgradeBackupDir: paths.upgradeBackupDir
+	};
 }
 
 export async function getInstalledAppVersion(): Promise<string> {
@@ -89,68 +78,9 @@ export async function getInstalledAppVersion(): Promise<string> {
 	return getVersion();
 }
 
-/**
- * Connection-open seam. Startup (`initializeMainDatabase`) and quick access
- * (`openCurrentDb`) both open the live database through here; tests `vi.mock`
- * this function to inject a real SQLite connection and assert it runs exactly
- * once under concurrent initialization.
- */
-export async function openConnection(): Promise<DatabaseService> {
-	if (isTauri()) return createTauriDb('sqlite:notchy.db');
-	// Dynamic import keeps sql.js (~600KB WASM) out of the shipped Tauri
-	// bundle — this path only runs in the browser (Vitest / Playwright).
-	const { createInMemoryDb } = await import('./browser/in-memory');
-	return createInMemoryDb();
-}
-
 export async function ensureDirectory(path: string): Promise<void> {
 	const { mkdir } = await import('@tauri-apps/plugin-fs');
 	await mkdir(path, { recursive: true });
-}
-
-export async function openReadOnlyDatabase(path: string): Promise<DatabaseService> {
-	// The `?readonly` suffix is not reliably honored by the Tauri SQL plugin on
-	// this sqlx version — it can hang the load IPC. The backup/candidate files
-	// are throwaway and only ever read (validateDatabase), so open the pool
-	// without the suffix; SQLite's default open is harmless for validation.
-
-	// E2E mock: @tauri-apps/plugin-sql was removed from package.json, so the
-	// dynamic import in createTauriDb fails in browser. Use the mock's sql.js
-	// + virtual FS directly to open the candidate for validation.
-	if (typeof window !== 'undefined' && (window as unknown as { __notchyMock?: unknown }).__notchyMock) {
-		const mock = (window as unknown as {
-			__notchyMock: { sqlReady: () => Promise<{ Database: new (b?: Array<number>) => { run: (s: string, p?: unknown[]) => void; prepare: (s: string) => { bind: (p?: unknown[]) => void; step: () => boolean; getAsObject: () => Row; free: () => void }; getRowsModified: () => number; export: () => Uint8Array; close: () => void } }> };
-		}).__notchyMock;
-		const SQL = await mock.sqlReady();
-		// Strip sqlite: prefix; the virtual FS stores bare paths.
-		const fsPath = path.replace(/^sqlite:/, '');
-		const { readFs } = (window as unknown as { __notchyMock: { readFs: (p: string) => Uint8Array | undefined } }).__notchyMock;
-		const bytes = readFs(fsPath);
-		if (!bytes) throw new Error('openReadOnlyDatabase: file not found in virtual FS: ' + fsPath);
-		const db = new SQL.Database(Array.from(bytes));
-		return {
-			execute: async (sql: string, params?: unknown[]) => {
-				db.run(sql, params as unknown[]);
-				return { rowsAffected: db.getRowsModified() } satisfies QueryResult;
-			},
-			query: async <T = Row>(sql: string, params?: unknown[]): Promise<T[]> => {
-				const stmt = db.prepare(sql);
-				try {
-					stmt.bind(params as unknown[]);
-					const rows: T[] = [];
-					while (stmt.step()) rows.push(stmt.getAsObject() as T);
-					return rows;
-				} finally {
-					stmt.free();
-				}
-			},
-			transaction: async <T>(_fn: (tx: DatabaseService) => Promise<T>): Promise<T> => {
-				throw new Error('openReadOnlyDatabase mock: transaction not supported');
-			},
-			close: async () => { db.close(); },
-		};
-	}
-	return createTauriDb(`sqlite:${path}`);
 }
 
 export async function openBackupFolder(path: string): Promise<void> {
@@ -348,7 +278,7 @@ async function writeStartupMetadata(
 let _db: AppDatabase | null = null;
 let _profileDb: AppDatabase | null = null;
 let _profileMode = false;
-export function bindProfileDb(_session: import('$lib/profiles/types').ProfileSession | null, db: AppDatabase | null): void { _profileMode = true; _profileDb = db; }
+export function bindProfileDb(session: import('$lib/profiles/types').ProfileSession | null, db: AppDatabase | null): void { _profileMode = true; _profileDb = db; setBoundProfileSession(session); }
 
 /**
  * Return the AppDatabase singleton. Under Tauri this is the
@@ -376,8 +306,7 @@ export async function initDb(onStage?: (stage: string) => void): Promise<void> {
 
 	if (isTauri()) {
 		_db = new NativeDatabaseClient();
-		// Trigger Rust lifecycle — callers should await databaseInitialize()
-		// separately to get typed status events.
+		// Profile activation is owned by ProfileCoordinator.
 		return;
 	}
 

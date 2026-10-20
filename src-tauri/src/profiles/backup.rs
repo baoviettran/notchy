@@ -7,8 +7,9 @@ use crate::database::connection::{create_dir_private, open_live_at, open_read_on
 use crate::database::manifest::{inspect_schema, validate_manifest, SchemaInspection};
 use crate::database::migrations::{migrate_supported, now_iso_utc, FailurePoint, LATEST_SCHEMA_VERSION};
 use super::coordinator::ProfileCoordinator;
+use super::create::CreateFailurePoint;
 use super::journal::{JournalPhase, JournalRecord, JournalStore};
-use super::types::{OperationContext, ProfileRecord, validate_name};
+use super::types::{OperationContext, ProfileRecord, ProfileSession, validate_name};
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -78,8 +79,13 @@ impl ProfileCoordinator {
         Ok(backups)
     }
 
-    pub async fn backup(&self, id: &str) -> DbResult<BackupToken> {
-        let _permit = self.transition.write().await;
+    fn check_current_session(&self, session: &ProfileSession) -> DbResult<()> {
+        let state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if state.active.as_ref().is_some_and(|active| active.session == *session) { Ok(()) }
+        else { Err(DbError::new(ErrorCode::ProfileSessionExpired)) }
+    }
+
+    fn backup_locked(&self, id: &str) -> DbResult<BackupToken> {
         let snapshot = self.labeled_snapshot(id)?;
         let destination = self.paths.profile_dir(id)?.join("backups");
         let result = publish_backup(&snapshot, &destination, BackupFailurePoint::None);
@@ -87,18 +93,39 @@ impl ProfileCoordinator {
         result
     }
 
+    pub async fn backup(&self, id: &str) -> DbResult<BackupToken> {
+        let _permit = self.transition.write().await;
+        self.backup_locked(id)
+    }
+
+    pub async fn backup_for_session(&self, session: &ProfileSession) -> DbResult<BackupToken> {
+        let _permit = self.transition.write().await;
+        self.check_current_session(session)?;
+        self.backup_locked(&session.profile_id)
+    }
+
     pub async fn export_backup(&self, id: &str, destination: &Path) -> DbResult<PathBuf> {
         self.export_backup_with_failpoint(id, destination, BackupFailurePoint::None).await
     }
 
-    pub async fn export_backup_with_failpoint(&self, id: &str, destination: &Path, failpoint: BackupFailurePoint) -> DbResult<PathBuf> {
-        let _permit = self.transition.write().await;
+    fn export_backup_locked(&self, id: &str, destination: &Path, failpoint: BackupFailurePoint) -> DbResult<PathBuf> {
         self.profile_source(id)?;
         self.validate_external_export(destination)?;
         let snapshot = self.labeled_snapshot(id)?;
         let result = export_backup_to_at(&snapshot, destination, failpoint);
         let _ = fs::remove_file(snapshot);
         result
+    }
+
+    pub async fn export_backup_with_failpoint(&self, id: &str, destination: &Path, failpoint: BackupFailurePoint) -> DbResult<PathBuf> {
+        let _permit = self.transition.write().await;
+        self.export_backup_locked(id, destination, failpoint)
+    }
+
+    pub async fn export_backup_for_session(&self, session: &ProfileSession, destination: &Path) -> DbResult<PathBuf> {
+        let _permit = self.transition.write().await;
+        self.check_current_session(session)?;
+        self.export_backup_locked(&session.profile_id, destination, BackupFailurePoint::None)
     }
 
     pub fn validate_external_export(&self, destination: &Path) -> DbResult<()> {
@@ -149,13 +176,17 @@ impl ProfileCoordinator {
     }
 
     pub async fn restore(&self, token: &str, name: &str, context: &OperationContext) -> DbResult<ProfileRecord> {
+        self.restore_with_failpoint(token, name, context, CreateFailurePoint::None).await
+    }
+
+    pub async fn restore_with_failpoint(&self, token: &str, name: &str, context: &OperationContext, failpoint: CreateFailurePoint) -> DbResult<ProfileRecord> {
         let name = validate_name(name)?;
         OperationId::parse(&context.operation_id).map_err(|_| DbError::new(ErrorCode::InvalidUlid))?;
         let _permit = self.transition.write().await;
         let journals = JournalStore::new(self.paths.clone());
         if let Some(record) = journals.load(&context.operation_id)? {
             if record.kind != "restore" || record.result.name != name || record.source_token.as_deref() != Some(token) { return Err(DbError::new(ErrorCode::OperationIdConflict)); }
-            return self.finish_create(record, super::create::CreateFailurePoint::None);
+            return self.finish_create(record, failpoint);
         }
         let preview = {
             let previews = self.previews.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -185,7 +216,7 @@ impl ProfileCoordinator {
             result, source_token: Some(token.to_owned()),
         };
         journals.save(&record)?;
-        let result = self.finish_create(record, super::create::CreateFailurePoint::None)?;
+        let result = self.finish_create(record, failpoint)?;
         if let Some(entry) = self.previews.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).remove(token) {
             let _ = fs::remove_file(entry.path);
         }

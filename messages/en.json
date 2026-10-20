@@ -669,6 +669,9 @@
   "profiles_title": "Profiles",
   "profiles_picker_title": "Choose a profile",
   "profiles_picker_desc": "Each profile keeps its own finances and settings.",
+  "profiles_recovery_title": "Could not open the selected profile",
+  "profiles_recovery_desc": "Your other profiles are still available. Retry opening this profile, or restore a backup into a new profile.",
+  "profiles_recovery_retry": "Retry opening profile",
   "profiles_empty": "No profiles yet. Create one or restore a backup.",
   "profiles_create": "Create profile",
   "profiles_restore": "Restore backup",
@@ -705,5 +708,14 @@
   "profiles_name_too_long": "Use 80 characters or fewer.",
   "profiles_close": "Close",
   "profiles_cancel": "Cancel",
-  "profiles_unselected": "No profile open"
+  "profiles_unselected": "No profile open",
+  "quick_add_open_main_hint": "Choose or finish setting up a profile in the main window.",
+  "quick_add_open_main": "Open main window",
+  "quick_add_unsaved_draft": "Quick Add has an unsaved entry.",
+  "quick_add_stay": "Stay",
+  "quick_add_discard": "Discard entry",
+  "profiles_unsaved_drafts": "You have unsaved changes. Discard them before changing profiles?",
+  "profiles_stay": "Stay",
+  "profiles_discard": "Discard changes",
+  "profiles_manage_desc": "Create, switch, back up, reset, and delete profiles."
 }

@@ -52,3 +52,16 @@ async fn actual_tauri_command_guard_uses_sender_window_label() {
     let created = profile_create(main, app.state(), "A".into(), context()).await.unwrap();
     assert!(profile_paths(app.state(), created.id).is_ok());
 }
+
+#[tokio::test]
+async fn backup_commands_reject_a_session_after_switching_profiles() {
+    let coordinator = fixture();
+    let a = coordinator.create("A", &context()).await.unwrap();
+    let b = coordinator.create("B", &context()).await.unwrap();
+    let old = coordinator.activate(&a.id).await.unwrap();
+    coordinator.activate(&b.id).await.unwrap();
+    assert_eq!(coordinator.backup_for_session(&old).await.unwrap_err().code, ErrorCode::ProfileSessionExpired);
+    let outside = std::env::temp_dir().join(format!("notchy-stale-export-{}.sqlite", OperationId::generate().as_str()));
+    assert_eq!(coordinator.export_backup_for_session(&old, &outside).await.unwrap_err().code, ErrorCode::ProfileSessionExpired);
+    assert!(!outside.exists());
+}

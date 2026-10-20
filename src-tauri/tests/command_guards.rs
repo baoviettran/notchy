@@ -1,408 +1,52 @@
-//! Native command guard tests (Task 5).
-//!
-//! Proves the window-label guard is authoritative: only the `main` window may
-//! request initialize/retry/status, quick-add is rejected with `InvalidInput`,
-//! and every data-job entry point rejects writes while the boundary is not
-//! `Ready`.
-
+//! Production profile command guards. Legacy single-database lifecycle calls
+//! fail closed; financial commands require the active profile generation.
 use std::sync::Arc;
-
 use tauri::Manager;
+use notchy_lib::database::{ErrorCode, OperationId};
+use notchy_lib::database::commands::{account_list, backup_create, database_import, database_initialize};
+use notchy_lib::profiles::commands::profiles_bootstrap;
+use notchy_lib::profiles::coordinator::ProfileCoordinator;
+use notchy_lib::profiles::paths::ProfilePaths;
+use notchy_lib::profiles::types::OperationContext;
 
-use notchy_lib::database::commands::{
-    backup_create, backup_export_csv, backup_export_sqlite, database_import, database_initialize, database_retry,
-    database_status, schedule_create, schedule_delete, schedule_mark_errored, schedule_mark_posted,
-    schedule_update,
-};
-use notchy_lib::database::domains::get_meta;
-use notchy_lib::database::error::ErrorCode;
-use notchy_lib::database::executor::DatabaseManager;
-use notchy_lib::database::types::{
-    LifecycleState, NewSchedule, ScheduleFrequency, ScheduleKind, ScheduleUpdate, StartupStage,
-};
-
-mod common;
-use common::{
-    manager_for_fixture, manager_fresh, mock_app, scratch_root, wait_until_stage, write_as,
-};
-
-// ---------------------------------------------------------------------------
-// Main-only window guard
-// ---------------------------------------------------------------------------
-
-#[tokio::test]
-async fn selected_file_import_restores_export_and_keeps_rollback() {
-    let manager = manager_fresh().await;
-    manager.initialize().await.unwrap();
-    let app = mock_app(Arc::clone(&manager));
-    let export = scratch_root("selected-file").with_extension("sqlite");
-    backup_export_sqlite(export.to_string_lossy().into_owned(), app.app.state())
-        .await.unwrap();
-    manager.data_job(|state| {
-        state.connection()?.execute("INSERT INTO app_meta (key, value) VALUES ('import_probe', 'present')", [])
-            .map_err(|_| notchy_lib::database::error::DbError::new(ErrorCode::DatabaseInvalid))?;
-        Ok(())
-    }).await.unwrap();
-
-    let schema = database_import(app.main.clone(), app.app.state(), export.to_string_lossy().into_owned())
-        .await.unwrap();
-
-    assert_eq!(schema, 7);
-    assert_eq!(manager.snapshot(), LifecycleState::Ready);
-    let probe = manager.data_job(|state| get_meta(state.connection()?, "import_probe")).await.unwrap();
-    assert_eq!(probe, None);
-    assert!(manager.discover_restore_points().unwrap().len() >= 2);
-    std::fs::remove_file(export).unwrap();
+fn fixture() -> Arc<ProfileCoordinator> {
+    let root = std::env::temp_dir().join(format!("notchy-command-guards-{}", OperationId::generate().as_str()));
+    ProfileCoordinator::open(ProfilePaths::new(root.join("config"), root.join("data"))).unwrap()
+}
+fn context() -> OperationContext {
+    OperationContext { operation_id: OperationId::generate().as_str().to_owned(), transition_token: None }
 }
 
 #[tokio::test]
-async fn selected_file_import_rejects_invalid_files_without_changing_live_database() {
-    let manager = manager_fresh().await;
-    manager.initialize().await.unwrap();
-    let app = mock_app(Arc::clone(&manager));
-    for (fixture, expected) in [
-        ("v008.sqlite", ErrorCode::SchemaTooNew),
-        ("v002.sqlite", ErrorCode::SchemaTooOld),
-        ("invalid-zero-byte.sqlite", ErrorCode::DatabaseInvalid),
-    ] {
-        let source = common::fixtures_dir().join(fixture);
-        let before = std::fs::read(&source).unwrap();
-        let error = database_import(app.main.clone(), app.app.state(), source.to_string_lossy().into_owned())
-            .await.unwrap_err();
-        assert_eq!(error.code, expected);
-        assert_eq!(manager.snapshot(), LifecycleState::Ready);
-        assert_eq!(std::fs::read(&source).unwrap(), before);
-    }
+async fn only_main_window_can_bootstrap_profiles() {
+    let app = tauri::test::mock_builder().manage(fixture())
+        .build(tauri::test::mock_context(tauri::test::noop_assets())).unwrap();
+    let main = tauri::WebviewWindowBuilder::new(&app, "main", Default::default()).build().unwrap();
+    let quick = tauri::WebviewWindowBuilder::new(&app, "quick-add", Default::default()).build().unwrap();
+    let error = profiles_bootstrap(quick, app.state()).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::UnauthorizedCaller);
+    let snapshot = profiles_bootstrap(main, app.state()).await.unwrap();
+    assert!(snapshot.profiles.is_empty());
+    assert!(snapshot.active.is_none());
 }
 
 #[tokio::test]
-async fn non_main_window_cannot_import_selected_file() {
-    let manager = manager_fresh().await;
-    let app = mock_app(Arc::clone(&manager));
-    let error = database_import(app.quick_add.clone(), app.app.state(), "/missing.sqlite".into())
-        .await.unwrap_err();
-    assert_eq!(error.code, ErrorCode::InvalidInput);
-    assert_eq!(manager.snapshot(), LifecycleState::Uninitialized);
+async fn stale_generation_cannot_read_or_back_up_another_profile() {
+    let coordinator = fixture();
+    let a = coordinator.create("A", &context()).await.unwrap();
+    let b = coordinator.create("B", &context()).await.unwrap();
+    let old = coordinator.activate(&a.id).await.unwrap();
+    let app = tauri::test::mock_builder().manage(Arc::clone(&coordinator))
+        .build(tauri::test::mock_context(tauri::test::noop_assets())).unwrap();
+    coordinator.activate(&b.id).await.unwrap();
+    assert_eq!(account_list(app.state(), old.clone()).await.unwrap_err().code, ErrorCode::ProfileSessionExpired);
+    assert_eq!(backup_create(app.state(), old).await.unwrap_err().code, ErrorCode::ProfileSessionExpired);
 }
 
 #[tokio::test]
-async fn selected_file_import_migrates_a_supported_older_database() {
-    let manager = manager_fresh().await;
-    manager.initialize().await.unwrap();
-    let app = mock_app(Arc::clone(&manager));
-    let source = common::fixtures_dir().join("v004.sqlite");
-    let before = std::fs::read(&source).unwrap();
-
-    let schema = database_import(app.main.clone(), app.app.state(), source.to_string_lossy().into_owned())
-        .await.unwrap();
-
-    assert_eq!(schema, 4);
-    let live_schema = manager.data_job(|state| get_meta(state.connection()?, "schema_version")).await.unwrap();
-    assert_eq!(live_schema.as_deref(), Some("7"));
-    assert_eq!(std::fs::read(source).unwrap(), before);
-}
-
-#[tokio::test]
-async fn non_main_window_cannot_initialize() {
-    let manager = manager_fresh().await;
-    let app = mock_app(Arc::clone(&manager));
-    let state = app.app.state::<Arc<DatabaseManager>>();
-    let error = database_initialize(app.quick_add.clone(), state)
-        .await
-        .unwrap_err();
-    assert_eq!(error.code, ErrorCode::InvalidInput);
-    assert_eq!(
-        manager.snapshot(),
-        LifecycleState::Uninitialized,
-        "a rejected caller must not move the lifecycle"
-    );
-}
-
-#[tokio::test]
-async fn non_main_window_cannot_retry() {
-    let manager = manager_fresh().await;
-    let app = mock_app(Arc::clone(&manager));
-    let state = app.app.state::<Arc<DatabaseManager>>();
-    let error = database_retry(app.quick_add.clone(), state)
-        .await
-        .unwrap_err();
-    assert_eq!(error.code, ErrorCode::InvalidInput);
-}
-
-#[tokio::test]
-async fn non_main_window_cannot_query_status() {
-    let manager = manager_fresh().await;
-    let app = mock_app(Arc::clone(&manager));
-    let state = app.app.state::<Arc<DatabaseManager>>();
-    let error = database_status(app.quick_add.clone(), state)
-        .await
-        .unwrap_err();
-    assert_eq!(error.code, ErrorCode::InvalidInput);
-}
-
-#[tokio::test]
-async fn main_window_initialize_reaches_ready() {
-    let manager = manager_for_fixture("v004.sqlite").await;
-    let app = mock_app(Arc::clone(&manager));
-    let state = app.app.state::<Arc<DatabaseManager>>();
-    let status = database_initialize(app.main.clone(), state).await.unwrap();
-    assert_eq!(status.lifecycle, LifecycleState::Ready);
-    assert_eq!(manager.snapshot(), LifecycleState::Ready);
-}
-
-#[tokio::test]
-async fn main_window_retry_and_status_pass_guard() {
-    let manager = manager_for_fixture("v008.sqlite").await;
-    let app = mock_app(Arc::clone(&manager));
-
-    // Initialize is permitted from main and lands in RecoveryRequired.
-    let state = app.app.state::<Arc<DatabaseManager>>();
-    let error = database_initialize(app.main.clone(), state)
-        .await
-        .unwrap_err();
-    assert_eq!(error.code, ErrorCode::SchemaTooNew);
-    assert_eq!(manager.snapshot(), LifecycleState::RecoveryRequired);
-
-    // Status from main returns the recovery status.
-    let state = app.app.state::<Arc<DatabaseManager>>();
-    let status = database_status(app.main.clone(), state).await.unwrap();
-    assert_eq!(status.lifecycle, LifecycleState::RecoveryRequired);
-    assert_eq!(status.recovery.as_ref().unwrap().code, ErrorCode::SchemaTooNew);
-
-    // Retry from main re-runs the startup and re-enters RecoveryRequired.
-    let state = app.app.state::<Arc<DatabaseManager>>();
-    let error = database_retry(app.main.clone(), state).await.unwrap_err();
-    assert_eq!(error.code, ErrorCode::SchemaTooNew);
-}
-
-// ---------------------------------------------------------------------------
-// Data-job lifecycle guard
-// ---------------------------------------------------------------------------
-
-#[tokio::test]
-async fn data_jobs_reject_when_not_ready() {
-    // Uninitialized: the boundary must be initialized before any write.
-    let manager = manager_fresh().await;
-    let error = write_as("main", &manager).await.unwrap_err();
-    assert_eq!(error.code, ErrorCode::DatabaseUpdateRequired);
-
-    // Initializing (mid-migration): writes are rejected with update-required.
-    let manager = manager_for_fixture("v004.sqlite").await;
-    let release = manager.arm_migration_pause();
-    let spawned = Arc::clone(&manager);
-    let _handle = tokio::spawn(async move {
-        let _ = spawned.initialize().await;
-    });
-    wait_until_stage(&manager, StartupStage::Migrating).await;
-    let error = write_as("quick-add", &manager).await.unwrap_err();
-    assert_eq!(error.code, ErrorCode::DatabaseUpdateRequired);
-    let _ = release.send(());
-
-    // RecoveryRequired: writes are rejected with recovery-required.
-    let manager = manager_for_fixture("v008.sqlite").await;
-    let _ = manager.initialize().await;
-    let error = write_as("main", &manager).await.unwrap_err();
-    assert_eq!(error.code, ErrorCode::RecoveryRequired);
-}
-
-#[tokio::test]
-async fn data_jobs_run_once_ready() {
-    let manager = manager_for_fixture("v004.sqlite").await;
-    let _ = manager.initialize().await.unwrap();
-    assert_eq!(manager.snapshot(), LifecycleState::Ready);
-    // Once ready, a data job reaches the executor and can read the live
-    // connection.
-    let version: i64 = manager
-        .data_job(|state| {
-            let value: String = state
-                .connection()?
-                .query_row(
-                    "SELECT value FROM app_meta WHERE key = 'schema_version'",
-                    [],
-                    |row| row.get(0),
-                )
-                .map_err(|_| {
-                    notchy_lib::database::error::DbError::new(ErrorCode::DatabaseCorrupt)
-                })?;
-            Ok(value.parse().unwrap_or(0))
-        })
-        .await
-        .unwrap();
-    assert_eq!(version, 7);
-}
-
-// ---------------------------------------------------------------------------
-// Backup commands (Task 5)
-// ---------------------------------------------------------------------------
-
-/// Read one `app_meta` key through the manager's own data job.
-async fn meta_at(manager: &Arc<DatabaseManager>, key: &str) -> Option<String> {
-    let key = key.to_string();
-    manager
-        .data_job(move |state| get_meta(state.connection()?, &key))
-        .await
-        .unwrap()
-}
-
-#[tokio::test]
-async fn backup_create_publishes_a_backup_and_records_the_timestamp() {
-    let manager = manager_for_fixture("v004.sqlite").await;
-    let _ = manager.initialize().await.unwrap();
-    let app = mock_app(Arc::clone(&manager));
-    let state = app.app.state::<Arc<DatabaseManager>>();
-
-    let path = backup_create(state).await.unwrap();
-
-    assert!(std::path::Path::new(&path).exists(), "no file at {path}");
-    let name = std::path::Path::new(&path)
-        .file_name()
-        .unwrap()
-        .to_string_lossy()
-        .into_owned();
-    assert!(
-        name.starts_with("notchy-backup-v"),
-        "routine backups use the published name: {name}"
-    );
-    // The health card reads this key, so a published backup must set it.
-    assert!(
-        meta_at(&manager, "last_backup_at").await.is_some(),
-        "last_backup_at was not recorded"
-    );
-}
-
-#[tokio::test]
-async fn backup_create_leaves_the_timestamp_alone_when_publication_fails() {
-    let manager = manager_for_fixture("v004.sqlite").await;
-    let _ = manager.initialize().await.unwrap();
-    // A file where the backup directory belongs makes publication fail: the
-    // directory cannot be created.
-    let backup_dir = manager.backup_dir();
-    let _ = std::fs::remove_dir_all(&backup_dir);
-    std::fs::write(&backup_dir, b"not a directory").unwrap();
-    let app = mock_app(Arc::clone(&manager));
-    let state = app.app.state::<Arc<DatabaseManager>>();
-
-    let error = backup_create(state).await.unwrap_err();
-
-    assert_eq!(error.code, ErrorCode::DatabaseInvalid);
-    assert!(
-        meta_at(&manager, "last_backup_at").await.is_none(),
-        "a failed backup must not claim success"
-    );
-}
-
-#[tokio::test]
-async fn backup_export_sqlite_writes_the_named_file() {
-    let manager = manager_for_fixture("v004.sqlite").await;
-    let _ = manager.initialize().await.unwrap();
-    let app = mock_app(Arc::clone(&manager));
-    let state = app.app.state::<Arc<DatabaseManager>>();
-    let target = scratch_root("cmd-export").join("chosen.sqlite");
-    std::fs::create_dir_all(target.parent().unwrap()).unwrap();
-
-    backup_export_sqlite(target.to_string_lossy().into_owned(), state)
-        .await
-        .unwrap();
-
-    assert!(target.exists());
-}
-
-#[tokio::test]
-async fn backup_export_csv_writes_the_table_set() {
-    let manager = manager_for_fixture("v004.sqlite").await;
-    let _ = manager.initialize().await.unwrap();
-    let app = mock_app(Arc::clone(&manager));
-    let state = app.app.state::<Arc<DatabaseManager>>();
-    let dir = scratch_root("cmd-export-csv");
-
-    let written = backup_export_csv(dir.to_string_lossy().into_owned(), state)
-        .await
-        .unwrap();
-
-    assert_eq!(written.len(), 7);
-    assert!(dir.join("accounts.csv").exists());
-}
-
-// ---------------------------------------------------------------------------
-// Schedule commands (Task 5)
-// ---------------------------------------------------------------------------
-
-#[tokio::test]
-async fn schedule_writes_reject_when_not_ready() {
-    let manager = manager_fresh().await; // not initialized → not Ready
-    let app = mock_app(Arc::clone(&manager));
-    let state = app.app.state::<Arc<DatabaseManager>>();
-    let error = schedule_create(
-        state,
-        NewSchedule {
-            name: "Rent".into(),
-            kind: ScheduleKind::Expense,
-            amount: 100,
-            account_id: "acct".into(),
-            transfer_account_id: None,
-            tag_id: None,
-            payee: None,
-            description: None,
-            frequency: ScheduleFrequency::Monthly,
-            start_date: "2026-01-01".into(),
-            end_date: None,
-            posts_transaction: 1,
-        },
-    )
-    .await
-    .unwrap_err();
-    assert_eq!(error.code, ErrorCode::DatabaseUpdateRequired);
-}
-
-/// Every mutating schedule command must pass through the same `data_job`
-/// lifecycle gate as the rest of the domain: an uninitialized boundary rejects
-/// each with `DatabaseUpdateRequired` before any SQL runs.
-#[tokio::test]
-async fn schedule_mutations_reject_when_not_ready() {
-    let manager = manager_fresh().await; // not initialized → not Ready
-    let app = mock_app(Arc::clone(&manager));
-
-    let update = ScheduleUpdate {
-        name: "Rent".into(),
-        kind: ScheduleKind::Expense,
-        amount: 100,
-        account_id: "acct".into(),
-        transfer_account_id: None,
-        tag_id: None,
-        payee: None,
-        description: None,
-        frequency: ScheduleFrequency::Monthly,
-        start_date: "2026-01-01".into(),
-        end_date: None,
-        posts_transaction: 1,
-        enabled: 1,
-        next_due_date: None,
-    };
-    let state = app.app.state::<Arc<DatabaseManager>>();
-    let error = schedule_update(state, "sched".into(), update)
-        .await
-        .unwrap_err();
-    assert_eq!(error.code, ErrorCode::DatabaseUpdateRequired);
-
-    let state = app.app.state::<Arc<DatabaseManager>>();
-    let error = schedule_delete(state, "sched".into()).await.unwrap_err();
-    assert_eq!(error.code, ErrorCode::DatabaseUpdateRequired);
-
-    let state = app.app.state::<Arc<DatabaseManager>>();
-    let error = schedule_mark_posted(
-        state,
-        "sched".into(),
-        Some("2026-01-01".into()),
-        Some("2026-02-01".into()),
-        0,
-    )
-    .await
-    .unwrap_err();
-    assert_eq!(error.code, ErrorCode::DatabaseUpdateRequired);
-
-    let state = app.app.state::<Arc<DatabaseManager>>();
-    let error = schedule_mark_errored(state, "sched".into())
-        .await
-        .unwrap_err();
-    assert_eq!(error.code, ErrorCode::DatabaseUpdateRequired);
+async fn obsolete_import_and_initialize_fail_closed() {
+    let app = tauri::test::mock_builder().manage(fixture())
+        .build(tauri::test::mock_context(tauri::test::noop_assets())).unwrap();
+    assert_eq!(database_initialize(app.state()).await.unwrap_err().code, ErrorCode::InvalidInput);
+    assert_eq!(database_import(app.state(), "/missing.sqlite".into()).await.unwrap_err().code, ErrorCode::InvalidInput);
 }

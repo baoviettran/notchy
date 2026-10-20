@@ -3,6 +3,7 @@ import type { AppPreferences, BackupSummary, DeleteResult, OperationContext, Pro
 
 export interface ProfilePort {
 	load(): Promise<ProfileSnapshot>;
+	bootstrap(): Promise<ProfileSnapshot>;
 	paths(id: string): Promise<ProfileStoragePaths>;
 	backups(id: string): Promise<BackupSummary[]>;
 	create(name: string, context: OperationContext): Promise<ProfileRecord>;

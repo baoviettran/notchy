@@ -16,6 +16,7 @@ export async function installProfileWindowListeners(options: {
 	currentSession: () => ProfileSession | null;
 	choose: (dirty: boolean) => Promise<DraftChoice>;
 	onSessionChanged: (session: ProfileSession | null) => void;
+	onTransitionCanceled?: () => void;
 }): Promise<() => void> {
 	let pending: string | null = null;
 	const respond = async (request: TransitionRequest) => {
@@ -36,7 +37,7 @@ export async function installProfileWindowListeners(options: {
 	};
 	const unlistenPrepare = await listen<TransitionRequest>('profile:prepare-transition', ({ payload }) => { void respond(payload); });
 	const unlistenCanceled = await listen<{ requestId: string }>('profile:transition-canceled', ({ payload }) => {
-		if (pending === payload.requestId) { pending = null; cancelDraftTransition(); }
+		if (pending === payload.requestId) { pending = null; cancelDraftTransition(); options.onTransitionCanceled?.(); }
 	});
 	const unlistenChanged = await listen<ChangedEvent>('profile:session-changed', ({ payload }) => {
 		pending = null;

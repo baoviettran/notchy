@@ -5,114 +5,32 @@ use std::sync::Arc;
 use tauri::State;
 
 use crate::database::domains;
-use crate::database::error::{DbError, DbResult, ErrorCode, MetaKey};
-use crate::database::executor::DatabaseManager;
+use crate::database::error::{DbError, ErrorCode, MetaKey};
+use crate::profiles::coordinator::ProfileCoordinator;
+use crate::profiles::types::ProfileSession;
 use crate::database::startup::DatabaseStatus;
 use crate::database::types::*;
 
-/// The label of the only window permitted to request startup operations.
-pub const MAIN_WINDOW_LABEL: &str = "main";
-
-/// Reject callers that are not the main window.
-pub(crate) fn assert_main_window<R: tauri::Runtime>(
-    window: &tauri::WebviewWindow<R>,
-) -> DbResult<()> {
-    if window.label() == MAIN_WINDOW_LABEL {
-        Ok(())
-    } else {
-        Err(DbError::new(ErrorCode::InvalidInput))
-    }
-}
-
 // ===========================================================================
-// Lifecycle commands (main-window only)
+// Retired single-database lifecycle commands
 // ===========================================================================
+// Kept as fail-closed compatibility endpoints while old web adapters are
+// removed. ProfileCoordinator::bootstrap owns startup, and restore is always
+// a new profile through profile_inspect_restore/profile_restore.
+fn retired_lifecycle() -> DbError { DbError::new(ErrorCode::InvalidInput) }
 
-/// Initialize the native database boundary. Main-window only.
 #[tauri::command]
-pub async fn database_initialize<R: tauri::Runtime>(
-    window: tauri::WebviewWindow<R>,
-    manager: State<'_, Arc<DatabaseManager>>,
-) -> Result<DatabaseStatus, DbError> {
-    assert_main_window(&window)?;
-    manager.initialize().await
-}
-
-/// Retry a failed startup. Main-window only.
+pub async fn database_initialize(_coordinator: State<'_, Arc<ProfileCoordinator>>) -> Result<DatabaseStatus, DbError> { Err(retired_lifecycle()) }
 #[tauri::command]
-pub async fn database_retry<R: tauri::Runtime>(
-    window: tauri::WebviewWindow<R>,
-    manager: State<'_, Arc<DatabaseManager>>,
-) -> Result<DatabaseStatus, DbError> {
-    assert_main_window(&window)?;
-    manager.retry().await
-}
-
-/// Query the current database status. Main-window only.
+pub async fn database_retry(_coordinator: State<'_, Arc<ProfileCoordinator>>) -> Result<DatabaseStatus, DbError> { Err(retired_lifecycle()) }
 #[tauri::command]
-pub async fn database_status<R: tauri::Runtime>(
-    window: tauri::WebviewWindow<R>,
-    manager: State<'_, Arc<DatabaseManager>>,
-) -> Result<DatabaseStatus, DbError> {
-    assert_main_window(&window)?;
-    manager.status()
-}
-
-/// Discover all verified backups available for restore, newest first.
-/// Uses the manager's backup directory. Returns an empty list if the
-/// directory does not exist.
+pub async fn database_status(_coordinator: State<'_, Arc<ProfileCoordinator>>) -> Result<DatabaseStatus, DbError> { Err(retired_lifecycle()) }
 #[tauri::command]
-pub async fn discover_restore_points<R: tauri::Runtime>(
-    _window: tauri::WebviewWindow<R>,
-    manager: State<'_, Arc<DatabaseManager>>,
-) -> Result<Vec<BackupSummary>, DbError> {
-    manager.discover_restore_points()
-}
-
-/// Replace the live database with a verified backup. Main-window only.
-///
-/// Accepts a `BackupSummary` (serializable) and reconstructs the
-/// `BackupToken` internally by re-hashing the backup file.
+pub async fn discover_restore_points(_coordinator: State<'_, Arc<ProfileCoordinator>>) -> Result<Vec<BackupSummary>, DbError> { Err(retired_lifecycle()) }
 #[tauri::command]
-pub async fn database_restore<R: tauri::Runtime>(
-    window: tauri::WebviewWindow<R>,
-    manager: State<'_, Arc<DatabaseManager>>,
-    summary: BackupSummary,
-) -> Result<DatabaseStatus, DbError> {
-    assert_main_window(&window)?;
-    let token = BackupToken::from_summary(&summary)?;
-    manager.restore_database(token, crate::database::restore::RestoreFailurePoint::None).await
-}
-
-/// Import a user-selected SQLite file through the protected restore protocol.
-/// Stage a validated snapshot in app-owned storage before replacing live data.
+pub async fn database_restore(_coordinator: State<'_, Arc<ProfileCoordinator>>, _summary: BackupSummary) -> Result<DatabaseStatus, DbError> { let _ = _summary; Err(retired_lifecycle()) }
 #[tauri::command]
-pub async fn database_import<R: tauri::Runtime>(
-    window: tauri::WebviewWindow<R>,
-    manager: State<'_, Arc<DatabaseManager>>,
-    source_path: String,
-) -> Result<i64, DbError> {
-    assert_main_window(&window)?;
-    let backup_dir = manager.backup_dir();
-    let token = tokio::task::spawn_blocking(move || {
-        use crate::database::manifest::{inspect_schema, SchemaInspection};
-        let source = std::path::Path::new(&source_path);
-        match inspect_schema(source) {
-            SchemaInspection::Older { .. } | SchemaInspection::Current { .. } => {}
-            SchemaInspection::TooOld { .. } => return Err(DbError::new(ErrorCode::SchemaTooOld)),
-            SchemaInspection::Newer { .. } => return Err(DbError::new(ErrorCode::SchemaTooNew)),
-            _ => return Err(DbError::new(ErrorCode::DatabaseInvalid)),
-        }
-        crate::database::backup::publish_backup(
-            source,
-            &backup_dir,
-            crate::database::backup::BackupFailurePoint::None,
-        )
-    }).await.map_err(|_| DbError::new(ErrorCode::RestoreFailed))??;
-    let schema = token.schema();
-    manager.restore_database(token, crate::database::restore::RestoreFailurePoint::None).await?;
-    Ok(schema)
-}
+pub async fn database_import(_coordinator: State<'_, Arc<ProfileCoordinator>>, _source_path: String) -> Result<i64, DbError> { let _ = _source_path; Err(retired_lifecycle()) }
 
 // ===========================================================================
 // Account commands
@@ -120,78 +38,86 @@ pub async fn database_import<R: tauri::Runtime>(
 
 #[tauri::command]
 pub async fn account_list(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
 ) -> Result<Vec<AccountWithBalance>, DbError> {
-    manager.data_job(|state| domains::accounts::list_accounts(state.connection()?)).await
+    coordinator.with_session(&session, |state| domains::accounts::list_accounts(state.connection()?)).await
 }
 
 #[tauri::command]
 pub async fn account_get(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
 ) -> Result<Option<AccountWithBalance>, DbError> {
-    manager.data_job(move |state| domains::accounts::get_account(state.connection()?, &id)).await
+    coordinator.with_session(&session, move |state| domains::accounts::get_account(state.connection()?, &id)).await
 }
 
 #[tauri::command]
 pub async fn account_get_balance(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     account_id: String,
 ) -> Result<i64, DbError> {
     let today = domains::accounts::today_iso();
-    manager.data_job(move |state| domains::accounts::get_balance(state.connection()?, &account_id, &today)).await
+    coordinator.with_session(&session, move |state| domains::accounts::get_balance(state.connection()?, &account_id, &today)).await
 }
 
 #[tauri::command]
 pub async fn account_get_balance_as_of(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     account_id: String,
     date: String,
 ) -> Result<i64, DbError> {
-    manager.data_job(move |state| domains::accounts::get_balance(state.connection()?, &account_id, &date)).await
+    coordinator.with_session(&session, move |state| domains::accounts::get_balance(state.connection()?, &account_id, &date)).await
 }
 
 #[tauri::command]
 pub async fn account_create(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     input: NewAccount,
 ) -> Result<String, DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::accounts::create_account(state.connection_mut()?, op_id, input)
     }).await
 }
 
 #[tauri::command]
 pub async fn account_update(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
     patch: AccountPatch,
 ) -> Result<(), DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::accounts::update_account(state.connection_mut()?, op_id, &id, patch)
     }).await
 }
 
 #[tauri::command]
 pub async fn account_delete(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
 ) -> Result<(), DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::accounts::delete_account(state.connection_mut()?, op_id, &id)
     }).await
 }
 
 #[tauri::command]
 pub async fn account_restore(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
 ) -> Result<(), DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::accounts::restore_account(state.connection_mut()?, op_id, &id)
     }).await
 }
@@ -202,118 +128,129 @@ pub async fn account_restore(
 
 #[tauri::command]
 pub async fn transaction_list(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     filter: Option<TransactionFilter>,
 ) -> Result<Vec<Transaction>, DbError> {
     let f = filter.unwrap_or_default();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::transactions::list_transactions(state.connection()?, f)
     }).await
 }
 
 #[tauri::command]
 pub async fn transaction_get(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
 ) -> Result<Option<Transaction>, DbError> {
-    manager.data_job(move |state| domains::transactions::get_transaction(state.connection()?, &id)).await
+    coordinator.with_session(&session, move |state| domains::transactions::get_transaction(state.connection()?, &id)).await
 }
 
 #[tauri::command]
 pub async fn transaction_create(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     input: NewTransaction,
 ) -> Result<String, DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::transactions::create_transaction(state.connection_mut()?, op_id, input)
     }).await
 }
 
 #[tauri::command]
 pub async fn transaction_create_batch(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     inputs: Vec<NewTransaction>,
 ) -> Result<Vec<String>, DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::transactions::create_transactions_batch(state.connection_mut()?, op_id, inputs)
     }).await
 }
 
 #[tauri::command]
 pub async fn transaction_update(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
     patch: TransactionPatch,
 ) -> Result<(), DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::transactions::update_transaction(state.connection_mut()?, op_id, &id, patch)
     }).await
 }
 
 #[tauri::command]
 pub async fn transaction_delete(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
 ) -> Result<(), DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::transactions::delete_transaction(state.connection_mut()?, op_id, &id)
     }).await
 }
 
 #[tauri::command]
 pub async fn transaction_restore(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
 ) -> Result<(), DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::transactions::restore_transaction(state.connection_mut()?, op_id, &id)
     }).await
 }
 
 #[tauri::command]
 pub async fn transaction_duplicate(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
 ) -> Result<String, DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::transactions::duplicate_transaction(state.connection_mut()?, op_id, &id)
     }).await
 }
 
 #[tauri::command]
 pub async fn transaction_frequent(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     since_date: String,
 ) -> Result<Vec<FrequentTx>, DbError> {
-    manager
-        .data_job(move |state| domains::transactions::get_frequent(state.connection()?, &since_date))
+    coordinator
+        .with_session(&session, move |state| domains::transactions::get_frequent(state.connection()?, &since_date))
         .await
 }
 
 #[tauri::command]
 pub async fn transaction_delete_many(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     ids: Vec<String>,
 ) -> Result<(), DbError> {
     if ids.is_empty() {
         return Ok(());
     }
     let op_id = OperationId::generate();
-    manager
-        .data_job(move |state| {
+    coordinator
+        .with_session(&session, move |state| {
             domains::transactions::delete_transactions(state.connection_mut()?, op_id, ids)
         })
         .await
 }
 #[tauri::command]
 pub async fn transaction_set_tag_many(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     ids: Vec<String>,
     tag_id: Option<String>,
 ) -> Result<(), DbError> {
@@ -321,15 +258,16 @@ pub async fn transaction_set_tag_many(
         return Ok(());
     }
     let op_id = OperationId::generate();
-    manager
-        .data_job(move |state| {
+    coordinator
+        .with_session(&session, move |state| {
             domains::transactions::set_tag_many(state.connection_mut()?, op_id, ids, tag_id)
         })
         .await
 }
 #[tauri::command]
 pub async fn transaction_set_account_many(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     ids: Vec<String>,
     account_id: String,
 ) -> Result<(), DbError> {
@@ -337,8 +275,8 @@ pub async fn transaction_set_account_many(
         return Ok(());
     }
     let op_id = OperationId::generate();
-    manager
-        .data_job(move |state| {
+    coordinator
+        .with_session(&session, move |state| {
             domains::transactions::set_account_many(state.connection_mut()?, op_id, ids, account_id)
         })
         .await
@@ -350,122 +288,133 @@ pub async fn transaction_set_account_many(
 
 #[tauri::command]
 pub async fn category_list_buckets(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
 ) -> Result<Vec<Bucket>, DbError> {
-    manager.data_job(|state| domains::categories::list_buckets(state.connection()?)).await
+    coordinator.with_session(&session, |state| domains::categories::list_buckets(state.connection()?)).await
 }
 
 #[tauri::command]
 pub async fn category_create_bucket(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     name: String,
     budgetable: Option<i32>,
 ) -> Result<String, DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::categories::create_bucket(state.connection_mut()?, op_id, name, budgetable.unwrap_or(1))
     }).await
 }
 
 #[tauri::command]
 pub async fn category_rename_bucket(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
     name: String,
 ) -> Result<(), DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::categories::rename_bucket(state.connection_mut()?, op_id, &id, name)
     }).await
 }
 
 #[tauri::command]
 pub async fn category_set_rollover_enabled(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
     enabled: bool,
 ) -> Result<(), DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::categories::set_rollover_enabled(state.connection_mut()?, op_id, &id, enabled)
     }).await
 }
 
 #[tauri::command]
 pub async fn category_delete_bucket(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
 ) -> Result<(), DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::categories::delete_bucket(state.connection_mut()?, op_id, &id)
     }).await
 }
 
 #[tauri::command]
 pub async fn category_list_tags(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     bucket_id: Option<String>,
 ) -> Result<Vec<Tag>, DbError> {
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::categories::list_tags(state.connection()?, bucket_id.as_deref())
     }).await
 }
 
 #[tauri::command]
 pub async fn category_create_tag(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     name: String,
     bucket_id: String,
 ) -> Result<String, DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::categories::create_tag(state.connection_mut()?, op_id, name, bucket_id)
     }).await
 }
 
 #[tauri::command]
 pub async fn category_rename_tag(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
     name: String,
 ) -> Result<(), DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::categories::rename_tag(state.connection_mut()?, op_id, &id, name)
     }).await
 }
 
 #[tauri::command]
 pub async fn category_move_tag(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     tag_id: String,
     new_bucket_id: String,
 ) -> Result<TagDeleteInfo, DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::categories::move_tag(state.connection_mut()?, op_id, &tag_id, new_bucket_id)
     }).await
 }
 
 #[tauri::command]
 pub async fn category_get_tag_transaction_info(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     tag_id: String,
 ) -> Result<TagDeleteInfo, DbError> {
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::categories::get_tag_transaction_info(state.connection()?, &tag_id)
     }).await
 }
 
 #[tauri::command]
 pub async fn category_delete_tag(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
     option: String,
 ) -> Result<(), DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::categories::delete_tag(state.connection_mut()?, op_id, &id, &option)
     }).await
 }
@@ -476,76 +425,83 @@ pub async fn category_delete_tag(
 
 #[tauri::command]
 pub async fn budget_get_for_month(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     month: String,
 ) -> Result<Vec<BudgetSummary>, DbError> {
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::budgets::get_budgets_for_month(state.connection()?, &month)
     }).await
 }
 
 #[tauri::command]
 pub async fn budget_get_spent_for_bucket(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     type_id: String,
     month: String,
 ) -> Result<i64, DbError> {
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::budgets::get_spent_for_bucket(state.connection()?, &type_id, &month)
     }).await
 }
 
 #[tauri::command]
 pub async fn budget_get_rolled_over(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     type_id: String,
     month: String,
 ) -> Result<i64, DbError> {
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::budgets::get_rolled_over(state.connection()?, &type_id, &month)
     }).await
 }
 
 #[tauri::command]
 pub async fn budget_get_to_budget(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     month: String,
 ) -> Result<ToBudgetBreakdown, DbError> {
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::budgets::get_to_budget(state.connection()?, &month)
     }).await
 }
 
 #[tauri::command]
 pub async fn budget_set_allocation(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     type_id: String,
     month: String,
     allocated: i64,
 ) -> Result<(), DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::budgets::set_allocation(state.connection_mut()?, op_id, &type_id, &month, allocated)
     }).await
 }
 
 #[tauri::command]
 pub async fn budget_copy_from_previous_month(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     target_month: String,
 ) -> Result<(), DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::budgets::copy_from_previous_month(state.connection_mut()?, op_id, &target_month)
     }).await
 }
 
 #[tauri::command]
 pub async fn budget_has_allocations(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     month: String,
 ) -> Result<bool, DbError> {
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::budgets::has_allocations(state.connection()?, &month)
     }).await
 }
@@ -556,22 +512,25 @@ pub async fn budget_has_allocations(
 
 #[tauri::command]
 pub async fn goal_list(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
 ) -> Result<Vec<GoalWithProgress>, DbError> {
-    manager.data_job(|state| domains::goals::list_goals(state.connection()?)).await
+    coordinator.with_session(&session, |state| domains::goals::list_goals(state.connection()?)).await
 }
 
 #[tauri::command]
 pub async fn goal_get(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
 ) -> Result<Option<GoalWithProgress>, DbError> {
-    manager.data_job(move |state| domains::goals::get_goal(state.connection()?, &id)).await
+    coordinator.with_session(&session, move |state| domains::goals::get_goal(state.connection()?, &id)).await
 }
 
 #[tauri::command]
 pub async fn goal_create(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     name: String,
     goal_type: String,
     target_amount: i64,
@@ -587,7 +546,7 @@ pub async fn goal_create(
         "net_worth" => GoalType::NetWorth,
         _ => return Err(DbError::new(ErrorCode::InvalidInput)),
     };
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::goals::create_goal(
             state.connection_mut()?, op_id, name, gt, target_amount,
             target_date, linked_account_id, starting_amount, show_on_dashboard,
@@ -597,7 +556,8 @@ pub async fn goal_create(
 
 #[tauri::command]
 pub async fn goal_update(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
     name: Option<String>,
     target_amount: Option<i64>,
@@ -613,7 +573,7 @@ pub async fn goal_update(
         "overdue" => Some(GoalStatus::Overdue),
         _ => None,
     });
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::goals::update_goal(
             state.connection_mut()?, op_id, &id, name, target_amount,
             target_date, show_on_dashboard, gs,
@@ -623,22 +583,24 @@ pub async fn goal_update(
 
 #[tauri::command]
 pub async fn goal_delete(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
 ) -> Result<(), DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::goals::delete_goal(state.connection_mut()?, op_id, &id)
     }).await
 }
 
 #[tauri::command]
 pub async fn goal_restore(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
 ) -> Result<(), DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::goals::restore_goal(state.connection_mut()?, op_id, &id)
     }).await
 }
@@ -649,21 +611,24 @@ pub async fn goal_restore(
 
 #[tauri::command]
 pub async fn rule_list(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
 ) -> Result<Vec<CategorizeRule>, DbError> {
-    manager.data_job(|state| domains::rules::list_rules(state.connection()?)).await
+    coordinator.with_session(&session, |state| domains::rules::list_rules(state.connection()?)).await
 }
 
 #[tauri::command]
 pub async fn rule_list_all(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
 ) -> Result<Vec<CategorizeRule>, DbError> {
-    manager.data_job(|state| domains::rules::list_all_rules(state.connection()?)).await
+    coordinator.with_session(&session, |state| domains::rules::list_all_rules(state.connection()?)).await
 }
 
 #[tauri::command]
 pub async fn rule_create(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     payee_term: String,
     match_mode: String,
     tag_id: String,
@@ -681,14 +646,15 @@ pub async fn rule_create(
         "learned" => RuleSource::Learned,
         _ => return Err(DbError::new(ErrorCode::InvalidInput)),
     };
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::rules::create_rule(state.connection_mut()?, op_id, payee_term, mm, tag_id, src)
     }).await
 }
 
 #[tauri::command]
 pub async fn rule_update(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
     payee_term: Option<String>,
     match_mode: Option<String>,
@@ -708,30 +674,32 @@ pub async fn rule_update(
         "learned" => Some(RuleSource::Learned),
         _ => None,
     });
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::rules::update_rule(state.connection_mut()?, op_id, &id, payee_term, mm, tag_id, src, enabled)
     }).await
 }
 
 #[tauri::command]
 pub async fn rule_delete(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
 ) -> Result<(), DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::rules::delete_rule(state.connection_mut()?, op_id, &id)
     }).await
 }
 
 #[tauri::command]
 pub async fn rule_upsert_learned(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     payee_term: String,
     tag_id: String,
 ) -> Result<CategorizeRule, DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::rules::upsert_learned(state.connection_mut()?, op_id, payee_term, tag_id)
     }).await
 }
@@ -742,93 +710,105 @@ pub async fn rule_upsert_learned(
 
 #[tauri::command]
 pub async fn meta_get(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     key: String,
 ) -> Result<Option<String>, DbError> {
-    manager.data_job(move |state| domains::meta::get_meta(state.connection()?, &key)).await
+    coordinator.with_session(&session, move |state| domains::meta::get_meta(state.connection()?, &key)).await
 }
 
 #[tauri::command]
 pub async fn meta_set(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     key: String,
     value: String,
 ) -> Result<(), DbError> {
-    manager.data_job(move |state| domains::meta::set_meta(state.connection()?, &key, &value)).await
+    coordinator.with_session(&session, move |state| domains::meta::set_meta(state.connection()?, &key, &value)).await
 }
 
 #[tauri::command]
 pub async fn meta_delete(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     key: String,
 ) -> Result<(), DbError> {
-    manager.data_job(move |state| domains::meta::delete_meta(state.connection()?, &key)).await
+    coordinator.with_session(&session, move |state| domains::meta::delete_meta(state.connection()?, &key)).await
 }
 
 #[tauri::command]
 pub async fn meta_is_first_run_complete(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
 ) -> Result<bool, DbError> {
-    manager.data_job(|state| domains::meta::is_first_run_complete(state.connection()?)).await
+    coordinator.with_session(&session, |state| domains::meta::is_first_run_complete(state.connection()?)).await
 }
 
 #[tauri::command]
 pub async fn meta_get_locale(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
 ) -> Result<String, DbError> {
-    manager.data_job(|state| domains::meta::get_locale(state.connection()?)).await
+    coordinator.with_session(&session, |state| domains::meta::get_locale(state.connection()?)).await
 }
 
 #[tauri::command]
 pub async fn meta_get_currency(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
 ) -> Result<String, DbError> {
-    manager.data_job(|state| domains::meta::get_currency(state.connection()?)).await
+    coordinator.with_session(&session, |state| domains::meta::get_currency(state.connection()?)).await
 }
 
 #[tauri::command]
 pub async fn meta_is_tour_complete(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
 ) -> Result<bool, DbError> {
-    manager.data_job(|state| domains::meta::is_tour_complete(state.connection()?)).await
+    coordinator.with_session(&session, |state| domains::meta::is_tour_complete(state.connection()?)).await
 }
 
 #[tauri::command]
 pub async fn meta_set_tour_complete(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
 ) -> Result<(), DbError> {
-    manager.data_job(|state| domains::meta::set_tour_complete(state.connection()?)).await
+    coordinator.with_session(&session, |state| domains::meta::set_tour_complete(state.connection()?)).await
 }
 
 #[tauri::command]
 pub async fn meta_set_first_run_complete(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
 ) -> Result<(), DbError> {
-    manager.data_job(|state| domains::meta::set_first_run_complete(state.connection()?)).await
+    coordinator.with_session(&session, |state| domains::meta::set_first_run_complete(state.connection()?)).await
 }
 
 #[tauri::command]
 pub async fn meta_get_default_quick_account(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
 ) -> Result<Option<String>, DbError> {
-    manager.data_job(|state| domains::meta::get_default_quick_account(state.connection()?)).await
+    coordinator.with_session(&session, |state| domains::meta::get_default_quick_account(state.connection()?)).await
 }
 
 #[tauri::command]
 pub async fn meta_set_default_quick_account(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     account_id: String,
 ) -> Result<(), DbError> {
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::meta::set_default_quick_account(state.connection()?, &account_id)
     }).await
 }
 
 #[tauri::command]
 pub async fn meta_clear_default_quick_account(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
 ) -> Result<(), DbError> {
-    manager.data_job(|state| domains::meta::clear_default_quick_account(state.connection()?)).await
+    coordinator.with_session(&session, |state| domains::meta::clear_default_quick_account(state.connection()?)).await
 }
 
 // ===========================================================================
@@ -837,20 +817,22 @@ pub async fn meta_clear_default_quick_account(
 
 #[tauri::command]
 pub async fn debt_list(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
 ) -> Result<DebtSummary, DbError> {
-    manager.data_job(|state| domains::debts::list_debts(state.connection()?)).await
+    coordinator.with_session(&session, |state| domains::debts::list_debts(state.connection()?)).await
 }
 
 #[tauri::command]
 pub async fn debt_write_off(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     account_id: String,
     amount: i64,
     tag_id: Option<String>,
 ) -> Result<String, DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::debts::write_off(state.connection_mut()?, op_id, &account_id, amount, tag_id)
     }).await
 }
@@ -861,24 +843,26 @@ pub async fn debt_write_off(
 
 #[tauri::command]
 pub async fn reconciliation_get_history(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     account_id: String,
 ) -> Result<Vec<Reconciliation>, DbError> {
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::reconciliations::get_reconciliation_history(state.connection()?, &account_id)
     }).await
 }
 
 #[tauri::command]
 pub async fn reconciliation_reconcile(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     account_id: String,
     actual_balance: i64,
     create_adjustment: bool,
     notes: Option<String>,
 ) -> Result<ReconcileResult, DbError> {
     let op_id = OperationId::generate();
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::reconciliations::reconcile(
             state.connection_mut()?, op_id, &account_id, actual_balance, create_adjustment, notes,
         )
@@ -891,88 +875,95 @@ pub async fn reconciliation_reconcile(
 
 #[tauri::command]
 pub async fn report_get_overview(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     month: String,
     include_adjustments: Option<bool>,
 ) -> Result<OverviewReport, DbError> {
     let inc = include_adjustments.unwrap_or(false);
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::reports::get_overview(state.connection()?, &month, inc)
     }).await
 }
 
 #[tauri::command]
 pub async fn report_get_trend(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     months: u32,
     include_adjustments: Option<bool>,
     bucket_id: Option<String>,
 ) -> Result<Vec<TrendPoint>, DbError> {
     let inc = include_adjustments.unwrap_or(false);
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::reports::get_trend(state.connection()?, months, inc, bucket_id.as_deref())
     }).await
 }
 
 #[tauri::command]
 pub async fn report_get_comparison(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     month_a: String,
     month_b: String,
     include_adjustments: Option<bool>,
 ) -> Result<Vec<CompareRow>, DbError> {
     let inc = include_adjustments.unwrap_or(false);
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::reports::get_comparison(state.connection()?, &month_a, &month_b, inc)
     }).await
 }
 
 #[tauri::command]
 pub async fn report_get_category_trend(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     tag_id: String,
     months: u32,
     include_adjustments: Option<bool>,
 ) -> Result<Vec<CategoryTrendPoint>, DbError> {
     let inc = include_adjustments.unwrap_or(false);
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::reports::get_category_trend(state.connection()?, months, &tag_id, inc)
     }).await
 }
 
 #[tauri::command]
 pub async fn report_get_stacked_category_series(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     months: u32,
     include_adjustments: Option<bool>,
 ) -> Result<Vec<StackedCategoryPoint>, DbError> {
     let inc = include_adjustments.unwrap_or(false);
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::reports::get_stacked_category_series(state.connection()?, months, inc)
     }).await
 }
 
 #[tauri::command]
 pub async fn report_get_year_over_year(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     year_a: i32,
     year_b: i32,
     include_adjustments: Option<bool>,
 ) -> Result<Vec<YearOverYearPoint>, DbError> {
     let inc = include_adjustments.unwrap_or(false);
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::reports::get_year_over_year(state.connection()?, year_a, year_b, inc)
     }).await
 }
 
 #[tauri::command]
 pub async fn report_get_net_worth_series(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     months: u32,
     include_adjustments: Option<bool>,
 ) -> Result<Vec<NetWorthPoint>, DbError> {
     let inc = include_adjustments.unwrap_or(false);
-    manager.data_job(move |state| {
+    coordinator.with_session(&session, move |state| {
         domains::reports::get_net_worth_series(state.connection()?, months, inc)
     }).await
 }
@@ -983,39 +974,31 @@ pub async fn report_get_net_worth_series(
 
 /// Publish a routine backup into the app's backup directory and return its path.
 #[tauri::command]
-pub async fn backup_create(manager: State<'_, Arc<DatabaseManager>>) -> Result<String, DbError> {
-    manager.create_routine_backup().await
+pub async fn backup_create(
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
+) -> Result<String, DbError> {
+    coordinator.backup_for_session(&session).await.map(|token| token.id().to_owned())
 }
 
-/// Write a validated copy of the live database to an exact user-chosen path.
 #[tauri::command]
 pub async fn backup_export_sqlite(
     target_path: String,
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
 ) -> Result<(), DbError> {
-    let db_path = manager.paths().db_path.clone();
-    manager
-        .data_job(move |_state| {
-            crate::database::backup::export_backup_to(&db_path, std::path::Path::new(&target_path))?;
-            Ok(())
-        })
-        .await
+    coordinator.export_backup_for_session(&session, std::path::Path::new(&target_path)).await.map(|_| ())
 }
 
-/// Write one CSV per exported table into a user-chosen directory.
 #[tauri::command]
 pub async fn backup_export_csv(
     dir: String,
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
 ) -> Result<Vec<String>, DbError> {
-    manager
-        .data_job(move |state| {
-            crate::database::domains::export::export_table_set_csv(
-                state.connection()?,
-                std::path::Path::new(&dir),
-            )
-        })
-        .await
+    coordinator.with_session(&session, move |state| {
+        crate::database::domains::export::export_table_set_csv(state.connection()?, std::path::Path::new(&dir))
+    }).await
 }
 
 // ===========================================================================
@@ -1024,18 +1007,20 @@ pub async fn backup_export_csv(
 
 #[tauri::command]
 pub async fn schedule_list(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
 ) -> Result<Vec<Schedule>, DbError> {
-    manager.data_job(|state| domains::schedules::list_schedules(state.connection()?)).await
+    coordinator.with_session(&session, |state| domains::schedules::list_schedules(state.connection()?)).await
 }
 
 #[tauri::command]
 pub async fn schedule_list_due(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     today: String,
 ) -> Result<Vec<Schedule>, DbError> {
-    manager
-        .data_job(move |state| {
+    coordinator
+        .with_session(&session, move |state| {
             domains::schedules::list_due_schedules(state.connection()?, &today)
         })
         .await
@@ -1043,12 +1028,13 @@ pub async fn schedule_list_due(
 
 #[tauri::command]
 pub async fn schedule_create(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     input: NewSchedule,
 ) -> Result<String, DbError> {
     let op_id = OperationId::generate();
-    manager
-        .data_job(move |state| {
+    coordinator
+        .with_session(&session, move |state| {
             domains::schedules::create_schedule(state.connection_mut()?, op_id, input)
         })
         .await
@@ -1056,13 +1042,14 @@ pub async fn schedule_create(
 
 #[tauri::command]
 pub async fn schedule_update(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
     input: ScheduleUpdate,
 ) -> Result<(), DbError> {
     let op_id = OperationId::generate();
-    manager
-        .data_job(move |state| {
+    coordinator
+        .with_session(&session, move |state| {
             domains::schedules::update_schedule(state.connection_mut()?, op_id, &id, input)
         })
         .await
@@ -1070,12 +1057,13 @@ pub async fn schedule_update(
 
 #[tauri::command]
 pub async fn schedule_delete(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
 ) -> Result<(), DbError> {
     let op_id = OperationId::generate();
-    manager
-        .data_job(move |state| {
+    coordinator
+        .with_session(&session, move |state| {
             domains::schedules::delete_schedule(state.connection_mut()?, op_id, &id)
         })
         .await
@@ -1083,15 +1071,16 @@ pub async fn schedule_delete(
 
 #[tauri::command]
 pub async fn schedule_mark_posted(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
     last_posted_date: Option<String>,
     next_due_date: Option<String>,
     completed: i64,
 ) -> Result<(), DbError> {
     let op_id = OperationId::generate();
-    manager
-        .data_job(move |state| {
+    coordinator
+        .with_session(&session, move |state| {
             domains::schedules::mark_schedule_posted(
                 state.connection_mut()?,
                 op_id,
@@ -1106,12 +1095,13 @@ pub async fn schedule_mark_posted(
 
 #[tauri::command]
 pub async fn schedule_mark_errored(
-    manager: State<'_, Arc<DatabaseManager>>,
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
     id: String,
 ) -> Result<(), DbError> {
     let op_id = OperationId::generate();
-    manager
-        .data_job(move |state| {
+    coordinator
+        .with_session(&session, move |state| {
             domains::schedules::mark_schedule_errored(state.connection_mut()?, op_id, &id)
         })
         .await

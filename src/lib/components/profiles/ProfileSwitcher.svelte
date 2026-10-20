@@ -8,7 +8,7 @@
 	import { mapError } from '$lib/utils/errors';
 
 	let {
-		snapshot = profiles.snapshot,
+		snapshot: suppliedSnapshot = undefined,
 		onopen = async (id: string) => { await profiles.switchTo(id); await goto(settings.firstRunComplete ? '/' : '/onboarding'); },
 		compact = false
 	}: {
@@ -16,6 +16,7 @@
 		onopen?: (id: string) => Promise<unknown>;
 		compact?: boolean;
 	} = $props();
+	let snapshot = $derived(suppliedSnapshot === undefined ? profiles.snapshot : suppliedSnapshot);
 	let expanded = $state(false);
 	let opening = $state(false);
 	let openError = $state<string | null>(null);

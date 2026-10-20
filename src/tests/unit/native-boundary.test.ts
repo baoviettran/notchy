@@ -183,7 +183,8 @@ vi.mock('@tauri-apps/api/core', () => ({
 }));
 
 import { invoke } from '@tauri-apps/api/core';
-import { NativeDatabaseClient, databaseStatus, databaseRetry } from '$lib/db/native/client';
+import { NativeDatabaseClient } from '$lib/db/native/client';
+import { createSessionInvoker, type SessionInvoker } from '$lib/profiles/session';
 import {
 	expectedArgKeys,
 	invokeSites,
@@ -208,11 +209,6 @@ afterEach(() => {
 
 describe('NativeDatabaseClient: command-name mapping (vs src-tauri/src/lib.rs)', () => {
 	const client = new NativeDatabaseClient();
-
-	it('lifecycle databaseStatus issues the registered database_status command', async () => {
-		await databaseStatus();
-		expect(lastCall().command).toBe('database_status');
-	});
 
 	it('accounts: getBalance issues account_get_balance', async () => {
 		await client.accounts.getBalance('acc1');
@@ -430,11 +426,11 @@ describe('NativeDatabaseClient: full surface sweep (command name + camelCase arg
 		command: string;
 	}
 
-	const client = new NativeDatabaseClient();
+	const testSession = { profileId: 'profile-a', generation: 'generation-1' };
+	const client = new NativeDatabaseClient(createSessionInvoker(testSession, invokeMock as unknown as SessionInvoker));
 
 	const rows: Row[] = [
 		// Lifecycle (module fns)
-		{ label: 'databaseInitialize', run: () => databaseRetry(), command: 'database_retry' },
 
 		// Accounts
 		{ label: 'accounts.list', run: () => client.accounts.list(), command: 'account_list' },

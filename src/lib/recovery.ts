@@ -2,8 +2,6 @@ import type { DatabaseService, RecoveryContext } from '$lib/db';
 import { validateDatabase, type DatabaseValidation } from '$lib/backup/validation';
 import { MIN_SUPPORTED_SCHEMA_VERSION, LATEST_SCHEMA_VERSION } from '$lib/db/migrations/index';
 import { AppError } from '$lib/errors';
-import { isTauri } from '$lib/db';
-import { toAppError } from '$lib/native/to-app-error';
 
 export interface RestoreDependencies {
 	openReadOnly(path: string): Promise<DatabaseService>;
@@ -19,20 +17,7 @@ export async function restoreCompatibleDatabase(
 	sourcePath: string,
 	dependencies?: RestoreDependencies
 ): Promise<{ schemaVersion: number }> {
-	if (!dependencies && isTauri()) {
-		const { invoke } = await import('@tauri-apps/api/core');
-		try {
-			const schemaVersion = await invoke<number>('database_import', { sourcePath });
-			return { schemaVersion };
-		} catch (error) {
-			if (typeof error === 'object' && error !== null && 'code' in error) {
-				if (error.code === 'schema_too_old') throw new AppError('backup_schema_too_old');
-				if (error.code === 'schema_too_new') throw new AppError('backup_schema_newer');
-			}
-			throw toAppError(error);
-		}
-	}
-	dependencies ??= tauriRestoreDependencies;
+	if (!dependencies) throw new Error('restore requires the profile service');
 	const candidate = await dependencies.openReadOnly(sourcePath);
 	let validation: DatabaseValidation;
 	try {
@@ -91,23 +76,3 @@ export function buildTechnicalReport(context: RecoveryContext): string {
 		backupPath: context.backupPath
 	}, null, 2);
 }
-
-// Tauri-only dependencies. All Tauri API imports stay lazy so this module is
-// browser-safe (it is a Stryker mutation target). Playwright exercises this
-// wrapper through the IPC mock; the Vitest suite injects fake dependencies.
-export const tauriRestoreDependencies: RestoreDependencies = {
-	async openReadOnly(path: string): Promise<DatabaseService> {
-		const { openReadOnlyDatabase } = await import('$lib/db');
-		return openReadOnlyDatabase(path);
-	},
-	async replaceLiveDatabase(sourcePath: string): Promise<void> {
-		const { closeDb } = await import('$lib/db');
-		const { copyFile } = await import('@tauri-apps/plugin-fs');
-		const { getDatabasePaths } = await import('$lib/db');
-		// Close the live connection first so the copied file is not held open;
-		// reopening and forward migration happen on page reload.
-		await closeDb();
-		const { databasePath } = await getDatabasePaths();
-		await copyFile(sourcePath, databasePath);
-	}
-};

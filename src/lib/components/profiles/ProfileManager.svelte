@@ -9,7 +9,7 @@
 	import { mapError } from '$lib/utils/errors';
 
 	let {
-		mode = 'manage', snapshot = profiles.snapshot,
+		mode = 'manage', snapshot: suppliedSnapshot = undefined,
 		onopen = async (id: string) => { await profiles.switchTo(id); await goto(settings.firstRunComplete ? '/' : '/onboarding'); },
 		onaction = (action: 'create' | 'restore' | 'rename' | 'backup' | 'reset' | 'delete', target?: ProfileRecord) => profileDialog.open(action, target)
 	}: {
@@ -18,6 +18,7 @@
 		onopen?: (id: string) => unknown;
 		onaction?: (action: 'create' | 'restore' | 'rename' | 'backup' | 'reset' | 'delete', target?: ProfileRecord) => unknown;
 	} = $props();
+	let snapshot = $derived(suppliedSnapshot === undefined ? profiles.snapshot : suppliedSnapshot);
 
 	const shortId = (id: string) => id.slice(0, 5);
 	const created = (value: string) => new Intl.DateTimeFormat(settings.locale, { dateStyle: 'medium' }).format(new Date(value));

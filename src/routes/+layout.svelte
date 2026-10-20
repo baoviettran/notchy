@@ -14,15 +14,15 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { dbStore } from '$lib/stores/db.svelte';
-	import { getDb } from '$lib/db';
+	import { profiles, setProfileDraftChoice } from '$lib/stores/profiles.svelte';
+	import { installProfileWindowListeners, installAppPreferencesListener, type DraftChoice } from '$lib/profiles/windows';
+	import { isTauri } from '$lib/db';
+	import ProfileManager from '$lib/components/profiles/ProfileManager.svelte';
+	import ProfileDialogs from '$lib/components/profiles/ProfileDialogs.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
 	import { tour } from '$lib/stores/tour.svelte';
 	import { transactions } from '$lib/stores/transactions.svelte';
-	import { schedules } from '$lib/stores/schedules.svelte';
-	import { toast } from '$lib/stores/toast.svelte';
-	import { attachTransactionSavedListener, emitTransactionsChanged } from '$lib/stores/quick-refresh';
-	import { postDueSchedulesOnce, bootSummaryMessage } from '$lib/logic/post-due-schedules';
-	import { todayIso } from '$lib/utils/date';
+	import { attachTransactionSavedListener } from '$lib/stores/quick-refresh';
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
 	import TopBar from '$lib/components/layout/TopBar.svelte';
 	import BottomNav from '$lib/components/layout/BottomNav.svelte';
@@ -33,8 +33,10 @@
 	import RuleDialogs from '$lib/components/modals/RuleDialogs.svelte';
 	import GlobalToast from '$lib/components/primitives/GlobalToast.svelte';
 	import TourOverlay from '$lib/components/tour/TourOverlay.svelte';
-	import RecoveryScreen from '$lib/components/system/RecoveryScreen.svelte';
 	import StartupProgress from '$lib/components/system/StartupProgress.svelte';
+	import Button from '$lib/components/primitives/Button.svelte';
+	import { profileDialog } from '$lib/components/profiles/controller.svelte';
+	import { mapError } from '$lib/utils/errors';
 	import * as m from '$lib/paraglide/messages';
 	import { label } from '$lib/utils/i18n.svelte';
 
@@ -42,68 +44,69 @@
 	let showTxModal = $state(false);
 	let showShortcuts = $state(false);
 	let unlisten: (() => void) | undefined;
+	let bootingProfiles = $state(true);
+	let profileBootError = $state<string | null>(null);
+	let pendingDraftChoice = $state<((choice: DraftChoice) => void) | null>(null);
+	let unlistenProfileWindow: (() => void) | undefined;
+	let unlistenPreferences: (() => void) | undefined;
+	let unlistenCanceled: (() => void) | undefined;
 	let tourInitialized = false;
 
+	function chooseDraft(): Promise<DraftChoice> {
+		return new Promise((resolve) => { pendingDraftChoice = resolve; });
+	}
+	function answerDraft(choice: DraftChoice): void {
+		const resolve = pendingDraftChoice; pendingDraftChoice = null; resolve?.(choice);
+	}
+	setProfileDraftChoice(async () => chooseDraft());
+
 	onMount(async () => {
-		// The main window initializes Rust's protected database lifecycle.
-		// Quick Add creates its own JS adapter with initDb(), then uses the
-		// same Rust manager without rerunning startup or migrations.
-		const isQuickAddWindow = $page.url.pathname.startsWith('/quick-add');
-		if (isQuickAddWindow) {
-			// quick-add still needs settings + its own transaction:saved handling
-			// is unnecessary (it emits, doesn't receive). Nothing to do here.
-			return;
-		}
-		await dbStore.init();
-		if (dbStore.ready && !dbStore.firstRunComplete && $page.url.pathname !== '/onboarding') {
-			goto('/onboarding');
-		}
-	});
-
-	$effect(() => {
-		const isQuickAddWindow = $page.url.pathname.startsWith('/quick-add');
-		if (isQuickAddWindow) return;
-
-		// Track stage directly so the effect re-runs when dbStore.init()
-		// transitions from 'checking' → 'ready'. Using dbStore.ready
-		// (a $derived) works in most cases, but tracking the raw stage
-		// ensures we never miss the transition.
-		const stage = dbStore.stage;
-		const ready = stage === 'ready';
-		const firstRun = dbStore.firstRunComplete;
-
-		if (ready && firstRun && !tourInitialized) {
-			tourInitialized = true;
-			(async () => {
-				await settings.load();
-				await tour.load();
-				if (!tour.complete) {
-					tour.start();
-				}
+		if ($page.url.pathname.startsWith('/quick-add')) return;
+		try {
+			if (isTauri()) {
 				unlisten = await attachTransactionSavedListener(listen, async () => {
 					await transactions.load();
+				}, () => profiles.snapshot?.active ?? null);
+			}
+			const snapshot = isTauri() ? await profiles.bootstrap() : await profiles.load();
+			if (isTauri()) {
+				unlistenProfileWindow = await installProfileWindowListeners({
+					currentSession: () => profiles.snapshot?.active ?? null,
+					choose: chooseDraft,
+					onSessionChanged: () => {
+						showTxModal = false; showShortcuts = false;
+						if (!profiles.busy) void profiles.load().then((next) => {
+							void goto(next.active ? (settings.firstRunComplete ? '/' : '/onboarding') : '/profiles');
+						}).catch((error) => profileBootError = mapError(error));
+					}
 				});
+				unlistenPreferences = await installAppPreferencesListener((preferences) => settings.loadAppPreferences(preferences));
+				unlistenCanceled = await listen('profile:transition-canceled', () => answerDraft('cancel'));
+			}
+			if (!snapshot.active && $page.url.pathname !== '/profiles') await goto('/profiles');
+			else if (snapshot.active && !settings.firstRunComplete && !['/onboarding', '/profiles', '/settings/profiles'].includes($page.url.pathname)) await goto('/onboarding');
+		} catch (error) {
+			profileBootError = mapError(error);
+			await profiles.load().catch(() => {});
+		} finally { bootingProfiles = false; }
+	});
 
-				// Post anything that fell due while the app was closed. `getDb()` is
-				// initialized by the ready stage that gates this block; the quick-add
-				// early return above keeps the pass to the main window. Register the
-				// listener first so this window is already listening when we emit.
-				const summary = await postDueSchedulesOnce(getDb(), todayIso());
-				if (summary.posted > 0) {
-					// Refresh before the toast: the user should not read "3 posted"
-					// over a dashboard that still shows yesterday's balance.
-					await transactions.load();
-					// The boot pass advanced (or parked) schedules, so the /schedules
-					// page must reload too or it shows the pre-pass due dates.
-					await schedules.load();
-					await emitTransactionsChanged();
-				}
-				// One message, not three: ToastBus keeps a single informational toast
-				// per tick, so back-to-back show() calls would leave only the last
-				// visible. The aggregation is a pure function so it is unit-tested.
-				const msg = bootSummaryMessage(summary);
-				if (msg) toast.show(msg);
-			})();
+	async function retryProfileBootstrap() {
+		bootingProfiles = true; profileBootError = null;
+		try {
+			const snapshot = await profiles.bootstrap();
+			if (snapshot.active) await goto(settings.firstRunComplete ? '/' : '/onboarding');
+		} catch (error) {
+			profileBootError = mapError(error);
+			await profiles.load().catch(() => {});
+		} finally { bootingProfiles = false; }
+	}
+
+	$effect(() => {
+		if ($page.url.pathname.startsWith('/quick-add')) return;
+		if (dbStore.ready && dbStore.firstRunComplete && !tourInitialized) {
+			tourInitialized = true;
+			void tour.load().then(() => { if (!tour.complete) tour.start(); });
 		}
 	});
 
@@ -123,25 +126,32 @@
 	const isQuickAdd = $derived($page.url.pathname.startsWith('/quick-add'));
 
 	onDestroy(() => {
-		unlisten?.();
+		unlisten?.(); unlistenProfileWindow?.(); unlistenPreferences?.(); unlistenCanceled?.();
 	});
 </script>
 
 <svelte:window onkeydown={onKeydown} />
 
 {#if isQuickAdd}
-	<!-- quick-add does not run dbStore.init() (see onMount), so dbStore.ready
-	     stays false in its JS context. Render its content directly; it manages
-	     its own ready state internally. -->
+	<!-- Quick Add binds its own profile session and manages readiness locally. -->
 	{@render children()}
-{:else if dbStore.stage === 'recovery_required' && dbStore.recovery}
-	<RecoveryScreen
-		context={dbStore.recovery}
-		onretry={() => dbStore.retry()}
-		onrestore={() => dbStore.restoreLatestBackup()}
-		onopenfolder={() => dbStore.openBackupFolder()}
-		onquit={() => dbStore.quit()}
-	/>
+{:else if bootingProfiles}
+	<StartupProgress stage={dbStore.stage} />
+{:else if profileBootError || profiles.snapshot?.phase === 'recovery'}
+	<div class="h-screen overflow-y-auto bg-ink text-ledger"><div class="mx-auto max-w-3xl p-4 md:p-8 space-y-6">
+		<div class="surface rounded-lg p-5 space-y-3" role="alert">
+			<h1 class="page-title">{label(() => m.profiles_recovery_title())}</h1>
+			<p class="text-sm text-dim">{label(() => m.profiles_recovery_desc())}</p>
+			{#if profileBootError}<p class="text-sm text-debit">{profileBootError}</p>{/if}
+			<div class="flex flex-wrap gap-2">
+				<Button onclick={() => void retryProfileBootstrap()}>{label(() => m.profiles_recovery_retry())}</Button>
+				<Button variant="secondary" onclick={() => profileDialog.open('restore')}>{label(() => m.profiles_restore())}</Button>
+			</div>
+		</div>
+		<ProfileManager mode="picker" />
+	</div></div>
+{:else if !profiles.snapshot?.active}
+	<div class="h-screen overflow-y-auto bg-ink text-ledger"><div class="mx-auto max-w-3xl p-4 md:p-8"><ProfileManager mode="picker" /></div></div>
 {:else if !dbStore.ready}
 	<StartupProgress stage={dbStore.stage} />
 {:else if isOnboarding}
@@ -187,4 +197,19 @@
 	<GlobalToast />
 	<RuleDialogs />
 	<ShortcutRef bind:open={showShortcuts} />
+{/if}
+
+{#if !isQuickAdd}
+	<ProfileDialogs />
+	{#if pendingDraftChoice}
+		<div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4" role="alertdialog" aria-modal="true" aria-label={label(() => m.profiles_unsaved_drafts())}>
+			<div class="surface max-w-md rounded-lg border border-line p-5 space-y-4">
+				<p class="text-ledger">{label(() => m.profiles_unsaved_drafts())}</p>
+				<div class="flex justify-end gap-3">
+					<button type="button" class="px-3 py-2 text-dim" onclick={() => answerDraft('stay')}>{label(() => m.profiles_stay())}</button>
+					<button type="button" class="px-3 py-2 rounded bg-debit text-white" onclick={() => answerDraft('discard')}>{label(() => m.profiles_discard())}</button>
+				</div>
+			</div>
+		</div>
+	{/if}
 {/if}

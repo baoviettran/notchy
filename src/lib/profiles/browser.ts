@@ -35,6 +35,7 @@ export class BrowserProfilePort implements ProfilePort {
 	private current: ProfileSession | null = null;
 	private preferences: AppPreferences = { locale: 'en', theme: 'light' };
 	constructor(private readonly dependencies: BrowserProfileDependencies) {}
+	bootstrap(): Promise<ProfileSnapshot> { return this.load(); }
 	async load(): Promise<ProfileSnapshot> {
 		return { profiles: [...this.slots.values()].map((slot) => slot.record), active: this.current, phase: 'idle', preferences: this.preferences, recovery: null };
 	}

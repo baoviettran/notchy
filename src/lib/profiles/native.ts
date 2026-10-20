@@ -13,6 +13,7 @@ export class NativeProfilePort implements ProfilePort {
 		try { return await this.raw<T>(command, args); }
 		catch (error) { throw toAppError(error); }
 	}
+	bootstrap(): Promise<ProfileSnapshot> { return this.call('profiles_bootstrap'); }
 	async load(): Promise<ProfileSnapshot> {
 		const snapshot = await this.call<ProfileSnapshot>('profiles_load');
 		this.current = snapshot.active;

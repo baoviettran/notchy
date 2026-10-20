@@ -1,5 +1,5 @@
 import type { AppDatabase } from '$lib/db/client';
-import { isTauri, bindProfileDb } from '$lib/db';
+import { isTauri, bindProfileDb, getDb } from '$lib/db';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { createInMemoryDb } from '$lib/db/browser/in-memory';
 import { migrations } from '$lib/db/browser/migrations';
@@ -13,7 +13,12 @@ import type { BackupSummary, DeleteResult, ProfileRecord, ProfileSession, Profil
 import { resetProfileState } from '$lib/profiles/reset-state';
 import { settings } from '$lib/stores/settings.svelte';
 import { dbStore } from '$lib/stores/db.svelte';
-import { postDueSchedulesOnce } from '$lib/logic/post-due-schedules';
+import { postDueSchedulesOnce, bootSummaryMessage } from '$lib/logic/post-due-schedules';
+import { emitTransactionsChanged } from '$lib/stores/quick-refresh';
+import { toast } from '$lib/stores/toast.svelte';
+import { schedules } from '$lib/stores/schedules.svelte';
+import { transactions } from '$lib/stores/transactions.svelte';
+import { getBoundProfileSession } from '$lib/profiles/current';
 import { todayIso } from '$lib/utils/date';
 import { ulid } from '$lib/utils/id';
 
@@ -52,6 +57,9 @@ export class ProfilesStore {
 		if (key === this.lastBound) return;
 		const db = session ? this.deps.port.databaseFor(session) : null;
 		this.deps.bind(session, db);
+		if (typeof window !== 'undefined' && !isTauri()) {
+			(window as typeof window & { __notchyTestHooks?: { getDb: typeof getDb } }).__notchyTestHooks = { getDb };
+		}
 		this.deps.reset(session);
 		if (!session || !db) { this.lastBound = key; return; }
 		await this.deps.loadSettings(session);
@@ -59,6 +67,10 @@ export class ProfilesStore {
 		if (key === this.lastCatchUp) return;
 		this.lastCatchUp = key;
 		await this.deps.catchUp(session, db);
+	}
+	async bootstrap(): Promise<ProfileSnapshot> {
+		await this.deps.port.bootstrap();
+		return this.load();
 	}
 	async load(): Promise<ProfileSnapshot> {
 		const snapshot = await this.refresh();
@@ -197,7 +209,16 @@ export const profiles = new ProfilesStore({
 	loadSettings: async () => { await settings.loadProfileSettings(); dbStore.firstRunComplete = settings.firstRunComplete; },
 	catchUp: async (session, db) => {
 		if (isTauri() && getCurrentWebviewWindow().label !== 'main') return;
-		await postDueSchedulesOnce(db, todayIso(), `${session.profileId}:${session.generation}`);
+		const summary = await postDueSchedulesOnce(db, todayIso(), `${session.profileId}:${session.generation}`);
+		const current = getBoundProfileSession();
+		if (!current || current.profileId !== session.profileId || current.generation !== session.generation) return;
+		if (summary.posted > 0) {
+			await transactions.load();
+			await schedules.load();
+			await emitTransactionsChanged(session);
+		}
+		const message = bootSummaryMessage(summary);
+		if (message) toast.show(message);
 	},
 	barrier: defaultBarrier,
 	loadPreferences: (snapshot) => {

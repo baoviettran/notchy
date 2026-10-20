@@ -125,6 +125,7 @@ describe('loadCommandSurface on the real tree', () => {
 
 	it('projects account_get_balance_as_of to the camelCase the client sends', () => {
 		expect(expectedArgKeys(surface, 'account_get_balance_as_of')).toEqual([
+			'session',
 			'accountId',
 			'date',
 		]);
@@ -132,7 +133,7 @@ describe('loadCommandSurface on the real tree', () => {
 
 	it('excludes Tauri-injected params that never cross the IPC argument map', () => {
 		const params = expectedArgKeys(surface, 'account_delete');
-		expect(params).toEqual(['id']);
+		expect(params).toEqual(['session', 'id']);
 	});
 
 	it('throws for a command that is not registered', () => {

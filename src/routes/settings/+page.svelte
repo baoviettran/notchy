@@ -19,7 +19,7 @@
 	} as const;
 
 	function setTheme(theme: 'auto' | 'light' | 'dark') {
-		settings.setTheme(theme);
+		void settings.saveTheme(theme);
 	}
 
 	async function setLocale(locale: 'en' | 'vi') {
@@ -106,6 +106,11 @@
 					<div class="font-medium text-ledger">{m.settings_categories()}</div>
 					<div class="text-sm text-dim">{m.settings_categories_desc()}</div>
 				</div>
+				<span class="text-dim mt-0.5 shrink-0" aria-hidden="true">→</span>
+			</a>
+			<div class="border-t border-line"></div>
+			<a href="/settings/profiles" class="flex items-start justify-between gap-2 hover:bg-line/30 rounded-md p-2 -mx-2 transition-colors">
+				<div><div class="font-medium text-ledger">{m.profiles_title()}</div><div class="text-sm text-dim">{m.profiles_manage_desc()}</div></div>
 				<span class="text-dim mt-0.5 shrink-0" aria-hidden="true">→</span>
 			</a>
 			<div class="border-t border-line"></div>

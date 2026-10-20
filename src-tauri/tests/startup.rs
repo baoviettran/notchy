@@ -18,7 +18,7 @@ use notchy_lib::database::types::{LifecycleState, StartupStage};
 
 mod common;
 use common::{
-    fixtures_dir, initialize_as, manager_for_fixture, manager_fresh, paths_for, wait_until_stage,
+    fixtures_dir, manager_for_fixture, manager_fresh, paths_for, wait_until_stage,
     write_as,
 };
 
@@ -176,8 +176,8 @@ async fn migration_publishes_pre_upgrade_backup_into_upgrades_dir() {
 async fn quick_add_cannot_initialize_or_write_during_migration() {
     let manager = paused_migration_manager().await;
     assert_eq!(
-        initialize_as("quick-add", &manager).await.unwrap_err().code,
-        ErrorCode::InvalidInput
+        notchy_lib::profiles::commands::authorize_profile_mutation("quick-add").unwrap_err().code,
+        ErrorCode::UnauthorizedCaller
     );
     assert_eq!(
         write_as("quick-add", &manager).await.unwrap_err().code,
