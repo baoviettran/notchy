@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { registerDraft, resolveDrafts, markDraftChanged, cancelDraftTransition, prepareDraftAck, isDraftsFrozen } from '$lib/profiles/drafts.svelte';
+import { createEditorDraft, registerDraft, resolveDrafts, markDraftChanged, cancelDraftTransition, prepareDraftAck, isDraftsFrozen } from '$lib/profiles/drafts.svelte';
 
 const session = { profileId: 'A', generation: 'g1' };
 
@@ -31,4 +31,30 @@ describe('profile draft barrier', () => {
 		expect(isDraftsFrozen()).toBe(false);
 		unregister();
 	});
+});
+
+
+describe('editor draft tracking', () => {
+  it('blocks a transition only for changed input and retains it after a failed save', async () => {
+    let value = '';
+    const discard = vi.fn(() => { value = ''; });
+    const draft = createEditorDraft('editor-failed-save', () => value, discard);
+    expect(await resolveDrafts('stay')).toBe(true);
+    value = '123'; draft.changed();
+    expect(await resolveDrafts('stay')).toBe(false);
+    expect(value).toBe('123');
+    draft.unregister();
+  });
+  it('clears dirtiness after a successful save without discarding another editor', async () => {
+    let first = ''; let second = '';
+    const a = createEditorDraft('editor-save-a', () => first, () => { first = ''; });
+    const b = createEditorDraft('editor-save-b', () => second, () => { second = ''; });
+    first = 'saved'; a.changed(); second = 'unsaved'; b.changed();
+    a.saved();
+    expect(await resolveDrafts('stay')).toBe(false);
+    await resolveDrafts('discard');
+    expect(first).toBe('saved');
+    expect(second).toBe('');
+    a.unregister(); b.unregister();
+  });
 });

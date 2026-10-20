@@ -11,6 +11,8 @@
 	import type { GoalWithProgress, GoalType } from '$lib/db/repos/goals';
 	import { onMount } from 'svelte';
 	import * as m from '$lib/paraglide/messages';
+	import { profileDraft, isDraftsFrozen, type createEditorDraft } from '$lib/profiles/drafts.svelte';
+	import { ulid } from '$lib/utils/id';
 	import { mapError } from '$lib/utils/errors';
 
 	let { goal = null, onclose = () => {} }: { goal?: GoalWithProgress | null; onclose?: () => void } = $props();
@@ -22,6 +24,9 @@
 	let linkedAccountId = $state(goal?.linked_account_id ?? '');
 	let saving = $state(false);
 	let error = $state('');
+	const draftId = ulid();
+	let editorDraft: ReturnType<typeof createEditorDraft> | null = null;
+	const draftSnapshot = () => JSON.stringify({ name, type, targetAmount, targetDate, linkedAccountId });
 
 	onMount(() => accounts.load());
 
@@ -37,6 +42,7 @@
 	const isEdit = $derived(goal !== null);
 
 	async function save() {
+		if (saving || isDraftsFrozen()) return;
 		if (!name.trim()) { error = m.validation_name_required(); return; }
 		if (!targetDate) { error = m.validation_target_date_required(); return; }
 		if (!targetAmount.trim()) { error = m.validation_amount_required(); return; }
@@ -55,6 +61,7 @@
 				});
 				toast.show(m.forms_goal_created());
 			}
+			editorDraft?.saved();
 			onclose();
 		} catch (e) {
 			error = mapError(e);
@@ -64,7 +71,7 @@
 	}
 </script>
 
-<div class="space-y-4">
+<div class="space-y-4" use:profileDraft={{ id: draftId, snapshot: draftSnapshot, discard: onclose, onReady: (draft) => editorDraft = draft }}>
 	{#if error}<p class="text-sm text-debit">{error}</p>{/if}
 
 	<Input label={m.common_name()} bind:value={name} placeholder={m.forms_goal_name_placeholder()} maxlength={64} />

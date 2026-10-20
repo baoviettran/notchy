@@ -13,6 +13,7 @@
 	import type { Tag } from '$lib/db/client';
 	import * as m from '$lib/paraglide/messages';
 	import { mapError } from '$lib/utils/errors';
+	import { profileDraft, isDraftsFrozen } from '$lib/profiles/drafts.svelte';
 
 	let showForm = $state(false);
 	let editing = $state<Tag | null>(null);
@@ -32,7 +33,7 @@
 	}
 
 	async function saveTag() {
-		if (!formName.trim()) return;
+		if (isDraftsFrozen() || !formName.trim()) return;
 		try {
 			if (editing) {
 				if (formName !== editing.name) await categories.renameTag(editing.id, formName);
@@ -126,7 +127,7 @@
 </div>
 
 <Modal bind:open={showForm} title={editing ? m.categories_edit_tag() : m.categories_add_tag_modal()}>
-	<div class="space-y-4">
+	<div class="space-y-4" use:profileDraft={{ id: 'category-editor', snapshot: () => JSON.stringify({ formName, formBucketId }), discard: () => showForm = false }}>
 		<Input label={m.categories_name()} bind:value={formName} placeholder={m.categories_name_placeholder()} />
 		<Select label={m.categories_bucket()} bind:value={formBucketId} options={bucketOptions} />
 		<div class="flex justify-end gap-2 pt-2">

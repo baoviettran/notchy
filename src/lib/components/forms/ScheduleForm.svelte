@@ -10,6 +10,8 @@
 	import { mapError } from '$lib/utils/errors';
 	import type { Schedule, ScheduleKind, ScheduleFrequency, ScheduleUpdate } from '$lib/db/client';
 	import * as m from '$lib/paraglide/messages';
+	import { profileDraft, isDraftsFrozen, type createEditorDraft } from '$lib/profiles/drafts.svelte';
+	import { ulid } from '$lib/utils/id';
 
 	type Option = { id: string; name: string };
 
@@ -59,6 +61,9 @@
 	let endDate = $state(schedule?.end_date ?? '');
 	let postsTransaction = $state(schedule?.posts_transaction ?? 1);
 	let error = $state('');
+	const draftId = ulid();
+	let editorDraft: ReturnType<typeof createEditorDraft> | null = null;
+	const draftSnapshot = () => JSON.stringify({ name, kind, amount, accountId, transferAccountId, tagId, payee, description, frequency, startDate, endDate, postsTransaction });
 	let saving = $state(false);
 
 	// Accounts can arrive after the form opens (the page loads them on mount).
@@ -71,7 +76,7 @@
 	const tagOptions = $derived([{ value: '', label: m.common_none() }, ...tags.map((t) => ({ value: t.id, label: t.name }))]);
 
 	async function save() {
-		if (saving) return;
+		if (saving || isDraftsFrozen()) return;
 		error = '';
 		if (!name.trim()) { error = m.validation_name_required(); return; }
 
@@ -117,6 +122,7 @@
 
 		saving = true;
 		try {
+			editorDraft?.saved();
 			await onsubmit(input);
 		} catch (e) {
 			error = mapError(e);
@@ -126,7 +132,7 @@
 	}
 </script>
 
-<form class="space-y-4" onsubmit={(e) => { e.preventDefault(); save(); }}>
+<form class="space-y-4" use:profileDraft={{ id: draftId, snapshot: draftSnapshot, discard: onclose, onReady: (draft) => editorDraft = draft }} onsubmit={(e) => { e.preventDefault(); save(); }}>
 	{#if error}<p class="text-sm text-debit" role="alert">{error}</p>{/if}
 
 	<Input label={m.schedules_name()} bind:value={name} maxlength={64} />

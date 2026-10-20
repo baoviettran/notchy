@@ -1,4 +1,5 @@
 import type { listen } from '@tauri-apps/api/event';
+import type { ProfileSession } from '$lib/profiles/types';
 
 type Listen = typeof listen;
 
@@ -11,9 +12,14 @@ type Listen = typeof listen;
  */
 export async function attachTransactionSavedListener(
   listen: Listen,
-  refetch: () => Promise<void>
+  refetch: () => Promise<void>,
+  currentSession?: () => ProfileSession | null
 ): Promise<() => void> {
-  return listen('transaction:saved', async () => {
+  return listen<{ session?: ProfileSession }>('transaction:saved', async ({ payload }) => {
+    if (currentSession) {
+      const current = currentSession();
+      if (!current || !payload?.session || current.profileId !== payload.session.profileId || current.generation !== payload.session.generation) return;
+    }
     await refetch();
   });
 }
@@ -30,11 +36,11 @@ export async function attachTransactionSavedListener(
  * Best-effort by design: a caller has already committed its writes by the time
  * it calls this, so a failure here must never surface as an error.
  */
-export async function emitTransactionsChanged(): Promise<void> {
+export async function emitTransactionsChanged(session?: ProfileSession): Promise<void> {
 	try {
 		if (typeof window !== 'undefined' && (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) {
 			const { emit } = await import('@tauri-apps/api/event');
-			await emit('transaction:saved', {});
+			await emit('transaction:saved', session ? { session } : {});
 		} else {
 			window.dispatchEvent(new Event('transaction:saved'));
 		}

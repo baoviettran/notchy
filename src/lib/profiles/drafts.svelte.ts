@@ -66,3 +66,38 @@ export function cancelDraftTransition(): void {
 	frozen = false;
 	acknowledgedSession = null;
 }
+
+/** A baseline follows a successful save, while persistence failures leave the draft dirty. */
+export function createEditorDraft(id: string, snapshot: () => string, discard: () => void): {
+	changed: () => void; saved: () => void; unregister: () => void; isDirty: () => boolean;
+} {
+	let baseline = snapshot();
+	const isDirty = () => snapshot() !== baseline;
+	const unregister = registerDraft(id, isDirty, discard);
+	return {
+		changed: () => markDraftChanged(id),
+		saved: () => { baseline = snapshot(); markDraftChanged(id); },
+		unregister, isDirty
+	};
+}
+
+export function profileDraft(node: HTMLElement, options: {
+	id: string; snapshot: () => string; discard: () => void;
+	onReady?: (draft: ReturnType<typeof createEditorDraft> | null) => void;
+}) {
+	const draft = createEditorDraft(options.id, options.snapshot, options.discard);
+	options.onReady?.(draft);
+	const changed = () => draft.changed();
+	node.addEventListener('input', changed, true);
+	node.addEventListener('change', changed, true);
+	node.addEventListener('click', changed, true);
+	const syncFrozen = () => { node.inert = isDraftsFrozen(); };
+	const unsubscribe = subscribeDraftChanges(syncFrozen);
+	syncFrozen();
+	return { destroy() {
+		node.removeEventListener('input', changed, true);
+		node.removeEventListener('change', changed, true);
+		node.removeEventListener('click', changed, true);
+		unsubscribe(); options.onReady?.(null); draft.unregister();
+	} };
+}
