@@ -187,11 +187,11 @@ Tasks 1–6 build tested native units without changing production startup. Tasks
 **Files:** Create `src/lib/components/profiles/{ProfileSwitcher,ProfileManager,ProfileDialogs}.svelte`, `src/routes/profiles/+page.svelte`, `src/routes/settings/profiles/+page.svelte`, `src/tests/unit/components/{ProfileManager,ProfileDialogs}.test.ts`; modify locale JSON. Navigation is connected in Task 13.
 **Interfaces:** Components consume Task 10 store and Task 8 port only; dialogs expose target ID plus localized name, never a filesystem path as identity. Use existing modal/focus primitives and tracked labels outside the locale key.
 
-- [ ] **Step 1: Add failing component tests** for empty create/restore state, 80/81-character names, trimmed/duplicate names with creation time/short ID, active marker, rename, restore preview/editable name and explicit Open action. Assert reset explains backup-first and delete explains loss of internal backups with export-first choice. Cancel export/preview leaves the dialog/profile intact as appropriate.
-- [ ] **Step 2: Run red:** `pnpm exec vitest run src/tests/unit/components/ProfileManager.test.ts src/tests/unit/components/ProfileDialogs.test.ts`.
-- [ ] **Step 3: Implement UI with localized copy.** Provide keyboard selection/focus return, disabled repeat-submit during operations, per-target progress, preserved name on errors, and equivalent narrow-layout access. Restore cancellation calls `cancelRestore`; closing by Escape uses the same cleanup. Show cleanup-pending outcomes distinctly from fully removed bytes.
-- [ ] **Step 4: Compile messages and run green:** repeat component tests and `pnpm check`; assert locale switch updates labels without erasing typed profile names.
-- [ ] **Step 5: Commit** — Commit with `feat(profiles): add profile management and picker screens`.
+- [x] **Step 1: Add failing component tests** for empty create/restore state, 80/81-character names, trimmed/duplicate names with creation time/short ID, active marker, rename, restore preview/editable name and explicit Open action. Assert reset explains backup-first and delete explains loss of internal backups with export-first choice. Cancel export/preview leaves the dialog/profile intact as appropriate.
+- [x] **Step 2: Run red:** `pnpm exec vitest run src/tests/unit/components/ProfileManager.test.ts src/tests/unit/components/ProfileDialogs.test.ts`.
+- [x] **Step 3: Implement UI with localized copy.** Provide keyboard selection/focus return, disabled repeat-submit during operations, per-target progress, preserved name on errors, and equivalent narrow-layout access. Restore cancellation calls `cancelRestore`; closing by Escape uses the same cleanup. Show cleanup-pending outcomes distinctly from fully removed bytes.
+- [x] **Step 4: Compile messages and run green:** repeat component tests and `pnpm check`; assert locale switch updates labels without erasing typed profile names.
+- [x] **Step 5: Commit** — Commit with `feat(profiles): add profile management and picker screens`.
 
 ### Task 12: Enroll existing editors and Quick Add in profile sessions
 

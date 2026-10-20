@@ -9,7 +9,7 @@ import { NativeProfilePort } from '$lib/profiles/native';
 import { hasDirtyDrafts, prepareDraftAck, cancelDraftTransition } from '$lib/profiles/drafts.svelte';
 import { requestProfileTransition, type DraftChoice } from '$lib/profiles/windows';
 import type { ProfilePort } from '$lib/profiles/port';
-import type { DeleteResult, ProfileRecord, ProfileSession, ProfileSnapshot } from '$lib/profiles/types';
+import type { BackupSummary, DeleteResult, ProfileRecord, ProfileSession, ProfileSnapshot, ProfileStoragePaths, RestorePreview } from '$lib/profiles/types';
 import { resetProfileState } from '$lib/profiles/reset-state';
 import { settings } from '$lib/stores/settings.svelte';
 import { dbStore } from '$lib/stores/db.svelte';
@@ -149,6 +149,12 @@ export class ProfilesStore {
 			return this.snapshot?.active?.profileId === id ? this.guarded(action) : action(null);
 		});
 	}
+	paths(id: string): Promise<ProfileStoragePaths> { return this.deps.port.paths(id); }
+	backups(id: string): Promise<BackupSummary[]> { return this.deps.port.backups(id); }
+	backup(id: string): Promise<string> { return this.run(() => this.deps.port.backup(id)); }
+	exportBackup(id: string, path: string): Promise<void> { return this.run(() => this.deps.port.exportBackup(id, path)); }
+	inspectRestore(path: string): Promise<RestorePreview> { return this.deps.port.inspectRestore(path); }
+	cancelRestore(token: string): Promise<void> { return this.deps.port.cancelRestore(token); }
 	async restore(token: string, name: string): Promise<ProfileRecord> {
 		return this.run(async () => {
 			const record = await this.deps.port.restore(token, name, { operationId: ulid(), transitionToken: null });
