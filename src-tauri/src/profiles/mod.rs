@@ -9,3 +9,4 @@ pub mod reset;
 pub mod delete;
 pub mod legacy;
 pub mod commands;
+pub mod windows;

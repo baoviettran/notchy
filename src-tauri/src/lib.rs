@@ -15,6 +15,9 @@ use database::commands::*;
 use profiles::commands::*;
 use database::executor::DatabaseManager;
 use database::connection::DatabasePaths;
+use profiles::coordinator::ProfileCoordinator;
+use std::sync::Arc;
+use tauri::Emitter;
 
 /// Quick-capture window. `true` registers the global shortcut, the tray
 /// "Quick Add" item, and tray-left-click capture. Set to `false` to disable
@@ -51,6 +54,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             quit_app,
             profiles_load,
+            profile_window_ready,
+            profile_prepare_transition,
+            profile_ack_transition,
+            profile_cancel_transition,
             profile_paths,
             profile_discover_backups,
             profile_create,
@@ -189,6 +196,21 @@ pub fn run() {
             let manager = DatabaseManager::spawn(paths, 64)
                 .expect("failed to spawn database manager");
             app.manage(manager);
+
+            // A hidden webview remains a participant; only actual destruction releases it.
+            for window in app.webview_windows().into_values() {
+                let app_handle = app.handle().clone();
+                let label = window.label().to_owned();
+                window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::Destroyed = event {
+                        if let Some(coordinator) = app_handle.try_state::<Arc<ProfileCoordinator>>() {
+                            if let Some(ready) = coordinator.window_closed(&label) {
+                                let _ = app_handle.emit_to("main", "profile:transition-ready", ready);
+                            }
+                        }
+                    }
+                });
+            }
 
             let show = MenuItem::with_id(app, "show", "Show Notchy", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;

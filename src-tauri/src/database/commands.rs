@@ -1155,6 +1155,7 @@ pub fn generate_bindings() -> String {
     push_decl(&mut out, crate::profiles::backup::RestorePreview::decl(&cfg));
     push_decl(&mut out, crate::profiles::delete::DeleteResult::decl(&cfg));
     push_decl(&mut out, crate::profiles::commands::ProfileStoragePaths::decl(&cfg));
+    push_decl(&mut out, crate::profiles::windows::TransitionRequest::decl(&cfg));
     push_decl(&mut out, OperationId::decl(&cfg));
     push_decl(&mut out, IsoDate::decl(&cfg));
     push_decl(&mut out, Page::<i64>::decl(&cfg));

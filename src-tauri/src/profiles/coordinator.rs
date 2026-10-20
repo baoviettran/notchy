@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
+use super::windows::TransitionState;
 
 use crate::database::connection::DatabasePaths;
 use crate::database::executor::{DatabaseManager, ExecutorState};
@@ -28,7 +29,8 @@ pub struct ProfileCoordinator {
     pub(super) transition: tokio::sync::RwLock<()>,
     pub(super) state: Mutex<State>,
     pub(super) previews: Mutex<HashMap<String, PreviewEntry>>,
-    transition_tokens: Mutex<std::collections::HashSet<String>>,
+    pub(super) transition_tokens: Mutex<HashMap<String, Option<ProfileSession>>>,
+    pub(super) windows: Mutex<TransitionState>,
 }
 
 impl ProfileCoordinator {
@@ -43,7 +45,8 @@ impl ProfileCoordinator {
             transition: tokio::sync::RwLock::new(()),
             state: Mutex::new(State { registry, active: None, recovery: false }),
             previews: Mutex::new(HashMap::new()),
-            transition_tokens: Mutex::new(std::collections::HashSet::new()),
+            transition_tokens: Mutex::new(HashMap::new()),
+            windows: Mutex::new(TransitionState::default()),
         });
         coordinator.reconcile_operations()?;
         coordinator.reconcile_resets()?;
@@ -54,7 +57,8 @@ impl ProfileCoordinator {
     /// A one-use process token; the window draft barrier will be its only command caller.
     pub fn issue_transition_token(&self) -> String {
         let token = OperationId::generate().as_str().to_owned();
-        self.transition_tokens.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).insert(token.clone());
+        let current = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).active.as_ref().map(|active| active.session.clone());
+        self.transition_tokens.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).insert(token.clone(), current);
         token
     }
 
@@ -63,7 +67,8 @@ impl ProfileCoordinator {
         if !state.active.as_ref().is_some_and(|active| active.session.profile_id == id) { return Ok(()); }
         drop(state);
         let Some(token) = token else { return Err(DbError::new(ErrorCode::ProfileTransitionBlocked)); };
-        if !self.transition_tokens.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).remove(token) {
+        let current = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).active.as_ref().map(|active| active.session.clone());
+        if self.transition_tokens.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).remove(token).flatten() != current {
             return Err(DbError::new(ErrorCode::ProfileTransitionBlocked));
         }
         Ok(())
@@ -75,17 +80,18 @@ impl ProfileCoordinator {
     }
 
     pub async fn activate_with_token(&self, id: &str, token: Option<&str>) -> DbResult<ProfileSession> {
-        {
-            let state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-            if state.active.as_ref().is_some_and(|active| active.session.profile_id != id) && token.is_none() {
-                return Err(DbError::new(ErrorCode::ProfileTransitionBlocked));
-            }
-        }
-        if token.is_some() {
-            let active_id = { self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).active.as_ref().map(|active| active.session.profile_id.clone()) };
-            if let Some(active_id) = active_id { self.require_transition_token(&active_id, token)?; }
-        }
-        self.activate(id).await
+        let _permit = self.transition.write().await;
+        self.require_transition_token_for_active(token)?;
+        self.activate_locked(id).await
+    }
+
+    fn require_transition_token_for_active(&self, token: Option<&str>) -> DbResult<()> {
+        let active = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).active.as_ref().map(|active| active.session.clone());
+        if active.is_none() { return Ok(()); }
+        let token = token.ok_or_else(|| DbError::new(ErrorCode::ProfileTransitionBlocked))?;
+        let stored = self.transition_tokens.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).remove(token).flatten();
+        if stored != active { return Err(DbError::new(ErrorCode::ProfileTransitionBlocked)); }
+        Ok(())
     }
 
     pub fn load(&self) -> ProfileSnapshot {
@@ -117,6 +123,10 @@ impl ProfileCoordinator {
 
     pub async fn activate(&self, id: &str) -> DbResult<ProfileSession> {
         let _permit = self.transition.write().await;
+        self.activate_locked(id).await
+    }
+
+    async fn activate_locked(&self, id: &str) -> DbResult<ProfileSession> {
         let old = {
             let mut state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
             if !state.registry.profiles.iter().any(|profile| profile.id == id) {

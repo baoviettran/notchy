@@ -78,6 +78,7 @@ export type OperationContext = { operationId: string, transitionToken: string | 
 export type RestorePreview = { token: string, suggestedName: string, schemaVersion: number, };
 export type DeleteResult = { cleanupPending: boolean, };
 export type ProfileStoragePaths = { dataDir: string, databasePath: string, routineBackupDir: string, upgradeBackupDir: string, resetBackupDir: string, };
+export type TransitionRequest = { requestId: string, expectedSession: ProfileSession | null, requiredLabels: Array<string>, };
 export type OperationId = string;
 export type IsoDate = string;
 export type Page<T> = { items: Array<T>, total: number, offset: number, limit: number, };
