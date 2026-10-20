@@ -1,3 +1,4 @@
+import { dataEpoch } from '$lib/profiles/epoch';
 import { getDb } from '$lib/db';
 import { TOUR_STEPS } from '$lib/tour/steps';
 
@@ -8,14 +9,16 @@ class TourStore {
 
 	/** Called once at main-layout boot. Grandfathers existing users. */
 	async load(): Promise<void> {
+		const epoch = dataEpoch();
 		const db = getDb();
 		const firstRunDone = await db.meta.isFirstRunComplete();
 		const tourDone = await db.meta.isTourComplete();
 
+		if (epoch !== dataEpoch()) return;
 		if (firstRunDone && !tourDone) {
 			// Grandfather: existing user who finished onboarding before tour existed.
 			await db.meta.setTourComplete();
-			this.complete = true;
+			if (epoch === dataEpoch()) this.complete = true;
 			return;
 		}
 

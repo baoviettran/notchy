@@ -1,3 +1,4 @@
+import { dataEpoch } from '$lib/profiles/epoch';
 import { getDb } from '$lib/db';
 import { mapError } from '$lib/utils/errors';
 import type { GoalWithProgress, NewGoal, GoalStatus } from '$lib/db/client';
@@ -15,15 +16,17 @@ class GoalsStore {
 	get dashboard() { return this.active.filter((g) => g.show_on_dashboard).slice(0, 3); }
 
 	async load(): Promise<void> {
+		const epoch = dataEpoch();
 		this.loading = true;
 		this.error = null;
 		try {
 			const db = getDb();
-			this.items = await db.goals.list();
+			const items = await db.goals.list();
+			if (epoch === dataEpoch()) this.items = items;
 		} catch (e) {
-			this.error = mapError(e);
+			if (epoch === dataEpoch()) this.error = mapError(e);
 		} finally {
-			this.loading = false;
+			if (epoch === dataEpoch()) this.loading = false;
 		}
 	}
 

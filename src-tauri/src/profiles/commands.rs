@@ -144,7 +144,9 @@ pub async fn profile_delete<R: tauri::Runtime>(window: tauri::WebviewWindow<R>, 
     Ok(result)
 }
 #[tauri::command]
-pub async fn app_preferences_set<R: tauri::Runtime>(window: tauri::WebviewWindow<R>, coordinator: State<'_, Arc<ProfileCoordinator>>, preferences: AppPreferences) -> DbResult<()> {
+pub async fn app_preferences_set<R: tauri::Runtime>(window: tauri::WebviewWindow<R>, app: tauri::AppHandle<R>, coordinator: State<'_, Arc<ProfileCoordinator>>, preferences: AppPreferences) -> DbResult<()> {
     authorize(&window)?;
-    coordinator.set_preferences(preferences).await
+    coordinator.set_preferences(preferences.clone()).await?;
+    let _ = app.emit("app:preferences-changed", &preferences);
+    Ok(())
 }

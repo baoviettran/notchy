@@ -69,6 +69,12 @@ export class ToastBus {
 		this.arm(Math.max(this.deadline - Date.now(), 1000));
 	}
 
+	reset(): void {
+		this.clearTimer();
+		this.queue = [];
+		this.current = null;
+	}
+
 	dismiss() {
 		this.clearTimer();
 		this.current = null;

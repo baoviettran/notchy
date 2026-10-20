@@ -1,3 +1,4 @@
+import { dataEpoch } from '$lib/profiles/epoch';
 import { getDb } from '$lib/db';
 import type { Bucket, Tag, TagDeleteInfo } from '$lib/db/client';
 import { mapError } from '$lib/utils/errors';
@@ -34,16 +35,18 @@ class CategoriesStore {
 	}
 
 	async load(): Promise<void> {
+		const epoch = dataEpoch();
 		this.loading = true;
 		this.error = null;
 		try {
 			const db = getDb();
-			this.buckets = await db.categories.listBuckets();
-			this.tags = await db.categories.listTags();
+			const buckets = await db.categories.listBuckets();
+			const tags = await db.categories.listTags();
+			if (epoch === dataEpoch()) { this.buckets = buckets; this.tags = tags; }
 		} catch (e) {
-			this.error = mapError(e);
+			if (epoch === dataEpoch()) this.error = mapError(e);
 		} finally {
-			this.loading = false;
+			if (epoch === dataEpoch()) this.loading = false;
 		}
 	}
 

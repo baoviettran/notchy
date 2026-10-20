@@ -24,8 +24,7 @@
 	let editInputEl = $state<HTMLInputElement>();
 
 	onMount(async () => {
-		await categories.load();
-		await budgets.load();
+		await Promise.all([categories.load(), budgets.load()]);
 	});
 
 	// Refresh when allocations change (e.g. after a roll-over or a new month),

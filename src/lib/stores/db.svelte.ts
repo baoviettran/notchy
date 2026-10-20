@@ -1,4 +1,5 @@
 import { isTauri, getDb, initDb, closeDb } from '$lib/db';
+import type { ProfileSession } from '$lib/profiles/types';
 import { databaseInitialize, databaseRetry, type DatabaseStatus, type BackupSummary } from '$lib/db/native/client';
 import { invoke } from '@tauri-apps/api/core';
 import {
@@ -15,6 +16,13 @@ class DbStore {
 	firstRunComplete = $state(false);
 	recovery = $state<RecoveryInfo | null>(null);
 	backups = $state<BackupSummary[]>([]);
+
+	resetForProfile(session: ProfileSession | null): void {
+		this.stage = session ? 'ready' : 'checking';
+		this.firstRunComplete = false;
+		this.recovery = null;
+		this.backups = [];
+	}
 
 	async init(): Promise<void> {
 		this.recovery = null;

@@ -303,5 +303,7 @@ describe('postDueSchedulesOnce', () => {
 
 		expect(first).toBe(second); // one promise, not two identical results
 		expect(await txDates()).toEqual(['2026-01-01']);
+		const nextActivation = await postDueSchedulesOnce(db, '2026-01-07', 'profile-a:new-generation');
+		expect(nextActivation).not.toBe(first);
 	});
 });

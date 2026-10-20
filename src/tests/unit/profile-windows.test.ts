@@ -29,3 +29,16 @@ describe('profile window transition', () => {
 		expect(mocks.handlers.has('profile:transition-ready')).toBe(false);
 	});
 });
+
+describe('app preference updates', () => {
+	it('applies broadcasts in a second window and releases the listener', async () => {
+		const { installAppPreferencesListener } = await import('$lib/profiles/windows');
+		const onChange = vi.fn();
+		const dispose = await installAppPreferencesListener(onChange);
+		const preferences = { locale: 'vi', theme: 'dark' };
+		mocks.handlers.get('app:preferences-changed')?.({ payload: preferences });
+		expect(onChange).toHaveBeenCalledWith(preferences);
+		dispose();
+		expect(mocks.handlers.has('app:preferences-changed')).toBe(false);
+	});
+});

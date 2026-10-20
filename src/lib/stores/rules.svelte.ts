@@ -1,3 +1,4 @@
+import { dataEpoch } from '$lib/profiles/epoch';
 import { getDb } from '$lib/db';
 import type { CategorizeRule, NewCategorizeRule, CategorizeRuleUpdate } from '$lib/db/client';
 import { matchRules, type CategorizeRuleLite } from '$lib/utils/rules_matcher';
@@ -20,15 +21,17 @@ class RulesStore {
 	}
 
 	async load(): Promise<void> {
+		const epoch = dataEpoch();
 		this.loading = true;
 		this.error = null;
 		try {
 			const db = getDb();
-			this.items = await db.rules.listAll();
+			const items = await db.rules.listAll();
+			if (epoch === dataEpoch()) this.items = items;
 		} catch (e) {
-			this.error = mapError(e);
+			if (epoch === dataEpoch()) this.error = mapError(e);
 		} finally {
-			this.loading = false;
+			if (epoch === dataEpoch()) this.loading = false;
 		}
 	}
 

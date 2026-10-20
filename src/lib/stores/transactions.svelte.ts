@@ -1,3 +1,4 @@
+import { dataEpoch } from '$lib/profiles/epoch';
 import { getDb } from '$lib/db';
 import type { Transaction, NewTransaction, TransactionFilter } from '$lib/db/client';
 import { toast } from '$lib/stores/toast.svelte';
@@ -26,18 +27,21 @@ class TransactionsStore {
 	// dashboard's most trusted instrument cannot tell a confident lie.
 	monthFlow = $state<number | null>(null);
 	private lastFilter: TransactionFilter = {};
+	resetProfileFilter(): void { this.lastFilter = {}; }
 
 	async load(filter?: TransactionFilter): Promise<void> {
+		const epoch = dataEpoch();
 		if (filter !== undefined) this.lastFilter = filter;
 		this.loading = true;
 		this.error = null;
 		try {
 			const db = getDb();
-			this.mergeLoaded(await db.transactions.list(this.lastFilter));
+			const rows = await db.transactions.list(this.lastFilter);
+			if (epoch === dataEpoch()) this.mergeLoaded(rows);
 		} catch (e) {
-			this.error = mapError(e);
+			if (epoch === dataEpoch()) this.error = mapError(e);
 		} finally {
-			this.loading = false;
+			if (epoch === dataEpoch()) this.loading = false;
 		}
 	}
 
@@ -61,14 +65,15 @@ class TransactionsStore {
 	}
 
 	async loadMonthFlow(): Promise<void> {
+		const epoch = dataEpoch();
 		const { dateFrom, dateTo } = monthDateRange(new Date());
 
 		try {
 			const db = getDb();
 			const items = await db.transactions.list({ date_from: dateFrom, date_to: dateTo, limit: 500 });
-			this.monthFlow = flowSum(items);
+			if (epoch === dataEpoch()) this.monthFlow = flowSum(items);
 		} catch {
-			this.monthFlow = null;
+			if (epoch === dataEpoch()) this.monthFlow = null;
 		}
 	}
 

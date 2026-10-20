@@ -1,3 +1,4 @@
+import { dataEpoch } from '$lib/profiles/epoch';
 import { getDb } from '$lib/db';
 import { mapError } from '$lib/utils/errors';
 import type {
@@ -23,67 +24,77 @@ export class ReportsStore {
 	yearOverYear = $state<YearOverYearPoint[]>([]);
 
 	async loadNetWorth(): Promise<void> {
+		const epoch = dataEpoch();
 		this.error = null;
 		this.loading = true;
 		try {
 			const db = getDb();
-			this.netWorth = await db.reports.getNetWorthSeries(this.window, this.includeAdjustments);
+			const rows = await db.reports.getNetWorthSeries(this.window, this.includeAdjustments);
+			if (epoch === dataEpoch()) this.netWorth = rows;
 		} catch (e) {
-			this.error = mapError(e);
+			if (epoch === dataEpoch()) this.error = mapError(e);
 		} finally {
-			this.loading = false;
+			if (epoch === dataEpoch()) this.loading = false;
 		}
 	}
 
 	async loadTrend(): Promise<void> {
+		const epoch = dataEpoch();
 		this.error = null;
 		this.loading = true;
 		try {
 			const db = getDb();
-			this.trend = await db.reports.getTrend(this.window, this.includeAdjustments);
+			const rows = await db.reports.getTrend(this.window, this.includeAdjustments);
+			if (epoch === dataEpoch()) this.trend = rows;
 		} catch (e) {
-			this.error = mapError(e);
+			if (epoch === dataEpoch()) this.error = mapError(e);
 		} finally {
-			this.loading = false;
+			if (epoch === dataEpoch()) this.loading = false;
 		}
 	}
 
 	async loadCategoryTrend(tagId: string): Promise<void> {
+		const epoch = dataEpoch();
 		this.error = null;
 		this.loading = true;
 		try {
 			const db = getDb();
-			this.categoryTrend = await db.reports.getCategoryTrend(tagId, this.window, this.includeAdjustments);
+			const rows = await db.reports.getCategoryTrend(tagId, this.window, this.includeAdjustments);
+			if (epoch === dataEpoch()) this.categoryTrend = rows;
 		} catch (e) {
-			this.error = mapError(e);
+			if (epoch === dataEpoch()) this.error = mapError(e);
 		} finally {
-			this.loading = false;
+			if (epoch === dataEpoch()) this.loading = false;
 		}
 	}
 
 	async loadStackedComposition(): Promise<void> {
+		const epoch = dataEpoch();
 		this.error = null;
 		this.loading = true;
 		try {
 			const db = getDb();
-			this.stackedComposition = await db.reports.getStackedCategorySeries(this.window, this.includeAdjustments);
+			const rows = await db.reports.getStackedCategorySeries(this.window, this.includeAdjustments);
+			if (epoch === dataEpoch()) this.stackedComposition = rows;
 		} catch (e) {
-			this.error = mapError(e);
+			if (epoch === dataEpoch()) this.error = mapError(e);
 		} finally {
-			this.loading = false;
+			if (epoch === dataEpoch()) this.loading = false;
 		}
 	}
 
 	async loadYearOverYear(yearA: number, yearB: number): Promise<void> {
+		const epoch = dataEpoch();
 		this.error = null;
 		this.loading = true;
 		try {
 			const db = getDb();
-			this.yearOverYear = await db.reports.getYearOverYear(yearA, yearB, this.includeAdjustments);
+			const rows = await db.reports.getYearOverYear(yearA, yearB, this.includeAdjustments);
+			if (epoch === dataEpoch()) this.yearOverYear = rows;
 		} catch (e) {
-			this.error = mapError(e);
+			if (epoch === dataEpoch()) this.error = mapError(e);
 		} finally {
-			this.loading = false;
+			if (epoch === dataEpoch()) this.loading = false;
 		}
 	}
 }

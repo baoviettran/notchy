@@ -346,6 +346,9 @@ async function writeStartupMetadata(
 // ---------------------------------------------------------------------------
 
 let _db: AppDatabase | null = null;
+let _profileDb: AppDatabase | null = null;
+let _profileMode = false;
+export function bindProfileDb(_session: import('$lib/profiles/types').ProfileSession | null, db: AppDatabase | null): void { _profileMode = true; _profileDb = db; }
 
 /**
  * Return the AppDatabase singleton. Under Tauri this is the
@@ -353,6 +356,10 @@ let _db: AppDatabase | null = null;
  * this is the BrowserDatabaseClient (sql.js in-memory).
  */
 export function getDb(): AppDatabase {
+	if (_profileMode) {
+		if (!_profileDb) throw new Error('no active profile');
+		return _profileDb;
+	}
 	if (!_db) throw new Error('database not initialized — call initDb() first');
 	return _db;
 }

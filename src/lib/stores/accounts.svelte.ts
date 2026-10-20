@@ -1,3 +1,4 @@
+import { dataEpoch } from '$lib/profiles/epoch';
 import { getDb } from '$lib/db';
 import { isAssetType, type AccountWithBalance, type NewAccount, type AccountType } from '$lib/db/client';
 import { mapError } from '$lib/utils/errors';
@@ -22,15 +23,17 @@ class AccountsStore {
 	}
 
 	async load(): Promise<void> {
+		const epoch = dataEpoch();
 		this.loading = true;
 		this.error = null;
 		try {
 			const db = getDb();
-			this.items = await db.accounts.list();
+			const items = await db.accounts.list();
+			if (epoch === dataEpoch()) this.items = items;
 		} catch (e) {
-			this.error = mapError(e);
+			if (epoch === dataEpoch()) this.error = mapError(e);
 		} finally {
-			this.loading = false;
+			if (epoch === dataEpoch()) this.loading = false;
 		}
 	}
 

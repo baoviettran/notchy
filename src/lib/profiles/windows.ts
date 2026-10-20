@@ -4,7 +4,7 @@ import { assertCurrentSession } from './session';
 import {
 	cancelDraftTransition, hasDirtyDrafts, prepareDraftAck, subscribeDraftChanges
 } from './drafts.svelte';
-import type { ProfileSession } from './types';
+import type { AppPreferences, ProfileSession } from './types';
 import type { TransitionRequest } from '$lib/native/contracts.generated';
 
 export type DraftChoice = 'stay' | 'discard' | 'cancel';
@@ -94,4 +94,8 @@ export async function requestProfileTransition(expected: ProfileSession | null):
 		cleanup();
 		throw error;
 	}
+}
+
+export async function installAppPreferencesListener(onChange: (preferences: AppPreferences) => void): Promise<() => void> {
+	return listen<AppPreferences>('app:preferences-changed', ({ payload }) => onChange(payload));
 }
