@@ -6,7 +6,7 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import { goto } from '$app/navigation';
 	import Button from '$lib/components/primitives/Button.svelte';
-	import { mapError } from '$lib/utils/errors';
+	import { isProfileTransitionCanceled, mapError } from '$lib/utils/errors';
 
 	let {
 		mode = 'manage', snapshot: suppliedSnapshot = undefined,
@@ -29,7 +29,7 @@
 		opening = id;
 		openError = null;
 		try { await onopen(id); }
-		catch (error) { openError = mapError(error); }
+		catch (error) { if (!isProfileTransitionCanceled(error)) openError = mapError(error); }
 		finally { opening = null; }
 	}
 </script>

@@ -41,6 +41,15 @@ describe('ProfileDialogs', () => {
 		expect(screen.getByText(/Home/)).toBeTruthy();
 		expect(screen.getByText(/backup/i)).toBeTruthy();
 	});
+	it('keeps a reset confirmation quiet when another window keeps its draft', async () => {
+		profileDialog.open('reset', target);
+		vi.mocked(actions.reset).mockRejectedValueOnce(new Error('profile transition canceled'));
+		render(ProfileDialogs, { actions });
+		await fireEvent.click(screen.getByRole('button', { name: /reset profile/i }));
+		await waitFor(() => expect(actions.reset).toHaveBeenCalledWith(target.id));
+		expect(profileDialog.mode).toBe('reset');
+		expect(screen.queryByRole('alert')).toBeNull();
+	});
 	it('preserves an entered name across language changes', async () => {
 		settings.loadAppPreferences({ locale: 'en', theme: 'light' });
 		profileDialog.open('create');

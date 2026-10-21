@@ -6,7 +6,7 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { createFocusTrap } from '$lib/utils/focusTrap';
-	import { mapError } from '$lib/utils/errors';
+	import { isProfileTransitionCanceled, mapError } from '$lib/utils/errors';
 	import type { DeleteResult, ProfileRecord, ProfileSession, RestorePreview } from '$lib/profiles/types';
 	import * as m from '$lib/paraglide/messages';
 	import Button from '$lib/components/primitives/Button.svelte';
@@ -65,7 +65,7 @@
 		};
 	});
 	const title = $derived(profileDialog.mode === 'restore-success' ? L.restore : profileDialog.mode ? L[profileDialog.mode] : '');
-	const errorText = $derived(failure ? mapError(failure) : null);
+	const errorText = $derived(failure && !isProfileTransitionCanceled(failure) ? mapError(failure) : null);
 
 	$effect(() => {
 		const mode = profileDialog.mode;

@@ -2,6 +2,10 @@ import * as m from '$lib/paraglide/messages';
 import { AppError, NativeAppError } from '$lib/errors';
 import { RUST_ERROR_MESSAGES } from './rust-error-messages';
 
+export function isProfileTransitionCanceled(error: unknown): boolean {
+	return error instanceof Error && error.message === 'profile transition canceled';
+}
+
 /**
  * Map a caught error to a localized user-facing string. AppErrors resolve to
  * their `errors_<code>` message (reusing `validation_invalid_amount` for the

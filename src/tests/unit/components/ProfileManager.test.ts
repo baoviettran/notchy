@@ -29,6 +29,13 @@ describe('ProfileManager', () => {
 		expect(screen.getByRole('alert')).toBeTruthy();
 		expect(screen.getByRole('button', { name: /open.*01ABC/i })).toBeTruthy();
 	});
+	it('keeps the picker quiet when the user keeps a draft in another window', async () => {
+		const onopen = vi.fn(async () => { throw new Error('profile transition canceled'); });
+		render(ProfileManager, { mode: 'picker', snapshot: { profiles: records, active: null, phase: 'idle', preferences, recovery: null }, onopen });
+		await fireEvent.click(screen.getByRole('button', { name: /open.*01ABC/i }));
+		expect(screen.queryByRole('alert')).toBeNull();
+		expect(screen.getByRole('button', { name: /open.*01ABC/i })).toBeEnabled();
+	});
 	it('opens the selected profile instead of choosing by duplicate label', async () => {
 		const onopen = vi.fn();
 		render(ProfileManager, { mode: 'picker', snapshot: { profiles: records, active: null, phase: 'idle', preferences, recovery: null }, onopen });

@@ -5,7 +5,7 @@
 	import { settings } from '$lib/stores/settings.svelte';
 	import { profileDialog } from './controller.svelte';
 	import * as m from '$lib/paraglide/messages';
-	import { mapError } from '$lib/utils/errors';
+	import { isProfileTransitionCanceled, mapError } from '$lib/utils/errors';
 
 	let {
 		snapshot: suppliedSnapshot = undefined,
@@ -29,7 +29,7 @@
 		opening = true;
 		openError = null;
 		try { await onopen(id); expanded = false; }
-		catch (error) { openError = mapError(error); }
+		catch (error) { if (!isProfileTransitionCanceled(error)) openError = mapError(error); }
 		finally { opening = false; }
 	}
 	function onKeydown(event: KeyboardEvent) {
