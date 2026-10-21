@@ -111,3 +111,31 @@ nativeTest('can delete a profile before completing its setup', async ({ tauriMoc
 });
 
 });
+
+test('keeps an invalid inline budget draft when switching profiles is canceled', async ({ page }) => {
+	await onboard(page);
+	await page.getByRole('link', { name: 'Settings' }).click();
+	await page.getByRole('link', { name: 'Profiles' }).click();
+	await page.getByRole('button', { name: 'Create profile' }).click();
+	const create = page.getByRole('dialog', { name: 'Create profile' });
+	await create.getByLabel('Profile name').fill('Work');
+	await create.getByRole('button', { name: 'Create profile' }).click();
+	await page.getByRole('button', { name: 'Continue →' }).click();
+	await page.getByRole('button', { name: 'Continue →' }).click();
+	await page.getByLabel('Name').fill('Work Cash');
+	await page.getByRole('button', { name: 'Finish setup' }).click();
+	await page.getByRole('link', { name: 'Settings' }).click();
+	await page.getByRole('link', { name: 'Profiles' }).click();
+	await page.getByRole('button', { name: /^Open Personal/ }).click();
+	await page.getByRole('link', { name: 'Budgets', exact: true }).click();
+	await page.locator('main button.figures').first().click();
+	const draft = page.locator('main input[placeholder="0"]').first();
+	await draft.fill('not an amount');
+	await page.getByRole('button', { name: /Current profile Personal/ }).click();
+	await page.getByRole('button', { name: 'Work' }).click();
+	const prompt = page.getByRole('alertdialog');
+	await expect(prompt).toBeVisible();
+	await prompt.getByRole('button', { name: 'Stay' }).click();
+	await expect(draft).toHaveValue('not an amount');
+	await expect(page.getByRole('button', { name: /Current profile Personal/ })).toBeVisible();
+});

@@ -149,8 +149,10 @@ impl ProfileCoordinator {
             if state.active.is_some() { None } else { state.registry.last_active_id.clone() }
         };
         if let Some(id) = selected {
-            if self.activate(&id).await.is_err() {
-                self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).recovery = true;
+            if let Err(error) = self.activate(&id).await {
+                if error.code != ErrorCode::ProfileNotFound {
+                    self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).recovery = true;
+                }
             }
         }
         Ok(self.load())

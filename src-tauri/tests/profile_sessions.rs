@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 use notchy_lib::database::{DbError, ErrorCode, ProcessLock};
+use notchy_lib::database::migrations::{bootstrap_current, FailurePoint};
 use rusqlite::OptionalExtension;
 use notchy_lib::profiles::coordinator::ProfileCoordinator;
 use notchy_lib::profiles::paths::ProfilePaths;
@@ -17,6 +18,11 @@ fn fixture() -> (ProfilePaths, String, String) {
         id: id.to_owned(), name: id.to_owned(), created_at: "2026-10-19T00:00:00Z".into()
     }).collect();
     RegistryStore::new(paths.clone()).save(&ProfileRegistry { version: 1, profiles: records, last_active_id: None, legacy_adopted: false }).unwrap();
+    for id in [&a, &b] {
+        let dir = paths.profile_dir(id).unwrap();
+        std::fs::create_dir_all(&dir).unwrap();
+        bootstrap_current(&dir.join("notchy.db"), FailurePoint::None).unwrap();
+    }
     (paths, a, b)
 }
 
@@ -29,6 +35,17 @@ fn application_lock_survives_an_empty_profile_list() {
     assert_eq!(ProcessLock::acquire(&paths.config_dir.join("notchy.lock")).err().unwrap().code, ErrorCode::DatabaseLocked);
     drop(coordinator);
     assert!(ProcessLock::acquire(&paths.config_dir.join("notchy.lock")).is_ok());
+}
+
+#[tokio::test]
+async fn missing_registered_database_never_recreates_a_blank_profile() {
+    let (paths, a, _) = fixture();
+    let db = paths.profile_dir(&a).unwrap().join("notchy.db");
+    std::fs::remove_file(&db).unwrap();
+    assert!(!db.exists());
+    let coordinator = ProfileCoordinator::open(paths).unwrap();
+    assert_eq!(coordinator.activate(&a).await.unwrap_err().code, ErrorCode::DatabaseInvalid);
+    assert!(!db.exists());
 }
 
 #[tokio::test]

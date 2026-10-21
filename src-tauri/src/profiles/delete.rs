@@ -16,6 +16,16 @@ pub struct DeleteResult { pub cleanup_pending: bool }
 struct DeleteRecord { operation_id: String, profile_id: String, phase: String, result: DeleteResult }
 fn invalid() -> DbError { DbError::new(ErrorCode::DatabaseInvalid) }
 
+#[cfg(debug_assertions)]
+fn profile_probe_crash(point: &str) {
+    if std::env::var("NOTCHY_PROFILE_DELETE_CRASH_AT").as_deref() == Ok(point) {
+        std::process::exit(86);
+    }
+}
+#[cfg(not(debug_assertions))]
+fn profile_probe_crash(_point: &str) {}
+
+
 impl ProfileCoordinator {
     fn delete_root(&self) -> PathBuf { self.paths.data_dir.join("profile-operations/deletes") }
     fn delete_path(&self, operation_id: &str) -> DbResult<PathBuf> {
@@ -68,6 +78,7 @@ impl ProfileCoordinator {
             if next.last_active_id.as_deref() == Some(id) { next.last_active_id = None; }
             self.store.save(&next)?;
             state.registry = next;
+            profile_probe_crash("after-registry");
             Ok(())
         })();
         if let Err(error) = commit {

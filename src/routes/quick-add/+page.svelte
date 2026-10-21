@@ -19,6 +19,7 @@
 
 	let value = $state('');
 	let error = $state<string | null>(null);
+	let profileName = $state('');
 	let activeAccount = $state<{ id: string; name: string; balance: number } | null>(null);
 	let allAccounts = $state<{ id: string; name: string; balance: number }[]>([]);
 	let ready = $state(false);
@@ -83,6 +84,7 @@
 			// Every webview binds its own adapter to the current native session.
 			const snapshot = await profiles.load();
 			const active = snapshot.active;
+			profileName = snapshot.profiles.find((profile) => profile.id === active?.profileId)?.name ?? '';
 			if (!active || !settings.firstRunComplete) {
 				noProfile = true; ready = false; activeAccount = null; allAccounts = [];
 				loadedSession = active; error = null; return;
@@ -228,6 +230,7 @@
 <div class="tape" class:disabled={!ready || !activeAccount}>
 	<header class="top">
 		<span class="mark" class:animate-flash={justSaved} aria-hidden="true">▮</span>
+		<span class="profile-name" title={profileName}>{profileName}</span>
 		<span class="esc" role="img" aria-label="Escape key">ESC</span>
 	</header>
 
@@ -315,6 +318,12 @@
 	}
 	.mark {
 		color: var(--phosphor);
+	}
+	.profile-name {
+		max-width: 70%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.amount {
 		@apply text-3xl;

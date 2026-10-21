@@ -126,3 +126,36 @@ async fn existing_application_preferences_win_over_legacy_locale() {
     RegistryStore::new(paths).save_preferences(&preferences).unwrap();
     assert_eq!(coordinator.bootstrap().await.unwrap().preferences, preferences);
 }
+
+#[tokio::test]
+async fn stale_saved_selection_opens_picker_without_recovery() {
+    use notchy_lib::profiles::registry::RegistryStore;
+    use notchy_lib::profiles::types::ProfileRegistry;
+    let (paths, coordinator) = fixture();
+    drop(coordinator);
+    let missing = OperationId::generate().as_str().to_owned();
+    RegistryStore::new(paths.clone()).save(&ProfileRegistry {
+        version: 1, profiles: vec![], last_active_id: Some(missing), legacy_adopted: true,
+    }).unwrap();
+    let coordinator = ProfileCoordinator::open(paths).unwrap();
+    let snapshot = coordinator.bootstrap().await.unwrap();
+    assert!(snapshot.active.is_none());
+    assert_eq!(snapshot.phase, "idle");
+    assert!(snapshot.recovery.is_none());
+}
+
+#[tokio::test]
+async fn selected_profile_with_missing_database_enters_recovery_without_creating_data() {
+    let (paths, coordinator) = fixture();
+    let record = coordinator.create("Personal", &context()).await.unwrap();
+    coordinator.activate(&record.id).await.unwrap();
+    let db = paths.profile_dir(&record.id).unwrap().join("notchy.db");
+    drop(coordinator);
+    fs::remove_file(&db).unwrap();
+    let restarted = ProfileCoordinator::open(paths).unwrap();
+    let snapshot = restarted.bootstrap().await.unwrap();
+    assert!(snapshot.active.is_none());
+    assert_eq!(snapshot.phase, "recovery");
+    assert_eq!(snapshot.recovery.unwrap().profile_id.as_deref(), Some(record.id.as_str()));
+    assert!(!db.exists());
+}

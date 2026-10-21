@@ -11,6 +11,16 @@ use super::types::{OperationContext, ProfileRecord, validate_name};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CreateFailurePoint { None, BeforePublish, AfterPublish }
 
+#[cfg(debug_assertions)]
+fn profile_probe_crash(point: &str) {
+    if std::env::var("NOTCHY_PROFILE_CREATE_CRASH_AT").as_deref() == Ok(point) {
+        std::process::exit(86);
+    }
+}
+#[cfg(not(debug_assertions))]
+fn profile_probe_crash(_point: &str) {}
+
+
 impl ProfileCoordinator {
     pub async fn create(&self, name: &str, context: &OperationContext) -> DbResult<ProfileRecord> {
         self.create_with_failpoint(name, context, CreateFailurePoint::None).await
@@ -23,7 +33,7 @@ impl ProfileCoordinator {
         let journals = JournalStore::new(self.paths.clone());
         let record = match journals.load(&context.operation_id)? {
             Some(record) => {
-                if record.result.name != name { return Err(DbError::new(ErrorCode::OperationIdConflict)); }
+                if record.kind != "create" || record.result.name != name { return Err(DbError::new(ErrorCode::OperationIdConflict)); }
                 record
             }
             None => {
@@ -102,6 +112,7 @@ impl ProfileCoordinator {
                 state.registry = next;
             }
         }
+        profile_probe_crash("after-registry");
         record.phase = JournalPhase::Committed;
         journals.save(&record)?;
         Ok(record.result)

@@ -162,7 +162,15 @@ impl ProfileCoordinator {
         ).ok().and_then(|name: String| validate_name(&name).ok());
         let digest = preview_digest(&path)?;
         self.previews.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).insert(token.clone(), PreviewEntry { path, digest });
-        let suggested_name = name.unwrap_or_else(|| source.file_stem().and_then(|stem| stem.to_str()).and_then(|stem| validate_name(stem).ok()).unwrap_or_else(|| "Recovered profile".into()));
+        let base_name = name.unwrap_or_else(|| source.file_stem().and_then(|stem| stem.to_str()).and_then(|stem| validate_name(stem).ok()).unwrap_or_else(|| "Recovered profile".into()));
+        let existing = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).registry.profiles.iter().map(|p| p.name.clone()).collect::<Vec<_>>();
+        let mut suggested_name = base_name.clone();
+        for suffix in 2.. {
+            if !existing.iter().any(|name| name == &suggested_name) { break; }
+            let ending = format!(" ({suffix})");
+            let stem = base_name.chars().take(80 - ending.chars().count()).collect::<String>();
+            suggested_name = format!("{stem}{ending}");
+        }
         Ok(RestorePreview { token, suggested_name, schema_version: version })
     }
 

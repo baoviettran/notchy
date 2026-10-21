@@ -21,7 +21,7 @@ async fn restore_uses_verified_preview_and_creates_new_identity() {
     coordinator.export_backup(&original.id, &export).await.unwrap();
     let source_before = fs::read(&source).unwrap();
     let preview = coordinator.inspect_restore(&export).await.unwrap();
-    assert_eq!(preview.suggested_name, "Personal");
+    assert_eq!(preview.suggested_name, "Personal (2)");
     fs::write(&export, b"replaced after inspection").unwrap();
     let ctx = context();
     let restored = coordinator.restore(&preview.token, "Recovered", &ctx).await.unwrap();
@@ -31,6 +31,26 @@ async fn restore_uses_verified_preview_and_creates_new_identity() {
     assert_eq!(coordinator.load().profiles.len(), 2);
     assert!(paths.profile_dir(&restored.id).unwrap().join("notchy.db").exists());
     assert!(coordinator.load().active.is_none());
+}
+
+#[tokio::test]
+async fn restore_preview_suggests_a_unique_name() {
+    let (paths, coordinator) = fixture();
+    let original = coordinator.create("Personal", &context()).await.unwrap();
+    let source = paths.data_dir.parent().unwrap().join("personal-export.sqlite");
+    coordinator.export_backup(&original.id, &source).await.unwrap();
+    assert_eq!(coordinator.inspect_restore(&source).await.unwrap().suggested_name, "Personal (2)");
+}
+
+#[tokio::test]
+async fn create_rejects_a_restore_operation_id_even_with_the_same_name() {
+    let (paths, coordinator) = fixture();
+    let original = coordinator.create("Personal", &context()).await.unwrap();
+    let source = paths.profile_dir(&original.id).unwrap().join("notchy.db");
+    let preview = coordinator.inspect_restore(&source).await.unwrap();
+    let ctx = context();
+    coordinator.restore(&preview.token, "Restored", &ctx).await.unwrap();
+    assert_eq!(coordinator.create("Restored", &ctx).await.unwrap_err().code, ErrorCode::OperationIdConflict);
 }
 
 #[tokio::test]

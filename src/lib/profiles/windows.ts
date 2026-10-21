@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { assertCurrentSession } from './session';
 import {
-	cancelDraftTransition, hasDirtyDrafts, prepareDraftAck, subscribeDraftChanges
+	cancelDraftTransition, commitDraftTransition, hasDirtyDrafts, prepareDraftAck, subscribeDraftChanges
 } from './drafts.svelte';
 import type { AppPreferences, ProfileSession } from './types';
 import type { TransitionRequest } from '$lib/native/contracts.generated';
@@ -41,6 +41,7 @@ export async function installProfileWindowListeners(options: {
 	});
 	const unlistenChanged = await listen<ChangedEvent>('profile:session-changed', ({ payload }) => {
 		pending = null;
+		commitDraftTransition();
 		cancelDraftTransition();
 		options.onSessionChanged(payload.session);
 	});

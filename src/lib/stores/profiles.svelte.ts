@@ -6,7 +6,7 @@ import { migrations } from '$lib/db/browser/migrations';
 import { runMigrations } from '$lib/db/browser/migrations/runner';
 import { BrowserProfilePort } from '$lib/profiles/browser';
 import { NativeProfilePort } from '$lib/profiles/native';
-import { hasDirtyDrafts, prepareDraftAck, cancelDraftTransition } from '$lib/profiles/drafts.svelte';
+import { hasDirtyDrafts, prepareDraftAck, commitDraftTransition, cancelDraftTransition } from '$lib/profiles/drafts.svelte';
 import { requestProfileTransition, type DraftChoice } from '$lib/profiles/windows';
 import type { ProfilePort } from '$lib/profiles/port';
 import type { BackupSummary, DeleteResult, ProfileRecord, ProfileSession, ProfileSnapshot, ProfileStoragePaths, RestorePreview } from '$lib/profiles/types';
@@ -22,7 +22,7 @@ import { getBoundProfileSession } from '$lib/profiles/current';
 import { todayIso } from '$lib/utils/date';
 import { ulid } from '$lib/utils/id';
 
-export interface ProfileBarrier { token: string | null; release(): Promise<void> }
+export interface ProfileBarrier { token: string | null; release(): Promise<void>; commit?(): void }
 type PendingTransition = { requestId: string; requiredLabels: string[] };
 type OnPending = (request: PendingTransition, cancel: () => Promise<void>) => void;
 export interface ProfilesStoreDependencies {
@@ -94,7 +94,9 @@ export class ProfilesStore {
 				this.pendingTransition = request;
 				this.cancelPending = cancel;
 			});
-			return await action(guard.token);
+			const result = await action(guard.token);
+			guard.commit?.();
+			return result;
 		} finally {
 			try { await guard?.release(); }
 			finally { this.pendingTransition = null; this.cancelPending = null; }
@@ -193,7 +195,7 @@ async function defaultBarrier(expected: ProfileSession | null, onPending?: OnPen
 	}
 	const choice = hasDirtyDrafts() ? await draftChoice(true) : 'discard';
 	if (!await prepareDraftAck(expected, choice)) throw new Error('profile transition canceled');
-	return { token: null, release: async () => { cancelDraftTransition(); } };
+	return { token: null, commit: commitDraftTransition, release: async () => { cancelDraftTransition(); } };
 }
 
 const browserPort = new BrowserProfilePort({ createDatabase: async () => {

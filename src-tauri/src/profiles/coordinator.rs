@@ -1,5 +1,6 @@
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
+use std::fs;
 use super::windows::TransitionState;
 
 use crate::database::connection::DatabasePaths;
@@ -188,6 +189,8 @@ impl ProfileCoordinator {
     async fn open_manager(&self, id: &str) -> DbResult<Arc<DatabaseManager>> {
         let dir = self.paths.profile_dir(id)?;
         let paths = DatabasePaths::new(dir.clone(), dir);
+        let metadata = fs::symlink_metadata(&paths.db_path).map_err(|_| DbError::new(ErrorCode::DatabaseInvalid))?;
+        if !metadata.is_file() { return Err(DbError::new(ErrorCode::DatabaseInvalid)); }
         let manager = DatabaseManager::spawn_with_lock(paths, 64, Arc::clone(&self.lock))?;
         if let Err(error) = manager.initialize().await {
             manager.shutdown();

@@ -14,6 +14,18 @@ use super::types::OperationContext;
 struct ResetRecord { operation_id: String, profile_id: String, phase: String }
 fn invalid() -> DbError { DbError::new(ErrorCode::DatabaseInvalid) }
 
+// The debug-only probe exits without stack unwinding so the restart tests can
+// inspect the exact files left at each durable reset boundary.
+#[cfg(debug_assertions)]
+fn profile_probe_crash(point: &str) {
+    if std::env::var("NOTCHY_PROFILE_RESET_CRASH_AT").as_deref() == Ok(point) {
+        std::process::exit(86);
+    }
+}
+#[cfg(not(debug_assertions))]
+fn profile_probe_crash(_point: &str) {}
+
+
 impl ProfileCoordinator {
     fn reset_root(&self) -> PathBuf { self.paths.data_dir.join("profile-operations/resets") }
     fn reset_path(&self, operation_id: &str) -> DbResult<PathBuf> {
@@ -45,11 +57,13 @@ impl ProfileCoordinator {
         let backup = publish_backup(&snapshot, &reset_backups, failpoint);
         let _ = fs::remove_file(snapshot);
         backup?;
+        profile_probe_crash("after-backup");
         let stage = self.reset_stage(&context.operation_id);
         create_dir_private(&stage).map_err(|_| invalid())?;
         bootstrap_current(&stage.join("notchy.db"), FailurePoint::None)?;
         let record = ResetRecord { operation_id: context.operation_id.clone(), profile_id: id.to_owned(), phase: "prepared".into() };
         self.save_reset(&record)?;
+        profile_probe_crash("after-prepared");
         self.finish_reset(&record).await
     }
     async fn finish_reset(&self, record: &ResetRecord) -> DbResult<()> {
@@ -62,11 +76,14 @@ impl ProfileCoordinator {
         let was_active = self.suspend_active(id);
         let result = (|| -> DbResult<()> {
             if !rollback.exists() { fs::rename(&live, &rollback).map_err(|_| invalid())?; }
+            profile_probe_crash("after-move-original");
             if replacement.exists() { fs::rename(&replacement, &live).map_err(|_| invalid())?; }
+            profile_probe_crash("after-move-replacement");
             validate_manifest(&open_read_only_at(&live)?, LATEST_SCHEMA_VERSION)?;
             sync_directory(live.parent().ok_or_else(invalid)?)?;
             let mut committed = record.clone(); committed.phase = "committed".into();
             self.save_reset(&committed)?;
+            profile_probe_crash("after-commit");
             Ok(())
         })();
         if result.is_err() && rollback.exists() {

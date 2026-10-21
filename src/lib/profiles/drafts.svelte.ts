@@ -51,11 +51,22 @@ export async function resolveDrafts(choice: 'stay' | 'discard' | 'cancel'): Prom
 
 export async function prepareDraftAck(session: ProfileSession | null, choice: 'stay' | 'discard' | 'cancel'): Promise<boolean> {
 	const before = revision;
-	const resolved = await resolveDrafts(choice);
-	if (!resolved || (choice !== 'discard' && revision !== before)) return false;
+	await Promise.resolve();
+	if (revision !== before || choice === 'cancel' || (choice === 'stay' && hasDirtyDrafts())) return false;
 	acknowledgedSession = session;
 	frozen = true;
 	return true;
+}
+
+/** Discard only after the transition has committed in every participating window. */
+export function commitDraftTransition(): void {
+	if (!frozen) return;
+	frozen = false;
+	acknowledgedSession = null;
+	const dirty = [...drafts.values()].filter((draft) => draft.isDirty());
+	for (const draft of dirty) draft.discard();
+	revision++;
+	notifyChange();
 }
 
 export function matchesAcknowledgedSession(session: ProfileSession | null): boolean {

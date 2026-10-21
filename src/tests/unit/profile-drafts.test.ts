@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createEditorDraft, registerDraft, resolveDrafts, markDraftChanged, cancelDraftTransition, prepareDraftAck, isDraftsFrozen } from '$lib/profiles/drafts.svelte';
+import { createEditorDraft, registerDraft, resolveDrafts, markDraftChanged, cancelDraftTransition, prepareDraftAck, commitDraftTransition, isDraftsFrozen } from '$lib/profiles/drafts.svelte';
 
 const session = { profileId: 'A', generation: 'g1' };
 
@@ -20,6 +20,21 @@ describe('profile draft barrier', () => {
 		expect(await pending).toBe(false);
 		expect(discard).not.toHaveBeenCalled();
 		expect(await resolveDrafts('discard')).toBe(true);
+		expect(discard).toHaveBeenCalledOnce();
+		unregister();
+	});
+	it('preserves acknowledged drafts when another window cancels, then discards only on commit', async () => {
+		let value = 'unsaved';
+		const discard = vi.fn(() => { value = ''; });
+		const unregister = registerDraft('two-window-draft', () => value !== '', discard);
+		expect(await prepareDraftAck(session, 'discard')).toBe(true);
+		expect(value).toBe('unsaved');
+		cancelDraftTransition();
+		expect(value).toBe('unsaved');
+		expect(discard).not.toHaveBeenCalled();
+		expect(await prepareDraftAck(session, 'discard')).toBe(true);
+		commitDraftTransition();
+		expect(value).toBe('');
 		expect(discard).toHaveBeenCalledOnce();
 		unregister();
 	});

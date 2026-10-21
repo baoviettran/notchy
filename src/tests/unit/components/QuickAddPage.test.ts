@@ -7,6 +7,7 @@ const state = vi.hoisted(() => ({
 	initialized: false,
 	active: true,
 	profileId: 'A',
+	profileName: 'Personal',
 	generation: 'g1',
 	create: vi.fn(),
 	profileLoad: vi.fn(),
@@ -28,8 +29,8 @@ vi.mock('$lib/db', () => ({
 	databaseInitialize: state.initializeLifecycle
 }));
 vi.mock('$lib/stores/profiles.svelte', () => ({ profiles: {
-	get snapshot() { return { active: state.active ? { profileId: state.profileId, generation: state.generation } : null }; },
-	load: async () => { state.profileLoad(); state.initialized = true; return { active: state.active ? { profileId: state.profileId, generation: state.generation } : null }; }
+	get snapshot() { return { active: state.active ? { profileId: state.profileId, generation: state.generation } : null, profiles: [{ id: state.profileId, name: state.profileName }] }; },
+	load: async () => { state.profileLoad(); state.initialized = true; return { active: state.active ? { profileId: state.profileId, generation: state.generation } : null, profiles: [{ id: state.profileId, name: state.profileName }] }; }
 } }));
 vi.mock('$lib/profiles/windows', () => ({ installProfileWindowListeners: async (options: typeof state.profileListeners) => { state.profileListeners = options; return () => {}; } }));
 vi.mock('@tauri-apps/api/webviewWindow', () => ({ WebviewWindow: { getByLabel: () => ({ show: state.showMain, setFocus: vi.fn() }) } }));
@@ -47,6 +48,7 @@ beforeEach(() => {
 	state.initialized = false;
 	state.active = true;
 	state.profileId = 'A';
+	state.profileName = 'Personal';
 	state.generation = 'g1';
 	state.focus = null;
 	state.profileListeners = null;
@@ -54,6 +56,14 @@ beforeEach(() => {
 });
 
 describe('native Quick Add startup', () => {
+	it('shows the active profile name and updates it after a switch', async () => {
+		render(QuickAddPage);
+		await waitFor(() => expect(screen.getByText('Personal')).toBeInTheDocument());
+		state.profileId = 'B'; state.profileName = 'Travel'; state.generation = 'g2';
+		state.focus!({ payload: true });
+		await waitFor(() => expect(screen.getByText('Travel')).toBeInTheDocument());
+		expect(screen.queryByText('Personal')).not.toBeInTheDocument();
+	});
 	it('releases a pending draft choice when another window cancels the transition', async () => {
 		render(QuickAddPage);
 		await waitFor(() => expect(state.profileListeners).not.toBeNull());
