@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
-import { waitFor,  render, screen, fireEvent } from '@testing-library/svelte';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { waitFor, render, screen, fireEvent, cleanup } from '@testing-library/svelte';
 
 const mockMatchTag = vi.hoisted(() => vi.fn());
+const draftProfile = vi.hoisted(() => ({ id: 'A' }));
+vi.mock('$lib/profiles/current', () => ({ getBoundProfileSession: () => ({ profileId: draftProfile.id, generation: 'g1' }) }));
 
 // Mock stores to avoid sql.js wasm initialization in jsdom
 vi.mock('$lib/stores/transactions.svelte', () => ({
@@ -28,8 +30,29 @@ vi.mock('$lib/stores/rules.svelte', () => ({
 }));
 
 import TransactionForm from '$lib/components/forms/TransactionForm.svelte';
+import { hasDirtyDrafts, resolveDrafts } from '$lib/profiles/drafts.svelte';
 
 describe('TransactionForm', () => {
+	beforeEach(() => { sessionStorage.clear(); draftProfile.id = 'A'; });
+	it('does not restore profile A draft into profile B', async () => {
+		render(TransactionForm, { mode: 'full' });
+		await fireEvent.input(screen.getByLabelText('Amount'), { target: { value: '123' } });
+		await waitFor(() => expect(sessionStorage.getItem('notchy_tx_draft:A')).toContain('123'));
+		cleanup();
+		draftProfile.id = 'B';
+		render(TransactionForm, { mode: 'full' });
+		await waitFor(() => expect(screen.getByLabelText('Amount')).toHaveValue(''));
+	});
+	it('preserves an edited transaction when a profile switch is canceled', async () => {
+		const close = vi.fn();
+		render(TransactionForm, { mode: 'full', onclose: close });
+		await waitFor(() => expect(screen.getByLabelText('Amount')).toBeInTheDocument());
+		await fireEvent.input(screen.getByLabelText('Amount'), { target: { value: '123' } });
+		await waitFor(() => expect(hasDirtyDrafts()).toBe(true));
+		expect(await resolveDrafts('stay')).toBe(false);
+		expect(screen.getByLabelText('Amount')).toHaveValue('123');
+		expect(close).not.toHaveBeenCalled();
+	});
 	it('renders the Amount input focused before the kind toggles', async () => {
 		const { container } = render(TransactionForm, { mode: 'full' });
 		await waitFor(() => {

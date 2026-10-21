@@ -5,6 +5,8 @@
   "windows": ["quick-add"],
   "permissions": [
     "core:default",
-    "core:window:allow-hide"
+    "core:window:allow-hide",
+    "core:window:allow-show",
+    "core:window:allow-set-focus"
   ]
 }

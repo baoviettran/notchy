@@ -33,6 +33,7 @@ vi.mock('$lib/stores/toast.svelte', () => ({
 vi.mock('@tauri-apps/api/event', () => ({ emit: vi.fn().mockResolvedValue(undefined) }));
 
 import ImportTransactionsModal from '$lib/components/modals/ImportTransactionsModal.svelte';
+import { hasDirtyDrafts, resolveDrafts } from '$lib/profiles/drafts.svelte';
 
 // Two valid new rows: a coffee expense and a salary income.
 const CSV = 'Date,Amount,Payee\n2026-01-01,100000,Coffee\n2026-01-02,200000,Salary';
@@ -111,6 +112,16 @@ describe('ImportTransactionsModal', () => {
 		expect(screen.getByRole('button', { name: 'Import 2' })).toBeInTheDocument();
 	});
 
+	it('keeps mapping and preview intact when a profile switch is canceled', async () => {
+		const { container } = render(ImportTransactionsModal, { open: true });
+		await loadFile(container);
+		expect(hasDirtyDrafts()).toBe(true);
+		expect(await resolveDrafts('stay')).toBe(false);
+		expect(screen.getByText('Sign convention')).toBeInTheDocument();
+		await fireEvent.click(screen.getByRole('button', { name: 'Continue to preview' }));
+		expect(await resolveDrafts('stay')).toBe(false);
+		expect(screen.getByText('Coffee')).toBeInTheDocument();
+	});
 	it('switches the money fields to Debit/Credit under the separate convention', async () => {
 		const { container } = render(ImportTransactionsModal, { open: true });
 		await loadFile(container);

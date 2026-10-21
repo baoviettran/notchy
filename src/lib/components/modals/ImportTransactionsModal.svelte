@@ -10,6 +10,9 @@
   import { transactions } from '$lib/stores/transactions.svelte';
   import { toast } from '$lib/stores/toast.svelte';
   import { formatCurrency } from '$lib/utils/currency';
+  import { profileDraft, isDraftsFrozen } from '$lib/profiles/drafts.svelte';
+  import { emitTransactionsChanged } from '$lib/stores/quick-refresh';
+  import { getBoundProfileSession } from '$lib/profiles/current';
 
   let { open = $bindable(false) }: { open?: boolean } = $props();
 
@@ -51,6 +54,7 @@
   }
 
   async function onLoad() {
+    if (isDraftsFrozen()) return;
     if (!fileText || !selectedAccountId) return;
     loading = true;
     errorMsg = null;
@@ -67,20 +71,12 @@
   }
 
   async function onCommit() {
-    if (!store) return;
+    if (isDraftsFrozen() || !store) return;
     loading = true;
     try {
       const count = await store.commit();
       if (count > 0) {
-        // Cross-window refresh: emit the existing event the layout listens for.
-        try {
-          if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
-            const { emit } = await import('@tauri-apps/api/event');
-            await emit('transaction:saved', {});
-          } else {
-            window.dispatchEvent(new Event('transaction:saved'));
-          }
-        } catch { /* non-fatal: list refresh still runs below */ }
+        await emitTransactionsChanged(getBoundProfileSession() ?? undefined);
         await transactions.load();
         toast.show(count === 1 ? m.import_tx_commit_success_one({ count }) : m.import_tx_commit_success({ count }));
       } else {
@@ -158,6 +154,7 @@
 </script>
 
 <Modal bind:open title={m.import_tx_title()} locked={loading}>
+  <div use:profileDraft={{ id: 'import-transactions', snapshot: () => JSON.stringify({ selectedAccountId, fileText, phase: store?.phase, mapping: store?.mapping, included: store?.includedCount }), discard: () => { open = false; reset(); } }}>
   {#if !store}
     <!-- Phase: select -->
     <div class="space-y-4">
@@ -309,4 +306,5 @@
       </div>
     {/if}
   {/if}
+  </div>
 </Modal>

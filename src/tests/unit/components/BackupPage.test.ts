@@ -31,6 +31,11 @@ vi.mock('$lib/db', () => ({
 	openBackupFolder: async () => {}
 }));
 
+vi.mock('$lib/stores/profiles.svelte', () => ({ profiles: {
+	snapshot: { active: { profileId: 'profile-A', generation: 'g1' } },
+	paths: async () => ({ databasePath: '/data/profiles/profile-A/notchy.db', upgradeBackupDir: '/data/profiles/profile-A/backups/upgrades' }),
+	backup: backupCreate, exportBackup: backupExportSqlite
+} }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ save: dialogSave, open: dialogOpen }));
 
 const META: Record<string, string> = {
@@ -62,22 +67,22 @@ describe('<BackupPage>', () => {
 		expect(metaGet).toHaveBeenCalledWith('backup_warning');
 	});
 
-	it('drives "Create backup now" through backup.create', async () => {
+	it('creates a backup for the active profile', async () => {
 		await renderWithHealth();
 
 		await fireEvent.click(screen.getByRole('button', { name: m.settings_backup_health_create_now() }));
 
-		await waitFor(() => expect(backupCreate).toHaveBeenCalledTimes(1));
+		await waitFor(() => expect(backupCreate).toHaveBeenCalledWith('profile-A'));
 	});
 
-	it('drives the SQLite export through backup.exportSqlite with the saved path', async () => {
+	it('exports only the active profile to the saved path', async () => {
 		await renderWithHealth();
 		dialogSave.mockResolvedValue('/tmp/notchy-2026-09-30.sqlite');
 
 		await fireEvent.click(screen.getByRole('button', { name: m.settings_backup_export_sqlite() }));
 
 		await waitFor(() =>
-			expect(backupExportSqlite).toHaveBeenCalledWith('/tmp/notchy-2026-09-30.sqlite')
+			expect(backupExportSqlite).toHaveBeenCalledWith('profile-A', '/tmp/notchy-2026-09-30.sqlite')
 		);
 	});
 

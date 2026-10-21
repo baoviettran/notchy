@@ -85,6 +85,8 @@ export class InMemoryDatabase implements DatabaseService {
 		}
 	}
 
+	exportBytes(): Uint8Array { return this.db.export(); }
+
 	async close(): Promise<void> {
 		this.db.close();
 	}
@@ -95,4 +97,9 @@ let savepointCounter = 0;
 export async function createInMemoryDb(): Promise<DatabaseService> {
 	const SQL = await getSqlJs();
 	return new InMemoryDatabase(new SQL.Database());
+}
+
+export async function createInMemoryDbFromBytes(bytes: Uint8Array): Promise<InMemoryDatabase> {
+	const SQL = await getSqlJs();
+	return new InMemoryDatabase(new SQL.Database(bytes));
 }

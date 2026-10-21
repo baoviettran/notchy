@@ -20,6 +20,7 @@
 	import type { DebtAccount } from '$lib/db/client';
 	import * as m from '$lib/paraglide/messages';
 	import { mapError } from '$lib/utils/errors';
+	import { profileDraft, isDraftsFrozen } from '$lib/profiles/drafts.svelte';
 
 	let showAction = $state(false);
 	let actionType = $state<'payment' | 'writeoff'>('payment');
@@ -51,7 +52,7 @@
 	);
 
 	async function doAction() {
-		if (!activeDebt || !amount) return;
+		if (isDraftsFrozen() || !activeDebt || !amount) return;
 		saving = true;
 		try {
 			const parsed = parseAmount(amount, settings.locale, settings.currency);
@@ -213,6 +214,7 @@
 </div>
 
 <Modal bind:open={showAction} title={actionType === 'payment' ? (activeDebt?.type === 'loan_from_person' ? m.debts_make_payment() : m.debts_receive_payment()) : m.debts_write_off_debt()}>
+	<div use:profileDraft={{ id: 'debt-action', snapshot: () => JSON.stringify({ amount, fromAccount, writeoffConfirmed }), discard: () => showAction = false }}>
 	<div class="space-y-4">
 		{#if actionType === 'writeoff' && activeDebt}
 			<div class="rounded-md border border-line bg-ink p-3 text-sm">
@@ -248,5 +250,6 @@
 				onclick={doAction}
 			>{actionType === 'payment' ? m.debts_record() : m.debts_write_off()}</Button>
 		</div>
+	</div>
 	</div>
 </Modal>

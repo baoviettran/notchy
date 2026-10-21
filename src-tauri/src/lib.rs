@@ -3,6 +3,7 @@
 #![allow(clippy::should_implement_trait)]
 
 pub mod database;
+pub mod profiles;
 
 use tauri::{
     Manager,
@@ -11,8 +12,11 @@ use tauri::{
 };
 
 use database::commands::*;
-use database::executor::DatabaseManager;
-use database::connection::DatabasePaths;
+use profiles::commands::*;
+use profiles::paths::ProfilePaths;
+use profiles::coordinator::ProfileCoordinator;
+use std::sync::Arc;
+use tauri::Emitter;
 
 /// Quick-capture window. `true` registers the global shortcut, the tray
 /// "Quick Add" item, and tray-left-click capture. Set to `false` to disable
@@ -48,13 +52,26 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             quit_app,
+            profiles_bootstrap,
+            profiles_load,
+            profile_window_ready,
+            profile_prepare_transition,
+            profile_ack_transition,
+            profile_cancel_transition,
+            profile_paths,
+            profile_discover_backups,
+            profile_create,
+            profile_rename,
+            profile_activate,
+            profile_backup,
+            profile_export_backup,
+            profile_inspect_restore,
+            profile_cancel_restore,
+            profile_restore,
+            profile_reset,
+            profile_delete,
+            app_preferences_set,
             // Lifecycle commands
-            database_initialize,
-            database_retry,
-            database_status,
-            database_restore,
-            database_import,
-            discover_restore_points,
             // Account commands
             account_list,
             account_get,
@@ -166,13 +183,28 @@ pub fn run() {
             builder.build()
         })
         .setup(|app| {
-            // Spawn the database manager early so the IPC handler can resolve it.
+            // Install the coordinator before webviews request profile bootstrap.
             let data_dir = app.path().app_data_dir().expect("failed to resolve app data dir");
             let config_dir = app.path().app_config_dir().expect("failed to resolve app config dir");
-            let paths = DatabasePaths::new(config_dir, data_dir);
-            let manager = DatabaseManager::spawn(paths, 64)
-                .expect("failed to spawn database manager");
-            app.manage(manager);
+            let paths = ProfilePaths::new(config_dir, data_dir);
+            let coordinator = ProfileCoordinator::open(paths)
+                .expect("failed to open profile registry");
+            app.manage(coordinator);
+
+            // A hidden webview remains a participant; only actual destruction releases it.
+            for window in app.webview_windows().into_values() {
+                let app_handle = app.handle().clone();
+                let label = window.label().to_owned();
+                window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::Destroyed = event {
+                        if let Some(coordinator) = app_handle.try_state::<Arc<ProfileCoordinator>>() {
+                            if let Some(ready) = coordinator.window_closed(&label) {
+                                let _ = app_handle.emit_to("main", "profile:transition-ready", ready);
+                            }
+                        }
+                    }
+                });
+            }
 
             let show = MenuItem::with_id(app, "show", "Show Notchy", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;

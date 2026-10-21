@@ -17,6 +17,7 @@ export default defineConfig({
 				'src/lib/paraglide/**',
 				'src/lib/db/migrations/**',
 				'src/lib/stores/**',  // $state() runes incompatible with Istanbul instrumentation
+				'src/lib/**/*.svelte.ts',  // instrumenting class-field runes changes their required placement
 				'src/**/*.d.ts',
 				'src/tests/**'
 			]

@@ -16,6 +16,7 @@
 	import { formatMonth } from '$lib/utils/date';
 	import { nextBudgetableId, monthStepFromKey } from '$lib/utils/budgets';
 	import * as m from '$lib/paraglide/messages';
+	import { profileDraft, isDraftsFrozen } from '$lib/profiles/drafts.svelte';
 
 	let editing = $state<string | null>(null);
 	let editValue = $state('');
@@ -24,8 +25,7 @@
 	let editInputEl = $state<HTMLInputElement>();
 
 	onMount(async () => {
-		await categories.load();
-		await budgets.load();
+		await Promise.all([categories.load(), budgets.load()]);
 	});
 
 	// Refresh when allocations change (e.g. after a roll-over or a new month),
@@ -109,6 +109,7 @@
 	}
 
 	async function saveEdit(typeId: string): Promise<boolean> {
+		if (isDraftsFrozen()) return false;
 		try {
 			const parsed = editValue.trim() ? parseAmount(editValue, settings.locale, settings.currency) : 0;
 			const prevAllocated = editPrevAllocated;
@@ -287,6 +288,7 @@
 				{#if editing === bucket.id}
 					<div class="flex gap-1.5 items-center">
 						<input
+							use:profileDraft={{ id: `budget-${bucket.id}`, snapshot: () => editValue, discard: () => editing = null }}
 							bind:value={editValue}
 							bind:this={editInputEl}
 							onblur={blurEdit}

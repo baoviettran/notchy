@@ -1,3 +1,4 @@
+import { startOnboarding } from './helpers/ui';
 import { test, expect } from './fixtures/onboarded';
 
 test.describe('settings currency selector', () => {
@@ -26,7 +27,7 @@ test.describe('settings currency selector', () => {
 
 test.describe('onboarding currency options', () => {
 	test('shows 5 currency choices', async ({ page }) => {
-		await page.goto('/');
+		await startOnboarding(page);
 		// Step 1: language
 		await page.getByRole('radio', { name: /^English/ }).click();
 		await page.getByRole('button', { name: 'Continue →' }).click();

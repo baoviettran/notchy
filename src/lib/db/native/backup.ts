@@ -13,18 +13,20 @@
  * construction.
  */
 import { invoke } from '@tauri-apps/api/core';
+import type { SessionInvoker } from '$lib/profiles/session';
 import type { BackupOps } from '../client';
 
 export class NativeBackupOps implements BackupOps {
+	constructor(private readonly invoker: SessionInvoker = invoke) {}
 	async create(): Promise<string> {
-		return invoke<string>('backup_create');
+		return this.invoker<string>('backup_create');
 	}
 
 	async exportSqlite(targetPath: string): Promise<void> {
-		return invoke<void>('backup_export_sqlite', { targetPath });
+		return this.invoker<void>('backup_export_sqlite', { targetPath });
 	}
 
 	async exportCsv(dir: string): Promise<string[]> {
-		return invoke<string[]>('backup_export_csv', { dir });
+		return this.invoker<string[]>('backup_export_csv', { dir });
 	}
 }

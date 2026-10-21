@@ -158,11 +158,15 @@ export async function postDueSchedules(db: AppDatabase, today: string): Promise<
 	return summary;
 }
 
-let once: Promise<PostDueSummary> | null = null;
+const passes = new Map<string, Promise<PostDueSummary>>();
 
-export function postDueSchedulesOnce(db: AppDatabase, today: string): Promise<PostDueSummary> {
-	once ??= postDueSchedules(db, today);
-	return once;
+export function postDueSchedulesOnce(db: AppDatabase, today: string, activationKey = 'legacy'): Promise<PostDueSummary> {
+	let pass = passes.get(activationKey);
+	if (!pass) {
+		pass = postDueSchedules(db, today);
+		passes.set(activationKey, pass);
+	}
+	return pass;
 }
 
 /**

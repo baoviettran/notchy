@@ -223,6 +223,9 @@ fn generated_typescript_exposes_contract_types() {
     assert!(generated.contains("LifecycleState"));
     assert!(generated.contains("StartupStage"));
     assert!(generated.contains("RecoveryContext"));
+    assert!(generated.contains("ProfileSnapshot"));
+    assert!(generated.contains("ProfileStoragePaths"));
+    assert!(generated.contains("RestorePreview"));
     assert!(generated.contains("Patch"));
     assert!(generated.contains("omitted"));
     assert!(generated.contains("explicit_null"));

@@ -1,3 +1,4 @@
+import { dataEpoch } from '$lib/profiles/epoch';
 import { getDb } from '$lib/db';
 import type { BudgetSummary, ToBudgetBreakdown } from '$lib/db/client';
 import { mapError } from '$lib/utils/errors';
@@ -17,6 +18,7 @@ class BudgetsStore {
 	#loadToken = 0;
 
 	async load(month?: string): Promise<void> {
+		const epoch = dataEpoch();
 		const target = month ?? this.month;
 		const token = ++this.#loadToken;
 		this.month = target;
@@ -29,14 +31,14 @@ class BudgetsStore {
 			const items = await db.budgets.getForMonth(target);
 			const toBudget = await db.budgets.getToBudget(target);
 			const hasAllocations = await db.budgets.hasAllocations(target);
-			if (token !== this.#loadToken) return;
+			if (token !== this.#loadToken || epoch !== dataEpoch()) return;
 			this.items = items;
 			this.toBudget = toBudget;
 			this.hasAllocations = hasAllocations;
 		} catch (e) {
-			if (token === this.#loadToken) this.error = mapError(e);
+			if (token === this.#loadToken && epoch === dataEpoch()) this.error = mapError(e);
 		} finally {
-			if (token === this.#loadToken) this.loading = false;
+			if (token === this.#loadToken && epoch === dataEpoch()) this.loading = false;
 		}
 	}
 

@@ -17,6 +17,9 @@
 	import type { Transaction, TransactionKind } from '$lib/db/repos/transactions';
 	import * as m from '$lib/paraglide/messages';
 	import { mapError } from '$lib/utils/errors';
+	import { profileDraft, isDraftsFrozen, type createEditorDraft } from '$lib/profiles/drafts.svelte';
+	import { ulid } from '$lib/utils/id';
+	import { getBoundProfileSession } from '$lib/profiles/current';
 
 	let { mode = 'full', existing = null, onclose = () => {}, onsave = () => {} }: {
 		mode?: 'full' | 'quick';
@@ -111,7 +114,14 @@
 		}
 	});
 
-	const DRAFT_KEY = 'notchy_tx_draft';
+	const DRAFT_KEY = `notchy_tx_draft:${getBoundProfileSession()?.profileId ?? 'unbound'}`;
+	function discardDraft() {
+		if (!isEdit) sessionStorage.removeItem(DRAFT_KEY);
+		onclose();
+	}
+	const draftId = ulid();
+	let editorDraft: ReturnType<typeof createEditorDraft> | null = null;
+	const draftSnapshot = () => JSON.stringify({ kind, amount, tagId, accountId: amount || payee || description || isEdit ? accountId : '', payee, date, description, transferAccountId });
 
 	onMount(async () => {
 		await accounts.load();
@@ -119,7 +129,9 @@
 
 		// Only restore draft if not editing
 		if (!isEdit) {
-			const draft = sessionStorage.getItem(DRAFT_KEY);
+			// Never replace input typed while the account/category lists were loading.
+			const editedDuringLoad = !!(amount || payee || description);
+			const draft = editedDuringLoad ? null : sessionStorage.getItem(DRAFT_KEY);
 			if (draft) {
 				try {
 					const d = JSON.parse(draft);
@@ -154,7 +166,7 @@
 	);
 
 	async function save() {
-		if (saving) return;
+		if (saving || isDraftsFrozen()) return;
 		error = '';
 		amountError = '';
 		accountError = '';
@@ -214,6 +226,7 @@
 				payee = '';
 				description = '';
 			}
+			editorDraft?.saved();
 			onsave();
 			if (mode === 'full') onclose();
 		} catch (e) {
@@ -226,7 +239,7 @@
 
 <!-- A real form: Enter submits from any field, so the n-shortcut flow
      completes hands-on-keyboard. save() keeps its own guards. -->
-<form class="space-y-4" onsubmit={(e) => { e.preventDefault(); save(); }}>
+<form class="space-y-4" use:profileDraft={{ id: draftId, snapshot: draftSnapshot, discard: discardDraft, onReady: (draft) => editorDraft = draft }} onsubmit={(e) => { e.preventDefault(); save(); }}>
 	{#if error}
 		<p class="text-sm text-debit">{error}</p>
 	{/if}

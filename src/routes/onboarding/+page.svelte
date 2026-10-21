@@ -14,6 +14,8 @@
 	import { parseAmount } from '$lib/utils/number_parse';
 	import type { Locale } from '$lib/utils/number_parse';
 	import * as m from '$lib/paraglide/messages';
+	import { profileDraft, isDraftsFrozen, type createEditorDraft } from '$lib/profiles/drafts.svelte';
+	import { ulid } from '$lib/utils/id';
 
 	let step = $state(persistedStep);
 	let locale = $state<Locale>(settings.locale);
@@ -24,6 +26,13 @@
 	let saving = $state(false);
 	let error = $state('');
 	let completed = $state(false);
+	const draftId = ulid();
+	let editorDraft: ReturnType<typeof createEditorDraft> | null = null;
+	const draftSnapshot = () => JSON.stringify({ locale, currency, accountName, accountType, initialBalance });
+	function discardDraft() {
+		accountName = ''; initialBalance = ''; accountType = 'checking';
+		persistedStep = step = 1;
+	}
 
 	// Focus the first interactive element on step transitions.
 	let stepContent = $state<HTMLElement | null>(null);
@@ -69,6 +78,7 @@
 	function goStep2() { persistedStep = step = 2; }
 
 	async function nextStep() {
+		if (isDraftsFrozen()) return;
 		if (step === 1) {
 			// Persist the next step BEFORE setLocale — changing locale triggers
 			// a {#key settings.locale} remount that destroys this component
@@ -84,7 +94,7 @@
 	}
 
 	async function finish() {
-		if (!accountName.trim() || saving) return;
+		if (!accountName.trim() || saving || isDraftsFrozen()) return;
 		error = '';
 		saving = true;
 		try {
@@ -108,6 +118,7 @@
 			await settings.completeOnboarding();
 			dbStore.firstRunComplete = true;
 			persistedStep = 1;
+			editorDraft?.saved();
 			completed = true;
 			// Brief pause so the user sees the success state.
 			await new Promise((r) => setTimeout(r, 800));
@@ -119,11 +130,17 @@
 		}
 	}
 
-	function skip() {
-		settings.completeOnboarding();
-		dbStore.firstRunComplete = true;
-		persistedStep = 1;
-		goto('/');
+	async function skip() {
+		if (saving || isDraftsFrozen()) return;
+		saving = true; error = '';
+		try {
+			await settings.completeOnboarding();
+			dbStore.firstRunComplete = true;
+			persistedStep = 1;
+			editorDraft?.saved();
+			await goto('/');
+		} catch (e) { error = e instanceof Error ? e.message : String(e); }
+		finally { saving = false; }
 	}
 
 	function dotClass(active: boolean) {
@@ -137,7 +154,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="min-h-screen flex items-center justify-center bg-ink p-4">
+<div class="min-h-screen flex items-center justify-center bg-ink p-4" use:profileDraft={{ id: draftId, snapshot: draftSnapshot, discard: discardDraft, onReady: (draft) => editorDraft = draft }}>
 	<div class="w-full max-w-md">
 		<div class="text-center mb-8">
 			<div class="figures-glow text-3xl mb-2" aria-hidden="true">▮</div>

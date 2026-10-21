@@ -26,6 +26,8 @@
 	import { categories } from '$lib/stores/categories.svelte';
 	import { uiHints } from '$lib/stores/ui-hint.svelte';
 	import type { Transaction, TransactionKind } from '$lib/db/repos/transactions';
+	import { profileDraft, isDraftsFrozen, type createEditorDraft } from '$lib/profiles/drafts.svelte';
+	import { ulid } from '$lib/utils/id';
 
 	let search = $state($page.url.searchParams.get('q') ?? '');
 
@@ -51,6 +53,10 @@
 	let batchOpen = $state(false);
 	let batchMode = $state<'tag' | 'account'>('tag');
 	let batchValue = $state('');
+	const batchDraftId = ulid();
+	let batchDraft: ReturnType<typeof createEditorDraft> | null = null;
+	let batchError = $state('');
+	const batchSnapshot = () => JSON.stringify({ batchMode, batchValue, selected });
 	let batchTargetName = $derived(
 		batchMode === 'tag'
 			? categories.tags.find((t) => t.id === batchValue)?.name ?? ''
@@ -222,30 +228,37 @@
 	function openBatch(mode: 'tag' | 'account') {
 		batchMode = mode;
 		batchValue = '';
+		batchError = '';
 		batchOpen = true;
 	}
 
 	async function applyBatch() {
 		const ids = [...selected];
-		if (ids.length === 0 || !batchValue) return;
-		if (batchMode === 'tag') {
-			await transactions.setTagMany(ids, batchValue);
-			toast.show(
-				ids.length === 1
-					? m.transactions_bulk_retagged_one({ count: ids.length })
-					: m.transactions_bulk_retagged({ count: ids.length })
-			);
-		} else {
-			await transactions.setAccountMany(ids, batchValue);
-			toast.show(
-				ids.length === 1
-					? m.transactions_bulk_moved_one({ count: ids.length })
-					: m.transactions_bulk_moved({ count: ids.length })
-			);
+		if (ids.length === 0 || !batchValue || isDraftsFrozen()) return;
+		batchError = '';
+		try {
+			if (batchMode === 'tag') {
+				await transactions.setTagMany(ids, batchValue);
+				toast.show(
+					ids.length === 1
+						? m.transactions_bulk_retagged_one({ count: ids.length })
+						: m.transactions_bulk_retagged({ count: ids.length })
+				);
+			} else {
+				await transactions.setAccountMany(ids, batchValue);
+				toast.show(
+					ids.length === 1
+						? m.transactions_bulk_moved_one({ count: ids.length })
+						: m.transactions_bulk_moved({ count: ids.length })
+				);
+			}
+			batchDraft?.saved();
+			batchOpen = false;
+			setSelectMode(false);
+			await loadPage();
+		} catch (error) {
+			batchError = error instanceof Error ? error.message : String(error);
 		}
-		batchOpen = false;
-		setSelectMode(false);
-		await loadPage();
 	}
 
 	// The add-transaction modal lives in the root layout (a single instance,
@@ -396,7 +409,8 @@
 {/if}
 
 <Modal bind:open={batchOpen} title={batchMode === 'tag' ? m.transactions_batch_retag() : m.transactions_batch_move()}>
-	<div class="space-y-4">
+	<div class="space-y-4" use:profileDraft={{ id: batchDraftId, snapshot: batchSnapshot, discard: () => batchOpen = false, onReady: (draft) => batchDraft = draft }}>
+		{#if batchError}<p class="text-sm text-debit" role="alert">{batchError}</p>{/if}
 		<p class="text-sm text-dim">{m.transactions_batch_update_count({ count: selected.length })}</p>
 		{#if batchMode === 'tag'}
 			<Select label={m.forms_tag()} bind:value={batchValue} options={[...categories.tags.map((t) => ({ value: t.id, label: t.name }))]} />

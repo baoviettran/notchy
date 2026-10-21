@@ -1,3 +1,4 @@
+import { dataEpoch } from '$lib/profiles/epoch';
 import { getDb } from '$lib/db';
 import { firstDueOnOrAfter } from '$lib/utils/schedule_next_due';
 import { mapError } from '$lib/utils/errors';
@@ -40,15 +41,17 @@ export class SchedulesStore {
 	error = $state<string | null>(null);
 
 	async load(): Promise<void> {
+		const epoch = dataEpoch();
 		this.loading = true;
 		this.error = null;
 		try {
 			const db = getDb();
-			this.items = await db.schedules.list();
+			const items = await db.schedules.list();
+			if (epoch === dataEpoch()) this.items = items;
 		} catch (e) {
-			this.error = mapError(e);
+			if (epoch === dataEpoch()) this.error = mapError(e);
 		} finally {
-			this.loading = false;
+			if (epoch === dataEpoch()) this.loading = false;
 		}
 	}
 

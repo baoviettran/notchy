@@ -6,12 +6,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use tauri::Manager;
 
 use notchy_lib::database::connection::DatabasePaths;
 use notchy_lib::database::error::DbResult;
 use notchy_lib::database::executor::DatabaseManager;
-use notchy_lib::database::startup::DatabaseStatus;
 use notchy_lib::database::types::StartupStage;
 
 /// Path of the committed native fixtures, anchored to the crate manifest so the
@@ -53,53 +51,6 @@ pub async fn manager_for_fixture(fixture: &str) -> Arc<DatabaseManager> {
 /// Spawn a manager whose database path is absent (a fresh bootstrap).
 pub async fn manager_fresh() -> Arc<DatabaseManager> {
     DatabaseManager::spawn(paths_for("fresh"), 16).unwrap()
-}
-
-/// A Tauri mock app with `main` and `quick-add` windows and the manager
-/// managed as state, so guarded command functions can be invoked with real
-/// window labels.
-pub struct MockApp {
-    pub app: tauri::App<tauri::test::MockRuntime>,
-    pub main: tauri::WebviewWindow<tauri::test::MockRuntime>,
-    pub quick_add: tauri::WebviewWindow<tauri::test::MockRuntime>,
-}
-
-pub fn mock_app(manager: Arc<DatabaseManager>) -> MockApp {
-    let app = tauri::test::mock_builder()
-        .manage(manager)
-        .build(tauri::test::mock_context(tauri::test::noop_assets()))
-        .expect("failed to build mock app");
-    let main = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
-        .build()
-        .expect("failed to build main mock window");
-    let quick_add = tauri::WebviewWindowBuilder::new(&app, "quick-add", Default::default())
-        .build()
-        .expect("failed to build quick-add mock window");
-    MockApp {
-        app,
-        main,
-        quick_add,
-    }
-}
-
-/// Invoke `database_initialize` as if called from the window named `label`.
-// `common/` is compiled into every test binary that declares `mod common`.
-// Only `startup.rs` drives the initialize path, so `command_guards.rs` sees
-// this as dead code. Allowed per-item rather than module-wide so the lint
-// still catches genuinely dead helpers here.
-#[allow(dead_code)]
-pub async fn initialize_as(
-    label: &str,
-    manager: &Arc<DatabaseManager>,
-) -> DbResult<DatabaseStatus> {
-    let app = mock_app(Arc::clone(manager));
-    let window = if label == "main" {
-        app.main.clone()
-    } else {
-        app.quick_add.clone()
-    };
-    let state = app.app.state::<Arc<DatabaseManager>>();
-    notchy_lib::database::commands::database_initialize(window, state).await
 }
 
 /// Run a data-job write as if issued from the window named `label`. Writes are

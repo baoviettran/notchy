@@ -11,6 +11,8 @@
 	import { mapError } from '$lib/utils/errors';
 	import type { CategorizeRule } from '$lib/db/client';
 	import * as m from '$lib/paraglide/messages';
+	import { profileDraft, isDraftsFrozen, type createEditorDraft } from '$lib/profiles/drafts.svelte';
+	import { ulid } from '$lib/utils/id';
 
 	let { existing = null, onclose }: { existing?: CategorizeRule | null; onclose: () => void } = $props();
 	let payeeTerm = $state(untrack(() => existing?.payee_term ?? ''));
@@ -18,6 +20,9 @@
 	let tagId = $state(untrack(() => existing?.tag_id ?? ''));
 	let invalid = $state(false);
 	let error = $state<unknown>(null);
+	const draftId = ulid();
+	let editorDraft: ReturnType<typeof createEditorDraft> | null = null;
+	const draftSnapshot = () => JSON.stringify({ payeeTerm, matchMode, tagId });
 
 	const modes = $derived.by(() => {
 		void settings.locale;
@@ -36,7 +41,7 @@
 	});
 
 	async function save() {
-		if (ruleUI.saving) return;
+		if (ruleUI.saving || isDraftsFrozen()) return;
 		invalid = !payeeTerm.trim() || !categories.tags.some(t => t.id === tagId);
 		if (invalid) return;
 		ruleUI.saving = true;
@@ -45,6 +50,7 @@
 			const fields = { payee_term: payeeTerm.trim(), match_mode: matchMode, tag_id: tagId };
 			if (existing) await rules.update(existing.id, fields);
 			else await rules.create({ ...fields, source: 'manual' });
+			editorDraft?.saved();
 			onclose();
 		} catch (e) {
 			error = e;
@@ -54,7 +60,7 @@
 	}
 </script>
 
-<form class="space-y-4" onsubmit={(event) => { event.preventDefault(); void save(); }}>
+<form class="space-y-4" use:profileDraft={{ id: draftId, snapshot: draftSnapshot, discard: onclose, onReady: (draft) => editorDraft = draft }} onsubmit={(event) => { event.preventDefault(); void save(); }}>
 	<p class="text-sm text-dim">{label(() => m.rules_future_only())}</p>
 	{#if invalid}<p role="alert" class="text-sm text-debit">{label(() => m.rules_fields_required())}</p>{/if}
 	{#if error}<p role="alert" class="text-sm text-debit">{label(() => mapError(error))}</p>{/if}

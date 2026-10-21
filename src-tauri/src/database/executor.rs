@@ -103,6 +103,11 @@ impl DatabaseManager {
     /// lifetime, so `initialize` always runs with the lock already held.
     pub fn spawn(paths: DatabasePaths, queue_capacity: usize) -> DbResult<Arc<DatabaseManager>> {
         let lock = Arc::new(ProcessLock::acquire(&paths.lock_file())?);
+        Self::spawn_with_lock(paths, queue_capacity, lock)
+    }
+
+    /// Spawn a manager under an application-wide lock owned by the profile coordinator.
+    pub fn spawn_with_lock(paths: DatabasePaths, queue_capacity: usize, lock: Arc<ProcessLock>) -> DbResult<Arc<DatabaseManager>> {
         let (sender, receiver) = sync_channel::<Message>(queue_capacity);
         let lifecycle = Arc::new(RwLock::new(LifecycleState::Uninitialized));
         let handle = spawn_executor(receiver, Arc::clone(&lock));

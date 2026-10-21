@@ -18,6 +18,7 @@
 	import { labelFor } from '$lib/utils/tx-kind';
 	import { accountTypeLabel } from '$lib/utils/account-type';
 	import { mapError } from '$lib/utils/errors';
+	import { profileDraft, isDraftsFrozen } from '$lib/profiles/drafts.svelte';
 	import type { AccountWithBalance, Transaction, Reconciliation } from '$lib/db/client';
 	import * as m from '$lib/paraglide/messages';
 
@@ -62,6 +63,7 @@
 	});
 
 	async function startReconcile() {
+		if (isDraftsFrozen()) return;
 		if (!actualBalance.trim()) return;
 		try {
 			const parsed = parseAmount(actualBalance, settings.locale, settings.currency);
@@ -177,7 +179,7 @@
 </div>
 
 <Modal bind:open={showReconcile} title={m.accounts_reconcile_modal()}>
-	<div class="space-y-4">
+	<div class="space-y-4" use:profileDraft={{ id: 'account-reconcile', snapshot: () => actualBalance, discard: () => showReconcile = false }}>
 		<p class="text-sm text-dim">{m.accounts_reconcile_body()}</p>
 		<Input label={m.accounts_actual_balance_label()} bind:value={actualBalance} placeholder={m.accounts_amount_placeholder()} error={reconcileError} />
 		{#if account}

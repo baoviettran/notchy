@@ -1,3 +1,4 @@
+import { startOnboarding } from './helpers/ui';
 import { test, expect } from '@playwright/test';
 
 // Regression flow for row 8 of the coverage-bug inventory (commit dbcb436).
@@ -14,7 +15,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('onboarding — regression (dbcb436 single-click advance)', () => {
 	test('a single Continue click reaches the currency step after switching to Vietnamese', async ({ page }) => {
-		await page.goto('/');
+		await startOnboarding(page);
 		await page.getByRole('radiogroup').first().waitFor();
 
 		// Choose Vietnamese — the locale switch that triggers the remount.

@@ -1,19 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Button from '$lib/components/primitives/Button.svelte';
-	import ConfirmDialog from '$lib/components/primitives/ConfirmDialog.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import { save, open } from '@tauri-apps/plugin-dialog';
 	import { getDb } from '$lib/db';
 	import { getBackupHealth, type BackupHealth } from '$lib/backup/health';
-	import { restoreCompatibleDatabase } from '$lib/recovery';
 	import { toast } from '$lib/stores/toast.svelte';
-	import { AppError } from '$lib/errors';
 	import { mapError } from '$lib/utils/errors';
-	import { getDatabasePaths, getInstalledAppVersion, openBackupFolder } from '$lib/db';
+	import { getInstalledAppVersion, openBackupFolder } from '$lib/db';
+	import { profiles } from '$lib/stores/profiles.svelte';
+	import { profileDialog } from '$lib/components/profiles/controller.svelte';
 	import * as m from '$lib/paraglide/messages';
 
-	let confirmImport = $state(false);
 	let busy = $state(false);
 
 	let health = $state<BackupHealth | null>(null);
@@ -22,10 +20,9 @@
 
 	async function loadHealth() {
 		try {
-			const [appVersion, paths] = await Promise.all([
-				getInstalledAppVersion(),
-				getDatabasePaths()
-			]);
+			const active = profiles.snapshot?.active;
+			if (!active) throw new Error('no active profile');
+			const [appVersion, paths] = await Promise.all([getInstalledAppVersion(), profiles.paths(active.profileId)]);
 			upgradeBackupDir = paths.upgradeBackupDir;
 			health = await getBackupHealth(getDb().meta, {
 				appVersion,
@@ -45,7 +42,9 @@
 	async function createBackupNow() {
 		try {
 			busy = true;
-			await getDb().backup.create();
+			const active = profiles.snapshot?.active;
+			if (!active) return;
+			await profiles.backup(active.profileId);
 			await loadHealth();
 			toast.show(m.settings_backup_toast_created());
 		} catch (e) {
@@ -71,7 +70,9 @@
 				filters: [{ name: 'SQLite Database', extensions: ['sqlite', 'db'] }]
 			});
 			if (!path) return;
-			await getDb().backup.exportSqlite(path);
+			const active = profiles.snapshot?.active;
+			if (!active) return;
+			await profiles.exportBackup(active.profileId, path);
 			toast.show(m.settings_backup_toast_exported());
 		} catch (e) {
 			toast.show(m.settings_backup_toast_export_failed({ error: mapError(e) }));
@@ -94,38 +95,6 @@
 		}
 	}
 
-	async function importDb() {
-		// Clear the trigger up front — this function also runs when the
-		// picker is cancelled (early return below), and a stale confirmImport
-		// leaves the one-way open expression stuck at true: the Import button
-		// would be dead until reload.
-		confirmImport = false;
-		try {
-			const path = await open({
-				filters: [{ name: 'SQLite Database', extensions: ['sqlite', 'db'] }]
-			});
-			if (!path) return;
-			busy = true;
-			// Throws on an invalid/newer backup; the catch below surfaces the
-			// rejection toast. On success the live DB is closed and replaced.
-			await restoreCompatibleDatabase(path);
-			toast.show(m.settings_backup_toast_imported());
-			// The live connection was closed and the file replaced; reload the app
-			// so getDb() reopens the new database and migrations re-run.
-			setTimeout(() => globalThis.location.reload(), 800);
-		} catch (e) {
-			// A backup_* AppError is a validation rejection; anything else (copy
-			// failure, FS error) is a generic import failure. Both surface a
-			// localized message, never a raw error code.
-			const rejected = e instanceof AppError && e.code.startsWith('backup_');
-			const error = mapError(e);
-			toast.show(rejected
-				? m.settings_backup_toast_import_rejected({ error })
-				: m.settings_backup_toast_import_failed({ error }));
-		} finally {
-			busy = false;
-		}
-	}
 </script>
 
 <div class="space-y-6">
@@ -195,7 +164,7 @@
 	<div class="surface rounded-lg p-4 space-y-2">
 		<h2 class="plate">{m.settings_backup_import()}</h2>
 		<p class="text-sm text-dim">{m.settings_backup_import_desc()}</p>
-		<Button size="sm" variant="danger" onclick={() => confirmImport = true}>{m.settings_backup_import_button()}</Button>
+		<Button size="sm" variant="danger" onclick={() => profileDialog.open('restore')}>{m.settings_backup_import_button()}</Button>
 	</div>
 
 	<div class="surface rounded-lg p-4 space-y-2">
@@ -204,13 +173,3 @@
 		<p class="text-xs text-dim">{m.settings_backup_auto_location()}</p>
 	</div>
 </div>
-
-<ConfirmDialog
-	open={confirmImport}
-	title={m.settings_backup_confirm_title()}
-	message={m.settings_backup_confirm_message()}
-	confirmLabel={m.settings_backup_confirm_label()}
-	danger={true}
-	onconfirm={importDb}
-	onclose={() => (confirmImport = false)}
-/>

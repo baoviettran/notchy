@@ -1,3 +1,4 @@
+import { dataEpoch } from '$lib/profiles/epoch';
 import { getDb } from '$lib/db';
 import { mapError } from '$lib/utils/errors';
 import type { DebtAccount } from '$lib/db/client';
@@ -9,17 +10,17 @@ class DebtsStore {
 	error = $state<string | null>(null);
 
 	async load(): Promise<void> {
+		const epoch = dataEpoch();
 		this.loading = true;
 		this.error = null;
 		try {
 			const db = getDb();
 			const result = await db.debts.list();
-			this.i_owe = result.i_owe;
-			this.owed_to_me = result.owed_to_me;
+			if (epoch === dataEpoch()) { this.i_owe = result.i_owe; this.owed_to_me = result.owed_to_me; }
 		} catch (e) {
-			this.error = mapError(e);
+			if (epoch === dataEpoch()) this.error = mapError(e);
 		} finally {
-			this.loading = false;
+			if (epoch === dataEpoch()) this.loading = false;
 		}
 	}
 

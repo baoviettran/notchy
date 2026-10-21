@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import { primaryNav, secondaryNav, icons, isActive } from '$lib/nav-items';
 	import * as m from '$lib/paraglide/messages';
+	import ProfileSwitcher from '$lib/components/profiles/ProfileSwitcher.svelte';
 
 	// Locale reactivity: the layout shell is {#key}ed on settings.locale, so
 	// this component remounts on a language switch and these constants
@@ -13,6 +14,7 @@
 		<span class="figures-glow text-lg leading-none">▮</span>
 		<span class="figures text-ledger tracking-wide">{m.app_name()}</span>
 	</a>
+	<div class="px-3 py-3 border-b border-line"><ProfileSwitcher /></div>
 	<nav aria-label={m.a11y_primary_nav()} class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
 		<p class="plate px-3 pb-2 pt-1">{m.layout_ledger()}</p>
 		{#each primaryNav as item}

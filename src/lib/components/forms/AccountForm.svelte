@@ -8,6 +8,8 @@
 	import { parseAmount } from '$lib/utils/number_parse';
 	import type { AccountWithBalance, AccountType } from '$lib/db/repos/accounts';
 	import * as m from '$lib/paraglide/messages';
+	import { profileDraft, isDraftsFrozen, type createEditorDraft } from '$lib/profiles/drafts.svelte';
+	import { ulid } from '$lib/utils/id';
 	import { mapError } from '$lib/utils/errors';
 
 	let { account = null, onclose = () => {} }: { account?: AccountWithBalance | null; onclose?: () => void } = $props();
@@ -18,6 +20,9 @@
 	let initialBalance = $state('');
 	let saving = $state(false);
 	let error = $state('');
+	const draftId = ulid();
+	let editorDraft: ReturnType<typeof createEditorDraft> | null = null;
+	const draftSnapshot = () => JSON.stringify({ name, type, counterparty, initialBalance });
 
 	const types: { value: AccountType; label: string }[] = [
 		{ value: 'checking', label: m.forms_account_type_checking() },
@@ -32,6 +37,7 @@
 	const isEdit = $derived(account !== null);
 
 	async function save() {
+		if (saving || isDraftsFrozen()) return;
 		if (!name.trim()) { error = m.validation_name_required(); return; }
 		if (isLoan && !counterparty.trim()) { error = m.validation_counterparty_required(); return; }
 		saving = true;
@@ -53,6 +59,7 @@
 				});
 				toast.show(m.forms_account_created());
 			}
+			editorDraft?.saved();
 			onclose();
 		} catch (e) {
 			error = mapError(e);
@@ -62,7 +69,7 @@
 	}
 </script>
 
-<div class="space-y-4">
+<div class="space-y-4" use:profileDraft={{ id: draftId, snapshot: draftSnapshot, discard: onclose, onReady: (draft) => editorDraft = draft }}>
 	{#if error}<p class="text-sm text-debit">{error}</p>{/if}
 
 	<Input label={m.common_name()} bind:value={name} placeholder={m.forms_account_name_placeholder()} maxlength={64} />

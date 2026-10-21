@@ -67,3 +67,35 @@ describe('SettingsStore locale', () => {
 		expect(document.documentElement.lang).toBe('en');
 	});
 });
+
+describe('SettingsStore profile ownership', () => {
+	it('keeps app locale/theme while profile currency changes', async () => {
+		const db = { meta: { getCurrency: vi.fn().mockResolvedValue('USD'), isFirstRunComplete: vi.fn().mockResolvedValue(false), set: vi.fn() } };
+		(getDb as ReturnType<typeof vi.fn>).mockReturnValue(db);
+		settings.loadAppPreferences({ locale: 'vi', theme: 'dark' });
+		await settings.loadProfileSettings();
+		expect(settings.locale).toBe('vi');
+		expect(settings.theme).toBe('dark');
+		expect(settings.currency).toBe('USD');
+		expect(settings.firstRunComplete).toBe(false);
+	});
+	it('persists locale through the app preference writer', async () => {
+		const save = vi.fn(async () => {});
+		settings.configureAppPreferences(save);
+		settings.loadAppPreferences({ locale: 'en', theme: 'light' });
+		await settings.setLocale('vi');
+		expect(save).toHaveBeenCalledWith({ locale: 'vi', theme: 'light' });
+		settings.configureAppPreferences(null);
+	});
+});
+
+describe('app preference failure', () => {
+	it('keeps the visible language when saving a new locale fails', async () => {
+		settings.loadAppPreferences({ locale: 'en', theme: 'light' });
+		settings.configureAppPreferences(async () => { throw new Error('disk full'); });
+		await expect(settings.setLocale('vi')).rejects.toThrow('disk full');
+		expect(settings.locale).toBe('en');
+		expect(document.documentElement.lang).toBe('en');
+		settings.configureAppPreferences(null);
+	});
+});

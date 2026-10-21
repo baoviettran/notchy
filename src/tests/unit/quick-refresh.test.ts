@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import type { ProfileSession } from '$lib/profiles/types';
 import {
   attachTransactionSavedListener,
   emitTransactionsChanged
@@ -90,5 +91,21 @@ describe('emitTransactionsChanged', () => {
     (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
 
     await expect(emitTransactionsChanged()).resolves.toBeUndefined();
+  });
+});
+
+
+describe('session-scoped transaction refresh', () => {
+  it('ignores an event from a prior profile generation', async () => {
+    let registered: ((e: { payload: unknown }) => Promise<void>) | null = null;
+    const fakeListen = vi.fn(async (_channel: string, cb: typeof registered) => { registered = cb; return vi.fn(); });
+    const refetch = vi.fn(async () => {});
+    const current: ProfileSession = { profileId: 'B', generation: 'g2' };
+    await attachTransactionSavedListener(fakeListen as unknown as typeof import('@tauri-apps/api/event').listen, refetch, () => current);
+    await registered!({ payload: { session: { profileId: 'A', generation: 'g1' } } });
+    await registered!({ payload: { session: { profileId: 'B', generation: 'g1' } } });
+    expect(refetch).not.toHaveBeenCalled();
+    await registered!({ payload: { session: current } });
+    expect(refetch).toHaveBeenCalledOnce();
   });
 });
