@@ -35,7 +35,7 @@ fn subprocess_create_replays_one_profile_after_interrupted_publication() {
     for point in ["before-publish", "after-publish"] {
         let root = std::env::temp_dir().join(format!("notchy-profile-probe-{}", OperationId::generate().as_str()));
         let operation_id = OperationId::generate().as_str().to_owned();
-        let probe = option_env!("CARGO_BIN_EXE_profile_probe").expect("profile_probe binary must be built");
+        let probe = env!("CARGO_BIN_EXE_profile_probe");
         let output = Command::new(probe).args(["create", root.to_str().unwrap(), &operation_id, point]).output().unwrap();
         assert!(!output.status.success(), "probe should exit after the injected interruption");
         let paths = ProfilePaths::new(root.join("config"), root.join("data"));
@@ -48,7 +48,7 @@ fn subprocess_create_replays_one_profile_after_interrupted_publication() {
 
 fn run_probe(mode: &str, root: &std::path::Path, operation_id: &str, point: &str) {
     use std::process::Command;
-    let probe = option_env!("CARGO_BIN_EXE_profile_probe").expect("profile_probe binary must be built");
+    let probe = env!("CARGO_BIN_EXE_profile_probe");
     let output = Command::new(probe).args([mode, root.to_str().unwrap(), operation_id, point]).output().unwrap();
     assert_eq!(output.status.code(), Some(86), "{mode}/{point}: {}", String::from_utf8_lossy(&output.stderr));
 }
@@ -154,7 +154,7 @@ fn second_process_cannot_modify_profiles_while_the_first_owns_the_application_lo
     let root = std::env::temp_dir().join(format!("notchy-profile-lock-probe-{}", OperationId::generate().as_str()));
     let paths = ProfilePaths::new(root.join("config"), root.join("data"));
     let holder = ProfileCoordinator::open(paths.clone()).unwrap();
-    let probe = option_env!("CARGO_BIN_EXE_profile_probe").expect("profile_probe binary must be built");
+    let probe = env!("CARGO_BIN_EXE_profile_probe");
     let output = Command::new(probe).args(["create", root.to_str().unwrap(), &context().operation_id, "after-publish"]).output().unwrap();
     assert!(!output.status.success());
     assert_ne!(output.status.code(), Some(86), "locked operation must never reach publication");

@@ -16,6 +16,12 @@ fn map_operation_error(error: DbError) -> DbError {
     if error.code == ErrorCode::OperationIdConflict { DbError::new(ErrorCode::ProfileOperationConflict) } else { error }
 }
 fn authorize<R: tauri::Runtime>(window: &tauri::WebviewWindow<R>) -> DbResult<()> { authorize_profile_mutation(window.label()) }
+fn emit_session_if_changed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, before: Option<ProfileSession>, after: Option<ProfileSession>) {
+    if before != after {
+        let _ = app.emit("profile:session-changed", serde_json::json!({ "session": after }));
+    }
+}
+
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -106,11 +112,13 @@ pub async fn profile_rename<R: tauri::Runtime>(window: tauri::WebviewWindow<R>, 
 #[tauri::command]
 pub async fn profile_activate<R: tauri::Runtime>(window: tauri::WebviewWindow<R>, app: tauri::AppHandle<R>, coordinator: State<'_, Arc<ProfileCoordinator>>, id: String, transition_token: Option<String>) -> DbResult<ProfileSession> {
     authorize(&window)?;
-    let session = coordinator.activate_with_token(&id, transition_token.as_deref()).await?;
-    coordinator.finish_transition();
-    let _ = app.emit("profile:session-changed", serde_json::json!({ "session": session }));
-    Ok(session)
+    let before = coordinator.load().active;
+    let result = coordinator.activate_with_token(&id, transition_token.as_deref()).await;
+    if result.is_ok() { coordinator.finish_transition(); }
+    emit_session_if_changed(&app, before, coordinator.load().active);
+    result
 }
+
 #[tauri::command]
 pub async fn profile_backup<R: tauri::Runtime>(window: tauri::WebviewWindow<R>, coordinator: State<'_, Arc<ProfileCoordinator>>, id: String) -> DbResult<String> {
     authorize(&window)?;
@@ -139,19 +147,23 @@ pub async fn profile_restore<R: tauri::Runtime>(window: tauri::WebviewWindow<R>,
 #[tauri::command]
 pub async fn profile_reset<R: tauri::Runtime>(window: tauri::WebviewWindow<R>, app: tauri::AppHandle<R>, coordinator: State<'_, Arc<ProfileCoordinator>>, id: String, context: OperationContext) -> DbResult<()> {
     authorize(&window)?;
-    coordinator.reset(&id, &context).await.map_err(map_operation_error)?;
-    coordinator.finish_transition();
-    let _ = app.emit("profile:session-changed", serde_json::json!({ "session": coordinator.load().active }));
-    Ok(())
+    let before = coordinator.load().active;
+    let result = coordinator.reset(&id, &context).await.map_err(map_operation_error);
+    if result.is_ok() { coordinator.finish_transition(); }
+    emit_session_if_changed(&app, before, coordinator.load().active);
+    result
 }
+
 #[tauri::command]
 pub async fn profile_delete<R: tauri::Runtime>(window: tauri::WebviewWindow<R>, app: tauri::AppHandle<R>, coordinator: State<'_, Arc<ProfileCoordinator>>, id: String, context: OperationContext, export_path: Option<String>) -> DbResult<DeleteResult> {
     authorize(&window)?;
-    let result = coordinator.delete(&id, &context, export_path.map(PathBuf::from)).await.map_err(map_operation_error)?;
-    coordinator.finish_transition();
-    let _ = app.emit("profile:session-changed", serde_json::json!({ "session": coordinator.load().active }));
-    Ok(result)
+    let before = coordinator.load().active;
+    let result = coordinator.delete(&id, &context, export_path.map(PathBuf::from)).await.map_err(map_operation_error);
+    if result.is_ok() { coordinator.finish_transition(); }
+    emit_session_if_changed(&app, before, coordinator.load().active);
+    result
 }
+
 #[tauri::command]
 pub async fn app_preferences_set<R: tauri::Runtime>(window: tauri::WebviewWindow<R>, app: tauri::AppHandle<R>, coordinator: State<'_, Arc<ProfileCoordinator>>, preferences: AppPreferences) -> DbResult<()> {
     authorize(&window)?;

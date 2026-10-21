@@ -53,33 +53,6 @@ pub async fn manager_fresh() -> Arc<DatabaseManager> {
     DatabaseManager::spawn(paths_for("fresh"), 16).unwrap()
 }
 
-/// A Tauri mock app with `main` and `quick-add` windows and the manager
-/// managed as state, so guarded command functions can be invoked with real
-/// window labels.
-pub struct MockApp {
-    pub app: tauri::App<tauri::test::MockRuntime>,
-    pub main: tauri::WebviewWindow<tauri::test::MockRuntime>,
-    pub quick_add: tauri::WebviewWindow<tauri::test::MockRuntime>,
-}
-
-pub fn mock_app(manager: Arc<DatabaseManager>) -> MockApp {
-    let app = tauri::test::mock_builder()
-        .manage(manager)
-        .build(tauri::test::mock_context(tauri::test::noop_assets()))
-        .expect("failed to build mock app");
-    let main = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
-        .build()
-        .expect("failed to build main mock window");
-    let quick_add = tauri::WebviewWindowBuilder::new(&app, "quick-add", Default::default())
-        .build()
-        .expect("failed to build quick-add mock window");
-    MockApp {
-        app,
-        main,
-        quick_add,
-    }
-}
-
 /// Run a data-job write as if issued from the window named `label`. Writes are
 /// not main-only: any window may write once `Ready`, and the lifecycle guard is
 /// what rejects writes while the database is not ready.

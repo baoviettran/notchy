@@ -65,7 +65,7 @@ impl ProfileCoordinator {
         let was_active = self.suspend_active(id);
         let source = self.paths.profile_dir(id)?;
         let trash = self.trash_dir(&context.operation_id);
-        if let Err(_) = fs::rename(&source, &trash) {
+        if fs::rename(&source, &trash).is_err() {
             if was_active { self.reopen_previous(Some(id)).await; }
             return Err(invalid());
         }
@@ -112,9 +112,7 @@ impl ProfileCoordinator {
                 fs::remove_file(self.delete_path(id)?).map_err(|_| invalid())?;
                 continue;
             }
-            if trash.exists() {
-                if fs::remove_dir_all(&trash).is_err() { continue; }
-            }
+            if trash.exists() && fs::remove_dir_all(&trash).is_err() { continue; }
             record.phase = "committed".into(); record.result.cleanup_pending = false; self.save_delete(&record)?;
         }
         Ok(())

@@ -65,3 +65,50 @@ async fn backup_commands_reject_a_session_after_switching_profiles() {
     assert_eq!(coordinator.export_backup_for_session(&old, &outside).await.unwrap_err().code, ErrorCode::ProfileSessionExpired);
     assert!(!outside.exists());
 }
+
+#[tokio::test]
+async fn inactive_reset_and_delete_do_not_broadcast_a_session_change() {
+    use std::sync::{Arc, Mutex};
+    use tauri::{Listener, Manager};
+    use notchy_lib::profiles::commands::{profile_delete, profile_reset};
+    let coordinator = fixture();
+    let a = coordinator.create("A", &context()).await.unwrap();
+    let b = coordinator.create("B", &context()).await.unwrap();
+    let active = coordinator.activate(&a.id).await.unwrap();
+    let app = tauri::test::mock_builder().manage(Arc::clone(&coordinator))
+        .build(tauri::test::mock_context(tauri::test::noop_assets())).unwrap();
+    let main = tauri::WebviewWindowBuilder::new(&app, "main", Default::default()).build().unwrap();
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let captured = Arc::clone(&events);
+    app.listen("profile:session-changed", move |event| captured.lock().unwrap().push(event.payload().to_owned()));
+    profile_reset(main.clone(), app.handle().clone(), app.state(), b.id.clone(), context()).await.unwrap();
+    profile_delete(main, app.handle().clone(), app.state(), b.id, context(), None).await.unwrap();
+    assert_eq!(coordinator.load().active, Some(active));
+    assert!(events.lock().unwrap().is_empty(), "inactive mutations must preserve active drafts");
+}
+
+#[tokio::test]
+async fn failed_activation_broadcasts_the_reopened_session() {
+    use std::sync::{Arc, Mutex};
+    use tauri::{Listener, Manager};
+    use notchy_lib::profiles::commands::profile_activate;
+    let coordinator = fixture();
+    let a = coordinator.create("A", &context()).await.unwrap();
+    let b = coordinator.create("B", &context()).await.unwrap();
+    let old = coordinator.activate(&a.id).await.unwrap();
+    let db = ProfileStoragePaths::for_profile(&coordinator, &b.id).unwrap().database_path;
+    std::fs::write(db, b"broken sqlite").unwrap();
+    let app = tauri::test::mock_builder().manage(Arc::clone(&coordinator))
+        .build(tauri::test::mock_context(tauri::test::noop_assets())).unwrap();
+    let main = tauri::WebviewWindowBuilder::new(&app, "main", Default::default()).build().unwrap();
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let captured = Arc::clone(&events);
+    app.listen("profile:session-changed", move |event| captured.lock().unwrap().push(event.payload().to_owned()));
+    assert!(profile_activate(main, app.handle().clone(), app.state(), b.id, Some(coordinator.issue_transition_token())).await.is_err());
+    let reopened = coordinator.load().active.unwrap();
+    assert_eq!(reopened.profile_id, old.profile_id);
+    assert_ne!(reopened.generation, old.generation);
+    let payloads = events.lock().unwrap();
+    assert_eq!(payloads.len(), 1);
+    assert_eq!(serde_json::from_str::<serde_json::Value>(&payloads[0]).unwrap()["session"]["generation"], reopened.generation);
+}

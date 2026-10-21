@@ -50,10 +50,10 @@ fn name_validation_counts_unicode_characters_and_trims_space() {
 #[test]
 fn failed_publication_preserves_previous_registry_bytes() {
     let (paths, store) = fixture();
-    let first = ProfileRegistry { version: 1, profiles: vec![profile(&OperationId::generate().as_str().to_owned(), "A")], last_active_id: None, legacy_adopted: false };
+    let first = ProfileRegistry { version: 1, profiles: vec![profile(OperationId::generate().as_str(), "A")], last_active_id: None, legacy_adopted: false };
     store.save(&first).unwrap();
     let before = fs::read(paths.registry_file()).unwrap();
-    let changed = ProfileRegistry { profiles: vec![profile(&OperationId::generate().as_str().to_owned(), "B")], ..first.clone() };
+    let changed = ProfileRegistry { profiles: vec![profile(OperationId::generate().as_str(), "B")], ..first.clone() };
     assert!(store.save_with_failpoint(&changed, PublishFailurePoint::BeforeRename).is_err());
     assert_eq!(fs::read(paths.registry_file()).unwrap(), before);
     assert_eq!(store.load().unwrap(), first);
