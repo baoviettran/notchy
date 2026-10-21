@@ -34,7 +34,11 @@ The browser E2E mock now keeps a separate registry and database per profile. It 
 | Unfinished setup | Native routing initially forced reset Personal back into onboarding even when visiting the picker/manager. Two regressions reproduced the problem; the final build allows `/profiles` and `/settings/profiles`, so a user can switch or delete before finishing setup. |
 | Full restart | Closed the native WebDriver session and relaunched the binary with the same isolated XDG tree. The selected Persistent profile reopened on Dashboard and retained `Persisted Cash`. |
 
-Ignored local screenshots: `artifacts/profile-management/native-work-accounts.png`, `native-empty-picker.png`, and `native-restart-accounts.png`. The files are evidence in this worktree, not tracked product assets.
+Native UI screenshots captured in isolated test storage:
+
+![Empty profile picker](images/profile-picker.png)
+
+![Work profile with isolated account](images/profile-work-accounts.png)
 
 ## Native follow-up — 2026-10-21
 
@@ -56,3 +60,7 @@ The native permission issue and canceled-switch error alert were fixed after the
 Subprocess probes now terminate create and restore before/after publication and after registry commit; reset at five backup/swap/commit boundaries; delete before and after registry commit and before cleanup; and legacy adoption before/after registration. Restart assertions verify one identity, valid databases, correct old/new reset state, and no deleted-profile resurrection. A read-only destination, injected backup-write failure, and second-process lock contention leave existing data intact. The write failure is deterministic fault injection, not a physical disk-full test.
 
 Final review also found and fixed six gaps: canceled cross-window transitions could erase a draft, a missing registered database could silently reappear empty, Quick Add lacked the active profile name, restore could suggest a duplicate name, create could accept a restore operation ID, and a stale saved selection was incorrectly shown as damaged. Each has focused regression coverage. Native UI checks preceded the last internal fixes; their native Rust and component regressions passed after the fixes.
+
+## PR review follow-up — 2026-10-21
+
+PR #41 review found two additional session-broadcast faults. Resetting or deleting an inactive profile emitted a session change that cleared drafts in the active profile; a failed activation reopened the previous profile with a new generation but did not notify Quick Add, blocking a later switch. Both cases were reproduced with failing native command tests, fixed by broadcasting only when the active session actually changes, and verified through the focused tests and full Rust lint gate (`cargo clippy --all-targets -- -D warnings`).
