@@ -12,18 +12,18 @@ A local-first personal finance application. Your data stays on your device — n
 
 ### Download
 
-Published binaries are available from [GitHub Releases](https://github.com/baoviettran/notchy/releases). The current 0.2.2 candidate uses these package formats:
+Download [Notchy 0.2.2](https://github.com/baoviettran/notchy/releases/tag/v0.2.2):
 
 | Platform | File |
 |---|---|
-| Linux (Debian/Ubuntu) | `Notchy_0.2.2_amd64.deb` |
-| Linux (Fedora/RHEL) | `Notchy-0.2.2-1.x86_64.rpm` |
+| Ubuntu 24.04 x86_64 | [DEB](https://github.com/baoviettran/notchy/releases/download/v0.2.2/Notchy_0.2.2_amd64.deb) |
+| Fedora 44 x86_64 | [RPM](https://github.com/baoviettran/notchy/releases/download/v0.2.2/Notchy-0.2.2-1.x86_64.rpm) |
 
-Current 0.2.2 candidate scope: Linux DEB/RPM only. Windows/macOS and AppImage are not certified for this candidate. Candidate artifacts are local until a GitHub release is published.
+Unsigned Linux DEB/RPM packages. Verify downloads using the release SHA256SUMS. Windows/macOS and AppImage are excluded from 0.2.2; other Linux distributions and host desktop integrations are not certified by these tests.
 
 ### Build from Source
 
-Requirements: Node.js 22, pnpm 10, Rust 1.77+, and Tauri system dependencies.
+Requirements: Node.js 22.22.3, pnpm 10.11.0, Rust stable and Tauri system dependencies.
 
 ```bash
 # Install system dependencies (Ubuntu/Debian)
@@ -86,15 +86,13 @@ You're ready to go.
 
 ### Backup & Data
 
-- **Backups** — create one in Settings → Backup & Data. Desktop also saves a safety snapshot before a schema upgrade or restore; ordinary launches do not create backups, and automatic retention is not enabled.
-- **Export** — Settings → Backup → Export as SQLite file or CSV
-- **Import** — Settings → Backup → Import (replaces current data)
-- **Your data file** is at:
-  - Linux: `~/.config/com.notchy.app/notchy.db`
-  - macOS: `~/Library/Application Support/com.notchy.app/notchy.db`
-  - Windows: `%APPDATA%\com.notchy.app\notchy.db`
+- **Backups** — use Settings → Backup & Data for the active profile, or Settings → Profiles for another profile. Verified snapshots protect schema upgrades and profile resets; automatic routine backup/retention is not enabled.
+- **Export** — export SQLite for complete recovery, or CSV for archival tables.
+- **Restore** — restore SQLite into a **new profile**; existing profiles remain intact. Transaction CSV import is a separate bank-style import flow.
+- **Linux profile database** — `~/.local/share/com.notchy.app/profiles/<profile-id>/notchy.db`.
+- **Linux registry/preferences** — `~/.config/com.notchy.app/profiles.json` and `preferences.json`.
 
-Backups are stored separately under the application data directory, in `backups/` and `backups/upgrades/`. Settings → Backup & Data shows the actual database and backup paths. Use SQLite export/import for a full database round-trip; per-table CSV exports are archival dumps, while transaction CSV import expects bank-style signed amounts.
+Backups live inside each profile's data directory under `backups/`, `backups/upgrades/` and `backups/resets/`. Settings → Backup & Data displays actual resolved paths. Older single-database installations are adopted into one profile. Export an external SQLite backup before upgrading; older binaries cannot be assumed to understand the new profile layout.
 
 You can open this file with any SQLite tool. See [RECOVERY.md](RECOVERY.md) for queries.
 

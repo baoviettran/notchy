@@ -12,7 +12,7 @@
 
 **Spec:** `specs/notes/2026-10-23-production-readiness-review.md` (R1–R5, reproduction, closure và release requirements).
 
-**Status:** Implemented on `codex/production-readiness-fix`; Linux 0.2.2 package acceptance passed; PR42 merged all code into main; GitHub publication pending tag gates. User authorized execution. See the verification record for actual results and deviations; unchecked steps remain unverified or replaced by the rulings below.
+**Status:** Implemented on `codex/production-readiness-fix`; Linux 0.2.2 package acceptance passed; PR42 merged all code into main; GitHub v0.2.2 published after exact-commit CI and native acceptance. User authorized execution. See the verification record for actual results and deviations; unchecked steps remain unverified or replaced by the rulings below.
 
 ## Scope và lựa chọn kiến trúc
 
@@ -138,7 +138,7 @@ Regenerate `src/lib/native/contracts.generated.ts` bằng tooling. Các path bê
 
 - [x] **Step 1:** Add test injecting nonzero E2E exit: artifact/release step never executes. Baseline `SOFT_GATE_STEPS` must fail this assertion.
 - [x] **Step 2:** Implement fatal E2E gate and tests for failed bindings/Rust/unit gate, version mismatch and dirty checkout. Assert no bypass silently converts failure into success.
-- [ ] **Step 3:** Refactor CI checks into reusable workflow or run equivalent mandatory jobs on tag; require success before draft artifacts. Test workflow structure for dependencies and exact checkout ref, then verify with actual CI run at Task 7.
+- [x] **Step 3:** Refactor CI checks into reusable workflow or run equivalent mandatory jobs on tag; require success before draft artifacts. Test workflow structure for dependencies and exact checkout ref, then verify with actual CI run at Task 7.
 - [x] **Step 4:** Add Windows native test job for claimed Windows support; macOS job for claimed macOS support. If an OS cannot satisfy native/package acceptance, omit from public candidate and document reason.
 - [x] **Step 5:** Record signing/notarization status honestly; do not equate updater signature with Windows executable signing. Never invent certificates/secrets.
 - [x] **Step 6:** Run `pnpm test:release-tooling`, `node --test scripts/release-gates.test.mjs`, full pre-commit checks; review trigger paths and least required permissions.
@@ -178,9 +178,9 @@ Regenerate `src/lib/native/contracts.generated.ts` bằng tooling. Các path bê
 
 - [x] **Step 1:** Fill R1–R4 closure with fix commits, red/green tests, OS evidence and remaining limits; R5 stays documented policy, not falsely “implemented”.
 - [x] **Step 2:** Decision table: Linux eligible only when its gates/package pass; Windows eligible only when Task 4 plus Windows smoke pass; macOS eligible only with its own runtime/distribution evidence. No platform automatically inherits pass.
-- [ ] **Step 3:** Confirm zero unresolved P1 in claimed scope, exact-tag-SHA CI green, package version/hash matches smoke, notes/checksums correct. `test:release-smoke` printing checklist is not a passed smoke.
-- [ ] **Step 4:** Hand user concrete candidate/version/OS/artifact/evidence and explicit go/no-go. Create tag/push/publish only if user authorizes those actions; no force-push main or overwrite published version.
-- [ ] **Step 5:** Final handoff distinguishes code fixed, automated checks, native package evidence and publication status. Mark plan tasks complete only as their deliverables actually land.
+- [x] **Step 3:** Confirm zero unresolved P1 in claimed scope, exact-tag-SHA CI green, package version/hash matches smoke, notes/checksums correct. `test:release-smoke` printing checklist is not a passed smoke.
+- [x] **Step 4:** Hand user concrete candidate/version/OS/artifact/evidence and explicit go/no-go. Create tag/push/publish only if user authorizes those actions; no force-push main or overwrite published version.
+- [x] **Step 5:** Final handoff distinguishes code fixed, automated checks, native package evidence and publication status. Mark plan tasks complete only as their deliverables actually land.
 
 ## Plan self-review
 
@@ -213,8 +213,10 @@ Tasks1–3 and5–7 are accepted under the execution rulings and linked verifica
 record. Task2 baseline-native RED steps1/3 were replaced by the reproduced browser
 baseline failure plus native real-SQLite rollback/replay/concurrency tests; no
 claim of an unobserved native-baseline RED is made. Task4 steps1–4/6 are explicitly
-not performed: Windows is excluded through step5. Task5 step3 and Task8 remaining
-publication checks close only after the final tag workflow and GitHub release.
+not performed: Windows is excluded through step5. Task5 step3 and Task8 publication checks are closed by exact-commit CI543426b,
+all successful tag gates, verified uploaded asset hashes and public GitHub release.
+The redundant remote rebuild was canceled after gates passed; manual publication
+uses the already accepted packages and is recorded in the manifest.
 The grouped source commits replace planned per-task commit subjects. Package
 acceptance combines domain fault injection with real installed native IPC/UI;
 production executables expose no fault-arming IPC. The globally dirty status is

@@ -12,14 +12,14 @@
 
 ### Tải về
 
-Các bản đã phát hành nằm tại [GitHub Releases](https://github.com/baoviettran/notchy/releases). Candidate 0.2.2 hiện dùng các định dạng package sau:
+Tải [Notchy 0.2.2](https://github.com/baoviettran/notchy/releases/tag/v0.2.2):
 
 | Nền tảng | Tệp |
 |---|---|
-| Linux (Debian/Ubuntu) | `Notchy_0.2.2_amd64.deb` |
-| Linux (Fedora/RHEL) | `Notchy-0.2.2-1.x86_64.rpm` |
+| Ubuntu 24.04 x86_64 | [DEB](https://github.com/baoviettran/notchy/releases/download/v0.2.2/Notchy_0.2.2_amd64.deb) |
+| Fedora 44 x86_64 | [RPM](https://github.com/baoviettran/notchy/releases/download/v0.2.2/Notchy-0.2.2-1.x86_64.rpm) |
 
-Phạm vi candidate 0.2.2: Linux DEB/RPM. Windows/macOS và AppImage chưa được nghiệm thu cho bản này. Package candidate được giữ local cho đến khi có GitHub release.
+Package Linux DEB/RPM chưa ký. Kiểm tra bằng SHA256SUMS của release. Windows/macOS và AppImage không nằm trong bản 0.2.2; kết quả này không chứng nhận mọi bản phân phối Linux hay tích hợp desktop trên máy thật.
 
 ### Build từ mã nguồn
 
@@ -86,15 +86,13 @@ Xong rồi, bắt đầu dùng thôi.
 
 ### Sao lưu & dữ liệu
 
-- **Sao lưu** — tạo bản sao trong Cài đặt → Sao lưu & dữ liệu. Bản desktop còn tạo bản sao an toàn trước khi nâng cấp schema hoặc khôi phục; mở app thông thường không tạo bản sao và chưa bật tự động dọn bản cũ.
-- **Xuất** — Cài đặt → Sao lưu → Xuất ra tệp SQLite hoặc CSV
-- **Nhập** — Cài đặt → Sao lưu → Nhập (thay thế dữ liệu hiện tại)
-- **Tệp dữ liệu của bạn** nằm tại:
-  - Linux: `~/.config/com.notchy.app/notchy.db`
-  - macOS: `~/Library/Application Support/com.notchy.app/notchy.db`
-  - Windows: `%APPDATA%\com.notchy.app\notchy.db`
+- **Sao lưu** — dùng Cài đặt → Sao lưu & dữ liệu cho profile đang mở, hoặc Cài đặt → Profiles cho profile khác. Snapshot đã xác minh bảo vệ trước migration và reset; chưa bật sao lưu định kỳ/retention tự động.
+- **Xuất** — SQLite để khôi phục đầy đủ, CSV để lưu trữ từng bảng.
+- **Khôi phục** — SQLite được khôi phục thành **profile mới**, giữ nguyên các profile hiện có. Nhập CSV giao dịch là luồng nhập dữ liệu ngân hàng riêng.
+- **Database profile trên Linux** — `~/.local/share/com.notchy.app/profiles/<profile-id>/notchy.db`.
+- **Registry/tùy chọn trên Linux** — `~/.config/com.notchy.app/profiles.json` và `preferences.json`.
 
-Các bản sao nằm riêng trong thư mục dữ liệu ứng dụng, tại `backups/` và `backups/upgrades/`. Cài đặt → Sao lưu & dữ liệu hiển thị đường dẫn thực tế. Dùng xuất/nhập SQLite để khôi phục toàn bộ cơ sở dữ liệu; CSV từng bảng là bản xuất lưu trữ, còn nhập CSV giao dịch nhận định dạng ngân hàng với số tiền có dấu.
+Backup nằm trong thư mục dữ liệu từng profile tại `backups/`, `backups/upgrades/`, `backups/resets/`. Cài đặt → Sao lưu & dữ liệu hiển thị đường dẫn thực tế. Database cũ được tiếp nhận vào một profile. Xuất backup SQLite ra ngoài thư mục ứng dụng trước khi nâng cấp; không mặc định binary cũ đọc được cấu trúc profile mới.
 
 Bạn có thể mở tệp này bằng bất kỳ công cụ SQLite nào. Xem [RECOVERY.md](RECOVERY.md) để biết các câu truy vấn.
 

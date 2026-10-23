@@ -16,7 +16,7 @@ workflow and published asset digests are authoritative for publication status.
 | R1 interrupted schedule posting | Fixed. Browser regression first reproduced two 50,000 rows after failure/resume; atomic operation rolls back all rows before retry. Native real-SQLite failure tests cover advancement failure for income/expense/transfer, later-occurrence rollback, cap/resume and concurrent requests. Packaged native command replay posts once; restart does not repost. |
 | R2 Windows directory durability | Open. Windows was unavailable. Windows/macOS/AppImage are excluded; no cross-platform durability claim. Task4 uses its explicit Linux-only fallback. |
 | R3 lost-response retry | Fixed. All39 receipt-backed financial commands require caller OperationId. Persistent fingerprint/ULID ownership survives reload and session-generation changes while isolating profile identity. Packaged UI smoke commits natively, injects response loss, retains the draft, cancels and explicitly retries without another write, then saves a new identical intent. |
-| R4 release gates | Fixed in tooling. Failed E2E aborts packaging; tag workflow reuses mandatory CI for that revision and waits before draft creation. New-tag coverage uses a valid prior tag/root comparison. Final tag workflow must pass before publication. |
+| R4 release gates | Fixed in tooling. Failed E2E aborts packaging; tag workflow reuses mandatory CI for that revision and waits before draft creation. New-tag coverage uses a valid prior tag/root comparison. All required gates at the exact release revision must pass before publication. |
 | R5 backup policy | Manual policy retained and documented. No automatic routine backup/retention or sync was added. |
 
 Supported acceptance matrix: unsigned **RPM on Fedora44 x86_64** (primary) and
@@ -124,3 +124,26 @@ preserved. Windows filesystem work was explicitly deferred, not silently passed.
 ![Native confirmation after a committed save lost its response](images/release-0.2.2-save-recovery.png)
 
 ![Recovered profile with preserved native ledger](images/release-0.2.2-restored-profile.png)
+
+## Publication provenance ruling
+
+[Full CI39970676894](https://github.com/baoviettran/notchy/actions/runs/39970676894)
+passed at the exact release commit543426b. Tag workflow39971368395 also passed
+quality, Rust and E2E. Its redundant package rebuild was deliberately canceled
+during slow Linux dependency setup, after those checks passed. The workflow is
+terminal; no automation can race asset publication. Release publication uses the
+installed/native-tested RPM/DEB with the hashes above, not an untested rebuild.
+This replaces the planned automatic draft-build step without weakening any
+required source gate or package acceptance. The manifest records both runs and
+the canceled packaging job explicitly.
+
+## Published release
+
+[Notchy v0.2.2](https://github.com/baoviettran/notchy/releases/tag/v0.2.2) was
+published2026-10-23T15:06:12Z (22:06 Asia/Ho_Chi_Minh), non-draft and non-prerelease.
+Tag543426b is on main; application source is identical to native-tested ea2faee.
+The release has exactly5 assets: accepted RPM, DEB, SHA256SUMS, manifest and
+evidence archive. GitHub asset digests and downloaded files match all4 checksums.
+All application and acceptance documentation changes are on main; final README
+updates document profile paths, restore-as-new and public download links.
+Windows/macOS remain excluded and R2 remains open.
