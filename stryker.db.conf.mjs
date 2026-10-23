@@ -4,7 +4,7 @@
 const config = {
 	plugins: ['@stryker-mutator/vitest-runner'],
 	testRunner: 'vitest',
-	ignorePatterns: ['/\.codegraph', '/\.codegraph/**', '/\.claude/**', '/\.stryker-tmp'],
+	ignorePatterns: ['/src-tauri/target', '/src-tauri/target/**', '/artifacts', '/artifacts/**', '/.superpowers', '/.superpowers/**', '/accounts.csv', '/budgets.csv', '/category_tags.csv', '/category_types.csv', '/goals.csv', '/reconciliations.csv', '/transactions.csv', '/\.codegraph', '/\.codegraph/**', '/\.claude/**', '/\.stryker-tmp'],
 	mutate: [
 		// db/repos/* are thin forwarders re-exporting browser/repos/*; the
 		// implementation is what carries the bug-prone logic, so mutate that.
@@ -23,7 +23,7 @@ const config = {
 		'src/lib/backup/upgrade.ts',
 		// src/lib/db/startup.ts does not exist; the migration-ordering engine is
 		// prepareDatabase in index.ts (inspect -> backup -> migrate -> verify).
-		'src/lib/db/index.ts:231-301',
+		'src/lib/db/index.ts:164-234',
 		'src/lib/recovery.ts:1-75'
 	]
 };

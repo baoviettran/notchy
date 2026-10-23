@@ -1,4 +1,4 @@
-import { NativeAppError } from '$lib/errors';
+import { AppError, NativeAppError } from '$lib/errors';
 import type { ErrorCode } from '$lib/native/contracts.generated';
 
 /**
@@ -10,6 +10,7 @@ import type { ErrorCode } from '$lib/native/contracts.generated';
  * surfaces as itself rather than being mislabelled a domain error.
  */
 export function toAppError(error: unknown): unknown {
+	if (error instanceof AppError) return error;
 	if (
 		typeof error === 'object' &&
 		error !== null &&

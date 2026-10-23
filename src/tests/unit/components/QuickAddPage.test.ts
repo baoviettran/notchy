@@ -5,6 +5,8 @@ import QuickAddPage from '../../../routes/quick-add/+page.svelte';
 
 const state = vi.hoisted(() => ({
 	initialized: false,
+	firstRunComplete: true,
+	persistedFirstRunComplete: true,
 	active: true,
 	profileId: 'A',
 	profileName: 'Personal',
@@ -35,7 +37,7 @@ vi.mock('$lib/stores/profiles.svelte', () => ({ profiles: {
 vi.mock('$lib/profiles/windows', () => ({ installProfileWindowListeners: async (options: typeof state.profileListeners) => { state.profileListeners = options; return () => {}; } }));
 vi.mock('@tauri-apps/api/webviewWindow', () => ({ WebviewWindow: { getByLabel: () => ({ show: state.showMain, setFocus: vi.fn() }) } }));
 vi.mock('$lib/stores/settings.svelte', () => ({
-	settings: { load: async () => {}, locale: 'en', currency: 'VND', firstRunComplete: true }
+	settings: { load: async () => {}, loadProfileSettings: async () => { state.firstRunComplete = state.persistedFirstRunComplete; }, locale: 'en', currency: 'VND', get firstRunComplete() { return state.firstRunComplete; } }
 }));
 vi.mock('@tauri-apps/api/event', () => ({ emit: vi.fn() }));
 vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => ({
@@ -46,6 +48,8 @@ vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => ({
 beforeEach(() => {
 	vi.clearAllMocks();
 	state.initialized = false;
+	state.firstRunComplete = true;
+	state.persistedFirstRunComplete = true;
 	state.active = true;
 	state.profileId = 'A';
 	state.profileName = 'Personal';
@@ -56,6 +60,15 @@ beforeEach(() => {
 });
 
 describe('native Quick Add startup', () => {
+	it('becomes ready on focus after onboarding completes in the main window', async () => {
+		state.firstRunComplete = false;
+		state.persistedFirstRunComplete = false;
+		render(QuickAddPage);
+		await waitFor(() => expect(screen.getByRole('button', { name: /open main/i })).toBeInTheDocument());
+		state.persistedFirstRunComplete = true;
+		state.focus!({ payload: true });
+		await waitFor(() => expect(screen.getByRole('textbox')).toBeEnabled());
+	});
 	it('shows the active profile name and updates it after a switch', async () => {
 		render(QuickAddPage);
 		await waitFor(() => expect(screen.getByText('Personal')).toBeInTheDocument());

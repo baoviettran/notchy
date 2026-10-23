@@ -29,6 +29,7 @@ function parseIso(iso: string): CivilDate {
 }
 
 function formatIso({ year, month, day }: CivilDate): string {
+	if (year < 0 || year > 9999) throw new Error('date exceeds supported year range');
 	return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 

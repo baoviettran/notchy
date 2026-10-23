@@ -496,7 +496,7 @@
   "settings_theme_dark": "tối",
   "settings_theme_light": "sáng",
   "settings_title": "Cài đặt",
-  "settings_version": "Notchy v0.2.1",
+  "settings_version": "Notchy v0.2.2",
   "settings_group_manage": "Quản lý",
   "settings_group_preferences": "Tùy chọn",
   "settings_group_about": "Thông tin",
@@ -717,5 +717,10 @@
   "profiles_unsaved_drafts": "Bạn có thay đổi chưa lưu. Bỏ chúng trước khi đổi profile?",
   "profiles_stay": "Ở lại",
   "profiles_discard": "Bỏ thay đổi",
-  "profiles_manage_desc": "Tạo, chuyển, sao lưu, reset và xóa profile."
+  "profiles_manage_desc": "Tạo, chuyển, sao lưu, reset và xóa profile.",
+  "pending_save_title": "Kiểm tra lần lưu trước",
+  "pending_save_description": "Chưa rõ lần lưu trước với các thông tin này đã thành công hay chưa. Hãy thử lại lần lưu đó để kiểm tra kết quả trước khi thêm mục mới. Nếu đã lưu thành công, ứng dụng sẽ không thêm lần nữa.",
+  "pending_save_retry": "Thử lại lần lưu trước",
+  "pending_save_keep_draft": "Giữ bản nháp",
+  "pending_save_paused": "Đã tạm dừng lưu. Hãy kiểm tra sổ cái trước khi thử lại."
 }

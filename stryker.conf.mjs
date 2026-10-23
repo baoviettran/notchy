@@ -4,7 +4,7 @@
 const config = {
 	plugins: ['@stryker-mutator/vitest-runner'],
 	testRunner: 'vitest',
-	ignorePatterns: ['/\.codegraph', '/\.codegraph/**', '/\.claude/**', '/\.stryker-tmp'],
+	ignorePatterns: ['/src-tauri/target', '/src-tauri/target/**', '/artifacts', '/artifacts/**', '/.superpowers', '/.superpowers/**', '/accounts.csv', '/budgets.csv', '/category_tags.csv', '/category_types.csv', '/goals.csv', '/reconciliations.csv', '/transactions.csv', '/\.codegraph', '/\.codegraph/**', '/\.claude/**', '/\.stryker-tmp'],
 	mutate: [
 		'src/lib/utils/rules_matcher.ts',
 		'src/lib/utils/dedup.ts',

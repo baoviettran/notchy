@@ -25,7 +25,7 @@ describe('native nullable edit fields', () => {
 			kind: null, date: null, amount: 60000, transfer_account_id: null,
 			tag_id: expected, payee: expected, description: expected
 		};
-		expect(invoke).toHaveBeenCalledWith('transaction_update', { id: 'tx1', patch });
+		expect(invoke).toHaveBeenCalledWith('transaction_update', { id: 'tx1', patch, operationId: expect.any(String) });
 	});
 
 	it.each(cases)('encodes the account counterparty when it is $name', async ({ value, expected }) => {
@@ -33,6 +33,6 @@ describe('native nullable edit fields', () => {
 		const patch: AccountPatch = {
 			name: 'Updated', type: null, counterparty: expected, archived: null
 		};
-		expect(invoke).toHaveBeenCalledWith('account_update', { id: 'acct1', patch });
+		expect(invoke).toHaveBeenCalledWith('account_update', { id: 'acct1', patch, operationId: expect.any(String) });
 	});
 });

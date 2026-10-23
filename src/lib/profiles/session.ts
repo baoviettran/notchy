@@ -1,8 +1,10 @@
 import { invoke as tauriInvoke } from '@tauri-apps/api/core';
+import { invokeWith, type NativeCall } from '$lib/native/invoke';
+import type { MutationOptions } from '$lib/native/mutation-intent';
 import { toAppError } from '$lib/native/to-app-error';
 import type { ProfileSession } from './types';
 
-export type SessionInvoker = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
+export type SessionInvoker = <T>(command: string, args?: Record<string, unknown>, options?: MutationOptions) => Promise<T>;
 
 export function assertCurrentSession(expected: ProfileSession, actual: ProfileSession | null): void {
 	if (!actual || expected.profileId !== actual.profileId || expected.generation !== actual.generation) {
@@ -12,14 +14,14 @@ export function assertCurrentSession(expected: ProfileSession, actual: ProfileSe
 
 export function createSessionInvoker(
 	session: ProfileSession,
-	raw: SessionInvoker = tauriInvoke,
+	raw: NativeCall = tauriInvoke,
 	current?: () => ProfileSession | null,
 ): SessionInvoker {
 	const bound = Object.freeze({ ...session });
-	return async <T>(command: string, args?: Record<string, unknown>): Promise<T> => {
+	return async <T>(command: string, args?: Record<string, unknown>, options?: MutationOptions): Promise<T> => {
 		if (current) assertCurrentSession(bound, current());
 		try {
-			const result = await raw<T>(command, { ...args, session: bound });
+			const result = await invokeWith<T>(raw, command, { ...args, session: bound }, options);
 			if (current) assertCurrentSession(bound, current());
 			return result;
 		} catch (error) {

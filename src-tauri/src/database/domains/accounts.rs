@@ -187,13 +187,19 @@ pub fn create_account(
     op_id: OperationId,
     input: NewAccount,
 ) -> DbResult<String> {
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct AccountCreated {
+        account_id: String,
+    }
+
+    run_idempotent(conn, op_id, "create_account", &input, |tx| {
     // Validate counterparty required for loan types.
     if input.account_type.is_loan() && input.counterparty.as_deref().unwrap_or("").is_empty() {
         return Err(DbError::new(ErrorCode::InvalidInput));
     }
 
     // Single-currency rule: must match existing accounts.
-    enforce_single_currency(conn, &input.currency)?;
+    enforce_single_currency(tx, &input.currency)?;
     // The opening balance is written to `transactions.amount` below; validate it
     // with the other inputs, rather than letting SQLite's CHECK reclassify an
     // over-cap value as `InvalidInput`.
@@ -201,12 +207,7 @@ pub fn create_account(
         validate_money(balance)?;
     }
 
-    #[derive(serde::Serialize, serde::Deserialize)]
-    struct AccountCreated {
-        account_id: String,
-    }
 
-    run_idempotent(conn, op_id, "create_account", &input, |tx| {
         let now = now_iso_utc();
         let account_id = OperationId::generate();
         let id = account_id.as_str().to_string();
@@ -262,7 +263,11 @@ pub fn update_account(
     patch: AccountPatch,
 ) -> DbResult<()> {
     // Fetch existing account for validation.
-    let existing = get_account(conn, id)?.ok_or_else(|| DbError::new(ErrorCode::InvalidInput))?;
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct Void {}
+
+    run_idempotent(conn, op_id, "update_account", &(id, &patch), |tx| {
+    let existing = get_account(tx, id)?.ok_or_else(|| DbError::new(ErrorCode::InvalidInput))?;
 
     // Validate type change rules.
     if let Some(new_type) = patch.account_type {
@@ -284,10 +289,7 @@ pub fn update_account(
         }
     }
 
-    #[derive(serde::Serialize, serde::Deserialize)]
-    struct Void {}
 
-    run_idempotent(conn, op_id, "update_account", &patch, |tx| {
         let now = now_iso_utc();
         let mut sets = vec!["updated_at = ?".to_string()];
         let mut values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(now)];

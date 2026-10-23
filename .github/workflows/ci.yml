@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_call:
   pull_request:
     branches: [main]
   push:
@@ -20,11 +21,11 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: '22'
+          node-version: '22.22.3'
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 10.11.0
 
       - uses: actions/cache@v5
         with:
@@ -64,7 +65,11 @@ jobs:
           # checked. Push-to-main builds keep BASE_SHA (github.event.before) to
           # re-check the just-merged changes. Falls back to BASE_SHA if origin/main
           # can't be resolved.
-          if [ -n "${{ github.event.pull_request.number }}" ]; then
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            # A fresh tag has an all-zero event.before, not a Git object.
+            # Compare to the prior version tag, or the root for a first tag.
+            EFFECTIVE_BASE="$(git describe --tags --match 'v*' --abbrev=0 HEAD^ 2>/dev/null || git rev-list --max-parents=0 HEAD)"
+          elif [ -n "${{ github.event.pull_request.number }}" ]; then
             git fetch origin main --quiet 2>/dev/null || true
             EFFECTIVE_BASE="$(git merge-base HEAD origin/main 2>/dev/null || echo "$BASE_SHA")"
           else
@@ -120,11 +125,11 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: '22'
+          node-version: '22.22.3'
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 10.11.0
 
       - uses: actions/cache@v5
         with:

@@ -161,3 +161,4 @@ export type ScheduleUpdate = { name: string, kind: ScheduleKind, amount: number,
  * is the only other writer of this column.
  */
 next_due_date: string | null, };
+export type SchedulePostResult = { posted: number, reminder_due: boolean, capped: boolean, advanced: boolean, };

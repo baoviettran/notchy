@@ -38,8 +38,8 @@ test('checksumLine references the repo-root-relative artifact path', () => {
 	);
 });
 
-test('readDeclaredVersions reports 0.2.1 in every declaration', () => {
-	assert.deepEqual(readDeclaredVersions(), { package: '0.2.1', tauri: '0.2.1', cargo: '0.2.1' });
+test('readDeclaredVersions reports 0.2.2 in every declaration', () => {
+	assert.deepEqual(readDeclaredVersions(), { package: '0.2.2', tauri: '0.2.2', cargo: '0.2.2' });
 });
 
 test('rejects an untracked source file but allows explicit environment outputs', () => {

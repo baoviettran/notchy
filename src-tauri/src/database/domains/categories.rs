@@ -68,7 +68,7 @@ pub fn create_bucket(
     #[derive(serde::Serialize, serde::Deserialize)]
     struct Created { id: String }
 
-    run_idempotent(conn, op_id, "create_bucket", &name, |tx| {
+    run_idempotent(conn, op_id, "create_bucket", &(&name, budgetable), |tx| {
         let now = now_iso_utc();
         let id = OperationId::generate().as_str().to_string();
         let max_sort: i32 = tx
@@ -99,7 +99,7 @@ pub fn rename_bucket(
     #[derive(serde::Serialize, serde::Deserialize)]
     struct Void {}
 
-    run_idempotent(conn, op_id, "rename_bucket", &name, |tx| {
+    run_idempotent(conn, op_id, "rename_bucket", &(id, &name), |tx| {
         let now = now_iso_utc();
         let affected = tx
             .execute(
@@ -125,7 +125,7 @@ pub fn set_rollover_enabled(
     #[derive(serde::Serialize, serde::Deserialize)]
     struct Void {}
 
-    run_idempotent(conn, op_id, "set_rollover", &enabled, |tx| {
+    run_idempotent(conn, op_id, "set_rollover", &(id, enabled), |tx| {
         let now = now_iso_utc();
         let val: i32 = if enabled { 1 } else { 0 };
         let affected = tx
@@ -262,7 +262,7 @@ pub fn rename_tag(
     #[derive(serde::Serialize, serde::Deserialize)]
     struct Void {}
 
-    run_idempotent(conn, op_id, "rename_tag", &name, |tx| {
+    run_idempotent(conn, op_id, "rename_tag", &(id, &name), |tx| {
         let now = now_iso_utc();
         let affected = tx
             .execute(

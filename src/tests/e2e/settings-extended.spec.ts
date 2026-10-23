@@ -29,10 +29,10 @@ import { test, expect } from './fixtures/onboarded';
 // for the quick-add picker (DB-backed, survives SPA navigation).
 
 test.describe('settings — extended', () => {
-	test('version line shows v0.2.1', async ({ onboardedPage: page }) => {
+	test('version line shows v0.2.2', async ({ onboardedPage: page }) => {
 		await page.getByRole('link', { name: 'Settings', exact: true }).click();
-		// messages/en.json settings_version = "Notchy v0.2.1".
-		await expect(page.getByRole('main').getByText(/v0\.2\.1/)).toBeVisible();
+		// messages/en.json settings_version = "Notchy v0.2.2".
+		await expect(page.getByRole('main').getByText(/v0\.2\.2/)).toBeVisible();
 	});
 
 	test('theme buttons switch the active selection (Auto / Light / Dark)', async ({ onboardedPage: page }) => {

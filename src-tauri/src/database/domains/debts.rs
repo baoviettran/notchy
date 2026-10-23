@@ -98,8 +98,12 @@ pub fn write_off(
     tag_id: Option<String>,
 ) -> DbResult<String> {
     let tag_id = tag_id.unwrap_or_else(|| "tag_loss".to_string());
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct Created { id: String }
+
+    run_idempotent(conn, op_id, "write_off", &(&account_id, &amount, &tag_id), |tx| {
     // Validate account exists and is a loan type.
-    let acc_type: Option<String> = conn
+    let acc_type: Option<String> = tx
         .query_row(
             "SELECT type FROM accounts WHERE id = ?1 AND deleted_at IS NULL",
             [account_id],
@@ -127,10 +131,7 @@ pub fn write_off(
     // `InvalidInput` rather than `AmountOutOfRange`.
     validate_money(amount)?;
 
-    #[derive(serde::Serialize, serde::Deserialize)]
-    struct Created { id: String }
 
-    run_idempotent(conn, op_id, "write_off", &(&account_id, &amount, &tag_id), |tx| {
         let now = now_iso_utc();
         let today = &now[..10];
         let id = OperationId::generate().as_str().to_string();

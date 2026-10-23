@@ -368,6 +368,13 @@ pub fn set_allocation(
     struct Void {}
 
     run_idempotent(conn, op_id, "set_allocation", &(&type_id, &month, &allocated), |tx| {
+        set_allocation_in_transaction(tx, type_id, month, allocated)?;
+        Ok(Void {})
+    })
+    .map(|_| ())
+}
+
+fn set_allocation_in_transaction(tx: &rusqlite::Transaction<'_>, type_id: &str, month: &str, allocated: i64) -> DbResult<()> {
         let now = now_iso_utc();
         let existing: Option<String> = tx
             .query_row(
@@ -393,9 +400,7 @@ pub fn set_allocation(
             )
             .map_err(map_sqlite_error)?;
         }
-        Ok(Void {})
-    })
-    .map(|_| ())
+    Ok(())
 }
 
 /// Copy allocations from the previous month into `target_month`.
@@ -406,36 +411,19 @@ pub fn copy_from_previous_month(
     target_month: &str,
 ) -> DbResult<()> {
     let prev = previous_month(target_month)?;
-
-    // Collect the previous budgets first (immutable borrow ends here).
-    let prev_budgets: Vec<(String, i64)> = {
-        let mut stmt = conn
-            .prepare(
-                "SELECT type_id, allocated FROM budgets WHERE month = ?1 AND deleted_at IS NULL",
-            )
-            .map_err(map_sqlite_error)?;
-        let rows: Vec<(String, i64)> = stmt
-            .query_map(params![prev], |row| Ok((row.get(0)?, row.get(1)?)))
-            .map_err(map_sqlite_error)?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(map_sqlite_error)?;
-        rows
-    };
-
-    // Now mutate: each set_allocation uses its own run_idempotent.
-    for (type_id, allocated) in &prev_budgets {
-        let sub_op = OperationId::generate();
-        set_allocation(conn, sub_op, type_id, target_month, *allocated)?;
-    }
-
-    // Wrap the whole copy in a single idempotent receipt.
     #[derive(serde::Serialize, serde::Deserialize)]
     struct Copied { count: usize }
-    let _ = run_idempotent(conn, op_id, "copy_from_previous", &target_month.to_string(), |_tx| {
-        Ok(Copied { count: prev_budgets.len() })
-    })?;
-
-    Ok(())
+    run_idempotent(conn, op_id, "copy_from_previous", &target_month, |tx| {
+        let previous = {
+            let mut stmt = tx.prepare("SELECT type_id, allocated FROM budgets WHERE month=?1 AND deleted_at IS NULL").map_err(map_sqlite_error)?;
+            let rows=stmt.query_map([&prev],|row|Ok((row.get::<_,String>(0)?,row.get::<_,i64>(1)?))).map_err(map_sqlite_error)?;
+            rows.collect::<Result<Vec<_>,_>>().map_err(map_sqlite_error)?
+        };
+        for (type_id, allocated) in &previous {
+            set_allocation_in_transaction(tx,type_id,target_month,*allocated)?;
+        }
+        Ok(Copied {count:previous.len()})
+    }).map(|_|())
 }
 
 /// Check if any allocations exist for a given month.

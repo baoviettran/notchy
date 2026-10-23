@@ -496,7 +496,7 @@
   "settings_theme_dark": "dark",
   "settings_theme_light": "light",
   "settings_title": "Settings",
-  "settings_version": "Notchy v0.2.1",
+  "settings_version": "Notchy v0.2.2",
   "settings_group_manage": "Manage",
   "settings_group_preferences": "Preferences",
   "settings_group_about": "About",
@@ -717,5 +717,10 @@
   "profiles_unsaved_drafts": "You have unsaved changes. Discard them before changing profiles?",
   "profiles_stay": "Stay",
   "profiles_discard": "Discard changes",
-  "profiles_manage_desc": "Create, switch, back up, reset, and delete profiles."
+  "profiles_manage_desc": "Create, switch, back up, reset, and delete profiles.",
+  "pending_save_title": "Check previous save",
+  "pending_save_description": "A previous save with these details has an unknown outcome. Retry that save to check its result before adding another entry. If it already succeeded, it will not be added again.",
+  "pending_save_retry": "Retry previous save",
+  "pending_save_keep_draft": "Keep draft",
+  "pending_save_paused": "Save paused. Check your ledger before retrying."
 }

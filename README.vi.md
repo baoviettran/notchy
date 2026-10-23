@@ -12,15 +12,14 @@
 
 ### Tải về
 
-Các bản dựng sẵn có sẵn tại [bản phát hành mới nhất](https://github.com/baoviettran/notchy/releases):
+Các bản đã phát hành nằm tại [GitHub Releases](https://github.com/baoviettran/notchy/releases). Candidate 0.2.2 hiện dùng các định dạng package sau:
 
 | Nền tảng | Tệp |
 |---|---|
-| Linux (Debian/Ubuntu) | `Notchy_0.2.1_amd64.deb` |
-| Linux (Fedora/RHEL) | `Notchy-0.2.1-1.x86_64.rpm` |
-| Linux (bất kỳ) | `Notchy_0.2.1_amd64.AppImage` |
-| macOS (ARM) | `Notchy_0.2.1_aarch64.dmg` |
-| Windows | `Notchy_0.2.1_x64-setup.exe` |
+| Linux (Debian/Ubuntu) | `Notchy_0.2.2_amd64.deb` |
+| Linux (Fedora/RHEL) | `Notchy-0.2.2-1.x86_64.rpm` |
+
+Phạm vi candidate 0.2.2: Linux DEB/RPM. Windows/macOS và AppImage chưa được nghiệm thu cho bản này. Package candidate được giữ local cho đến khi có GitHub release.
 
 ### Build từ mã nguồn
 

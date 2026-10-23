@@ -188,7 +188,7 @@ pub fn update_schedule(
     #[derive(serde::Serialize, serde::Deserialize)]
     struct Void {}
 
-    run_idempotent(conn, op_id, "schedule_update", &input, |tx| {
+    run_idempotent(conn, op_id, "schedule_update", &(id, &input), |tx| {
         let now = now_iso_utc();
         let updated = tx
             .execute(
@@ -322,4 +322,39 @@ pub fn mark_schedule_errored(conn: &mut Connection, op_id: OperationId, id: &str
         },
     )
     .map(|_| ())
+}
+
+/// Read authoritative state, post up to 24 occurrences and advance in one receipt transaction.
+pub fn post_due_schedule(conn: &mut Connection, op_id: OperationId, id: &str, today: crate::database::types::IsoDate) -> DbResult<crate::database::types::SchedulePostResult> {
+ use crate::database::types::{SchedulePostResult, NewTransaction, TransactionKind};
+ run_idempotent(conn, op_id, "schedule_post_due", &(id, today.as_str()), |tx| {
+  let mut result = SchedulePostResult::default();
+  let schedule = list_schedules(tx)?.into_iter().find(|s| s.id == id);
+  let Some(s) = schedule else {return Ok(result)};
+  if s.enabled != 1 || s.completed != 0 || s.errored_at.is_some() {return Ok(result)}
+  for account in std::iter::once(&s.account_id).chain(s.transfer_account_id.iter()) {
+   let exists: i64=tx.query_row("SELECT COUNT(*) FROM accounts WHERE id=?1 AND deleted_at IS NULL",[account],|r|r.get(0)).map_err(map_sqlite_error)?;
+   if exists==0 {return Err(DbError::new(ErrorCode::InvalidInput));}
+  }
+  let mut next = s.next_due_date.clone().unwrap_or_else(||s.start_date.clone());
+  let mut last = s.last_posted_date.clone();
+  let mut completed = 0;
+  while next.as_str() <= today.as_str() {
+   if s.end_date.as_ref().is_some_and(|end| next > *end) {completed=1;break;}
+   if result.posted >= 24 {result.capped=true;break;}
+   if s.posts_transaction == 1 {
+    let input = NewTransaction {
+     kind: match s.kind {ScheduleKind::Expense=>TransactionKind::Expense,ScheduleKind::Income=>TransactionKind::Income,ScheduleKind::Transfer=>TransactionKind::Transfer},
+     date: next.clone(), amount:s.amount, account_id:s.account_id.clone(), transfer_account_id:s.transfer_account_id.clone(), refund_of_id:None, tag_id:s.tag_id.clone(), payee:s.payee.clone(), description:s.description.clone()
+    };
+    super::transactions::insert_transaction(tx,&input)?;
+    result.posted+=1; last=Some(next.clone());
+   } else {result.reminder_due=true;}
+   let date=crate::database::types::IsoDate::parse(next.clone()).map_err(DbError::new)?;
+   next=super::civil_date::next_due_date(&date,&s.frequency)?.as_str().to_string();
+  }
+  result.advanced = !result.capped;
+  tx.execute("UPDATE schedules SET last_posted_date=?1,next_due_date=?2,completed=?3,errored_at=CASE WHEN ?4 THEN ?5 ELSE errored_at END,updated_at=?5 WHERE id=?6", params![last,next,completed,result.capped,now_iso_utc(),id]).map_err(map_sqlite_error)?;
+  Ok(result)
+ })
 }

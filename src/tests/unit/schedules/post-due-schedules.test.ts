@@ -179,16 +179,8 @@ describe('postDueSchedules', () => {
 		// happens to raise today (see this task's note on soft deletes).
 		const broken = await seed({ account_id: 'acct2', name: 'Gym' });
 		const healthy = await seed({ account_id: 'acct1', name: 'Rent' });
-		const failing: AppDatabase = {
-			...db,
-			transactions: {
-				...db.transactions,
-				create: async (input) => {
-					if (input.account_id === 'acct2') throw new Error('account is gone');
-					return db.transactions.create(input);
-				},
-			},
-		};
+        await raw.execute("CREATE TRIGGER fail_gym BEFORE INSERT ON transactions WHEN NEW.account_id='acct2' BEGIN SELECT RAISE(ABORT, 'account is gone'); END");
+        const failing = db;
 
 		const summary = await postDueSchedules(failing, '2026-04-30');
 
