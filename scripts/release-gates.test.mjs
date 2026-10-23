@@ -30,3 +30,8 @@ test('both save surfaces permit the native pending-save confirmation', () => {
   assert.ok(capability.permissions.includes('dialog:allow-confirm'), `${window} must permit confirm`);
  }
 });
+test('dialog SDK confirmation uses the command supported by the locked Rust plugin', () => {
+ const sdk=readFileSync('node_modules/@tauri-apps/plugin-dialog/dist-js/index.js','utf8');
+ assert.doesNotMatch(sdk, /invoke\(['"]plugin:dialog\|confirm['"]/);
+ assert.match(sdk, /plugin:dialog\|message/);
+});

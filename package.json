@@ -73,7 +73,7 @@
     "@inlang/paraglide-js": "1.11.8",
     "@inlang/paraglide-sveltekit": "0.15.3",
     "@tauri-apps/api": "2.5.0",
-    "@tauri-apps/plugin-dialog": "2.2.0",
+    "@tauri-apps/plugin-dialog": "2.7.1",
     "@tauri-apps/plugin-fs": "2.2.0",
     "@tauri-apps/plugin-opener": "2.5.0",
     "d3-scale": "4.0.2",
