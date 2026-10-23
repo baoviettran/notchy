@@ -23,7 +23,7 @@ const config = {
 		'src/lib/backup/upgrade.ts',
 		// src/lib/db/startup.ts does not exist; the migration-ordering engine is
 		// prepareDatabase in index.ts (inspect -> backup -> migrate -> verify).
-		'src/lib/db/index.ts:231-301',
+		'src/lib/db/index.ts:164-234',
 		'src/lib/recovery.ts:1-75'
 	]
 };

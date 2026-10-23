@@ -84,6 +84,9 @@
 			// Every webview binds its own adapter to the current native session.
 			const snapshot = await profiles.load();
 			const active = snapshot.active;
+			// Onboarding may finish in main without advancing the profile session.
+			// Refresh this webview's profile settings on every focus.
+			if (active) await settings.loadProfileSettings();
 			profileName = snapshot.profiles.find((profile) => profile.id === active?.profileId)?.name ?? '';
 			if (!active || !settings.firstRunComplete) {
 				noProfile = true; ready = false; activeAccount = null; allAccounts = [];

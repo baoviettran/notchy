@@ -113,3 +113,13 @@ Clippy all-target warnings denied, changed-client coverage100/93.33 and tooling1
 pass. Full browser E2E and rebuilt profile-aware native package acceptance remain
 in progress. An independent read-only integration review found no Critical or
 Important issues. No old package evidence is substituted for the new build.
+
+Native profile-aware acceptance found Quick Add retained firstRunComplete=false
+after main completed onboarding without changing the session generation. RED
+component regression reproduced disabled input after focus; refreshing profile
+settings on focus fixes it. GREEN8/8 Quick Add component tests, full1221 unit
+tests, check0 errors, prior full integrated E2E166/166 plus final affected31/31.
+The first concurrent E2E/build attempt lost generated assets and was rejected;
+the accepted full run used a stable preview. The post-fix affected run similarly
+uses a confirmed fresh preview. DB mutation startup range adjusted164–234 after
+upstream moved prepareDatabase; mutation gate rerun in progress.
