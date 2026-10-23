@@ -78,8 +78,9 @@ pub async fn account_create(
     coordinator: State<'_, Arc<ProfileCoordinator>>,
     session: ProfileSession,
     input: NewAccount,
+    operation_id: OperationId,
 ) -> Result<String, DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::accounts::create_account(state.connection_mut()?, op_id, input)
     }).await
@@ -91,8 +92,9 @@ pub async fn account_update(
     session: ProfileSession,
     id: String,
     patch: AccountPatch,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::accounts::update_account(state.connection_mut()?, op_id, &id, patch)
     }).await
@@ -103,8 +105,9 @@ pub async fn account_delete(
     coordinator: State<'_, Arc<ProfileCoordinator>>,
     session: ProfileSession,
     id: String,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::accounts::delete_account(state.connection_mut()?, op_id, &id)
     }).await
@@ -115,8 +118,9 @@ pub async fn account_restore(
     coordinator: State<'_, Arc<ProfileCoordinator>>,
     session: ProfileSession,
     id: String,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::accounts::restore_account(state.connection_mut()?, op_id, &id)
     }).await
@@ -152,8 +156,9 @@ pub async fn transaction_create(
     coordinator: State<'_, Arc<ProfileCoordinator>>,
     session: ProfileSession,
     input: NewTransaction,
+    operation_id: OperationId,
 ) -> Result<String, DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::transactions::create_transaction(state.connection_mut()?, op_id, input)
     }).await
@@ -164,8 +169,9 @@ pub async fn transaction_create_batch(
     coordinator: State<'_, Arc<ProfileCoordinator>>,
     session: ProfileSession,
     inputs: Vec<NewTransaction>,
+    operation_id: OperationId,
 ) -> Result<Vec<String>, DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::transactions::create_transactions_batch(state.connection_mut()?, op_id, inputs)
     }).await
@@ -177,8 +183,9 @@ pub async fn transaction_update(
     session: ProfileSession,
     id: String,
     patch: TransactionPatch,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::transactions::update_transaction(state.connection_mut()?, op_id, &id, patch)
     }).await
@@ -189,8 +196,9 @@ pub async fn transaction_delete(
     coordinator: State<'_, Arc<ProfileCoordinator>>,
     session: ProfileSession,
     id: String,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::transactions::delete_transaction(state.connection_mut()?, op_id, &id)
     }).await
@@ -201,8 +209,9 @@ pub async fn transaction_restore(
     coordinator: State<'_, Arc<ProfileCoordinator>>,
     session: ProfileSession,
     id: String,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::transactions::restore_transaction(state.connection_mut()?, op_id, &id)
     }).await
@@ -213,8 +222,9 @@ pub async fn transaction_duplicate(
     coordinator: State<'_, Arc<ProfileCoordinator>>,
     session: ProfileSession,
     id: String,
+    operation_id: OperationId,
 ) -> Result<String, DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::transactions::duplicate_transaction(state.connection_mut()?, op_id, &id)
     }).await
@@ -236,11 +246,12 @@ pub async fn transaction_delete_many(
     coordinator: State<'_, Arc<ProfileCoordinator>>,
     session: ProfileSession,
     ids: Vec<String>,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
     if ids.is_empty() {
         return Ok(());
     }
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator
         .with_session(&session, move |state| {
             domains::transactions::delete_transactions(state.connection_mut()?, op_id, ids)
@@ -253,11 +264,12 @@ pub async fn transaction_set_tag_many(
     session: ProfileSession,
     ids: Vec<String>,
     tag_id: Option<String>,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
     if ids.is_empty() {
         return Ok(());
     }
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator
         .with_session(&session, move |state| {
             domains::transactions::set_tag_many(state.connection_mut()?, op_id, ids, tag_id)
@@ -270,11 +282,12 @@ pub async fn transaction_set_account_many(
     session: ProfileSession,
     ids: Vec<String>,
     account_id: String,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
     if ids.is_empty() {
         return Ok(());
     }
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator
         .with_session(&session, move |state| {
             domains::transactions::set_account_many(state.connection_mut()?, op_id, ids, account_id)
@@ -300,8 +313,9 @@ pub async fn category_create_bucket(
     session: ProfileSession,
     name: String,
     budgetable: Option<i32>,
+    operation_id: OperationId,
 ) -> Result<String, DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::categories::create_bucket(state.connection_mut()?, op_id, name, budgetable.unwrap_or(1))
     }).await
@@ -313,8 +327,9 @@ pub async fn category_rename_bucket(
     session: ProfileSession,
     id: String,
     name: String,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::categories::rename_bucket(state.connection_mut()?, op_id, &id, name)
     }).await
@@ -326,8 +341,9 @@ pub async fn category_set_rollover_enabled(
     session: ProfileSession,
     id: String,
     enabled: bool,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::categories::set_rollover_enabled(state.connection_mut()?, op_id, &id, enabled)
     }).await
@@ -338,8 +354,9 @@ pub async fn category_delete_bucket(
     coordinator: State<'_, Arc<ProfileCoordinator>>,
     session: ProfileSession,
     id: String,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::categories::delete_bucket(state.connection_mut()?, op_id, &id)
     }).await
@@ -362,8 +379,9 @@ pub async fn category_create_tag(
     session: ProfileSession,
     name: String,
     bucket_id: String,
+    operation_id: OperationId,
 ) -> Result<String, DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::categories::create_tag(state.connection_mut()?, op_id, name, bucket_id)
     }).await
@@ -375,8 +393,9 @@ pub async fn category_rename_tag(
     session: ProfileSession,
     id: String,
     name: String,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::categories::rename_tag(state.connection_mut()?, op_id, &id, name)
     }).await
@@ -388,8 +407,9 @@ pub async fn category_move_tag(
     session: ProfileSession,
     tag_id: String,
     new_bucket_id: String,
+    operation_id: OperationId,
 ) -> Result<TagDeleteInfo, DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::categories::move_tag(state.connection_mut()?, op_id, &tag_id, new_bucket_id)
     }).await
@@ -412,8 +432,9 @@ pub async fn category_delete_tag(
     session: ProfileSession,
     id: String,
     option: String,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::categories::delete_tag(state.connection_mut()?, op_id, &id, &option)
     }).await
@@ -476,8 +497,9 @@ pub async fn budget_set_allocation(
     type_id: String,
     month: String,
     allocated: i64,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::budgets::set_allocation(state.connection_mut()?, op_id, &type_id, &month, allocated)
     }).await
@@ -488,8 +510,9 @@ pub async fn budget_copy_from_previous_month(
     coordinator: State<'_, Arc<ProfileCoordinator>>,
     session: ProfileSession,
     target_month: String,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::budgets::copy_from_previous_month(state.connection_mut()?, op_id, &target_month)
     }).await
@@ -538,8 +561,9 @@ pub async fn goal_create(
     linked_account_id: Option<String>,
     starting_amount: i64,
     show_on_dashboard: i64,
+    operation_id: OperationId,
 ) -> Result<String, DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     let gt = match goal_type.as_str() {
         "savings" => GoalType::Savings,
         "debt_payoff" => GoalType::DebtPayoff,
@@ -564,8 +588,9 @@ pub async fn goal_update(
     target_date: Option<String>,
     show_on_dashboard: Option<i64>,
     status: Option<String>,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     let gs = status.and_then(|s| match s.as_str() {
         "active" => Some(GoalStatus::Active),
         "completed" => Some(GoalStatus::Completed),
@@ -586,8 +611,9 @@ pub async fn goal_delete(
     coordinator: State<'_, Arc<ProfileCoordinator>>,
     session: ProfileSession,
     id: String,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::goals::delete_goal(state.connection_mut()?, op_id, &id)
     }).await
@@ -598,8 +624,9 @@ pub async fn goal_restore(
     coordinator: State<'_, Arc<ProfileCoordinator>>,
     session: ProfileSession,
     id: String,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::goals::restore_goal(state.connection_mut()?, op_id, &id)
     }).await
@@ -633,8 +660,9 @@ pub async fn rule_create(
     match_mode: String,
     tag_id: String,
     source: String,
+    operation_id: OperationId,
 ) -> Result<CategorizeRule, DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     let mm = match match_mode.as_str() {
         "is" => MatchMode::Is,
         "starts_with" => MatchMode::StartsWith,
@@ -661,8 +689,9 @@ pub async fn rule_update(
     tag_id: Option<String>,
     source: Option<String>,
     enabled: Option<i64>,
+    operation_id: OperationId,
 ) -> Result<CategorizeRule, DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     let mm = match_mode.and_then(|s| match s.as_str() {
         "is" => Some(MatchMode::Is),
         "starts_with" => Some(MatchMode::StartsWith),
@@ -684,8 +713,9 @@ pub async fn rule_delete(
     coordinator: State<'_, Arc<ProfileCoordinator>>,
     session: ProfileSession,
     id: String,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::rules::delete_rule(state.connection_mut()?, op_id, &id)
     }).await
@@ -697,8 +727,9 @@ pub async fn rule_upsert_learned(
     session: ProfileSession,
     payee_term: String,
     tag_id: String,
+    operation_id: OperationId,
 ) -> Result<CategorizeRule, DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::rules::upsert_learned(state.connection_mut()?, op_id, payee_term, tag_id)
     }).await
@@ -830,8 +861,9 @@ pub async fn debt_write_off(
     account_id: String,
     amount: i64,
     tag_id: Option<String>,
+    operation_id: OperationId,
 ) -> Result<String, DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::debts::write_off(state.connection_mut()?, op_id, &account_id, amount, tag_id)
     }).await
@@ -860,8 +892,9 @@ pub async fn reconciliation_reconcile(
     actual_balance: i64,
     create_adjustment: bool,
     notes: Option<String>,
+    operation_id: OperationId,
 ) -> Result<ReconcileResult, DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator.with_session(&session, move |state| {
         domains::reconciliations::reconcile(
             state.connection_mut()?, op_id, &account_id, actual_balance, create_adjustment, notes,
@@ -1031,8 +1064,9 @@ pub async fn schedule_create(
     coordinator: State<'_, Arc<ProfileCoordinator>>,
     session: ProfileSession,
     input: NewSchedule,
+    operation_id: OperationId,
 ) -> Result<String, DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator
         .with_session(&session, move |state| {
             domains::schedules::create_schedule(state.connection_mut()?, op_id, input)
@@ -1046,8 +1080,9 @@ pub async fn schedule_update(
     session: ProfileSession,
     id: String,
     input: ScheduleUpdate,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator
         .with_session(&session, move |state| {
             domains::schedules::update_schedule(state.connection_mut()?, op_id, &id, input)
@@ -1060,8 +1095,9 @@ pub async fn schedule_delete(
     coordinator: State<'_, Arc<ProfileCoordinator>>,
     session: ProfileSession,
     id: String,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator
         .with_session(&session, move |state| {
             domains::schedules::delete_schedule(state.connection_mut()?, op_id, &id)
@@ -1077,8 +1113,9 @@ pub async fn schedule_mark_posted(
     last_posted_date: Option<String>,
     next_due_date: Option<String>,
     completed: i64,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator
         .with_session(&session, move |state| {
             domains::schedules::mark_schedule_posted(
@@ -1098,8 +1135,9 @@ pub async fn schedule_mark_errored(
     coordinator: State<'_, Arc<ProfileCoordinator>>,
     session: ProfileSession,
     id: String,
+    operation_id: OperationId,
 ) -> Result<(), DbError> {
-    let op_id = OperationId::generate();
+    let op_id = operation_id;
     coordinator
         .with_session(&session, move |state| {
             domains::schedules::mark_schedule_errored(state.connection_mut()?, op_id, &id)
@@ -1201,6 +1239,7 @@ pub fn generate_bindings() -> String {
     push_decl(&mut out, Schedule::decl(&cfg));
     push_decl(&mut out, NewSchedule::decl(&cfg));
     push_decl(&mut out, ScheduleUpdate::decl(&cfg));
+    push_decl(&mut out, SchedulePostResult::decl(&cfg));
 
     out
 }
@@ -1225,4 +1264,9 @@ fn push_error_code_values(out: &mut String) {
         out.push_str("',\n");
     }
     out.push_str("] as const satisfies readonly ErrorCode[];\n");
+}
+
+#[tauri::command]
+pub async fn schedule_post_due(coordinator: State<'_, Arc<ProfileCoordinator>>, session: ProfileSession, id: String, today: IsoDate, operation_id: OperationId) -> Result<SchedulePostResult, DbError> {
+ coordinator.with_session(&session, move |state| domains::schedules::post_due_schedule(state.connection_mut()?,operation_id,&id,today)).await
 }

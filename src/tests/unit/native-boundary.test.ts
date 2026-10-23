@@ -159,6 +159,7 @@ const { invokeMock, calls } = vi.hoisted(() => {
 		schedule_update: null,
 		schedule_delete: null,
 		schedule_list_due: [],
+        schedule_post_due: {posted:0,reminder_due:false,capped:false,advanced:false},
 		schedule_mark_posted: null,
 		schedule_mark_errored: null,
 	};
@@ -277,22 +278,22 @@ describe('NativeDatabaseClient: serialization seam (camelCase keys -> snake_case
 	// make every affected op fail arg deserialization in the real app.
 	it('account_get_balance sends the camelCase accountId key', async () => {
 		await client.accounts.getBalance('acc1');
-		expect(lastCall().args).toEqual({ accountId: 'acc1' });
+		expect(lastCall().args).toMatchObject({ accountId: 'acc1' });
 	});
 
 	it('budget_get_spent_for_bucket sends typeId + month (-> type_id, month)', async () => {
 		await client.budgets.getSpentForBucket('bucketType1', '2026-01');
-		expect(lastCall().args).toEqual({ typeId: 'bucketType1', month: '2026-01' });
+		expect(lastCall().args).toMatchObject({ typeId: 'bucketType1', month: '2026-01' });
 	});
 
 	it('debt_write_off sends accountId + amount + tagId (-> account_id, amount, tag_id)', async () => {
 		await client.debts.writeOff('acc1', 10000, 'tag1');
-		expect(lastCall().args).toEqual({ accountId: 'acc1', amount: 10000, tagId: 'tag1' });
+		expect(lastCall().args).toMatchObject({ accountId: 'acc1', amount: 10000, tagId: 'tag1' });
 	});
 
 	it('reconciliation_reconcile sends createAdjustment (-> create_adjustment)', async () => {
 		await client.reconciliations.reconcile('acc1', 5000, true);
-		expect(lastCall().args).toEqual({
+		expect(lastCall().args).toMatchObject({
 			accountId: 'acc1',
 			actualBalance: 5000,
 			createAdjustment: true,
@@ -322,7 +323,7 @@ describe('NativeDatabaseClient: serialization seam (camelCase keys -> snake_case
 	it('transaction_list forwards the filter object unchanged (no per-key rename needed)', async () => {
 		const filter = { account_id: 'acc1', limit: 20, offset: 0 };
 		await client.transactions.list(filter);
-		expect(lastCall().args).toEqual({ filter });
+		expect(lastCall().args).toMatchObject({ filter });
 	});
 
 	it('schedule_create forwards the input object unchanged', async () => {
@@ -330,7 +331,7 @@ describe('NativeDatabaseClient: serialization seam (camelCase keys -> snake_case
 			name: 'Rent', kind: 'expense', amount: 5000000, account_id: 'acct1',
 			frequency: 'monthly', start_date: '2026-01-31',
 		});
-		expect(lastCall().args).toEqual({
+		expect(lastCall().args).toMatchObject({
 			input: { name: 'Rent', kind: 'expense', amount: 5000000, account_id: 'acct1',
 				frequency: 'monthly', start_date: '2026-01-31' },
 		});
@@ -338,7 +339,7 @@ describe('NativeDatabaseClient: serialization seam (camelCase keys -> snake_case
 
 	it('schedule_mark_posted uses camelCase argument keys', async () => {
 		await client.schedules.markPosted('sch1', '2026-01-31', '2026-02-28', 0);
-		expect(lastCall().args).toEqual({
+		expect(lastCall().args).toMatchObject({
 			id: 'sch1', lastPostedDate: '2026-01-31', nextDueDate: '2026-02-28', completed: 0,
 		});
 	});
@@ -378,33 +379,16 @@ describe('NativeDatabaseClient: result shaping', () => {
 	});
 });
 
-describe('NativeDatabaseClient: mutation idempotency contract (documented, not asserted)', () => {
-	const client = new NativeDatabaseClient();
-
-	// FINDING: `db/native/client.ts`'s header comment says "Mutations generate an
-	// operation ULID once per user intent; retry paths reuse the same ULID." That
-	// claim is NOT implemented here — no op in this file mints or forwards an
-	// operation id, and the `NewTransaction`/`NewAccount`/`NewGoal` domain types
-	// carry no `operation_id` field. The real idempotency surface is the Rust
-	// `operation_id_conflict` error code, which is exercised by `cargo test`.
-	// So there is no JS-side retry-ULID behavior to lock; asserting one would
-	// fabricate behavior. This test pins the CURRENT honest contract: mutations
-	// pass only their domain payload, and an operation id field is NOT present.
-	it('transaction_create carries no operation id (idempotency is Rust-side)', async () => {
-		await client.transactions.create({
-			kind: 'expense',
-			date: '2026-01-15',
-			amount: 50000,
-			account_id: 'acc1',
-		});
-		expect(lastCall().args).toEqual({ input: {
-			kind: 'expense',
-			date: '2026-01-15',
-			amount: 50000,
-			account_id: 'acc1',
-		} });
-		expect(JSON.stringify(lastCall().args)).not.toContain('operation_id');
-	});
+describe('NativeDatabaseClient: mutation idempotency contract', () => {
+ it('preserves explicit operation ids across command attempts', async () => {
+  const client=new NativeDatabaseClient();
+  const input={kind:'expense' as const,date:'2026-01-15',amount:50000,account_id:'acc1'};
+  const options={operationId:'01ARZ3NDEKTSV4RRFFQ69G5FAV'};
+  await client.transactions.create(input,options);
+  expect(lastCall().args).toEqual({input,operationId:options.operationId});
+  await client.transactions.create(input,options);
+  expect(lastCall().args).toEqual({input,operationId:options.operationId});
+ });
 });
 
 describe('NativeDatabaseClient: full surface sweep (command name + camelCase arg key set)', () => {
@@ -529,7 +513,8 @@ describe('NativeDatabaseClient: full surface sweep (command name + camelCase arg
 		},
 
 		// Schedules
-		{ label: 'schedules.list', run: () => client.schedules.list(), command: 'schedule_list' },
+		{label:'schedules.postDue',run:()=>client.schedules.postDue('sch1','2026-01-01'),command:'schedule_post_due'},
+        { label: 'schedules.list', run: () => client.schedules.list(), command: 'schedule_list' },
 		{ label: 'schedules.create', run: () => client.schedules.create({ name: 'Rent', kind: 'expense', amount: 5000000, account_id: 'acct1', frequency: 'monthly', start_date: '2026-01-31' }), command: 'schedule_create' },
 		{ label: 'schedules.update', run: () => client.schedules.update('sch1', { name: 'Rent', kind: 'expense', amount: 5000000, account_id: 'acct1', frequency: 'monthly', start_date: '2026-01-31', enabled: 1, next_due_date: null } as ScheduleUpdate), command: 'schedule_update' },
 		{ label: 'schedules.remove', run: () => client.schedules.remove('sch1'), command: 'schedule_delete' },

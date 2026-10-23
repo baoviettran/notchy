@@ -1,6 +1,4 @@
 import type { AppDatabase, Schedule } from '$lib/db/client';
-import { nextDueDate } from '$lib/utils/schedule_next_due';
-import { AppError } from '$lib/errors';
 import * as m from '$lib/paraglide/messages';
 
 /** Beyond this many posts in one pass a schedule is parked instead of drained. */
@@ -21,87 +19,6 @@ export interface PostDueSummary {
 	capped: string[];
 }
 
-interface PostedOne {
-	posted: number;
-	reminderDue: boolean;
-	capped: boolean;
-}
-
-/**
- * Whether every account this schedule would touch is still live.
- *
- * The database cannot answer this: `deleteAccount` soft-deletes, so a schedule
- * still holds a valid foreign key to an account the user removed, and
- * `createTransaction` has no deleted-account guard — it would post silently to
- * that account. Asking is the only way to get the spec's stated behaviour
- * ("schedule errored + toast, not a crash") on the real code path.
- */
-function accountsAreLive(schedule: Schedule, liveAccountIds: ReadonlySet<string>): boolean {
-	const needed = [schedule.account_id, schedule.transfer_account_id].filter(
-		(id): id is string => id !== null
-	);
-	return needed.every((id) => liveAccountIds.has(id));
-}
-
-async function postOne(
-	db: AppDatabase,
-	schedule: Schedule,
-	today: string,
-	liveAccountIds: ReadonlySet<string>
-): Promise<PostedOne> {
-	// `listDue` excludes a NULL date, but a schedule the user cannot see is worse
-	// than one that errors — re-anchor instead of returning early (Review Focus 1).
-	let next = schedule.next_due_date ?? schedule.start_date;
-	let lastPosted = schedule.last_posted_date;
-	let posted = 0;
-	let reminderDue = false;
-	let completed = 0;
-
-	if (!accountsAreLive(schedule, liveAccountIds)) {
-		throw new AppError('schedule_account_missing', { scheduleId: schedule.id });
-	}
-
-	while (next <= today) {
-		if (schedule.end_date !== null && next > schedule.end_date) {
-			completed = 1;
-			break;
-		}
-		if (posted >= CATCH_UP_CAP) {
-			// Over the cap: record what was actually written, then park it. The 24
-			// rows exist, so leaving the bookkeeping at the old date would make the
-			// schedule lie about its own history — and the next Resume picks up
-			// from here, draining the rest a chunk at a time (nothing is lost).
-			await db.schedules.markPosted(schedule.id, lastPosted, next, completed);
-			await db.schedules.markErrored(schedule.id);
-			return { posted, reminderDue, capped: true };
-		}
-		if (schedule.posts_transaction === 1) {
-			// Posted rows go through the port's own create, so they inherit every
-			// existing constraint — kind/tag/account checks, transfer pairing,
-			// refund validation. The engine adds no second copy of those rules.
-			await db.transactions.create({
-				kind: schedule.kind,
-				date: next,
-				amount: schedule.amount,
-				account_id: schedule.account_id,
-				transfer_account_id: schedule.kind === 'transfer' ? schedule.transfer_account_id ?? undefined : undefined,
-				tag_id: schedule.kind === 'transfer' ? undefined : schedule.tag_id ?? undefined,
-				payee: schedule.payee ?? undefined,
-				description: schedule.description ?? undefined,
-			});
-			posted += 1;
-			lastPosted = next;
-		} else {
-			// One notice per schedule, not one per missed occurrence (Review Focus 5).
-			reminderDue = true;
-		}
-		next = nextDueDate(next, schedule.frequency);
-	}
-
-	await db.schedules.markPosted(schedule.id, lastPosted, next, completed);
-	return { posted, reminderDue, capped: false };
-}
-
 /** Active and unparked — the same predicate `listDue` applies, minus its date
  *  bound. Used to rescue a row whose `next_due_date` is NULL (Review Focus 1). */
 function isActive(schedule: Schedule): boolean {
@@ -115,29 +32,23 @@ export async function postDueSchedules(db: AppDatabase, today: string): Promise<
 	// post — so fold in the active NULL-due rows from `list()` and let `postOne`
 	// re-anchor them to `start_date`. The two sets cannot overlap: `listDue`
 	// requires a non-NULL date.
-	const [dueList, all, liveAccounts] = await Promise.all([
+	const [dueList, all] = await Promise.all([
 		db.schedules.listDue(today),
 		db.schedules.list(),
-		db.accounts.list(),
 	]);
 	const due = [...dueList, ...all.filter((s) => s.next_due_date === null && isActive(s))];
 	summary.due = due.length;
-	// One lookup per pass, not per occurrence: `accounts.list()` is a single query
-	// and the account set cannot change mid-pass (the pass is the only writer).
-	const liveAccountIds = new Set(liveAccounts.map((account) => account.id));
 
 	for (const schedule of due) {
-		let result: PostedOne | null = null;
+		let result: import('$lib/db/client').SchedulePostResult | null = null;
 		try {
-			result = await postOne(db, schedule, today, liveAccountIds);
+			result = await db.schedules.postDue(schedule.id, today);
 		} catch {
 			result = null;
 		}
 
 		if (result === null) {
-			// The port exposes no transaction, so per-schedule isolation comes from
-			// here: one damaged schedule is caught, parked, and the loop continues —
-			// which is what the spec's "its own db.transaction" was protecting.
+			// The domain operation rolled back the whole pass before parking.
 			// A failure while parking it must not abort the remaining schedules, so
 			// that write is swallowed — the error is still reported to the user.
 			try {
@@ -150,9 +61,9 @@ export async function postDueSchedules(db: AppDatabase, today: string): Promise<
 		}
 
 		summary.posted += result.posted;
-		if (result.reminderDue) summary.notices.push(schedule.name);
+		if (result.reminder_due) summary.notices.push(schedule.name);
 		if (result.capped) summary.capped.push(schedule.id);
-		else summary.advanced += 1;
+		else if (result.advanced) summary.advanced += 1;
 	}
 
 	return summary;

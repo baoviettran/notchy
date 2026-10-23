@@ -43,6 +43,23 @@ pub fn today_iso() -> String {
     format!("{year:04}-{month:02}-{day:02}")
 }
 
+/// Recurrence keeps the current JS clamping/drift semantics.
+pub fn next_due_date(date: &crate::database::types::IsoDate, frequency: &crate::database::types::ScheduleFrequency) -> crate::database::error::DbResult<crate::database::types::IsoDate> {
+ use crate::database::{types::{IsoDate, ScheduleFrequency}, error::{DbError, ErrorCode}};
+ let parts: Vec<u32> = date.as_str().split('-').map(|v| v.parse().unwrap_or(0)).collect();
+ let (mut y, mut m, mut d) = (parts[0], parts[1], parts[2]);
+ fn dim(y:u32,m:u32)->u32 { match m {2=>if y % 400 == 0 || (y % 4 == 0 && y % 100 != 0) {29}else{28},4|6|9|11=>30,_=>31} }
+ match frequency {
+  ScheduleFrequency::Monthly => { m+=1; if m==13 {m=1;y+=1;} d=d.min(dim(y,m)); },
+  ScheduleFrequency::Yearly => { y+=1; d=d.min(dim(y,m)); },
+  ScheduleFrequency::Weekly | ScheduleFrequency::Biweekly => {
+   let days=if matches!(frequency,ScheduleFrequency::Weekly) {7}else{14};
+   for _ in 0..days {d+=1;if d>dim(y,m) {d=1;m+=1;if m>12 {m=1;y+=1;}}}
+  }
+ }
+ IsoDate::parse(format!("{y:04}-{m:02}-{d:02}")).map_err(|_|DbError::new(ErrorCode::InvalidDate))
+}
+
 #[cfg(test)]
 mod tests {
     use super::civil_from_days;

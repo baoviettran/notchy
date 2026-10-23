@@ -196,7 +196,20 @@ pub fn create_transaction(
     op_id: OperationId,
     input: NewTransaction,
 ) -> DbResult<String> {
-    validate_account_exists(conn, &input.account_id)?;
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct TxnCreated {
+        transaction_id: String,
+    }
+
+    run_idempotent(conn, op_id, "create_transaction", &input, |tx| {
+        Ok(TxnCreated { transaction_id: insert_transaction(tx, &input)? })
+    })
+    .map(|r| r.transaction_id)
+}
+
+/// Shared insertion primitive: caller owns transaction and idempotency receipt.
+pub(crate) fn insert_transaction(tx: &rusqlite::Transaction<'_>, input: &NewTransaction) -> DbResult<String> {
+    validate_account_exists(tx, &input.account_id)?;
     validate_money(input.amount)?;
 
     // Transfers require a destination account that differs from the source.
@@ -208,7 +221,7 @@ pub fn create_transaction(
         if dest == input.account_id {
             return Err(DbError::new(ErrorCode::InvalidInput));
         }
-        validate_account_exists(conn, dest)?;
+        validate_account_exists(tx, dest)?;
     }
 
     let description = input
@@ -216,12 +229,6 @@ pub fn create_transaction(
         .as_deref()
         .map(strip_control_chars);
 
-    #[derive(serde::Serialize, serde::Deserialize)]
-    struct TxnCreated {
-        transaction_id: String,
-    }
-
-    run_idempotent(conn, op_id, "create_transaction", &input, |tx| {
         let now = now_iso_utc();
         let txn_id = OperationId::generate().as_str().to_string();
 
@@ -288,11 +295,7 @@ pub fn create_transaction(
             .map_err(map_sqlite_error)?;
         }
 
-        Ok(TxnCreated {
-            transaction_id: txn_id,
-        })
-    })
-    .map(|r| r.transaction_id)
+    Ok(txn_id)
 }
 
 /// Batch-create transactions (CSV/OFX import).
@@ -305,11 +308,14 @@ pub fn create_transactions_batch(
     op_id: OperationId,
     inputs: Vec<NewTransaction>,
 ) -> DbResult<Vec<String>> {
-    if inputs.is_empty() {
-        return Ok(Vec::new());
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct BatchResult {
+        transaction_ids: Vec<String>,
     }
 
-    // Validate all inputs before entering run_idempotent.
+    run_idempotent(conn, op_id, "create_transactions_batch", &inputs, |tx| {
+
+    // Validate only after receipt replay, inside the transaction.
     for input in &inputs {
         match input.kind {
             TransactionKind::Expense | TransactionKind::Income => {}
@@ -318,16 +324,11 @@ pub fn create_transactions_batch(
         if input.refund_of_id.is_some() {
             return Err(DbError::new(ErrorCode::InvalidInput));
         }
-        validate_account_exists(conn, &input.account_id)?;
+        validate_account_exists(tx, &input.account_id)?;
         validate_money(input.amount)?;
     }
 
-    #[derive(serde::Serialize, serde::Deserialize)]
-    struct BatchResult {
-        transaction_ids: Vec<String>,
-    }
 
-    run_idempotent(conn, op_id, "create_transactions_batch", &inputs, |tx| {
         let now = now_iso_utc();
         let mut ids = Vec::with_capacity(inputs.len());
 
@@ -378,8 +379,12 @@ pub fn update_transaction(
     id: &str,
     patch: TransactionPatch,
 ) -> DbResult<()> {
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct Void {}
+
+    run_idempotent(conn, op_id, "update_transaction", &(id, &patch), |tx| {
     let existing =
-        get_transaction(conn, id)?.ok_or_else(|| DbError::new(ErrorCode::InvalidInput))?;
+        get_transaction(tx, id)?.ok_or_else(|| DbError::new(ErrorCode::InvalidInput))?;
 
     // Reject self-transfer on repoint.
     if let Some(ref dest) = patch.transfer_account_id {
@@ -406,17 +411,14 @@ pub fn update_transaction(
             .or_else(|| existing.transfer_account_id.clone())
         {
             Some(dest) if dest != existing.account_id => {
-                validate_account_exists(conn, &dest)?;
+                validate_account_exists(tx, &dest)?;
                 dest_handled = true;
             }
             _ => return Err(DbError::new(ErrorCode::InvalidInput)),
         }
     }
 
-    #[derive(serde::Serialize, serde::Deserialize)]
-    struct Void {}
 
-    run_idempotent(conn, op_id, "update_transaction", &patch, |tx| {
         let now = now_iso_utc();
         let mut sets = vec!["updated_at = ?".to_string()];
         let mut values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(now)];
@@ -591,88 +593,18 @@ pub fn duplicate_transaction(
     op_id: OperationId,
     id: &str,
 ) -> DbResult<String> {
-    let existing =
-        get_transaction(conn, id)?.ok_or_else(|| DbError::new(ErrorCode::InvalidInput))?;
-
-    validate_account_exists(conn, &existing.account_id)?;
-
-    let today = civil_date::today_iso();
-
-    let input = NewTransaction {
-        kind: existing.kind,
-        date: today,
-        amount: existing.amount,
-        account_id: existing.account_id,
-        transfer_account_id: existing.transfer_account_id,
-        refund_of_id: None,
-        tag_id: existing.tag_id,
-        payee: existing.payee,
-        description: existing.description,
-    };
-
-    // Inline the create logic (cannot nest `run_idempotent` calls).
-    let description = input
-        .description
-        .as_deref()
-        .map(strip_control_chars);
-
     #[derive(serde::Serialize, serde::Deserialize)]
-    struct TxnCreated {
-        transaction_id: String,
-    }
-
-    run_idempotent(conn, op_id, "duplicate_transaction", &input, |tx| {
-        let now = now_iso_utc();
-        let txn_id = OperationId::generate().as_str().to_string();
-
-        if input.kind == TransactionKind::Transfer {
-            let pair_id = OperationId::generate().as_str().to_string();
-            let dest = input
-                .transfer_account_id
-                .as_deref()
-                .ok_or_else(|| DbError::new(ErrorCode::InvalidInput))?;
-            if dest == input.account_id {
-                return Err(DbError::new(ErrorCode::InvalidInput));
-            }
-            tx.execute(
-                "INSERT INTO transactions \
-                 (id, kind, date, amount, account_id, transfer_account_id, transfer_pair_id, \
-                  created_at, updated_at) \
-                 VALUES (?1, 'transfer', ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                params![
-                    txn_id, input.date, input.amount, input.account_id,
-                    input.transfer_account_id, pair_id, now, now,
-                ],
-            )
-            .map_err(map_sqlite_error)?;
-        } else {
-            tx.execute(
-                "INSERT INTO transactions \
-                 (id, kind, date, amount, account_id, refund_of_id, tag_id, payee, description, \
-                  created_at, updated_at) \
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-                params![
-                    txn_id,
-                    input.kind.as_str(),
-                    input.date,
-                    input.amount,
-                    input.account_id,
-                    input.refund_of_id,
-                    input.tag_id,
-                    input.payee,
-                    description,
-                    now,
-                    now,
-                ],
-            )
-            .map_err(map_sqlite_error)?;
-        }
-
-        Ok(TxnCreated {
-            transaction_id: txn_id,
-        })
-    })
-    .map(|r| r.transaction_id)
+    struct TxnCreated { transaction_id: String }
+    run_idempotent(conn, op_id, "duplicate_transaction", &id, |tx| {
+        let existing = get_transaction(tx, id)?.ok_or_else(|| DbError::new(ErrorCode::InvalidInput))?;
+        let input = NewTransaction {
+            kind: existing.kind, date: civil_date::today_iso(), amount: existing.amount,
+            account_id: existing.account_id, transfer_account_id: existing.transfer_account_id,
+            refund_of_id: None, tag_id: existing.tag_id, payee: existing.payee,
+            description: existing.description,
+        };
+        Ok(TxnCreated {transaction_id: insert_transaction(tx, &input)?})
+    }).map(|r|r.transaction_id)
 }
 
 /// Recurring payees since `since_date`, most frequent first.

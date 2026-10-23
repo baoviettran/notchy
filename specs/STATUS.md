@@ -661,5 +661,5 @@ theme class. Glow is scoped dark-only. | 7969c0b | done |
 | 9 | Visual sweep both modes | [x] (6/6) | — | — | stale (no commit) |
 
 ## Story coverage (traceability)
-- Traced: 46 / 46 | Untraced: 0 | Unknown story ids: 0
+- Traced: 47 / 47 | Untraced: 0 | Unknown story ids: 0
 

@@ -1,0 +1,8 @@
+[
+ {"date":"2026-01-31","frequency":"monthly","next":"2026-02-28"},
+ {"date":"2026-02-28","frequency":"monthly","next":"2026-03-28"},
+ {"date":"2024-01-31","frequency":"monthly","next":"2024-02-29"},
+ {"date":"2024-02-29","frequency":"yearly","next":"2025-02-28"},
+ {"date":"2026-12-31","frequency":"weekly","next":"2027-01-07"},
+ {"date":"2024-02-23","frequency":"biweekly","next":"2024-03-08"}
+]

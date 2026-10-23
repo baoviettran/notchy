@@ -75,12 +75,9 @@ pub fn reconcile(
     create_adjustment: bool,
     notes: Option<String>,
 ) -> DbResult<ReconcileResult> {
-    let expected_balance =
-        balance::account_balance_as_of(conn, account_id, &civil_date::today_iso())?;
-    let discrepancy = actual_balance - expected_balance;
-
     #[derive(serde::Serialize, serde::Deserialize)]
     struct Reconciled {
+        discrepancy: i64,
         reconciliation_id: String,
         adjustment_transaction_id: Option<String>,
     }
@@ -89,8 +86,10 @@ pub fn reconcile(
         conn,
         op_id,
         "reconcile",
-        &(&account_id, &actual_balance, &create_adjustment),
+        &(&account_id, &actual_balance, &create_adjustment, &notes),
         |tx| {
+            let expected_balance = balance::account_balance_as_of(tx, account_id, &civil_date::today_iso())?;
+            let discrepancy = actual_balance - expected_balance;
             let now = now_iso_utc();
             let today = &now[..10];
             let recon_id = OperationId::generate().as_str().to_string();
@@ -139,6 +138,7 @@ pub fn reconcile(
             .map_err(map_sqlite_error)?;
 
             Ok(Reconciled {
+                discrepancy,
                 reconciliation_id: recon_id,
                 adjustment_transaction_id: adj_id,
             })
@@ -146,7 +146,7 @@ pub fn reconcile(
     )?;
 
     Ok(ReconcileResult {
-        discrepancy,
+        discrepancy: result.discrepancy,
         reconciliation_id: result.reconciliation_id,
         adjustment_transaction_id: result.adjustment_transaction_id,
     })

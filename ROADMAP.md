@@ -1,6 +1,6 @@
 # Notchy — Roadmap
 
-## Current source: v0.2.1
+## Current source: v0.2.2
 
 The active product backlog is [product/stories/index.md](product/stories/index.md). [specs/STATUS.md](specs/STATUS.md) is generated from implementation plans and Git history; regenerate it with `pnpm test:roadmap`.
 

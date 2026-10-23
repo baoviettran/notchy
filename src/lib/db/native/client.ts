@@ -1,3 +1,4 @@
+import type { MutationOptions } from '$lib/native/mutation-intent';
 /**
  * NativeDatabaseClient — wraps Tauri invoke() calls for the native database boundary.
  *
@@ -5,8 +6,7 @@
  * Mutations generate an operation ULID once per user intent; retry paths reuse
  * the same ULID for idempotency.
  */
-import { invoke as tauriInvoke } from '@tauri-apps/api/core';
-import { toAppError } from '$lib/native/to-app-error';
+import { invoke } from '$lib/native/invoke';
 import type {
 	AppDatabase,
 	AccountOps,
@@ -56,14 +56,6 @@ function nullablePatch<T>(value: T | null | undefined): Patch<T> {
  * envelope, not an AppError, and would otherwise fall through to
  * `errors_unknown()`.
  */
-async function invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
-	try {
-		return await tauriInvoke<T>(command, args);
-	} catch (error) {
-		throw toAppError(error);
-	}
-}
-
 // ---------------------------------------------------------------------------
 // Lifecycle commands (main-window only)
 // ---------------------------------------------------------------------------
@@ -109,26 +101,26 @@ class NativeAccountOps implements AccountOps {
 		return this.invoke<number>('account_get_balance_as_of', { accountId, date });
 	}
 
-	create(input: NewAccount): Promise<string> {
-		return this.invoke<string>('account_create', { input });
+	create(input: NewAccount, options?: MutationOptions): Promise<string> {
+		return this.invoke<string>('account_create', { input }, options);
 	}
 
-	update(id: string, patch: { name?: string; type?: AccountType; counterparty?: string | null; archived?: number }): Promise<void> {
+	update(id: string, patch: { name?: string; type?: AccountType; counterparty?: string | null; archived?: number }, options?: MutationOptions): Promise<void> {
 		const nativePatch: AccountPatch = {
 			name: patch.name ?? null,
 			type: patch.type ?? null,
 			counterparty: nullablePatch(patch.counterparty),
 			archived: patch.archived ?? null
 		};
-		return this.invoke<void>('account_update', { id, patch: nativePatch });
+		return this.invoke<void>('account_update', { id, patch: nativePatch }, options);
 	}
 
-	delete(id: string): Promise<void> {
-		return this.invoke<void>('account_delete', { id });
+	delete(id: string, options?: MutationOptions): Promise<void> {
+		return this.invoke<void>('account_delete', { id }, options);
 	}
 
-	restore(id: string): Promise<void> {
-		return this.invoke<void>('account_restore', { id });
+	restore(id: string, options?: MutationOptions): Promise<void> {
+		return this.invoke<void>('account_restore', { id }, options);
 	}
 }
 
@@ -146,15 +138,15 @@ class NativeTransactionOps implements TransactionOps {
 		return this.invoke<Transaction | null>('transaction_get', { id });
 	}
 
-	create(input: NewTransaction): Promise<string> {
-		return this.invoke<string>('transaction_create', { input });
+	create(input: NewTransaction, options?: MutationOptions): Promise<string> {
+		return this.invoke<string>('transaction_create', { input }, options);
 	}
 
-	createBatch(inputs: NewTransaction[]): Promise<string[]> {
-		return this.invoke<string[]>('transaction_create_batch', { inputs });
+	createBatch(inputs: NewTransaction[], options?: MutationOptions): Promise<string[]> {
+		return this.invoke<string[]>('transaction_create_batch', { inputs }, options);
 	}
 
-	update(id: string, patch: Partial<NewTransaction>): Promise<void> {
+	update(id: string, patch: Partial<NewTransaction>, options?: MutationOptions): Promise<void> {
 		const nativePatch: TransactionPatch = {
 			kind: patch.kind ?? null,
 			date: patch.date ?? null,
@@ -164,31 +156,31 @@ class NativeTransactionOps implements TransactionOps {
 			payee: nullablePatch(patch.payee),
 			description: nullablePatch(patch.description)
 		};
-		return this.invoke<void>('transaction_update', { id, patch: nativePatch });
+		return this.invoke<void>('transaction_update', { id, patch: nativePatch }, options);
 	}
 
-	delete(id: string): Promise<void> {
-		return this.invoke<void>('transaction_delete', { id });
+	delete(id: string, options?: MutationOptions): Promise<void> {
+		return this.invoke<void>('transaction_delete', { id }, options);
 	}
 
-	restore(id: string): Promise<void> {
-		return this.invoke<void>('transaction_restore', { id });
+	restore(id: string, options?: MutationOptions): Promise<void> {
+		return this.invoke<void>('transaction_restore', { id }, options);
 	}
 
-	duplicate(id: string): Promise<string> {
-		return this.invoke<string>('transaction_duplicate', { id });
+	duplicate(id: string, options?: MutationOptions): Promise<string> {
+		return this.invoke<string>('transaction_duplicate', { id }, options);
 	}
 
-	deleteMany(ids: string[]): Promise<void> {
-		return this.invoke<void>('transaction_delete_many', { ids });
+	deleteMany(ids: string[], options?: MutationOptions): Promise<void> {
+		return this.invoke<void>('transaction_delete_many', { ids }, options);
 	}
 
-	setTagMany(ids: string[], tagId: string | null): Promise<void> {
-		return this.invoke<void>('transaction_set_tag_many', { ids, tagId });
+	setTagMany(ids: string[], tagId: string | null, options?: MutationOptions): Promise<void> {
+		return this.invoke<void>('transaction_set_tag_many', { ids, tagId }, options);
 	}
 
-	setAccountMany(ids: string[], accountId: string): Promise<void> {
-		return this.invoke<void>('transaction_set_account_many', { ids, accountId });
+	setAccountMany(ids: string[], accountId: string, options?: MutationOptions): Promise<void> {
+		return this.invoke<void>('transaction_set_account_many', { ids, accountId }, options);
 	}
 
 	getFrequent(_sinceDate: string): Promise<import('../client').FrequentTx[]> {
@@ -206,44 +198,44 @@ class NativeCategoryOps implements CategoryOps {
 		return this.invoke<Bucket[]>('category_list_buckets');
 	}
 
-	createBucket(name: string, budgetable?: number): Promise<string> {
-		return this.invoke<string>('category_create_bucket', { name, budgetable: budgetable ?? null });
+	createBucket(name: string, budgetable?: number, options?: MutationOptions): Promise<string> {
+		return this.invoke<string>('category_create_bucket', { name, budgetable: budgetable ?? null }, options);
 	}
 
-	renameBucket(id: string, name: string): Promise<void> {
-		return this.invoke<void>('category_rename_bucket', { id, name });
+	renameBucket(id: string, name: string, options?: MutationOptions): Promise<void> {
+		return this.invoke<void>('category_rename_bucket', { id, name }, options);
 	}
 
-	setRolloverEnabled(id: string, enabled: boolean): Promise<void> {
-		return this.invoke<void>('category_set_rollover_enabled', { id, enabled });
+	setRolloverEnabled(id: string, enabled: boolean, options?: MutationOptions): Promise<void> {
+		return this.invoke<void>('category_set_rollover_enabled', { id, enabled }, options);
 	}
 
-	deleteBucket(id: string): Promise<void> {
-		return this.invoke<void>('category_delete_bucket', { id });
+	deleteBucket(id: string, options?: MutationOptions): Promise<void> {
+		return this.invoke<void>('category_delete_bucket', { id }, options);
 	}
 
 	listTags(bucketId?: string): Promise<Tag[]> {
 		return this.invoke<Tag[]>('category_list_tags', { bucketId: bucketId ?? null });
 	}
 
-	createTag(name: string, bucketId: string): Promise<string> {
-		return this.invoke<string>('category_create_tag', { name, bucketId });
+	createTag(name: string, bucketId: string, options?: MutationOptions): Promise<string> {
+		return this.invoke<string>('category_create_tag', { name, bucketId }, options);
 	}
 
-	renameTag(id: string, name: string): Promise<void> {
-		return this.invoke<void>('category_rename_tag', { id, name });
+	renameTag(id: string, name: string, options?: MutationOptions): Promise<void> {
+		return this.invoke<void>('category_rename_tag', { id, name }, options);
 	}
 
-	moveTag(tagId: string, newBucketId: string): Promise<TagDeleteInfo> {
-		return this.invoke<TagDeleteInfo>('category_move_tag', { tagId, newBucketId });
+	moveTag(tagId: string, newBucketId: string, options?: MutationOptions): Promise<TagDeleteInfo> {
+		return this.invoke<TagDeleteInfo>('category_move_tag', { tagId, newBucketId }, options);
 	}
 
 	getTagTransactionInfo(tagId: string): Promise<TagDeleteInfo> {
 		return this.invoke<TagDeleteInfo>('category_get_tag_transaction_info', { tagId });
 	}
 
-	deleteTag(id: string, option: 'uncategorise' | { merge_into: string }): Promise<void> {
-		return this.invoke<void>('category_delete_tag', { id, option: typeof option === 'string' ? option : JSON.stringify(option) });
+	deleteTag(id: string, option: 'uncategorise' | { merge_into: string }, options?: MutationOptions): Promise<void> {
+		return this.invoke<void>('category_delete_tag', { id, option: typeof option === 'string' ? option : JSON.stringify(option) }, options);
 	}
 }
 
@@ -290,12 +282,12 @@ class NativeBudgetOps implements BudgetOps {
 		return this.invoke<ToBudgetBreakdown>('budget_get_to_budget', { month });
 	}
 
-	setAllocation(typeId: string, month: string, allocated: number): Promise<void> {
-		return this.invoke<void>('budget_set_allocation', { typeId, month, allocated });
+	setAllocation(typeId: string, month: string, allocated: number, options?: MutationOptions): Promise<void> {
+		return this.invoke<void>('budget_set_allocation', { typeId, month, allocated }, options);
 	}
 
-	copyFromPreviousMonth(targetMonth: string): Promise<void> {
-		return this.invoke<void>('budget_copy_from_previous_month', { targetMonth });
+	copyFromPreviousMonth(targetMonth: string, options?: MutationOptions): Promise<void> {
+		return this.invoke<void>('budget_copy_from_previous_month', { targetMonth }, options);
 	}
 
 	hasAllocations(month: string): Promise<boolean> {
@@ -317,7 +309,7 @@ class NativeGoalOps implements GoalOps {
 		return this.invoke<GoalWithProgress | null>('goal_get', { id });
 	}
 
-	create(input: NewGoal): Promise<string> {
+	create(input: NewGoal, options?: MutationOptions): Promise<string> {
 		return this.invoke<string>('goal_create', {
 			name: input.name,
 			goalType: input.type,
@@ -326,10 +318,10 @@ class NativeGoalOps implements GoalOps {
 			linkedAccountId: input.linked_account_id ?? null,
 			startingAmount: input.starting_amount ?? 0,
 			showOnDashboard: input.show_on_dashboard ?? 1,
-		});
+		}, options);
 	}
 
-	update(id: string, patch: Partial<NewGoal> & { status?: GoalStatus }): Promise<void> {
+	update(id: string, patch: Partial<NewGoal> & { status?: GoalStatus }, options?: MutationOptions): Promise<void> {
 		return this.invoke<void>('goal_update', {
 			id,
 			name: patch.name ?? null,
@@ -337,15 +329,15 @@ class NativeGoalOps implements GoalOps {
 			targetDate: patch.target_date ?? null,
 			showOnDashboard: patch.show_on_dashboard ?? null,
 			status: patch.status ?? null,
-		});
+		}, options);
 	}
 
-	delete(id: string): Promise<void> {
-		return this.invoke<void>('goal_delete', { id });
+	delete(id: string, options?: MutationOptions): Promise<void> {
+		return this.invoke<void>('goal_delete', { id }, options);
 	}
 
-	restore(id: string): Promise<void> {
-		return this.invoke<void>('goal_restore', { id });
+	restore(id: string, options?: MutationOptions): Promise<void> {
+		return this.invoke<void>('goal_restore', { id }, options);
 	}
 }
 
@@ -363,16 +355,16 @@ class NativeRuleOps implements RuleOps {
 		return this.invoke<CategorizeRule[]>('rule_list_all');
 	}
 
-	create(input: NewCategorizeRule): Promise<CategorizeRule> {
+	create(input: NewCategorizeRule, options?: MutationOptions): Promise<CategorizeRule> {
 		return this.invoke<CategorizeRule>('rule_create', {
 			payeeTerm: input.payee_term,
 			matchMode: input.match_mode,
 			tagId: input.tag_id,
 			source: input.source ?? 'manual',
-		});
+		}, options);
 	}
 
-	update(id: string, patch: CategorizeRuleUpdate): Promise<CategorizeRule> {
+	update(id: string, patch: CategorizeRuleUpdate, options?: MutationOptions): Promise<CategorizeRule> {
 		return this.invoke<CategorizeRule>('rule_update', {
 			id,
 			payeeTerm: patch.payee_term ?? null,
@@ -380,15 +372,15 @@ class NativeRuleOps implements RuleOps {
 			tagId: patch.tag_id ?? null,
 			source: patch.source ?? null,
 			enabled: patch.enabled ?? null,
-		});
+		}, options);
 	}
 
-	delete(id: string): Promise<void> {
-		return this.invoke<void>('rule_delete', { id });
+	delete(id: string, options?: MutationOptions): Promise<void> {
+		return this.invoke<void>('rule_delete', { id }, options);
 	}
 
-	upsertLearned(payeeTerm: string, tagId: string): Promise<CategorizeRule> {
-		return this.invoke<CategorizeRule>('rule_upsert_learned', { payeeTerm, tagId });
+	upsertLearned(payeeTerm: string, tagId: string, options?: MutationOptions): Promise<CategorizeRule> {
+		return this.invoke<CategorizeRule>('rule_upsert_learned', { payeeTerm, tagId }, options);
 	}
 }
 
@@ -457,8 +449,8 @@ class NativeDebtOps implements DebtOps {
 		return this.invoke<{ i_owe: DebtAccount[]; owed_to_me: DebtAccount[] }>('debt_list');
 	}
 
-	writeOff(accountId: string, amount: number, tagId?: string): Promise<string> {
-		return this.invoke<string>('debt_write_off', { accountId, amount, tagId: tagId ?? null });
+	writeOff(accountId: string, amount: number, tagId?: string, options?: MutationOptions): Promise<string> {
+		return this.invoke<string>('debt_write_off', { accountId, amount, tagId: tagId ?? null }, options);
 	}
 }
 
@@ -472,13 +464,13 @@ class NativeReconciliationOps implements ReconciliationOps {
 		return this.invoke<Reconciliation[]>('reconciliation_get_history', { accountId });
 	}
 
-	reconcile(accountId: string, actualBalance: number, createAdjustment: boolean, notes?: string): Promise<ReconcileResult> {
+	reconcile(accountId: string, actualBalance: number, createAdjustment: boolean, notes?: string, options?: MutationOptions): Promise<ReconcileResult> {
 		return this.invoke<ReconcileResult>('reconciliation_reconcile', {
 			accountId,
 			actualBalance,
 			createAdjustment,
 			notes: notes ?? null,
-		});
+		}, options);
 	}
 }
 

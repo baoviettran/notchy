@@ -160,6 +160,7 @@ pub fn run() {
             backup_export_sqlite,
             backup_export_csv,
             // Schedule commands
+            schedule_post_due,
             schedule_list,
             schedule_list_due,
             schedule_create,

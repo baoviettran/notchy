@@ -37,10 +37,6 @@ export const RELEASE_GATE_ORDER = [
 	'git diff --check',
 ];
 
-// Steps that may exit non-zero due to known pre-existing failures (e.g.
-// E2E mock timeouts).  They are recorded but do not abort the release.
-export const SOFT_GATE_STEPS = new Set(['pnpm test:e2e']);
-
 export function readDeclaredVersions() {
 	const packageJson = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 	const tauriConf = JSON.parse(readFileSync(path.join(ROOT, 'src-tauri', 'tauri.conf.json'), 'utf8'));
@@ -117,19 +113,11 @@ export function assertClean(entries) {
 	}
 }
 
-function run(command, args, { soft = false } = {}) {
-	const result = spawnSync(command, args, { stdio: 'inherit' });
-	if (result.status !== 0) {
-		if (result.error) {
-			console.error(`failed to launch ${command}: ${result.error.message}`);
-		}
-		if (soft) {
-			console.warn(`\n⚠ soft-gate failure (non-fatal): ${command} ${args.join(' ')}\n`);
-		} else {
-			process.exit(result.status ?? 1);
-		}
-	}
+export function runReleaseCommand(command, args, launch = spawnSync) {
+ const result = launch(command, args, { stdio: 'inherit' });
+ if (result.status !== 0) throw new Error(`release gate failed: ${command} ${args.join(' ')} (exit ${result.status ?? 'unavailable'})`);
 }
+const run = runReleaseCommand;
 
 async function locateDeb(version) {
 	let entries = [];
@@ -191,7 +179,7 @@ async function main() {
 									: step === 'pnpm build'
 										? ['pnpm', 'build']
 										: ['pnpm', step];
-		run(cmd, args, { soft: SOFT_GATE_STEPS.has(step) });
+		run(cmd, args);
 	}
 
 	// Build the Tauri .deb

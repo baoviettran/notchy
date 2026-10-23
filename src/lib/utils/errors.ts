@@ -27,6 +27,8 @@ export function mapError(e: unknown): string {
 	if (e instanceof AppError) {
 		const p = e.params;
 		switch (e.code) {
+			case 'pending_save_unresolved':
+				return m.pending_save_paused();
 			case 'transfer_dest_required':
 				return m.errors_transfer_dest_required();
 			case 'transfer_dest_differs':

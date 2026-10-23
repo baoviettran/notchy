@@ -1004,3 +1004,12 @@ pub struct ScheduleUpdate {
     /// is the only other writer of this column.
     pub next_due_date: Option<String>,
 }
+
+/// Committed result of one atomic schedule catch-up pass.
+#[derive(Debug, Clone, Serialize, Deserialize, TS, Default)]
+pub struct SchedulePostResult {
+ pub posted: u32,
+ pub reminder_due: bool,
+ pub capped: bool,
+ pub advanced: bool,
+}

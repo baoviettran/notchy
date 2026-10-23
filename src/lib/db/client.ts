@@ -1,3 +1,4 @@
+import type { MutationOptions } from '$lib/native/mutation-intent';
 /**
  * AppDatabase — domain port interface.
  *
@@ -113,24 +114,24 @@ export interface AccountOps {
 	get(id: string): Promise<AccountWithBalance | null>;
 	getBalance(accountId: string): Promise<number>;
 	getBalanceAsOf(accountId: string, date: string): Promise<number>;
-	create(input: NewAccount): Promise<string>;
-	update(id: string, patch: { name?: string; type?: AccountType; counterparty?: string | null; archived?: number }): Promise<void>;
-	delete(id: string): Promise<void>;
-	restore(id: string): Promise<void>;
+	create(input: NewAccount, options?: MutationOptions): Promise<string>;
+	update(id: string, patch: { name?: string; type?: AccountType; counterparty?: string | null; archived?: number }, options?: MutationOptions): Promise<void>;
+	delete(id: string, options?: MutationOptions): Promise<void>;
+	restore(id: string, options?: MutationOptions): Promise<void>;
 }
 
 export interface TransactionOps {
 	list(filter?: TransactionFilter): Promise<Transaction[]>;
 	get(id: string): Promise<Transaction | null>;
-	create(input: NewTransaction): Promise<string>;
-	createBatch(inputs: NewTransaction[]): Promise<string[]>;
-	update(id: string, patch: Partial<NewTransaction>): Promise<void>;
-	delete(id: string): Promise<void>;
-	restore(id: string): Promise<void>;
-	duplicate(id: string): Promise<string>;
-	deleteMany(ids: string[]): Promise<void>;
-	setTagMany(ids: string[], tagId: string | null): Promise<void>;
-	setAccountMany(ids: string[], accountId: string): Promise<void>;
+	create(input: NewTransaction, options?: MutationOptions): Promise<string>;
+	createBatch(inputs: NewTransaction[], options?: MutationOptions): Promise<string[]>;
+	update(id: string, patch: Partial<NewTransaction>, options?: MutationOptions): Promise<void>;
+	delete(id: string, options?: MutationOptions): Promise<void>;
+	restore(id: string, options?: MutationOptions): Promise<void>;
+	duplicate(id: string, options?: MutationOptions): Promise<string>;
+	deleteMany(ids: string[], options?: MutationOptions): Promise<void>;
+	setTagMany(ids: string[], tagId: string | null, options?: MutationOptions): Promise<void>;
+	setAccountMany(ids: string[], accountId: string, options?: MutationOptions): Promise<void>;
 	getFrequent(sinceDate: string): Promise<FrequentTx[]>;
 }
 
@@ -145,16 +146,16 @@ export interface FrequentTx {
 
 export interface CategoryOps {
 	listBuckets(): Promise<Bucket[]>;
-	createBucket(name: string, budgetable?: number): Promise<string>;
-	renameBucket(id: string, name: string): Promise<void>;
-	setRolloverEnabled(id: string, enabled: boolean): Promise<void>;
-	deleteBucket(id: string): Promise<void>;
+	createBucket(name: string, budgetable?: number, options?: MutationOptions): Promise<string>;
+	renameBucket(id: string, name: string, options?: MutationOptions): Promise<void>;
+	setRolloverEnabled(id: string, enabled: boolean, options?: MutationOptions): Promise<void>;
+	deleteBucket(id: string, options?: MutationOptions): Promise<void>;
 	listTags(bucketId?: string): Promise<Tag[]>;
-	createTag(name: string, bucketId: string): Promise<string>;
-	renameTag(id: string, name: string): Promise<void>;
-	moveTag(tagId: string, newBucketId: string): Promise<TagDeleteInfo>;
+	createTag(name: string, bucketId: string, options?: MutationOptions): Promise<string>;
+	renameTag(id: string, name: string, options?: MutationOptions): Promise<void>;
+	moveTag(tagId: string, newBucketId: string, options?: MutationOptions): Promise<TagDeleteInfo>;
 	getTagTransactionInfo(tagId: string): Promise<TagDeleteInfo>;
-	deleteTag(id: string, option: 'uncategorise' | { merge_into: string }): Promise<void>;
+	deleteTag(id: string, option: 'uncategorise' | { merge_into: string }, options?: MutationOptions): Promise<void>;
 }
 
 export interface BudgetOps {
@@ -162,33 +163,33 @@ export interface BudgetOps {
 	getSpentForBucket(typeId: string, month: string): Promise<number>;
 	getRolledOver(typeId: string, month: string): Promise<number>;
 	getToBudget(month: string): Promise<ToBudgetBreakdown>;
-	setAllocation(typeId: string, month: string, allocated: number): Promise<void>;
-	copyFromPreviousMonth(targetMonth: string): Promise<void>;
+	setAllocation(typeId: string, month: string, allocated: number, options?: MutationOptions): Promise<void>;
+	copyFromPreviousMonth(targetMonth: string, options?: MutationOptions): Promise<void>;
 	hasAllocations(month: string): Promise<boolean>;
 }
 
 export interface GoalOps {
 	list(): Promise<GoalWithProgress[]>;
 	get(id: string): Promise<GoalWithProgress | null>;
-	create(input: NewGoal): Promise<string>;
-	update(id: string, patch: Partial<NewGoal> & { status?: GoalStatus }): Promise<void>;
-	delete(id: string): Promise<void>;
-	restore(id: string): Promise<void>;
+	create(input: NewGoal, options?: MutationOptions): Promise<string>;
+	update(id: string, patch: Partial<NewGoal> & { status?: GoalStatus }, options?: MutationOptions): Promise<void>;
+	delete(id: string, options?: MutationOptions): Promise<void>;
+	restore(id: string, options?: MutationOptions): Promise<void>;
 }
 
 export interface RuleOps {
 	list(): Promise<CategorizeRule[]>;
 	listAll(): Promise<CategorizeRule[]>;
-	create(input: NewCategorizeRule): Promise<CategorizeRule>;
-	update(id: string, patch: CategorizeRuleUpdate): Promise<CategorizeRule>;
-	delete(id: string): Promise<void>;
-	upsertLearned(payeeTerm: string, tagId: string): Promise<CategorizeRule>;
+	create(input: NewCategorizeRule, options?: MutationOptions): Promise<CategorizeRule>;
+	update(id: string, patch: CategorizeRuleUpdate, options?: MutationOptions): Promise<CategorizeRule>;
+	delete(id: string, options?: MutationOptions): Promise<void>;
+	upsertLearned(payeeTerm: string, tagId: string, options?: MutationOptions): Promise<CategorizeRule>;
 }
 
 export interface MetaOps {
 	get(key: string): Promise<string | null>;
 	set(key: string, value: string): Promise<void>;
-	delete(key: string): Promise<void>;
+	delete(key: string, options?: MutationOptions): Promise<void>;
 	isFirstRunComplete(): Promise<boolean>;
 	setFirstRunComplete(): Promise<void>;
 	getLocale(): Promise<string>;
@@ -202,12 +203,12 @@ export interface MetaOps {
 
 export interface DebtOps {
 	list(): Promise<{ i_owe: DebtAccount[]; owed_to_me: DebtAccount[] }>;
-	writeOff(accountId: string, amount: number, tagId?: string): Promise<string>;
+	writeOff(accountId: string, amount: number, tagId?: string, options?: MutationOptions): Promise<string>;
 }
 
 export interface ReconciliationOps {
 	getHistory(accountId: string): Promise<Reconciliation[]>;
-	reconcile(accountId: string, actualBalance: number, createAdjustment: boolean, notes?: string): Promise<ReconcileResult>;
+	reconcile(accountId: string, actualBalance: number, createAdjustment: boolean, notes?: string, options?: MutationOptions): Promise<ReconcileResult>;
 }
 
 export interface ReportOps {
@@ -232,7 +233,7 @@ export interface BackupOps {
 	 * resolve to its canonical path. Records `last_backup_at` only if the
 	 * publication succeeded.
 	 */
-	create(): Promise<string>;
+	create(options?: MutationOptions): Promise<string>;
 	/**
 	 * Write a validated copy of the live database to exactly `targetPath`.
 	 *
@@ -249,15 +250,18 @@ export interface BackupOps {
 	exportCsv(dir: string): Promise<string[]>;
 }
 
+export interface SchedulePostResult { posted: number; reminder_due: boolean; capped: boolean; advanced: boolean; }
+
 export interface ScheduleOps {
+	postDue(id: string, today: string, options?: MutationOptions): Promise<SchedulePostResult>;
 	list(): Promise<Schedule[]>;
-	create(input: NewSchedule): Promise<string>;
-	update(id: string, input: ScheduleUpdate): Promise<void>;
-	remove(id: string): Promise<void>;
+	create(input: NewSchedule, options?: MutationOptions): Promise<string>;
+	update(id: string, input: ScheduleUpdate, options?: MutationOptions): Promise<void>;
+	remove(id: string, options?: MutationOptions): Promise<void>;
 	/** Active schedules whose `next_due_date` is on or before `today`, oldest first. */
 	listDue(today: string): Promise<Schedule[]>;
-	markPosted(id: string, lastPostedDate: string | null, nextDueDate: string | null, completed: number): Promise<void>;
-	markErrored(id: string): Promise<void>;
+	markPosted(id: string, lastPostedDate: string | null, nextDueDate: string | null, completed: number, options?: MutationOptions): Promise<void>;
+	markErrored(id: string, options?: MutationOptions): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------

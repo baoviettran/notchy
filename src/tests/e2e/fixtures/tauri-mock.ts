@@ -1217,6 +1217,43 @@ window.__TAURI_INTERNALS__ = {
 			// while the native path posted nothing.
 			return select(db, 'SELECT ' + SCHEDULE_COLUMNS + ' FROM schedules WHERE enabled = 1 AND completed = 0 AND errored_at IS NULL AND deleted_at IS NULL AND next_due_date IS NOT NULL AND next_due_date <= ? ORDER BY next_due_date, id', [args.today]);
 		}
+
+        if (cmd === 'schedule_post_due') {
+            const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+            const s = select(db, 'SELECT * FROM schedules WHERE id=? AND deleted_at IS NULL', [args.id])[0];
+            const result = {posted:0,reminder_due:false,capped:false,advanced:false};
+            if(!s || s.enabled!==1 || s.completed!==0 || s.errored_at!==null) return result;
+            db.run('SAVEPOINT schedule_post');
+            try {
+                for(const id of [s.account_id,s.transfer_account_id].filter(Boolean)) {
+                    if(!select(db,'SELECT id FROM accounts WHERE id=? AND deleted_at IS NULL',[id]).length) throw new Error('missing account');
+                }
+                let next=s.next_due_date || s.start_date, last=s.last_posted_date, completed=0;
+                while(next<=args.today) {
+                    if(s.end_date && next>s.end_date) {completed=1;break;}
+                    if(result.posted>=24) {result.capped=true;break;}
+                    if(s.posts_transaction===1) {
+                        const now=new Date().toISOString();
+                        db.run('INSERT INTO transactions(id,kind,date,amount,account_id,transfer_account_id,transfer_pair_id,tag_id,payee,description,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
+                        [crypto.randomUUID(),s.kind,next,s.amount,s.account_id,s.transfer_account_id,s.kind==='transfer'?crypto.randomUUID():null,s.tag_id,s.payee,s.description,now,now]);
+                        result.posted++;last=next;
+                    } else result.reminder_due=true;
+                    const date=new Date(next+'T00:00:00Z');
+                    const day=date.getUTCDate();
+                    if(s.frequency==='weekly' || s.frequency==='biweekly') date.setUTCDate(day+(s.frequency==='weekly'?7:14));
+                    else {
+                        date.setUTCDate(1);
+                        if(s.frequency==='monthly') date.setUTCMonth(date.getUTCMonth()+1); else date.setUTCFullYear(date.getUTCFullYear()+1);
+                        const end=new Date(date);end.setUTCMonth(end.getUTCMonth()+1);end.setUTCDate(0);
+                        date.setUTCDate(Math.min(day,end.getUTCDate()));
+                    }
+                    next=date.toISOString().slice(0,10);
+                }
+                const now=new Date().toISOString();
+                db.run('UPDATE schedules SET last_posted_date=?,next_due_date=?,completed=?,errored_at=?,updated_at=? WHERE id=?',[last,next,completed,result.capped?now:null,now,s.id]);
+                db.run('RELEASE schedule_post');result.advanced=!result.capped;return result;
+            } catch(error) {db.run('ROLLBACK TO schedule_post');db.run('RELEASE schedule_post');throw error;}
+        }
 		if (cmd === 'schedule_mark_posted') {
 			const db = await loadDb(activeDbPath, SQL_JS);
 			const now = new Date().toISOString();

@@ -4,7 +4,7 @@
 const config = {
 	plugins: ['@stryker-mutator/vitest-runner'],
 	testRunner: 'vitest',
-	ignorePatterns: ['/\.codegraph', '/\.codegraph/**', '/\.claude/**', '/\.stryker-tmp'],
+	ignorePatterns: ['/src-tauri/target', '/src-tauri/target/**', '/artifacts', '/artifacts/**', '/.superpowers', '/.superpowers/**', '/accounts.csv', '/budgets.csv', '/category_tags.csv', '/category_types.csv', '/goals.csv', '/reconciliations.csv', '/transactions.csv', '/\.codegraph', '/\.codegraph/**', '/\.claude/**', '/\.stryker-tmp'],
 	mutate: [
 		// db/repos/* are thin forwarders re-exporting browser/repos/*; the
 		// implementation is what carries the bug-prone logic, so mutate that.

@@ -133,7 +133,7 @@ describe('loadCommandSurface on the real tree', () => {
 
 	it('excludes Tauri-injected params that never cross the IPC argument map', () => {
 		const params = expectedArgKeys(surface, 'account_delete');
-		expect(params).toEqual(['session', 'id']);
+		expect(params).toEqual(['session', 'id', 'operationId']);
 	});
 
 	it('throws for a command that is not registered', () => {

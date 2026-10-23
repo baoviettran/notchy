@@ -12,15 +12,14 @@ A local-first personal finance application. Your data stays on your device — n
 
 ### Download
 
-Pre-built binaries are available from the [latest release](https://github.com/baoviettran/notchy/releases):
+Published binaries are available from [GitHub Releases](https://github.com/baoviettran/notchy/releases). The current 0.2.2 candidate uses these package formats:
 
 | Platform | File |
 |---|---|
-| Linux (Debian/Ubuntu) | `Notchy_0.2.1_amd64.deb` |
-| Linux (Fedora/RHEL) | `Notchy-0.2.1-1.x86_64.rpm` |
-| Linux (any) | `Notchy_0.2.1_amd64.AppImage` |
-| macOS (ARM) | `Notchy_0.2.1_aarch64.dmg` |
-| Windows | `Notchy_0.2.1_x64-setup.exe` |
+| Linux (Debian/Ubuntu) | `Notchy_0.2.2_amd64.deb` |
+| Linux (Fedora/RHEL) | `Notchy-0.2.2-1.x86_64.rpm` |
+
+Current 0.2.2 candidate scope: Linux DEB/RPM only. Windows/macOS and AppImage are not certified for this candidate. Candidate artifacts are local until a GitHub release is published.
 
 ### Build from Source
 

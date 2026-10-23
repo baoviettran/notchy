@@ -300,31 +300,20 @@ pub fn upsert_learned(
     payee_term: String,
     tag_id: String,
 ) -> DbResult<CategorizeRule> {
-    let normalized = normalize_payee(&payee_term);
-
-    // Find existing learned rule with same normalized payee and 'is' mode.
-    let existing: Option<CategorizeRule> = {
-        let mut stmt = conn
-            .prepare(
-                "SELECT id, payee_term, match_mode, tag_id, source, enabled, created_at, updated_at, deleted_at
-                 FROM categorize_rules WHERE source = 'learned' AND deleted_at IS NULL",
-            )
-            .map_err(map_sqlite_error)?;
-        let rows = stmt.query_map([], parse_rule_row).map_err(map_sqlite_error)?;
-        let mut found = None;
-        for row in rows {
-            let rule = row.map_err(map_sqlite_error)?;
-            if normalize_payee(&rule.payee_term) == normalized && rule.match_mode == MatchMode::Is {
-                found = Some(rule);
-                break;
-            }
-        }
-        found
-    };
-
-    if let Some(rule) = existing {
-        update_rule(conn, op_id, &rule.id, None, None, Some(tag_id), None, None)
-    } else {
-        create_rule(conn, op_id, payee_term, MatchMode::Is, tag_id, RuleSource::Learned)
-    }
+    run_idempotent(conn, op_id, "upsert_learned", &(&payee_term, &tag_id), |tx| {
+        let normalized = normalize_payee(&payee_term);
+        let existing = list_all_rules(tx)?.into_iter().find(|rule|
+            rule.deleted_at.is_none() && rule.source == RuleSource::Learned &&
+            rule.match_mode == MatchMode::Is && normalize_payee(&rule.payee_term) == normalized);
+        let now = now_iso_utc();
+        let id = if let Some(rule) = existing {
+            tx.execute("UPDATE categorize_rules SET tag_id=?1,updated_at=?2 WHERE id=?3",params![tag_id,now,rule.id]).map_err(map_sqlite_error)?;
+            rule.id
+        } else {
+            let id=OperationId::generate().as_str().to_string();
+            tx.execute("INSERT INTO categorize_rules(id,payee_term,match_mode,tag_id,source,enabled,created_at,updated_at) VALUES(?1,?2,'is',?3,'learned',1,?4,?4)",params![id,payee_term,tag_id,now]).map_err(map_sqlite_error)?;
+            id
+        };
+        get_rule(tx, &id)?.ok_or_else(||DbError::new(ErrorCode::DatabaseCorrupt))
+    })
 }
