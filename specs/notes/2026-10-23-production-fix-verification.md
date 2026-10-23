@@ -97,3 +97,19 @@ Final SDK-aligned unit1163/1163, affected E2E21/21, tooling15/15 and check0 erro
 passed. This acceptance is superseded: user requested rebase onto latest main
 with profile management before GitHub publication. No tag or release was pushed.
 All artifacts under artifacts/0.2.2 must be rebuilt/retested after integration.
+
+## Latest-main integration (required for publication)
+
+Rebased onto2cf96a3 (merged profile management). Mutation command conflicts retain
+both the ProfileSession admission guard and caller OperationId. Atomic schedule
+posting now runs through ProfileCoordinator::with_session. Native adapters keep
+the bound session and forward mutation options; fingerprints include profileId
+but exclude ephemeral generation. Session-expired retry retains its pending key.
+Two failing integration regressions preceded the fix and now pass: a lost
+response reuses its ID after generation change; another profile gets another ID;
+explicit options pass through the session boundary. Targeted boundary132/132,
+full unit/component1220/1220 (145 files), check0 errors, full Rust394 tests,
+Clippy all-target warnings denied, changed-client coverage100/93.33 and tooling15
+pass. Full browser E2E and rebuilt profile-aware native package acceptance remain
+in progress. An independent read-only integration review found no Critical or
+Important issues. No old package evidence is substituted for the new build.

@@ -1219,7 +1219,7 @@ window.__TAURI_INTERNALS__ = {
 		}
 
         if (cmd === 'schedule_post_due') {
-            const db = await loadDb(LIVE_DB_PATH, SQL_JS);
+            const db = await loadDb(activeDbPath, SQL_JS);
             const s = select(db, 'SELECT * FROM schedules WHERE id=? AND deleted_at IS NULL', [args.id])[0];
             const result = {posted:0,reminder_due:false,capped:false,advanced:false};
             if(!s || s.enabled!==1 || s.completed!==0 || s.errored_at!==null) return result;

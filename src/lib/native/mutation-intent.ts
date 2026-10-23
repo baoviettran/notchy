@@ -19,7 +19,11 @@ function canonical(value: unknown): string {
 export async function invokeMutation<T>(call: Invoke, command: string, args: Record<string, unknown> = {}, options?: MutationOptions, store?: Store, decidePending?: () => Promise<boolean>): Promise<T> {
 	if (options?.operationId) return await call(command, { ...args, operationId: options.operationId }) as T;
 	const storage = store ?? (typeof localStorage !== 'undefined' ? localStorage : undefined);
-	const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical({ command, args })));
+	// Profile identity survives reload; generation is only an execution guard.
+	// Another profile must never inherit an unresolved financial intent.
+	const session = args.session as { profileId?: string } | undefined;
+	const fingerprintArgs = session ? { ...args, session: { profileId: session.profileId } } : args;
+	const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical({ command, args: fingerprintArgs })));
 	const prefix = 'notchy.pending.v1.' + Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('') + '.';
 	// Each intent owns a distinct key. A late response may remove only its own
 	// key, even when another webview has started a newer identical intent.
@@ -49,7 +53,7 @@ export async function invokeMutation<T>(call: Invoke, command: string, args: Rec
 		return result as T;
 	} catch (error) {
 		// Structured domain rejection is definitive; a transport failure is not.
-		if (error && typeof error === 'object' && !(error instanceof Error) && 'code' in error) storage?.removeItem(key);
+		if (error && typeof error === 'object' && !(error instanceof Error) && 'code' in error && error.code !== 'profile_session_expired') storage?.removeItem(key);
 		throw error;
 	}
 }

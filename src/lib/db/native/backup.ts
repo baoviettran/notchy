@@ -12,7 +12,7 @@
  * sweep throw in the node test environment, where `isTauri()` is false by
  * construction.
  */
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '$lib/native/invoke';
 import type { SessionInvoker } from '$lib/profiles/session';
 import type { BackupOps } from '../client';
 
