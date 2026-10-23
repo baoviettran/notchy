@@ -47,7 +47,7 @@ receipt in one transaction.
 - Changed-file coverage gate: pass; native client98.95% statements /93.24% branches.
 - Type/Svelte check:0 errors, three existing Quick Add CSS warnings.
 - Final versioned production browser E2E:159/159 pass; earlier affected rerun14/14 pass.
-- Release tooling:14/14 pass with actual child-process access.
+- Release tooling before SDK alignment:14/14 pass; final15-test rerun required with actual child-process access.
 - Native full suite:343 pass; final affected schedule/command tests, all-target Clippy with warnings denied and generated bindings check pass.
 - First Clippy attempt caught new recurrence helper below test module; moved helper before test module and reran rather than suppressing lint.
 - Stryker initial run failed while traversing transient Rust target files. Excluding build outputs, artifact caches and personal CSVs allowed the required DB mutation gate to finish:790 mutants, score88.61%,694 killed,6 timeouts,79 survived,11 uncovered. This is a passed configured gate, not a claim of complete fault detection.
@@ -60,8 +60,11 @@ GitHub release, tag or publication has been claimed.
 ## Native smoke findings
 
 The actual package exposed a missing `dialog:allow-confirm` permission on both
-main and Quick Add windows. A failing capability regression preceded the fix;
-release tooling now passes14 tests. Packages were rebuilt after this correction.
+main and Quick Add windows. The actual native ACL rejection was the RED evidence. A capability-only fix
+was insufficient: JS dialog2.2.0 invoked the removed `confirm` command while
+Cargo.lock resolved Rust dialog2.7.1. Pinning JS dialog2.7.1 aligns the IPC to
+`message`; a new release-tooling regression guards the supported command.
+Packages are rebuilt after this correction.
 Earlier failed screenshots are harness/debug evidence, not acceptance.
 
 The first attempted lost-response hook targeted a read-only Tauri function and
@@ -69,3 +72,28 @@ was ineffective. The final harness instead intercepts the runtime callback Map:
 the real SQLite commit completes before the success response is routed to the
 error callback. No product-side fault injection or financial payload logging was
 added.
+
+## Mutation inventory
+
+The39 receipt-backed commands are enumerated by `MUTATIONS` in
+`src/lib/native/invoke.ts`: families are
+accounts, transaction single/batch/bulk/duplicate, bucket/tag categories, budget,
+goal, rule/learned upsert, debt write-off, reconciliation and schedules including
+atomic posting. Every corresponding Rust command requires a client OperationId.
+Metadata/preferences, reads and lifecycle commands (initialize, backup, export,
+import, restore) are deliberately outside receipt replay. Their existing
+filesystem protocols are tested separately; they do not gain financial receipt
+semantics from this change.
+
+## Superseded pre-rebase package acceptance
+
+Source3cdf52e was built and passed installed native RPM Fedora44 / DEB Ubuntu24.04
+smoke: real commit followed by injected response loss, Keep draft, receipt retry
+without duplicate, new intent, Quick Add shortcut/save, schedule replay, SQLite
+backup/export/import/restore, CSV export, process restart preserving IDs/balances,
+and native file-picker open/cancel/reopen. Both installed binaries matched
+643a65688b00469f73b82c064c68cb4c6cc7f6b1e32d6f343a824cb640f7ab9b.
+Final SDK-aligned unit1163/1163, affected E2E21/21, tooling15/15 and check0 errors
+passed. This acceptance is superseded: user requested rebase onto latest main
+with profile management before GitHub publication. No tag or release was pushed.
+All artifacts under artifacts/0.2.2 must be rebuilt/retested after integration.
