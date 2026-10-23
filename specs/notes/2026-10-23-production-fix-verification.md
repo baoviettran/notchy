@@ -1,125 +1,126 @@
-# Production fix execution evidence
+# Production fix verification — Notchy 0.2.2
 
 **Serves:** STORY-009, STORY-013, STORY-015, STORY-023
 
-Baseline `29e0055`; branch `codex/production-readiness-fix`. Package acceptance in progress.
+Linux package acceptance passed. Application source `ea2faee8be447f14b04de8655d18c4c0ceab5480`
+was merged through [PR #42](https://github.com/baoviettran/notchy/pull/42) into
+`main` at `6dc2ec97ce541ff97ea764376d209d9e65ca736e`. The application, locale,
+dependency and workflow trees are identical between these revisions. Subsequent
+acceptance documentation does not alter the packaged application. The release tag,
+workflow and published asset digests are authoritative for publication status.
 
-## Scope and rulings
+## Closure and distribution decision
 
-- Linux-only 0.2.2 candidate. Remote releases checked with `gh release list`; latest public release is 0.2.0. `git ls-remote --tags origin 'refs/tags/v0.2.2*'` returned none. No remote tag/publish performed.
-- Managed worktree was read-only under sandbox, so implementation uses a dedicated branch in original checkout. User CSVs untouched.
-- Pending intent ownership centralized in native invoke rather than repeated editor-specific code. Durable storage retains only SHA-256 request fingerprint and operation ULID; unknown transport failure keeps intent across reload. Definitive response clears it. Explicit operation IDs supported.
-- Atomic per-schedule transaction retains existing schema 7. Transfers keep the existing **single-row transfer model**, rather than adding two rows as wording in plan suggested.
-- R2 Windows compatibility remains open: no Windows runner available. Windows/macOS excluded from this candidate's release matrix; no unverified filesystem patch included.
-- Existing manual backup/retention policy remains. This package does not introduce auto-backup or sync.
-- Cargo jobs limited to 2 after default parallel linking saturated 16GB RAM/swap. Initial superseded runs cancelled, not counted as passing.
+| Finding | Result and evidence |
+| --- | --- |
+| R1 interrupted schedule posting | Fixed. Browser regression first reproduced two 50,000 rows after failure/resume; atomic operation rolls back all rows before retry. Native real-SQLite failure tests cover advancement failure for income/expense/transfer, later-occurrence rollback, cap/resume and concurrent requests. Packaged native command replay posts once; restart does not repost. |
+| R2 Windows directory durability | Open. Windows was unavailable. Windows/macOS/AppImage are excluded; no cross-platform durability claim. Task4 uses its explicit Linux-only fallback. |
+| R3 lost-response retry | Fixed. All39 receipt-backed financial commands require caller OperationId. Persistent fingerprint/ULID ownership survives reload and session-generation changes while isolating profile identity. Packaged UI smoke commits natively, injects response loss, retains the draft, cancels and explicitly retries without another write, then saves a new identical intent. |
+| R4 release gates | Fixed in tooling. Failed E2E aborts packaging; tag workflow reuses mandatory CI for that revision and waits before draft creation. New-tag coverage uses a valid prior tag/root comparison. Final tag workflow must pass before publication. |
+| R5 backup policy | Manual policy retained and documented. No automatic routine backup/retention or sync was added. |
 
-## Evidence so far
+Supported acceptance matrix: unsigned **RPM on Fedora44 x86_64** (primary) and
+**DEB on Ubuntu24.04 x86_64**. Both run actual installed Tauri binaries with native
+SQLite and IPC. Tests use isolated rootless containers/Xvfb; WebKit sandbox disablement
+applies only inside those test containers. The user's live desktop/profile was not
+modified. Host tray/menu behavior, physical disk exhaustion, signing, Windows and
+macOS are not certified by these results.
 
-- Browser regression R1: RED two 50,000 occurrences after advancement error/resume; GREEN atomic rollback leaves zero, resume leaves exactly one.
-- Durable intent tests: lost-response retry uses same ULID; next successful independent intent uses a new ULID; explicit ID retained.
-- Native command retry: same ID/input returns original transaction; changed amount conflicts.
-- Affected browser schedule semantics/native boundary: 116 tests passed before further additions.
-- Release gate regression: baseline missing fatal-gate interface failed; new fatal E2E and same-SHA reusable workflow tests pass.
-- Node 22.22.3 SQLite binary rebuilt with local matching headers; cached pnpm 10.11.0 used.
+## Final automated evidence
 
-## Independent review and fix pass
+[GitHub CI39942868206](https://github.com/baoviettran/notchy/actions/runs/39942868206)
+passed at the exact application source `ea2faee`:
 
-A fresh read-only reviewer reported six Important findings, no Critical findings
-and no minor findings. All six were addressed in one fix pass:
+- Node22.22.3 / pnpm10.11.0; unit/component **1,221 tests /145 files**.
+- Production browser E2E **166/166**; local affected rerun after the Quick Add fix **31/31**.
+- Rust **394** tests; all-target Clippy with warnings denied; generated bindings current.
+- Svelte/TypeScript zero errors, three pre-existing Quick Add CSS warnings.
+- Coverage82.32% statements,74.68% branches,76.52% functions,84.87% lines;
+  changed-file floor passed. Native client100% statements /93.33% branches.
+- Local release tooling15/15 and native SQLite cutover check passed.
+- Required DB mutation gate:765 mutants, score88.89%,674 killed,6 timed out,
+  73 survived,12 uncovered. The retained HTML report confirms these counts;
+  passing configured thresholds does not mean complete fault detection.
 
-1. Late intent completion could delete a newer pending ID: per-operation storage keys and a deterministic four-call ordering regression.
-2. Duplicate receipt hashed derived state: hash original source ID; resolve source/date only on first application inside the receipt.
-3. Learned-rule upsert switched create/update receipt command: one stable upsert receipt owns lookup and mutation.
-4. Reconciliation recomputed discrepancy on replay and omitted notes: cache full discrepancy/IDs and hash notes; read balance inside transaction.
-5. Batch validation preceded receipt replay: state-dependent checks now run inside receipts, including an audit of account create/update, transaction update and debt write-off.
-6. Fresh tag supplied zero `event.before` coverage base: choose prior version tag, with repository-root fallback.
+Accepted CI logs are retained in
+`artifacts/0.2.2/latest-main/evidence/gates/ci-ea2faee.log`. Mutation HTML is
+`reports/mutation/mutation.html`. The initial concurrent build/E2E attempt lost
+shared generated assets and was rejected; the accepted E2E rerun used a stable
+production preview. The mutation startup range was corrected after upstream moved
+prepareDatabase. Root personal CSV files were excluded from mutation sandboxes
+and never read, staged or packaged.
 
-Additional command regressions cover changed target IDs and budget copy replay.
-Both failed before fixes. Budget copy now includes all allocation writes and its
-receipt in one transaction.
+## Installed package acceptance
 
-## Automated gates
+Final accepted packages, built with `CARGO_BUILD_JOBS=2 pnpm tauri build --bundles deb,rpm`:
 
-- Node 22.22.3 and pnpm 10.11.0.
-- Unit/component coverage after review: **1,163 tests / 131 files pass**;
-  statements83.59%, branches76.01%, functions77.07%, lines85.25%.
-- Changed-file coverage gate: pass; native client98.95% statements /93.24% branches.
-- Type/Svelte check:0 errors, three existing Quick Add CSS warnings.
-- Final versioned production browser E2E:159/159 pass; earlier affected rerun14/14 pass.
-- Release tooling before SDK alignment:14/14 pass; final15-test rerun required with actual child-process access.
-- Native full suite:343 pass; final affected schedule/command tests, all-target Clippy with warnings denied and generated bindings check pass.
-- First Clippy attempt caught new recurrence helper below test module; moved helper before test module and reran rather than suppressing lint.
-- Stryker initial run failed while traversing transient Rust target files. Excluding build outputs, artifact caches and personal CSVs allowed the required DB mutation gate to finish:790 mutants, score88.61%,694 killed,6 timeouts,79 survived,11 uncovered. This is a passed configured gate, not a claim of complete fault detection.
+| Artifact | SHA-256 |
+| --- | --- |
+| Notchy-0.2.2-1.x86_64.rpm | `a646174f93f69f30d8b9c42136faba80d7fdffc1a937581b4d9556ac4393c631` |
+| Notchy_0.2.2_amd64.deb | `47810ef067c8652ae82ad9abc18b964c1466b0558130d0ed945944a36e42b159` |
 
-## Package acceptance
+The installed RPM and DEB executables both match the build executable:
+`db85b67769f3676a736a52d92b35edf098abc9d8a722f628c165838cc96a3c91`.
+`rpm -V notchy` and `dpkg -V notchy` passed. Version0.2.2, schema7.
 
-Pending actual package smoke, hashes and OS compatibility results. No remote CI,
-GitHub release, tag or publication has been claimed.
+Evidence under `artifacts/0.2.2/latest-main/evidence/`:
 
-## Native smoke findings
+| Journey | Result / evidence |
+| --- | --- |
+| Fresh profile + finance | Income, expense, transfer and atomic schedule command/replay preserve expected balances. Native-results JSON on both OSes records7 transactions and balances832000/100000. |
+| Actual Svelte save recovery | Callback fault occurs after native commit; Keep draft makes no write; explicit retry returns original transaction; a new identical form creates a new transaction. Screenshots02–06 and native_ui_retry_ids. |
+| Quick Add | Real Ctrl+Shift+N focus and save passed after main-window setup; screenshot07 and quick_add_save. |
+| Profile boundaries | Create/switch A/B; B starts empty; stale A session rejected; A ledger unchanged. Restore as new preserves original IDs/balances; inactive reset produces verified snapshot; inactive delete leaves A and Recovered intact. |
+| Backup/export/restore | Native routine backup, SQLite export, inspect/restore-as-new, source hash unchanged and all7 table CSV exports passed. Synthetic data only. |
+| Process restart | `fedora-accepted/restart-results.json` and `ubuntu-accepted/restart-results.json`: same restored profile, new generation, exact transaction rows and balances, no schedule repost. |
+| Native file picker | Real GTK Open/cancel/reopen/cancel passed on both installed packages after restart. |
+| Legacy upgrade | `upgrade/upgrade-results.json`: schema6 ledger captured from the actual published0.2.0 package adopts into exactly one profile; preserves all account/transaction IDs, balances850000/100000, allocated budget100000 and Vietnamese locale. Schema7 plus verified schema6 upgrade snapshot. |
+| Legacy archival backup + restart | Backup bytes remain SHA256 `751893999a6c12873150bc2305912883a783a9df9ad42214c29c8177ea818eda`. First and second upgrade results retain one identical profile ID with a new session generation; ledger remains intact. |
 
-The actual package exposed a missing `dialog:allow-confirm` permission on both
-main and Quick Add windows. The actual native ACL rejection was the RED evidence. A capability-only fix
-was insufficient: JS dialog2.2.0 invoked the removed `confirm` command while
-Cargo.lock resolved Rust dialog2.7.1. Pinning JS dialog2.7.1 aligns the IPC to
-`message`; a new release-tooling regression guards the supported command.
-Packages are rebuilt after this correction.
-Earlier failed screenshots are harness/debug evidence, not acceptance.
+Fresh profile isolation and finance acceptance are in
+`fedora-accepted/native-results.json` and `ubuntu-accepted/native-results.json`.
+Screenshots are retained beside them. The upgrade input came from the real
+published0.2.0 ledger's pre-upgrade snapshot, not a package-manager marker.
+Earlier pre-rebase packages and failed debug attempts outside `latest-main` are
+superseded and must never be uploaded as this release's accepted artifacts.
 
-The first attempted lost-response hook targeted a read-only Tauri function and
-was ineffective. The final harness instead intercepts the runtime callback Map:
-the real SQLite commit completes before the success response is routed to the
-error callback. No product-side fault injection or financial payload logging was
-added.
+## Implementation and review record
 
-## Mutation inventory
+The39 receipt commands are enumerated in `src/lib/native/invoke.ts`: account,
+transaction single/batch/bulk/duplicate, bucket/tag, budget, goal, rule/learned,
+debt write-off, reconciliation and schedule operations. Reads, preferences and
+profile/lifecycle filesystem operations do not gain financial receipt semantics.
+Pending storage contains only request SHA256 fingerprints and operation ULIDs,
+not financial payloads. Profile session generation guards native execution;
+profile identity scopes retry ownership. NativeAppError conversion preserves local
+pending-save errors. Stateful locale boundaries remain intact.
 
-The39 receipt-backed commands are enumerated by `MUTATIONS` in
-`src/lib/native/invoke.ts`: families are
-accounts, transaction single/batch/bulk/duplicate, bucket/tag categories, budget,
-goal, rule/learned upsert, debt write-off, reconciliation and schedules including
-atomic posting. Every corresponding Rust command requires a client OperationId.
-Metadata/preferences, reads and lifecycle commands (initialize, backup, export,
-import, restore) are deliberately outside receipt replay. Their existing
-filesystem protocols are tested separately; they do not gain financial receipt
-semantics from this change.
+Six Important findings from independent whole-change review were fixed with
+regressions: late completion erasing newer intent ownership, duplicate hashing
+mutable source state, learned upsert switching receipt commands, reconciliation
+recomputing discrepancy/omitting notes, validation preceding receipt replay, and
+new-tag coverage using a zero SHA. Budget copy now owns all allocation writes
+inside one receipt transaction. Target IDs are included in request hashes.
+A separate integration review after rebase found no Critical/Important findings.
 
-## Superseded pre-rebase package acceptance
+Native smoke additionally reproduced dialog JS2.2.0 versus Rust2.7.1 command
+incompatibility. JS is now pinned2.7.1, with native confirmation permissions and a
+release-tooling command regression. The original hook attempted to modify a
+read-only invoke property and was invalid; accepted tests intercept only the
+mutable callback Map after the real commit. No production fault injector was added.
 
-Source3cdf52e was built and passed installed native RPM Fedora44 / DEB Ubuntu24.04
-smoke: real commit followed by injected response loss, Keep draft, receipt retry
-without duplicate, new intent, Quick Add shortcut/save, schedule replay, SQLite
-backup/export/import/restore, CSV export, process restart preserving IDs/balances,
-and native file-picker open/cancel/reopen. Both installed binaries matched
-643a65688b00469f73b82c064c68cb4c6cc7f6b1e32d6f343a824cb640f7ab9b.
-Final SDK-aligned unit1163/1163, affected E2E21/21, tooling15/15 and check0 errors
-passed. This acceptance is superseded: user requested rebase onto latest main
-with profile management before GitHub publication. No tag or release was pushed.
-All artifacts under artifacts/0.2.2 must be rebuilt/retested after integration.
+Post-rebase native smoke also reproduced Quick Add remaining unready after main
+completed onboarding without a session change. A failing component test preceded
+refreshing profile settings on focus;8/8 Quick Add component tests and the final
+full suite passed, followed by installed package acceptance.
 
-## Latest-main integration (required for publication)
+Implementation landed coherently in `ccb3136`, `8123226`, `6e97e03`, `ea2faee`;
+PR42 merged all application changes into main. Earlier history before rebase is
+not the release source. The existing single-row transfer model and schema7 were
+preserved. Windows filesystem work was explicitly deferred, not silently passed.
 
-Rebased onto2cf96a3 (merged profile management). Mutation command conflicts retain
-both the ProfileSession admission guard and caller OperationId. Atomic schedule
-posting now runs through ProfileCoordinator::with_session. Native adapters keep
-the bound session and forward mutation options; fingerprints include profileId
-but exclude ephemeral generation. Session-expired retry retains its pending key.
-Two failing integration regressions preceded the fix and now pass: a lost
-response reuses its ID after generation change; another profile gets another ID;
-explicit options pass through the session boundary. Targeted boundary132/132,
-full unit/component1220/1220 (145 files), check0 errors, full Rust394 tests,
-Clippy all-target warnings denied, changed-client coverage100/93.33 and tooling15
-pass. Full browser E2E and rebuilt profile-aware native package acceptance remain
-in progress. An independent read-only integration review found no Critical or
-Important issues. No old package evidence is substituted for the new build.
+## Native screenshots
 
-Native profile-aware acceptance found Quick Add retained firstRunComplete=false
-after main completed onboarding without changing the session generation. RED
-component regression reproduced disabled input after focus; refreshing profile
-settings on focus fixes it. GREEN8/8 Quick Add component tests, full1221 unit
-tests, check0 errors, prior full integrated E2E166/166 plus final affected31/31.
-The first concurrent E2E/build attempt lost generated assets and was rejected;
-the accepted full run used a stable preview. The post-fix affected run similarly
-uses a confirmed fresh preview. DB mutation startup range adjusted164–234 after
-upstream moved prepareDatabase; mutation gate rerun in progress.
+![Native confirmation after a committed save lost its response](images/release-0.2.2-save-recovery.png)
+
+![Recovered profile with preserved native ledger](images/release-0.2.2-restored-profile.png)

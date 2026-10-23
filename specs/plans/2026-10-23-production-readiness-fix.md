@@ -12,7 +12,7 @@
 
 **Spec:** `specs/notes/2026-10-23-production-readiness-review.md` (R1–R5, reproduction, closure và release requirements).
 
-**Status:** Implemented on `codex/production-readiness-fix`; Linux 0.2.2 package acceptance underway. User authorized execution. See the verification record for actual results and deviations; unchecked steps remain unverified or replaced by the rulings below.
+**Status:** Implemented on `codex/production-readiness-fix`; Linux 0.2.2 package acceptance passed; PR42 merged all code into main; GitHub publication pending tag gates. User authorized execution. See the verification record for actual results and deviations; unchecked steps remain unverified or replaced by the rulings below.
 
 ## Scope và lựa chọn kiến trúc
 
@@ -21,7 +21,7 @@
 - Chưa chọn occurrence ledger/schema mới: với executor tuần tự, đọc schedule hiện tại trong transaction và receipt cho retry đủ đóng lỗi đã thấy. Nếu Task 2 chứng minh chưa đủ, dừng task, ghi counterexample và bổ sung design/migration trước khi làm tiếp.
 - Candidate mặc định `0.2.2` nếu vẫn là patch tương thích. Kiểm tra remote versions trước khi bump.
 - Chuẩn bị gate đa nền tảng, nhưng chỉ phát hành OS có bằng chứng. Linux là lane nghiệm thu đầu tiên; Windows/macOS không tự được coi là pass.
-- R5 giữ nguyên backup thủ công với hướng dẫn rõ ràng. Auto-backup, retention, profile management, sync nằm ngoài phase.
+- R5 giữ nguyên backup thủ công với hướng dẫn rõ ràng. Auto-backup, retention, sync nằm ngoài phase. User yêu cầu rebase để phát hành cùng profile management đã có trên main.
 
 ## Global Constraints
 
@@ -67,13 +67,13 @@ Regenerate `src/lib/native/contracts.generated.ts` bằng tooling. Các path bê
 - Native invoke gửi `operationId` bắt buộc; Rust command nhận `operation_id: OperationId`, không tự mint ID. Không có options thì adapter mint ULID cho intent mới; retry caller phải giữ cùng options.
 - New `src/lib/native/mutation-intent.ts`: `createMutationIntent(): { operationId: string }`, dùng utility ID có sẵn. Không có retry tự động vô hạn.
 
-- [ ] **Step 1:** Inventory toàn bộ mutation command: receipt-backed, metadata không receipt, lifecycle/file operations; ghi bảng trong note evidence. Áp dụng contract cho mọi receipt-backed domain mutation, không chỉ create transaction. Lifecycle/backup không được quảng cáo có receipt nếu chưa có.
-- [ ] **Step 2:** Thay test baseline đang khẳng định “no operation id” bằng tests: cùng options gửi cùng ID; hai intent mới khác ID; malformed ID bị native reject.
-- [ ] **Step 3:** Run `pnpm exec vitest run src/tests/unit/native-boundary.test.ts src/tests/unit/native-mutation-intent.test.ts --minWorkers=1 --maxWorkers=2`; thấy fail đúng contract trước fix.
-- [ ] **Step 4:** Implement options, native arg và command plumbing; update boundary op fixtures/camelCase arg sets, generated contracts. Không mint lại ID khi retry.
-- [ ] **Step 5:** Native command test: call với ID X, bỏ response, gọi lại X/payload cũ → cùng result ID, chỉ một financial effect; X/payload khác → `OperationIdConflict`; Y → intent mới. Cover create, transfer pair và batch; dùng command thật qua harness `command_guards.rs`.
-- [ ] **Step 6:** Run targeted Vitest, `cargo test --manifest-path src-tauri/Cargo.toml --test command_idempotency`, `pnpm check:db-contracts`, full pre-commit checks.
-- [ ] **Step 7:** Commit with `fix(ipc): preserve mutation ids across retries`.
+- [x] **Step 1:** Inventory toàn bộ mutation command: receipt-backed, metadata không receipt, lifecycle/file operations; ghi bảng trong note evidence. Áp dụng contract cho mọi receipt-backed domain mutation, không chỉ create transaction. Lifecycle/backup không được quảng cáo có receipt nếu chưa có.
+- [x] **Step 2:** Thay test baseline đang khẳng định “no operation id” bằng tests: cùng options gửi cùng ID; hai intent mới khác ID; malformed ID bị native reject.
+- [x] **Step 3:** Run `pnpm exec vitest run src/tests/unit/native-boundary.test.ts src/tests/unit/native-mutation-intent.test.ts --minWorkers=1 --maxWorkers=2`; thấy fail đúng contract trước fix.
+- [x] **Step 4:** Implement options, native arg và command plumbing; update boundary op fixtures/camelCase arg sets, generated contracts. Không mint lại ID khi retry.
+- [x] **Step 5:** Native command test: call với ID X, bỏ response, gọi lại X/payload cũ → cùng result ID, chỉ một financial effect; X/payload khác → `OperationIdConflict`; Y → intent mới. Cover create, transfer pair và batch; dùng command thật qua harness `command_guards.rs`.
+- [x] **Step 6:** Run targeted Vitest, `cargo test --manifest-path src-tauri/Cargo.toml --test command_idempotency`, `pnpm check:db-contracts`, full pre-commit checks.
+- [x] **Step 7:** Commit with `fix(ipc): preserve mutation ids across retries`.
 
 ### Task 2: Atomic native posting của một schedule
 
@@ -88,13 +88,13 @@ Regenerate `src/lib/native/contracts.generated.ts` bằng tooling. Các path bê
 - Add pure Rust `next_due_date(date: &IsoDate, frequency: &ScheduleFrequency) -> DbResult<IsoDate>` following JS clamping/drift exactly. Shared JSON cases consumed by Rust and JS tests.
 
 - [ ] **Step 1:** Write native regression: expense 50,000, failpoint after first financial write before schedule advancement → zero committed occurrences and unchanged schedule after reopen. Baseline sequence create/markPosted demonstrates failure window.
-- [ ] **Step 2:** Add cases: income, two-legged transfer, failure on second catch-up occurrence, same-ID response loss, two distinct-ID requests queued for same due schedule, soft-deleted account, disabled/deleted/completed schedule and stale JS snapshot. Assert one effect per due occurrence and no half transfer.
+- [x] **Step 2:** Add cases: income, two-legged transfer, failure on second catch-up occurrence, same-ID response loss, two distinct-ID requests queued for same due schedule, soft-deleted account, disabled/deleted/completed schedule and stale JS snapshot. Assert one effect per due occurrence and no half transfer.
 - [ ] **Step 3:** Run `cargo test --manifest-path src-tauri/Cargo.toml --test schedule_posting`; observe missing operation / regression failures.
-- [ ] **Step 4:** Implement one `run_idempotent` transaction: load current schedule and live accounts inside transaction, validate, calculate recurrence, post up to 24, advance/bookkeep, park cap if needed, commit receipt. Due-null reanchors to start; inactive/already-current rows return zero-effect result. No transaction helpers that commit independently inside outer receipt; extract transaction-scoped insert primitive shared with ordinary create.
-- [ ] **Step 5:** Preserve current semantics: monthly Jan31→Feb28→Mar28, reminder-only one notice per pass, cap counts financial posts, end date completes, error on one schedule does not prevent later schedules. Failed pass rolls back; orchestration may park it afterward.
-- [ ] **Step 6:** Use failpoints only through test/debug mechanisms; IPC cannot arm production failpoints. Check malformed/boundary dates without panic.
-- [ ] **Step 7:** Run native schedule/transaction/idempotency suites, shared recurrence corpus and contracts check; full pre-commit checks.
-- [ ] **Step 8:** Commit with `fix(schedules): post due transactions atomically`.
+- [x] **Step 4:** Implement one `run_idempotent` transaction: load current schedule and live accounts inside transaction, validate, calculate recurrence, post up to 24, advance/bookkeep, park cap if needed, commit receipt. Due-null reanchors to start; inactive/already-current rows return zero-effect result. No transaction helpers that commit independently inside outer receipt; extract transaction-scoped insert primitive shared with ordinary create.
+- [x] **Step 5:** Preserve current semantics: monthly Jan31→Feb28→Mar28, reminder-only one notice per pass, cap counts financial posts, end date completes, error on one schedule does not prevent later schedules. Failed pass rolls back; orchestration may park it afterward.
+- [x] **Step 6:** Use failpoints only through test/debug mechanisms; IPC cannot arm production failpoints. Check malformed/boundary dates without panic.
+- [x] **Step 7:** Run native schedule/transaction/idempotency suites, shared recurrence corpus and contracts check; full pre-commit checks.
+- [x] **Step 8:** Commit with `fix(schedules): post due transactions atomically`.
 
 ### Task 3: Port atomic posting và giữ retry intent trong UI
 
@@ -104,14 +104,14 @@ Regenerate `src/lib/native/contracts.generated.ts` bằng tooling. Các path bê
 
 **Interfaces:** `ScheduleOps.postDue(id: string, today: string, options?: MutationOptions): Promise<SchedulePostResult>`. DTO result matches generated snake_case fields. JS orchestration aggregates results; no separate financial create/markPosted chain.
 
-- [ ] **Step 1:** Adapt report reproduction to atomic behavior: failed pass leaves zero rows; resume yields exactly one 50,000 row. Add browser cases corresponding to Task 2 and assert summary counts reflect committed results only.
-- [ ] **Step 2:** Add component test: Save commits, response is ambiguous, retry preserves same intent ID; changing payload starts a new intent. New form/session gets a new ID. Preserve draft and locale behavior.
-- [ ] **Step 3:** Run targeted tests to observe failures before implementation.
-- [ ] **Step 4:** Implement browser operation with real transaction and same semantics as native, wire new native command, replace JS posting loop. Remove engine reliance on public markPosted plumbing; update/remove obsolete command/fixtures consistently if retired.
-- [ ] **Step 5:** Enroll receipt-backed user mutations from inventory in intent ownership. Keep ID with pending draft/action; invalidate when payload changes or operation definitively completes. For reload/close with unresolved intent, persist only necessary pending intent state with bounded lifetime or show explicit reconciliation before resubmit; do not promise retry safety across reload using memory alone. Record chosen behavior and tests.
-- [ ] **Step 6:** Update mock E2E surface without treating it as native proof; test resume, reload, duplicate boot and no duplicated transfer. Run `pnpm test:e2e --grep 'scheduled|schedule'` using actual matching test titles; verify nonzero tests selected.
-- [ ] **Step 7:** Run affected components, native boundary, whole unit suite and `pnpm check`; contracts/current-source cutover checks pass.
-- [ ] **Step 8:** Commit with `fix(schedules): use atomic posting through the domain port`.
+- [x] **Step 1:** Adapt report reproduction to atomic behavior: failed pass leaves zero rows; resume yields exactly one 50,000 row. Add browser cases corresponding to Task 2 and assert summary counts reflect committed results only.
+- [x] **Step 2:** Add component test: Save commits, response is ambiguous, retry preserves same intent ID; changing payload starts a new intent. New form/session gets a new ID. Preserve draft and locale behavior.
+- [x] **Step 3:** Run targeted tests to observe failures before implementation.
+- [x] **Step 4:** Implement browser operation with real transaction and same semantics as native, wire new native command, replace JS posting loop. Remove engine reliance on public markPosted plumbing; update/remove obsolete command/fixtures consistently if retired.
+- [x] **Step 5:** Enroll receipt-backed user mutations from inventory in intent ownership. Keep ID with pending draft/action; invalidate when payload changes or operation definitively completes. For reload/close with unresolved intent, persist only necessary pending intent state with bounded lifetime or show explicit reconciliation before resubmit; do not promise retry safety across reload using memory alone. Record chosen behavior and tests.
+- [x] **Step 6:** Update mock E2E surface without treating it as native proof; test resume, reload, duplicate boot and no duplicated transfer. Run `pnpm test:e2e --grep 'scheduled|schedule'` using actual matching test titles; verify nonzero tests selected.
+- [x] **Step 7:** Run affected components, native boundary, whole unit suite and `pnpm check`; contracts/current-source cutover checks pass.
+- [x] **Step 8:** Commit with `fix(schedules): use atomic posting through the domain port`.
 
 ### Task 4: Filesystem publication/restore trên Windows và Unix
 
@@ -125,7 +125,7 @@ Regenerate `src/lib/native/contracts.generated.ts` bằng tooling. Các path bê
 - [ ] **Step 2:** Write failing Windows tests for first publication, overwrite, import/export, restore and reopen. Add permission/read-only target, existing destination, source preservation, pre/post-rename interruption tests.
 - [ ] **Step 3:** Implement platform-specific directory durability and replacement behavior. Verify `FILE_FLAG_BACKUP_SEMANTICS`, access/share flags and actual flush support; simply adding flag or swallowing errors is not acceptance. Preserve Unix fsync behavior.
 - [ ] **Step 4:** Run `cargo test --manifest-path src-tauri/Cargo.toml --test filesystem_durability --test backup_restore --test crash_recovery` on Windows and Linux; source hashes unchanged, valid rollback retained, recovery state correct after faults.
-- [ ] **Step 5:** If Windows cannot be verified, leave R2 open and explicitly exclude Windows release lane in Task 5. Do not mark compatibility fixed on a Linux cross-build alone.
+- [x] **Step 5:** If Windows cannot be verified, leave R2 open and explicitly exclude Windows release lane in Task 5. Do not mark compatibility fixed on a Linux cross-build alone.
 - [ ] **Step 6:** Commit with `fix(backup): use platform-aware durable publication`.
 
 ### Task 5: Quality gate bắt buộc cho release SHA
@@ -136,13 +136,13 @@ Regenerate `src/lib/native/contracts.generated.ts` bằng tooling. Các path bê
 
 **Interfaces:** E2E failure is fatal for candidate release. Tag workflow runs or reuses mandatory gates for exactly tagged SHA before build/publish; draft remains true. Per-OS support is explicit matrix/config, not inferred from build success.
 
-- [ ] **Step 1:** Add test injecting nonzero E2E exit: artifact/release step never executes. Baseline `SOFT_GATE_STEPS` must fail this assertion.
-- [ ] **Step 2:** Implement fatal E2E gate and tests for failed bindings/Rust/unit gate, version mismatch and dirty checkout. Assert no bypass silently converts failure into success.
+- [x] **Step 1:** Add test injecting nonzero E2E exit: artifact/release step never executes. Baseline `SOFT_GATE_STEPS` must fail this assertion.
+- [x] **Step 2:** Implement fatal E2E gate and tests for failed bindings/Rust/unit gate, version mismatch and dirty checkout. Assert no bypass silently converts failure into success.
 - [ ] **Step 3:** Refactor CI checks into reusable workflow or run equivalent mandatory jobs on tag; require success before draft artifacts. Test workflow structure for dependencies and exact checkout ref, then verify with actual CI run at Task 7.
-- [ ] **Step 4:** Add Windows native test job for claimed Windows support; macOS job for claimed macOS support. If an OS cannot satisfy native/package acceptance, omit from public candidate and document reason.
-- [ ] **Step 5:** Record signing/notarization status honestly; do not equate updater signature with Windows executable signing. Never invent certificates/secrets.
-- [ ] **Step 6:** Run `pnpm test:release-tooling`, `node --test scripts/release-gates.test.mjs`, full pre-commit checks; review trigger paths and least required permissions.
-- [ ] **Step 7:** Commit with `fix(release): require quality gates for candidate artifacts`.
+- [x] **Step 4:** Add Windows native test job for claimed Windows support; macOS job for claimed macOS support. If an OS cannot satisfy native/package acceptance, omit from public candidate and document reason.
+- [x] **Step 5:** Record signing/notarization status honestly; do not equate updater signature with Windows executable signing. Never invent certificates/secrets.
+- [x] **Step 6:** Run `pnpm test:release-tooling`, `node --test scripts/release-gates.test.mjs`, full pre-commit checks; review trigger paths and least required permissions.
+- [x] **Step 7:** Commit with `fix(release): require quality gates for candidate artifacts`.
 
 ### Task 6: Integrated verification và review fix
 
@@ -150,12 +150,12 @@ Regenerate `src/lib/native/contracts.generated.ts` bằng tooling. Các path bê
 
 **Files:** report closure table, new `specs/notes/2026-10-23-production-fix-verification.md`, story trace rows in `product/stories/index.md` (link existing stories to this plan; no new product story needed).
 
-- [ ] **Step 1:** Capture tool versions, exact source SHA/base SHA, scoped git status; remove environment ABI mismatch by rebuilding dependencies in isolated supported environment.
-- [ ] **Step 2:** Run `pnpm check`, `pnpm test`, `pnpm test:coverage`, coverage gate with explicit PR merge-base via `BASE_SHA`, `pnpm test:e2e`, `pnpm build`.
-- [ ] **Step 3:** Run `cargo test --manifest-path src-tauri/Cargo.toml`, `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`, `pnpm check:db-contracts`, `pnpm check:native-db-cutover`, `pnpm test:release-tooling`, `pnpm test:mutation:db` required by dogfood lane.
-- [ ] **Step 4:** Get independent review of changed transaction, retry and filesystem boundaries. Fix findings with regressions; rerun affected gates. Record unavailable OS as unavailable, never pass.
-- [ ] **Step 5:** Link this plan to STORY-009/013/015/023, run `pnpm test:roadmap`, inspect generated diff and `git diff --check`. Historical stale plans are not new phase completion evidence.
-- [ ] **Step 6:** Commit with `docs: record production fix verification`.
+- [x] **Step 1:** Capture tool versions, exact source SHA/base SHA, scoped git status; remove environment ABI mismatch by rebuilding dependencies in isolated supported environment.
+- [x] **Step 2:** Run `pnpm check`, `pnpm test`, `pnpm test:coverage`, coverage gate with explicit PR merge-base via `BASE_SHA`, `pnpm test:e2e`, `pnpm build`.
+- [x] **Step 3:** Run `cargo test --manifest-path src-tauri/Cargo.toml`, `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`, `pnpm check:db-contracts`, `pnpm check:native-db-cutover`, `pnpm test:release-tooling`, `pnpm test:mutation:db` required by dogfood lane.
+- [x] **Step 4:** Get independent review of changed transaction, retry and filesystem boundaries. Fix findings with regressions; rerun affected gates. Record unavailable OS as unavailable, never pass.
+- [x] **Step 5:** Link this plan to STORY-009/013/015/023, run `pnpm test:roadmap`, inspect generated diff and `git diff --check`. Historical stale plans are not new phase completion evidence.
+- [x] **Step 6:** Commit with `docs: record production fix verification`.
 
 ### Task 7: Bump candidate và nghiệm thu package cuối
 
@@ -163,21 +163,21 @@ Regenerate `src/lib/native/contracts.generated.ts` bằng tooling. Các path bê
 
 **Files:** `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, package `notchy` entry in `Cargo.lock`; READMEs/release notes; evidence under ignored `artifacts/<candidate-version>/`.
 
-- [ ] **Step 1:** Check remote tags/releases and final scope; choose `0.2.2` only if unused and backward-compatible upgrade remains. If breaking scope emerged, stop for version/scope review.
-- [ ] **Step 2:** Bump declared versions consistently using tooling; no global lockfile string replacement. Add release notes including OS support, manual backup policy and downgrade/schema caveats.
-- [ ] **Step 3:** Run version consistency tests, full mandatory gates for the versioned commit; `git diff --check`. Commit with `chore: prepare 0.2.2 release candidate` (adjust only if candidate differs).
-- [ ] **Step 4:** Build supported packages from clean versioned commit; record SHA, version, schema, OS, build commands and SHA-256 of each artifact. Build alone is not acceptance.
-- [ ] **Step 5:** Smoke installed package: fresh install/onboarding; CRUD/income/transfer; schedule catch-up/failure/restart/resume; Quick Add/tray/shortcut; locale/draft persistence; real native file pickers; backup/export/import/restore with source hash and original IDs/balances.
-- [ ] **Step 6:** Upgrade from actually published 0.2.1 if available (otherwise latest actual release plus supported old-schema fixture) with nontrivial ledger; verify live migration, rollback snapshot and restart. A preserved package-manager marker is insufficient.
-- [ ] **Step 7:** Record per-OS pass/fail with paths/screenshots for destructive cases. If package/code changes, rebuild and repeat affected smoke against new hash. Keep synthetic financial data only.
-- [ ] **Step 8:** Commit evidence summary with `docs: record candidate package acceptance`; evidence-only commit may follow candidate code SHA, but show exact relationship. Any tag target must itself pass required CI and produce byte-identified artifacts.
+- [x] **Step 1:** Check remote tags/releases and final scope; choose `0.2.2` only if unused and backward-compatible upgrade remains. If breaking scope emerged, stop for version/scope review.
+- [x] **Step 2:** Bump declared versions consistently using tooling; no global lockfile string replacement. Add release notes including OS support, manual backup policy and downgrade/schema caveats.
+- [x] **Step 3:** Run version consistency tests, full mandatory gates for the versioned commit; `git diff --check`. Commit with `chore: prepare 0.2.2 release candidate` (adjust only if candidate differs).
+- [x] **Step 4:** Build supported packages from clean versioned commit; record SHA, version, schema, OS, build commands and SHA-256 of each artifact. Build alone is not acceptance.
+- [x] **Step 5:** Smoke installed package: fresh install/onboarding; CRUD/income/transfer; schedule catch-up/failure/restart/resume; Quick Add/tray/shortcut; locale/draft persistence; real native file pickers; backup/export/import/restore with source hash and original IDs/balances.
+- [x] **Step 6:** Upgrade from actually published 0.2.1 if available (otherwise latest actual release plus supported old-schema fixture) with nontrivial ledger; verify live migration, rollback snapshot and restart. A preserved package-manager marker is insufficient.
+- [x] **Step 7:** Record per-OS pass/fail with paths/screenshots for destructive cases. If package/code changes, rebuild and repeat affected smoke against new hash. Keep synthetic financial data only.
+- [x] **Step 8:** Commit evidence summary with `docs: record candidate package acceptance`; evidence-only commit may follow candidate code SHA, but show exact relationship. Any tag target must itself pass required CI and produce byte-identified artifacts.
 
 ### Task 8: Release decision và bàn giao
 
 **Depends:** Task 7. **Files:** report closure, verification note, release draft metadata.
 
-- [ ] **Step 1:** Fill R1–R4 closure with fix commits, red/green tests, OS evidence and remaining limits; R5 stays documented policy, not falsely “implemented”.
-- [ ] **Step 2:** Decision table: Linux eligible only when its gates/package pass; Windows eligible only when Task 4 plus Windows smoke pass; macOS eligible only with its own runtime/distribution evidence. No platform automatically inherits pass.
+- [x] **Step 1:** Fill R1–R4 closure with fix commits, red/green tests, OS evidence and remaining limits; R5 stays documented policy, not falsely “implemented”.
+- [x] **Step 2:** Decision table: Linux eligible only when its gates/package pass; Windows eligible only when Task 4 plus Windows smoke pass; macOS eligible only with its own runtime/distribution evidence. No platform automatically inherits pass.
 - [ ] **Step 3:** Confirm zero unresolved P1 in claimed scope, exact-tag-SHA CI green, package version/hash matches smoke, notes/checksums correct. `test:release-smoke` printing checklist is not a passed smoke.
 - [ ] **Step 4:** Hand user concrete candidate/version/OS/artifact/evidence and explicit go/no-go. Create tag/push/publish only if user authorizes those actions; no force-push main or overwrite published version.
 - [ ] **Step 5:** Final handoff distinguishes code fixed, automated checks, native package evidence and publication status. Mark plan tasks complete only as their deliverables actually land.
@@ -202,8 +202,20 @@ Regenerate `src/lib/native/contracts.generated.ts` bằng tooling. Các path bê
   component-only test.
 - Task4 uses the explicit unavailable-Windows fallback: R2 stays open and
   Windows/macOS packages are excluded. No durability fix is claimed there.
-- Remote CI/tag publication is outside this local-package execution. Workflow
-  structure is tested locally; exact-tag CI remains required before publishing.
+- User subsequently authorized GitHub publication and required all changes on main. PR42 is merged; exact-tag CI remains required before public release.
 - User CSVs prevent a globally clean checkout; they are excluded from staging and
   all artifacts. Build inputs are tracked source, with the source commit recorded
   at acceptance. This does not relax the scripted clean-checkout release gate.
+
+## Acceptance map
+
+Tasks1–3 and5–7 are accepted under the execution rulings and linked verification
+record. Task2 baseline-native RED steps1/3 were replaced by the reproduced browser
+baseline failure plus native real-SQLite rollback/replay/concurrency tests; no
+claim of an unobserved native-baseline RED is made. Task4 steps1–4/6 are explicitly
+not performed: Windows is excluded through step5. Task5 step3 and Task8 remaining
+publication checks close only after the final tag workflow and GitHub release.
+The grouped source commits replace planned per-task commit subjects. Package
+acceptance combines domain fault injection with real installed native IPC/UI;
+production executables expose no fault-arming IPC. The globally dirty status is
+only the preserved user CSVs, excluded from staging and package payloads.

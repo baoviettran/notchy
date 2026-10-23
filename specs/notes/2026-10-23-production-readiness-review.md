@@ -4,7 +4,7 @@
 
 - Ngày review: 2026-10-23.
 - Baseline: commit `29e0055`, version khai báo `0.2.1`.
-- Trạng thái: **review hoàn tất; chưa sửa các finding; chưa đủ điều kiện public release**.
+- Trạng thái tại baseline: **review hoàn tất; cần sửa trước public release**. Kết quả phase fix hiện tại: [verification và closure](2026-10-23-production-fix-verification.md); R1/R3 đã sửa, R4 có gate bắt buộc, R2 Windows vẫn mở.
 - Phạm vi: source, database boundary, schedules, backup/restore, kiểm thử và release tooling. Không phải audit bảo mật toàn diện hoặc chứng nhận UI/native trên mọi OS.
 - Mục đích: agent tiếp theo có thể xác minh, sửa và nghiệm thu từng finding mà không cần đọc lịch sử chat.
 
