@@ -275,3 +275,43 @@ fn rejects_nonunique_partial_or_composite_registry_indexes() {
         }
     }
 }
+
+
+use notchy_lib::database::automatic_backup::{automatic_backup_due, automatic_retention_ids, automatic_prune_clock_trusted, AutomaticBackupStatus, AutomaticCopy};
+use notchy_lib::database::clock::{BackupClock, local_backup_clock};
+fn policy_fixture() -> serde_json::Value {
+    serde_json::from_str(include_str!("../../src/tests/fixtures/automatic-backup-policy.json")).unwrap()
+}
+#[test]
+fn applies_daily_changed_content_eligibility() {
+    for case in policy_fixture()["eligibility"].as_array().unwrap() {
+        let status: AutomaticBackupStatus = serde_json::from_value(case["status"].clone()).unwrap();
+        let clock: BackupClock = serde_json::from_value(case["clock"].clone()).unwrap();
+        assert_eq!(automatic_backup_due(&status, &clock), case["due"].as_bool().unwrap(), "{}", case["name"]);
+    }
+}
+#[test]
+fn defers_pruning_for_clock_label_changes_until_stable_again() {
+    for case in policy_fixture()["clocks"].as_array().unwrap() {
+        let previous = serde_json::from_value(case["previous"].clone()).unwrap();
+        let current = serde_json::from_value(case["current"].clone()).unwrap();
+        assert_eq!(automatic_prune_clock_trusted(&previous, &current), case["trusted"].as_bool().unwrap(), "{}", case["name"]);
+    }
+}
+#[test]
+fn retains_union_of_daily_weekly_and_schema_copies() {
+    let fixture = policy_fixture();
+    let case = &fixture["retention"];
+    let copies: Vec<AutomaticCopy> = serde_json::from_value(case["copies"].clone()).unwrap();
+    let protected: Vec<String> = serde_json::from_value(case["protected"].clone()).unwrap();
+    let mut deletions = automatic_retention_ids(&copies, case["protectedId"].as_str().unwrap());
+    assert!(deletions.iter().all(|id| !protected.contains(id)));
+    let mut expected: Vec<String> = serde_json::from_value(case["deletions"].clone()).unwrap();
+    deletions.sort(); expected.sort();
+    assert_eq!(deletions, expected);
+}
+#[test]
+fn observes_consistent_native_local_clock_labels() {
+    let clock = local_backup_clock();
+    assert!(automatic_prune_clock_trusted(&clock, &clock));
+}

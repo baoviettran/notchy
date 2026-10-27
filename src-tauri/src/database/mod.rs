@@ -8,6 +8,7 @@
 pub mod automatic_backup;
 pub mod backup;
 pub mod commands;
+pub mod clock;
 pub mod connection;
 pub mod domains;
 pub mod error;

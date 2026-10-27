@@ -173,3 +173,71 @@ BEGIN UPDATE automatic_backup_state SET content_revision = content_revision + 1 
 WHEN (OLD.key IN ('currency', 'first_run_complete', 'onboarding_step') OR NEW.key IN ('currency', 'first_run_complete', 'onboarding_step')) AND (OLD.key IS NOT NEW.key OR OLD.value IS NOT NEW.value)
 BEGIN UPDATE automatic_backup_state SET content_revision = content_revision + 1 WHERE id = 1; END"#,
 ];
+
+use crate::database::clock::{validated_clock, BackupClock};
+use chrono::{DateTime, NaiveDate};
+use std::collections::HashSet;
+
+/// Registry metadata plus independently established verification and ownership.
+/// Restored/unbound registries must be passed with owned=false.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AutomaticCopy {
+    pub id: String,
+    pub relative_filename: String,
+    pub schema_version: i64,
+    pub captured_revision: i64,
+    pub local_date: String,
+    pub local_week: String,
+    pub created_at: String,
+    pub publication_job_id: String,
+    pub offset_minutes: i32,
+    pub kind: String,
+    pub verified: bool,
+    pub owned: bool,
+}
+
+pub fn automatic_backup_due(status: &AutomaticBackupStatus, clock: &BackupClock) -> bool {
+    let Some(now) = validated_clock(clock) else { return false; };
+    if !status.enabled || status.content_revision <= status.backed_up_revision { return false; }
+    if let Some(date) = &status.last_success_date {
+        if NaiveDate::parse_from_str(date, "%Y-%m-%d").is_err() || clock.local_date <= *date { return false; }
+    }
+    match &status.last_success_at {
+        None => true,
+        Some(at) => DateTime::parse_from_rfc3339(at).is_ok_and(|last| now > last),
+    }
+}
+
+/// Gate destructive pruning using the last successful observation. Offset or
+/// backward clock changes defer pruning; a subsequent stable success reanchors it.
+pub fn automatic_prune_clock_trusted(previous: &BackupClock, current: &BackupClock) -> bool {
+    match (validated_clock(previous), validated_clock(current)) {
+        (Some(before), Some(now)) => current.offset_minutes == previous.offset_minutes
+            && now >= before && current.local_date >= previous.local_date,
+        _ => false,
+    }
+}
+
+/// Pure deletion candidates only. The coordinator must first establish a trusted
+/// clock and pass verified, session-owned registry entries; never infer ownership
+/// from filenames. Creation instants, not labels or input ordering, rank copies.
+pub fn automatic_retention_ids(copies: &[AutomaticCopy], protected_id: &str) -> Vec<String> {
+    let mut eligible: Vec<_> = copies.iter().filter_map(|copy| {
+        if copy.kind != "automatic" || !copy.verified || !copy.owned { return None; }
+        let clock = BackupClock { now_iso: copy.created_at.clone(), local_date: copy.local_date.clone(), iso_week: copy.local_week.clone(), offset_minutes: copy.offset_minutes };
+        Some((copy, validated_clock(&clock)?))
+    }).collect();
+    eligible.sort_by(|(a, at), (b, bt)| bt.cmp(at).then_with(|| b.id.cmp(&a.id)));
+    let mut keep = HashSet::from([protected_id.to_string()]);
+    let mut dates = HashSet::new();
+    let mut weeks = HashSet::new();
+    let mut schemas = HashSet::new();
+    for (copy, _) in &eligible {
+        let daily = dates.len() < 7 && dates.insert(copy.local_date.clone());
+        let weekly = weeks.len() < 4 && weeks.insert(copy.local_week.clone());
+        let schema = schemas.insert(copy.schema_version);
+        if daily || weekly || schema { keep.insert(copy.id.clone()); }
+    }
+    eligible.into_iter().filter(|(copy, _)| !keep.contains(&copy.id)).map(|(copy, _)| copy.id.clone()).collect()
+}

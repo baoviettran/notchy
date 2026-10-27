@@ -128,3 +128,21 @@ it('persists clock offsets across reopen and rolls them back without marking con
 		rmSync(dir, { recursive: true, force: true });
 	}
 });
+
+
+import policyFixture from '../fixtures/automatic-backup-policy.json';
+import { automaticBackupDue, automaticRetentionIds, automaticPruneClockTrusted } from '$lib/backup/automatic-policy';
+describe('automatic backup policy', () => {
+	it.each(policyFixture.eligibility)('applies daily changed-content eligibility: $name', ({ status, clock, due }) => {
+		expect(automaticBackupDue(status, clock)).toBe(due);
+	});
+	it.each(policyFixture.clocks)('defers unsafe pruning: $name', ({ previous, current, trusted }) => {
+		expect(automaticPruneClockTrusted(previous, current)).toBe(trusted);
+	});
+	it('retains_union_of_daily_weekly_and_schema_copies', () => {
+		const { copies, protectedId, protected: protectedIds, deletions } = policyFixture.retention;
+		const selected = automaticRetentionIds(copies, protectedId);
+		expect(selected.sort()).toEqual([...deletions].sort());
+		expect(selected.every(id => !protectedIds.includes(id))).toBe(true);
+	});
+});
