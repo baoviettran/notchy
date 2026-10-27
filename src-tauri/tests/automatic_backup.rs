@@ -202,3 +202,76 @@ fn clock_offsets_survive_reopen_and_transaction_rollback_without_marking_content
     drop(db);
     std::fs::remove_file(path).unwrap();
 }
+
+
+fn registry_without_unique_column(column: &str) -> Connection {
+    let db = database(LATEST_SCHEMA_VERSION);
+    let schema: String = db.query_row(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='automatic_backup_copies'",
+        [], |row| row.get(0),
+    ).unwrap();
+    let schema = schema.replace(
+        &format!("{column} TEXT NOT NULL UNIQUE"),
+        &format!("{column} TEXT NOT NULL"),
+    );
+    db.execute_batch("DROP TABLE automatic_backup_copies").unwrap();
+    db.execute_batch(&schema).unwrap();
+    db
+}
+
+#[test]
+fn rejects_registry_without_unique_relative_filename() {
+    let db = registry_without_unique_column("relative_filename");
+    db.execute_batch(
+        "INSERT INTO automatic_backup_copies
+         (id,relative_filename,schema_version,captured_revision,local_date,local_week,created_at,publication_job_id,offset_minutes)
+         VALUES ('a','same.sqlite',8,0,'2026-10-26','2026-W44','x','job-a',420),
+                ('b','same.sqlite',8,0,'2026-10-26','2026-W44','x','job-b',420)"
+    ).unwrap();
+    assert_eq!(validate_manifest(&db, 8).unwrap_err().code, notchy_lib::database::ErrorCode::DatabaseInvalid);
+}
+
+#[test]
+fn rejects_registry_without_unique_publication_job_id() {
+    let db = registry_without_unique_column("publication_job_id");
+    db.execute_batch(
+        "INSERT INTO automatic_backup_copies
+         (id,relative_filename,schema_version,captured_revision,local_date,local_week,created_at,publication_job_id,offset_minutes)
+         VALUES ('a','a.sqlite',8,0,'2026-10-26','2026-W44','x','same-job',420),
+                ('b','b.sqlite',8,0,'2026-10-26','2026-W44','x','same-job',420)"
+    ).unwrap();
+    assert_eq!(validate_manifest(&db, 8).unwrap_err().code, notchy_lib::database::ErrorCode::DatabaseInvalid);
+}
+
+
+#[test]
+fn rejects_nonunique_partial_or_composite_registry_indexes() {
+    for column in ["relative_filename", "publication_job_id"] {
+        for index_definition in [
+            format!("CREATE INDEX misleading_unique ON automatic_backup_copies ({column})"),
+            format!("CREATE UNIQUE INDEX misleading_unique ON automatic_backup_copies ({column}) WHERE id='protected'"),
+            format!("CREATE UNIQUE INDEX misleading_unique ON automatic_backup_copies ({column},id)"),
+        ] {
+            let db = registry_without_unique_column(column);
+            db.execute_batch(&index_definition).unwrap();
+            let (filename_a, filename_b, job_a, job_b) = if column == "relative_filename" {
+                ("same.sqlite", "same.sqlite", "job-a", "job-b")
+            } else {
+                ("a.sqlite", "b.sqlite", "same-job", "same-job")
+            };
+            for (id, filename, job) in [("a", filename_a, job_a), ("b", filename_b, job_b)] {
+                db.execute(
+                    "INSERT INTO automatic_backup_copies
+                     (id,relative_filename,schema_version,captured_revision,local_date,local_week,created_at,publication_job_id,offset_minutes)
+                     VALUES (?1,?2,8,0,'2026-10-26','2026-W44','x',?3,420)",
+                    rusqlite::params![id, filename, job],
+                ).unwrap();
+            }
+            assert_eq!(
+                validate_manifest(&db, 8).unwrap_err().code,
+                notchy_lib::database::ErrorCode::DatabaseInvalid,
+                "{column}: {index_definition}",
+            );
+        }
+    }
+}
