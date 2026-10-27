@@ -59,7 +59,10 @@ export async function validateDatabase(
 		(await db.query<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table'"))
 			.map((row) => row.name)
 	);
-	for (const table of REQUIRED_TABLES) {
+	const requiredTables: readonly string[] = schemaVersion >= 7
+		? [...REQUIRED_TABLES, 'automatic_backup_state', 'automatic_backup_copies']
+		: REQUIRED_TABLES;
+	for (const table of requiredTables) {
 		if (!tables.has(table)) {
 			return { valid: false, code: 'missing_table', schemaVersion, table };
 		}

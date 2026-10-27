@@ -1,6 +1,6 @@
 //! Version-specific schema manifests and validation (Task 3).
 //!
-//! Each supported schema version (3-7) has an exact manifest covering tables,
+//! Each supported schema version (3-8) has an exact manifest covering tables,
 //! columns, types, nullability, defaults, primary/foreign keys, indexes,
 //! triggers, and the CHECK constraints that carry business invariants.
 //! `validate_manifest` runs SQLite integrity and foreign-key checks and then
@@ -620,6 +620,81 @@ const TABLES_V7: &[TableManifest] = &[
     TRANSACTIONS,
 ];
 
+const AUTOMATIC_BACKUP_STATE: TableManifest = TableManifest {
+    name: "automatic_backup_state",
+    columns: &[
+        column!("id", INTEGER, false, None, true),
+        int_default!("enabled", "1"),
+        int_default!("content_revision", "0"),
+        int_default!("backed_up_revision", "0"),
+        text_opt!("last_success_at"),
+        text_opt!("last_success_date"),
+        column!("last_success_offset_minutes", INTEGER, false, None, false),
+        text_opt!("warning"),
+        text_opt!("prune_warning"),
+        text_opt!("pending_job_id"),
+        text_opt!("pending_relative_filename"),
+        column!("pending_revision", INTEGER, false, None, false),
+        text_opt!("pending_local_date"),
+        text_opt!("pending_local_week"),
+        column!("pending_offset_minutes", INTEGER, false, None, false),
+        text_opt!("pending_started_at"),
+    ],
+    foreign_keys: &[],
+    indexes: &[],
+    triggers: &[],
+    check_constraints: &[
+        "id = 1",
+        "enabled IN (0, 1)",
+        "content_revision BETWEEN 0 AND 9007199254740991",
+        "backed_up_revision BETWEEN 0 AND content_revision",
+        "pending_revision BETWEEN 0 AND 9007199254740991",
+    ],
+};
+const AUTOMATIC_BACKUP_COPIES: TableManifest = TableManifest {
+    name: "automatic_backup_copies",
+    columns: &[
+        text_pk!("id"),
+        text_nn!("relative_filename"),
+        column!("schema_version", INTEGER, true, None, false),
+        column!("captured_revision", INTEGER, true, None, false),
+        text_nn!("local_date"),
+        text_nn!("local_week"),
+        text_nn!("created_at"),
+        text_nn!("publication_job_id"),
+        column!("offset_minutes", INTEGER, true, None, false),
+    ],
+    foreign_keys: &[],
+    indexes: &[],
+    triggers: &[],
+    check_constraints: &[
+        "schema_version >= 3",
+        "captured_revision BETWEEN 0 AND 9007199254740991",
+        "length(relative_filename) > 0",
+        "instr(relative_filename, '/') = 0",
+        "instr(relative_filename, char(92)) = 0",
+        "relative_filename NOT IN ('.', '..')",
+    ],
+};
+
+const TABLES_V8: &[TableManifest] = &[
+    ACCOUNTS,
+    APP_META,
+    AUTOMATIC_BACKUP_COPIES,
+    AUTOMATIC_BACKUP_STATE,
+    BUDGETS,
+    CATEGORIZE_RULES,
+    CATEGORY_TAGS,
+    CATEGORY_TYPES_V4,
+    CHANGE_LOG,
+    GOALS,
+    OPERATION_RECEIPTS,
+    RECONCILIATIONS,
+    SCHEDULES,
+    TRANSACTIONS,
+
+];
+
 /// The manifest for a released schema version, or `None` for unsupported ones.
 pub fn manifest_for(version: i64) -> Option<&'static SchemaManifest> {
     match version {
@@ -628,6 +703,7 @@ pub fn manifest_for(version: i64) -> Option<&'static SchemaManifest> {
         5 => Some(&SchemaManifest { version: 5, tables: TABLES_V5 }),
         6 => Some(&SchemaManifest { version: 6, tables: TABLES_V6 }),
         7 => Some(&SchemaManifest { version: 7, tables: TABLES_V7 }),
+        8 => Some(&SchemaManifest { version: 8, tables: TABLES_V8 }),
         _ => None,
     }
 }
@@ -734,6 +810,17 @@ pub fn validate_manifest(connection: &rusqlite::Connection, version: i64) -> DbR
 
     for table in manifest.tables {
         validate_table(connection, table)?;
+    }
+    if version >= 8 {
+        for table in crate::database::automatic_backup::CONTENT_TABLES_V8
+            .iter().copied().chain(["app_meta"])
+        {
+            for operation in ["insert", "update", "delete"] {
+                if !trigger_exists(connection, &format!("trg_content_{table}_{operation}"))? {
+                    return Err(DbError::new(ErrorCode::DatabaseInvalid));
+                }
+            }
+        }
     }
     Ok(())
 }

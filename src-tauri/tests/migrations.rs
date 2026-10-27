@@ -1,7 +1,7 @@
 //! Integration tests for the native schema manifests, fresh bootstrap, and the
-//! migrations 1-7 registry (Task 3).
+//! migrations 1-8 registry (Task 3).
 //!
-//! Covers: fresh bootstrap, supported v3 and v4 -> v7 migration, current
+//! Covers: fresh bootstrap, supported v3 and v4 -> v8 migration, current
 //! schema acceptance, too-old / newer / invalid read-only rejection with
 //! byte-for-byte non-mutation, and failure injection after every statement of
 //! every migration proving full atomic rollback.
@@ -188,14 +188,14 @@ fn account_named(name: &str) -> NewAccount {
     }
 }
 
-/// A freshly bootstrapped schema-7 database, read-only for inspection.
-fn fresh_schema7_db() -> Connection {
+/// A freshly bootstrapped current-schema database, read-only for inspection.
+fn fresh_current_db() -> Connection {
     let path = fresh_path("schema7");
     bootstrap_current(&path, FailurePoint::None).unwrap();
     open_ro(&path)
 }
 
-/// A freshly bootstrapped schema-7 database, **read-write**, with one account
+/// A freshly bootstrapped current-schema database, **read-write**, with one account
 /// row inserted.
 ///
 /// Read-write is mandatory: an `INSERT` through `open_ro` fails with "attempt to
@@ -205,7 +205,7 @@ fn fresh_schema7_db() -> Connection {
 /// off, so a bogus `account_id` would not be caught, but inserting a real one
 /// keeps each rejection attributable to the CHECK the test names under either
 /// pragma.
-fn fresh_schema7_db_with_account() -> (Connection, String) {
+fn fresh_current_db_with_account() -> (Connection, String) {
     let path = fresh_path("schema7-rw");
     bootstrap_current(&path, FailurePoint::None).unwrap();
     let mut conn = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_WRITE).unwrap();
@@ -218,11 +218,11 @@ fn fresh_schema7_db_with_account() -> (Connection, String) {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn supported_v4_migrates_to_v7_atomically() {
+fn supported_v4_migrates_to_v8_atomically() {
     let path = copy_fixture("v004.sqlite");
     migrate_supported(&path, 4, FailurePoint::None).unwrap();
     let db = open_ro(&path);
-    assert_eq!(schema_version(&db), 7);
+    assert_eq!(schema_version(&db), 8);
     assert!(table_exists(&db, "categorize_rules"));
     assert!(table_exists(&db, "operation_receipts"));
     assert!(table_exists(&db, "schedules"));
@@ -231,7 +231,7 @@ fn supported_v4_migrates_to_v7_atomically() {
 
 #[test]
 fn newer_too_old_and_invalid_are_byte_for_byte_unchanged() {
-    for fixture in ["v002.sqlite", "v008.sqlite", "invalid-zero-byte.sqlite"] {
+    for fixture in ["v002.sqlite", "v009.sqlite", "invalid-zero-byte.sqlite"] {
         let path = copy_fixture(fixture);
         let before = snapshot_file_and_sidecars(&path);
         assert!(inspect_schema(&path).is_rejected());
@@ -251,7 +251,7 @@ fn fresh_bootstrap_creates_current_schema() {
 
     assert!(path.exists());
     let db = open_ro(&path);
-    assert_eq!(schema_version(&db), 7);
+    assert_eq!(schema_version(&db), 8);
     assert!(table_exists(&db, "categorize_rules"));
     assert!(table_exists(&db, "operation_receipts"));
     assert!(table_exists(&db, "schedules"));
@@ -261,15 +261,15 @@ fn fresh_bootstrap_creates_current_schema() {
 
 #[test]
 fn fresh_bootstrap_rolls_back_atomically_on_any_statement_failure() {
-    for version in 1..=7 {
-        for index in 1..=32 {
+    for version in 1..=8 {
+        for index in 1..=64 {
             let path = fresh_path("boot-fail");
             match bootstrap_current(&path, FailurePoint::AfterStatement { version, index }) {
                 Ok(()) => {
                     // Past the last statement of this migration: the whole
-                    // bootstrap completed, so the published DB is schema 7.
+                    // bootstrap completed, so the published DB is schema 8.
                     let db = open_ro(&path);
-                    assert_eq!(schema_version(&db), 7);
+                    assert_eq!(schema_version(&db), 8);
                     break;
                 }
                 Err(_) => {
@@ -295,7 +295,7 @@ fn fresh_bootstrap_rolls_back_atomically_on_any_statement_failure() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn supported_v3_migrates_to_v7() {
+fn supported_v3_migrates_to_v8() {
     let path = fresh_path("v3");
     build_schema3(&path);
     assert!(matches!(
@@ -306,7 +306,7 @@ fn supported_v3_migrates_to_v7() {
     migrate_supported(&path, 3, FailurePoint::None).unwrap();
 
     let db = open_ro(&path);
-    assert_eq!(schema_version(&db), 7);
+    assert_eq!(schema_version(&db), 8);
     assert!(table_exists(&db, "categorize_rules"));
     assert!(table_exists(&db, "operation_receipts"));
     assert!(table_exists(&db, "schedules"));
@@ -322,7 +322,7 @@ fn migrated_current_schema_is_accepted_and_validates() {
 
     let inspection = inspect_schema(&path);
     assert!(!inspection.is_rejected());
-    assert_eq!(inspection.version(), Some(7));
+    assert_eq!(inspection.version(), Some(8));
 
     let db = open_ro(&path);
     validate_manifest(&db, LATEST_SCHEMA_VERSION).unwrap();
@@ -374,10 +374,10 @@ fn inspect_schema_classifies_every_state() {
         SchemaInspection::Older { version: 4 }
     ));
 
-    let newer = copy_fixture("v008.sqlite");
+    let newer = copy_fixture("v009.sqlite");
     assert!(matches!(
         inspect_schema(&newer),
-        SchemaInspection::Newer { version: 8 }
+        SchemaInspection::Newer { version: 9 }
     ));
 
     let invalid = copy_fixture("invalid-zero-byte.sqlite");
@@ -398,7 +398,7 @@ fn migrate_supported_rejects_unsupported_inputs() {
         notchy_lib::database::ErrorCode::DatabaseInvalid
     );
     assert_eq!(
-        migrate_supported(&copy_fixture("v008.sqlite"), 8, FailurePoint::None).unwrap_err().code,
+        migrate_supported(&copy_fixture("v009.sqlite"), 9, FailurePoint::None).unwrap_err().code,
         notchy_lib::database::ErrorCode::DatabaseInvalid
     );
     assert_eq!(
@@ -421,7 +421,7 @@ fn migrate_supported_rejects_unsupported_inputs() {
 fn every_migration_statement_rolls_back_atomically_for_v4() {
     // v4 fixture has migrations 5, 6, and 7 pending.
     for version in [5, 6, 7] {
-        for index in 1..=32 {
+        for index in 1..=64 {
             let path = copy_fixture("v004.sqlite");
             let before = snapshot_file_and_sidecars(&path);
             let result = migrate_supported(&path, 4, FailurePoint::AfterStatement { version, index });
@@ -476,7 +476,7 @@ fn every_migration_statement_rolls_back_atomically_for_v3() {
     build_schema3(&source);
 
     for version in [4, 5, 6, 7] {
-        for index in 1..=32 {
+        for index in 1..=64 {
             let path = fresh_path("v3-copy");
             std::fs::copy(&source, &path).unwrap();
             let before = snapshot_file_and_sidecars(&path);
@@ -541,7 +541,7 @@ fn every_migration_statement_rolls_back_atomically_for_v3() {
 // ---------------------------------------------------------------------------
 
 // The `LATEST_SCHEMA_VERSION` / `MIN_SUPPORTED_SCHEMA_VERSION` assertions live
-// in `the_v7_manifest_is_the_latest_one` below, next to the manifest they
+// in `the_v8_manifest_is_the_latest_one` below, next to the manifest they
 // describe — one test per constant, not two restating the same pair.
 
 #[test]
@@ -573,7 +573,7 @@ fn the_money_bound_matches_the_migration_check() {
 
 #[test]
 fn migration_seven_creates_the_schedules_table() {
-    let db = fresh_schema7_db();
+    let db = fresh_current_db();
     let columns: Vec<String> = db
         .prepare("PRAGMA table_info(schedules)")
         .unwrap()
@@ -587,11 +587,11 @@ fn migration_seven_creates_the_schedules_table() {
 }
 
 #[test]
-fn the_v7_manifest_is_the_latest_one() {
-    assert_eq!(LATEST_SCHEMA_VERSION, 7);
+fn the_v8_manifest_is_the_latest_one() {
+    assert_eq!(LATEST_SCHEMA_VERSION, 8);
     assert_eq!(MIN_SUPPORTED_SCHEMA_VERSION, 3);
-    // A database at 7 validates against the manifest for 7 — the startup gate.
-    let db = fresh_schema7_db();
+    // A database at 8 validates against the manifest for 8 — the startup gate.
+    let db = fresh_current_db();
     validate_manifest(&db, LATEST_SCHEMA_VERSION).unwrap();
 }
 
@@ -603,7 +603,7 @@ fn the_v7_manifest_is_the_latest_one() {
 /// foreign key before the CHECK under test is ever reached.
 #[test]
 fn migration_seven_rejects_an_unknown_frequency() {
-    let (db, account_id) = fresh_schema7_db_with_account();
+    let (db, account_id) = fresh_current_db_with_account();
     let error = db
         .execute(
             "INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
@@ -621,7 +621,7 @@ fn migration_seven_rejects_an_unknown_frequency() {
 
 #[test]
 fn migration_seven_rejects_an_out_of_range_start_date() {
-    let (db, account_id) = fresh_schema7_db_with_account();
+    let (db, account_id) = fresh_current_db_with_account();
     let error = db
         .execute(
             "INSERT INTO schedules (id, name, kind, amount, account_id, frequency, start_date, next_due_date, created_at, updated_at)
@@ -638,7 +638,7 @@ fn migration_seven_rejects_an_out_of_range_start_date() {
 
 #[test]
 fn migration_seven_rejects_a_transfer_without_a_destination() {
-    let (db, account_id) = fresh_schema7_db_with_account();
+    let (db, account_id) = fresh_current_db_with_account();
     let error = db
         .execute(
             "INSERT INTO schedules (id, name, kind, amount, account_id, transfer_account_id, frequency, start_date, next_due_date, created_at, updated_at)
@@ -656,7 +656,7 @@ fn migration_seven_rejects_a_transfer_without_a_destination() {
 
 #[test]
 fn migration_seven_rejects_an_expense_with_a_destination() {
-    let (db, account_id) = fresh_schema7_db_with_account();
+    let (db, account_id) = fresh_current_db_with_account();
     let error = db
         .execute(
             "INSERT INTO schedules (id, name, kind, amount, account_id, transfer_account_id, frequency, start_date, next_due_date, created_at, updated_at)
@@ -674,7 +674,7 @@ fn migration_seven_rejects_an_expense_with_a_destination() {
 
 #[test]
 fn migration_seven_rejects_a_transfer_with_a_tag() {
-    let (db, account_id) = fresh_schema7_db_with_account();
+    let (db, account_id) = fresh_current_db_with_account();
     let tag_id = seed_tag_id(&db);
     let error = db
         .execute(
@@ -696,7 +696,7 @@ fn migration_seven_accepts_a_well_formed_expense_and_transfer() {
     // storable. Without this, an over-tightened CHECK passes every rejection
     // test above. The transfer case is what proves both `kind` CHECKs are right
     // rather than merely present.
-    let (mut db, account_id) = fresh_schema7_db_with_account();
+    let (mut db, account_id) = fresh_current_db_with_account();
     let transfer_id = accounts::create_account(&mut db, op(), account_named("Dest")).unwrap();
 
     for (id, kind, destination) in [
@@ -730,4 +730,44 @@ fn seed_tag_id(db: &Connection) -> String {
         )
         .expect("migration 3 seeds the Adjustments bucket's tags");
     id
+}
+
+
+#[test]
+fn migration_eight_rolls_back_every_statement_and_preserves_verified_pre_upgrade_copy() {
+    use notchy_lib::database::{publish_backup, BackupFailurePoint};
+    let source = fresh_path("v7-to-v8");
+    {
+        let mut db = Connection::open(&source).unwrap();
+        run_migrations(&mut db, 7, FailurePoint::None).unwrap();
+    }
+    let backup_dir = fresh_path("v7-upgrade-backups");
+    let published = publish_backup(&source, &backup_dir, BackupFailurePoint::None).unwrap();
+    let before = snapshot_file_and_sidecars(&source);
+    let backup_before = std::fs::read(published.path()).unwrap();
+    validate_manifest(&open_ro(published.path()), 7).unwrap();
+    let mut failures = 0;
+    for index in 1..=64 {
+        let path = fresh_path("v8-atomic");
+        std::fs::copy(&source, &path).unwrap();
+        match migrate_supported(&path, 7, FailurePoint::AfterStatement { version: 8, index }) {
+            Ok(()) => {
+                validate_manifest(&open_ro(&path), 8).unwrap();
+                break;
+            }
+            Err(_) => {
+                failures += 1;
+                let db = open_ro(&path);
+                assert_eq!(schema_version(&db), 7);
+                assert!(!table_exists(&db, "automatic_backup_state"));
+                assert!(!table_exists(&db, "automatic_backup_copies"));
+                validate_manifest(&db, 7).unwrap();
+                drop(db);
+                assert_eq!(snapshot_file_and_sidecars(&path), before);
+            }
+        }
+    }
+    assert_eq!(failures, 34, "six setup/meta, 27 content triggers, and schema-version statement");
+    assert_eq!(std::fs::read(published.path()).unwrap(), backup_before);
+    validate_manifest(&open_ro(published.path()), 7).unwrap();
 }

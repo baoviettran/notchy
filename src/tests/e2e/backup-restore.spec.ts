@@ -18,7 +18,7 @@ test('restores a backup as a new profile and preserves the original', async ({ t
 	await rawExecute(page, `INSERT INTO accounts (id, name, type, currency, created_at, updated_at) VALUES ('diverged', 'After backup', 'checking', 'VND', '2026-01-01', '2026-01-01')`);
 	await flushDb(page);
 	const preview = await invoke<{ token: string; schemaVersion: number }>(page, 'profile_inspect_restore', { sourcePath: path });
-	expect(preview.schemaVersion).toBe(6);
+	expect(preview.schemaVersion).toBe(7);
 	await invoke(page, 'profile_restore', { token: preview.token, name: 'Recovered', context: { operationId: 'restore-1', transitionToken: null } });
 	expect(await rawQuery<{ id: string }>(page, 'SELECT id FROM accounts WHERE deleted_at IS NULL')).toHaveLength(2);
 	await page.reload();
@@ -42,9 +42,9 @@ test('rejects corrupt backup bytes without changing the selected profile', async
 test('rejects a backup from a newer schema without changing the selected profile', async ({ tauriMockPage: page }) => {
 	await onboard(page);
 	const original = await active(page);
-	await rawExecute(page, "UPDATE app_meta SET value='7' WHERE key='schema_version'");
+	await rawExecute(page, "UPDATE app_meta SET value='8' WHERE key='schema_version'");
 	const path = await invoke<string>(page, 'profile_backup', { id: original.profileId });
-	await rawExecute(page, "UPDATE app_meta SET value='6' WHERE key='schema_version'");
+	await rawExecute(page, "UPDATE app_meta SET value='7' WHERE key='schema_version'");
 	await expect(invoke(page, 'profile_inspect_restore', { sourcePath: path })).rejects.toThrow();
 	expect((await active(page)).profileId).toBe(original.profileId);
 });

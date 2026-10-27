@@ -4,7 +4,7 @@ const RECOVERY = 'Could not open the selected profile';
 
 test.describe('selected profile recovery', () => {
 	test.describe('newer schema', () => {
-	test.use({ tauriMockOptions: { initialSchemaVersion: 7 } });
+	test.use({ tauriMockOptions: { initialSchemaVersion: 8 } });
 	test('keeps finance routes closed and offers recovery for the selected profile', async ({ tauriMockPage: page }) => {
 	await page.goto('/');
 	await expect(page.getByRole('heading', { name: RECOVERY })).toBeVisible();
