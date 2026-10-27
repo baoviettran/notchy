@@ -179,6 +179,106 @@
         "offsetMinutes": 0
       },
       "due": false
+    },
+    {
+      "name": "normalized hour 24",
+      "status": {
+        "enabled": true,
+        "contentRevision": 2,
+        "backedUpRevision": 1,
+        "lastSuccessAt": null,
+        "lastSuccessDate": null,
+        "nextEligibleDate": null,
+        "warning": null,
+        "pruneWarning": null
+      },
+      "clock": {
+        "nowIso": "2026-10-26T24:00:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "due": false
+    },
+    {
+      "name": "invalid minute",
+      "status": {
+        "enabled": true,
+        "contentRevision": 2,
+        "backedUpRevision": 1,
+        "lastSuccessAt": null,
+        "lastSuccessDate": null,
+        "nextEligibleDate": null,
+        "warning": null,
+        "pruneWarning": null
+      },
+      "clock": {
+        "nowIso": "2026-10-27T10:60:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "due": false
+    },
+    {
+      "name": "invalid second",
+      "status": {
+        "enabled": true,
+        "contentRevision": 2,
+        "backedUpRevision": 1,
+        "lastSuccessAt": null,
+        "lastSuccessDate": null,
+        "nextEligibleDate": null,
+        "warning": null,
+        "pruneWarning": null
+      },
+      "clock": {
+        "nowIso": "2026-10-27T10:00:61Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "due": false
+    },
+    {
+      "name": "leap second",
+      "status": {
+        "enabled": true,
+        "contentRevision": 2,
+        "backedUpRevision": 1,
+        "lastSuccessAt": null,
+        "lastSuccessDate": null,
+        "nextEligibleDate": null,
+        "warning": null,
+        "pruneWarning": null
+      },
+      "clock": {
+        "nowIso": "2026-12-31T23:59:60Z",
+        "localDate": "2026-12-31",
+        "isoWeek": "2026-W53",
+        "offsetMinutes": 0
+      },
+      "due": false
+    },
+    {
+      "name": "overprecision",
+      "status": {
+        "enabled": true,
+        "contentRevision": 2,
+        "backedUpRevision": 1,
+        "lastSuccessAt": null,
+        "lastSuccessDate": null,
+        "nextEligibleDate": null,
+        "warning": null,
+        "pruneWarning": null
+      },
+      "clock": {
+        "nowIso": "2026-10-27T10:00:00.1234567890Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "due": false
     }
   ],
   "clocks": [
@@ -290,6 +390,86 @@
         "nowIso": "2026-10-27T10:00:00Z",
         "localDate": "2026-10-27",
         "isoWeek": "2026-W43",
+        "offsetMinutes": 0
+      },
+      "trusted": false
+    },
+    {
+      "name": "normalized hour 24",
+      "previous": {
+        "nowIso": "2026-10-26T24:00:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "current": {
+        "nowIso": "2026-10-26T24:00:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "trusted": false
+    },
+    {
+      "name": "invalid minute",
+      "previous": {
+        "nowIso": "2026-10-27T10:60:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "current": {
+        "nowIso": "2026-10-27T10:60:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "trusted": false
+    },
+    {
+      "name": "invalid second",
+      "previous": {
+        "nowIso": "2026-10-27T10:00:61Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "current": {
+        "nowIso": "2026-10-27T10:00:61Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "trusted": false
+    },
+    {
+      "name": "leap second",
+      "previous": {
+        "nowIso": "2026-12-31T23:59:60Z",
+        "localDate": "2026-12-31",
+        "isoWeek": "2026-W53",
+        "offsetMinutes": 0
+      },
+      "current": {
+        "nowIso": "2026-12-31T23:59:60Z",
+        "localDate": "2026-12-31",
+        "isoWeek": "2026-W53",
+        "offsetMinutes": 0
+      },
+      "trusted": false
+    },
+    {
+      "name": "overprecision",
+      "previous": {
+        "nowIso": "2026-10-27T10:00:00.1234567890Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "current": {
+        "nowIso": "2026-10-27T10:00:00.1234567890Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
         "offsetMinutes": 0
       },
       "trusted": false

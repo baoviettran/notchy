@@ -35,7 +35,7 @@ function validDate(value: string): boolean {
 	return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value;
 }
 function instant(value: string): bigint | null {
-	if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return null;
+	if (!/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return null;
 	if (!validDate(value.slice(0, 10))) return null;
 	const fraction = /\.(\d+)(?=Z|[+-])/.exec(value)?.[1] ?? '';
 	const seconds = Date.parse(value.replace(/\.\d+(?=Z|[+-])/, ''));
