@@ -109,11 +109,11 @@ Shared DTOs are declared in Rust and exported through `database/commands.rs` to 
 
 **Interfaces:** Consume the complete slice. Produce recorded native backup/restore evidence and updated user policy, without claiming new platform support.
 
-- [ ] **Step 1: Add failing user-journey assertions.** Settings enables automatic backup by default, changed profile produces a verified copy, the same-day second write waits, failed backup remains visible, and a manual copy is preserved by automatic retention. Browser E2E proves the UI contract; native fixture tests prove file contents and retention. Named behavior: `it('does preserve manual copies when automatic retention runs')`; decisive assertion: `expect(manualCopyStillExists).toBe(true)` (using that task’s fixture).
-- [ ] **Step 2: Run red/targeted journey.** `pnpm exec playwright test src/tests/e2e/backup-restore.spec.ts`; first run must expose missing journey/UI assertions, not merely pass old tests.
-- [ ] **Step 3: Complete integration and record native acceptance.** In an isolated test data root, run a real installed Linux binary, create synthetic financial data, trigger a due backup using a testable clock in the harness, reopen and restore-as-new, then compare IDs/balances. Verify real paths, successful copy hash and schema. Test backend failure via harness failpoints; do not ship a UI fault injector. Update documentation from observed behavior.
-- [ ] **Step 4: Verify release-relevant checks.** Run `pnpm test`, `pnpm check`, `pnpm build`, `pnpm test:roadmap`, `pnpm check:db-contracts`, Rust tests and all-target Clippy. Run the affected production E2E serially with builds; retain command results and native evidence paths. Mark STORY-038 shipped only when acceptance passed.
-- [ ] **Step 5: Commit.** Commit with `test(backup): verify automatic recovery and retention`.
+- [x] **Step 1: Add failing user-journey assertions.** Settings enables automatic backup by default, changed profile produces a verified copy, the same-day second write waits, failed backup remains visible, and a manual copy is preserved by automatic retention. Browser E2E proves the UI contract; native fixture tests prove file contents and retention. Named behavior: `it('does preserve manual copies when automatic retention runs')`; decisive assertion: `expect(manualCopyStillExists).toBe(true)` (using that task’s fixture).
+- [x] **Step 2: Run red/targeted journey.** `pnpm exec playwright test src/tests/e2e/backup-restore.spec.ts`; first run must expose missing journey/UI assertions, not merely pass old tests.
+- [x] **Step 3: Complete integration and record native acceptance.** In an isolated test data root, run a real installed Linux binary, create synthetic financial data, trigger a due backup using a testable clock in the harness, reopen and restore-as-new, then compare IDs/balances. Verify real paths, successful copy hash and schema. Test backend failure via harness failpoints; do not ship a UI fault injector. Update documentation from observed behavior.
+- [x] **Step 4: Verify release-relevant checks.** Run `pnpm test`, `pnpm check`, `pnpm build`, `pnpm test:roadmap`, `pnpm check:db-contracts`, Rust tests and all-target Clippy. Run the affected production E2E serially with builds; retain command results and native evidence paths. Mark STORY-038 shipped only when acceptance passed.
+- [x] **Step 5: Commit.** Commit with `test(backup): verify automatic recovery and retention`.
 
 ## Handoff
 
@@ -121,4 +121,4 @@ After this slice passes, execute `specs/plans/2026-10-26-durable-transaction-dra
 
 ## Self-Review
 
-Spec sections 3–4 map to Tasks 1–4; recovery and acceptance in sections 10–11 map to Tasks 3 and 5. The five review-focus cases have explicit owning tests. All five tasks have red/green commands, typed interfaces and distinct commit subjects. No implementation checkbox is complete.
+Spec sections 3–4 map to Tasks 1–4; recovery and acceptance in sections 10–11 map to Tasks 3 and 5. The five review-focus cases have explicit owning tests. All five tasks have red/green commands, typed interfaces and distinct commit subjects. All five implementation tasks are complete and independently reviewed.
