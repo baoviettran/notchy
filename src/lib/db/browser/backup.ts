@@ -22,6 +22,7 @@ import type { DatabaseService } from './service';
 import type { BackupOps } from '../client';
 import { createBackup, exportCsv } from '$lib/backup';
 import { setMeta } from './repos/meta';
+import { BrowserAutomaticBackup } from './automatic-backup';
 
 export interface BrowserBackupOptions {
 	/** Routine backup directory. Defaults to `getDatabasePaths().routineBackupDir`. */
@@ -32,31 +33,31 @@ export interface BrowserBackupOptions {
 	writeFile?: (path: string, content: string) => Promise<void>;
 }
 
-export class BrowserBackupOps implements BackupOps {
+export class BrowserBackupOps extends BrowserAutomaticBackup implements BackupOps {
 	constructor(
-		private readonly db: DatabaseService,
+		private readonly service: DatabaseService,
 		private readonly options: BrowserBackupOptions = {}
-	) {}
+	) { super(service); }
 
 	async create(): Promise<string> {
 		const dir =
 			this.options.backupDir ??
 			(await (await import('..')).getDatabasePaths()).routineBackupDir;
 		await this.ensure(dir);
-		const path = await createBackup(this.db, dir);
+		const path = await createBackup(this.service, dir);
 		// Recorded only after the file exists, so a failure leaves the last
 		// known-good timestamp intact.
-		await setMeta(this.db, 'last_backup_at', new Date().toISOString());
+		await setMeta(this.service, 'last_backup_at', new Date().toISOString());
 		return path;
 	}
 
 	async exportSqlite(targetPath: string): Promise<void> {
-		await this.db.execute(`VACUUM INTO '${targetPath.replace(/'/g, "''")}'`);
+		await this.service.execute(`VACUUM INTO '${targetPath.replace(/'/g, "''")}'`);
 	}
 
 	async exportCsv(dir: string): Promise<string[]> {
 		await this.ensure(dir);
-		const csvMap = await exportCsv(this.db);
+		const csvMap = await exportCsv(this.service);
 		const written: string[] = [];
 		for (const [table, content] of csvMap) {
 			const path = `${dir}/${table}.csv`;

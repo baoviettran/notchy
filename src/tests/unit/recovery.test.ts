@@ -56,15 +56,15 @@ describe('validateDatabase range policy', () => {
 		}
 	});
 
-	it('rejects a newer backup (schema 7) outside the supported range', async () => {
+	it('rejects a newer backup (schema 8) outside the supported range', async () => {
 		const { db } = openFixtureCopy('newer.sqlite');
 		try {
-			await db.execute("UPDATE app_meta SET value = '7' WHERE key = 'schema_version'");
+			await db.execute("UPDATE app_meta SET value = '8' WHERE key = 'schema_version'");
 			const result = await validateDatabase(db, {
 				min: MIN_SUPPORTED_SCHEMA_VERSION,
 				max: LATEST_SCHEMA_VERSION
 			});
-			expect(result).toEqual({ valid: false, code: 'schema_newer', schemaVersion: 7 });
+			expect(result).toEqual({ valid: false, code: 'schema_newer', schemaVersion: 8 });
 		} finally {
 			await db.close();
 		}
@@ -112,7 +112,7 @@ describe('restoreCompatibleDatabase', () => {
 
 	it('rejects a newer backup before replacing the live file', async () => {
 		const { path: newerPath, db: newerDb } = openFixtureCopy('newer.sqlite');
-		await newerDb.execute("UPDATE app_meta SET value = '7' WHERE key = 'schema_version'");
+		await newerDb.execute("UPDATE app_meta SET value = '8' WHERE key = 'schema_version'");
 		await newerDb.close();
 
 		const replaceLiveDatabase = vi.fn(async (_sourcePath: string) => {});

@@ -145,6 +145,9 @@ const { invokeMock, calls } = vi.hoisted(() => {
 		transaction_set_account_many: null,
 
 		// Backup
+		backup_automatic_status: { enabled: true, contentRevision: 1, backedUpRevision: 0, lastSuccessAt: null, lastSuccessDate: null, nextEligibleDate: null, warning: null, pruneWarning: null },
+		backup_automatic_check: { enabled: true, contentRevision: 1, backedUpRevision: 1, lastSuccessAt: '2026-10-28T10:00:00Z', lastSuccessDate: '2026-10-28', nextEligibleDate: '2026-10-29', warning: null, pruneWarning: null },
+		backup_automatic_set_enabled: null,
 		backup_create: '/data/backups/notchy-backup-v6-0.2.1-01M3CGSB1ASS5VDMKWMHXE4HVJ.sqlite',
 		backup_export_sqlite: null,
 		backup_export_csv: ['/data/export/accounts.csv'],
@@ -500,6 +503,9 @@ describe('NativeDatabaseClient: full surface sweep (command name + camelCase arg
 		{ label: 'reports.getNetWorthSeries', run: () => client.reports.getNetWorthSeries(12), command: 'report_get_net_worth_series' },
 
 		// Backup
+		{ label: 'backup.automaticStatus', run: () => client.backup.automaticStatus(), command: 'backup_automatic_status' },
+		{ label: 'backup.setAutomaticEnabled', run: () => client.backup.setAutomaticEnabled(false), command: 'backup_automatic_set_enabled' },
+		{ label: 'backup.checkAutomatic', run: () => client.backup.checkAutomatic(), command: 'backup_automatic_check' },
 		{ label: 'backup.create', run: () => client.backup.create(), command: 'backup_create' },
 		{
 			label: 'backup.exportSqlite',

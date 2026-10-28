@@ -151,7 +151,7 @@ pub fn publish_backup(
     backup_dir: &Path,
     failpoint: BackupFailurePoint,
 ) -> DbResult<BackupToken> {
-    publish_backup_named(source_path, backup_dir, None, failpoint)
+    publish_backup_named(source_path, backup_dir, None, false, failpoint)
 }
 
 /// Publish a verified, durable backup whose final filename is chosen by the
@@ -170,11 +170,12 @@ fn publish_backup_named(
     source_path: &Path,
     backup_dir: &Path,
     name: Option<&str>,
+    replace_existing: bool,
     failpoint: BackupFailurePoint,
 ) -> DbResult<BackupToken> {
     set_failpoint(failpoint);
     // `name` is moved into the naming block below, so read this here.
-    let caller_named = name.is_some();
+    let caller_named = replace_existing;
     // A Notchy-owned backup directory is created 0700 because the app owns its
     // policy. A caller-named target sits wherever the user chose, so the mode is
     // theirs to set — chmod'ing their directory would be a silent, persistent
@@ -229,7 +230,7 @@ fn publish_backup_named(
         // millisecond produced two publications; never overwrite a verified
         // backup. A caller-named target is an explicit choice — the save dialog
         // already asked — and replacing it is the point.
-        let target_existed = target.exists();
+        let target_existed = std::fs::symlink_metadata(&target).is_ok();
         if !caller_named && target_existed {
             return Err(DbError::new(ErrorCode::DatabaseInvalid));
         }
@@ -311,7 +312,7 @@ pub fn export_backup_to_at(
         .file_name()
         .and_then(|name| name.to_str())
         .ok_or_else(|| DbError::new(ErrorCode::DatabaseInvalid))?;
-    publish_backup_named(source_path, backup_dir, Some(file_name), failpoint)?;
+    publish_backup_named(source_path, backup_dir, Some(file_name), true, failpoint)?;
     Ok(target_path.to_path_buf())
 }
 
@@ -398,6 +399,10 @@ fn hash_file(path: &Path) -> DbResult<String> {
 /// The final backup filename, using the last successfully recorded source
 /// application version (sanitized to `[0-9A-Za-z.-_]`) and a fresh ULID.
 fn final_backup_name(schema_version: i64, app_version: &str) -> String {
+    final_backup_name_with_id(schema_version, app_version, OperationId::generate().as_str())
+}
+
+fn final_backup_name_with_id(schema_version: i64, app_version: &str, job_id: &str) -> String {
     let safe_app = app_version
         .chars()
         .map(|c| {
@@ -408,7 +413,7 @@ fn final_backup_name(schema_version: i64, app_version: &str) -> String {
             }
         })
         .collect::<String>();
-    format!("{FINAL_PREFIX}{schema_version}-{safe_app}-{}{FINAL_SUFFIX}", OperationId::generate().as_str())
+    format!("{FINAL_PREFIX}{schema_version}-{safe_app}-{job_id}{FINAL_SUFFIX}")
 }
 
 // ---------------------------------------------------------------------------
@@ -766,4 +771,16 @@ fn days_from_civil(year: i64, month: u32, day: u32) -> i64 {
     let day_of_era =
         year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
     era * 146_097 + day_of_era - 719_468
+}
+
+/// Deterministic owned identity; no caller-supplied filenames or paths.
+pub(crate) fn backup_filename_with_id(source: &Path, job_id: &str) -> DbResult<String> {
+    OperationId::parse(job_id).map_err(|_| DbError::new(ErrorCode::InvalidUlid))?;
+    let (schema, app) = read_source_meta(&open_read_only_at(source)?)?;
+    Ok(final_backup_name_with_id(schema, &app, job_id))
+}
+
+pub(crate) fn publish_backup_with_id(source: &Path, directory: &Path, job_id: &str, failpoint: BackupFailurePoint) -> DbResult<BackupToken> {
+    let filename = backup_filename_with_id(source, job_id)?;
+    publish_backup_named(source, directory, Some(&filename), false, failpoint)
 }

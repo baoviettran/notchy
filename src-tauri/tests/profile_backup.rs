@@ -95,7 +95,7 @@ async fn newer_backup_is_rejected_without_changing_registry() {
     let (paths, coordinator) = fixture();
     fs::create_dir_all(&paths.data_dir).unwrap();
     let source = paths.data_dir.join("newer.sqlite");
-    fs::copy(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/v008.sqlite"), &source).unwrap();
+    fs::copy(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/v009.sqlite"), &source).unwrap();
     assert!(coordinator.inspect_restore(&source).await.is_err());
     assert!(coordinator.load().profiles.is_empty());
 }
@@ -149,4 +149,16 @@ async fn internal_backup_is_scoped_to_its_profile_and_preserves_preferences() {
     let preview = coordinator.inspect_restore(&backup).await.unwrap();
     coordinator.restore(&preview.token, "A restored", &context()).await.unwrap();
     assert_eq!(RegistryStore::new(paths).load_preferences().unwrap(), Some(preferences));
+}
+
+#[tokio::test]
+async fn reset_of_an_inactive_older_profile_defaults_automatic_backup_to_enabled() {
+    let (paths, coordinator) = fixture();
+    let profile = coordinator.create("Older", &context()).await.unwrap();
+    let source = paths.profile_dir(&profile.id).unwrap().join("notchy.db");
+    fs::copy(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/v004.sqlite"), &source).unwrap();
+    coordinator.reset(&profile.id, &context()).await.unwrap();
+    let session = coordinator.activate(&profile.id).await.unwrap();
+    assert!(coordinator.automatic_backup_status(&session).await.unwrap().enabled);
+    assert_eq!(coordinator.backups(&profile.id).await.unwrap().len(), 1);
 }

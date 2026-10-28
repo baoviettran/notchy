@@ -96,6 +96,7 @@ const APP_DATA_DIR = '/notchy/appdata';
 const LIVE_PATH = 'sqlite:notchy.db';
 const LIVE_DB_PATH = '/notchy/appdata/notchy.db';
 let activeDbPath = LIVE_DB_PATH;
+let automaticCheckInvocations = 0;
 const profilePath = (id) => APP_DATA_DIR + '/profiles/' + id + '/notchy.db';
 // Native boot loads LIVE_DB_PATH; the legacy plugin:sql connection string
 // resolves to the same file via fsKeyFor. "Live" means either key.
@@ -538,7 +539,7 @@ window.__TAURI_INTERNALS__ = {
 		if (cmd === 'profile_discover_backups') {
 			const root = APP_DATA_DIR + '/profiles/' + args.id + '/backups/';
 			return [...fs.keys()].filter((p) => p.startsWith(root)).map((path) => ({
-				id: path, path, schema_version: 6, source_app_version: '0.2.1',
+				id: path, path, schema_version: 7, source_app_version: '0.2.1',
 				created_at: new Date().toISOString(), verified: true
 			}));
 		}
@@ -550,7 +551,7 @@ window.__TAURI_INTERNALS__ = {
 				candidate = new SQL_JS.Database(bytes);
 				const rows = select(candidate, "SELECT value FROM app_meta WHERE key = 'schema_version'", []);
 				const version = Number(rows[0]?.value);
-				if (!Number.isInteger(version) || version < 4 || version > 6) throw new Error('incompatible backup');
+				if (!Number.isInteger(version) || version < 4 || version > 7) throw new Error('incompatible backup');
 				const token = crypto.randomUUID();
 				const name = args.sourcePath.split('/').pop().replace(/\\.sqlite$/, '') || 'Recovered profile';
 				fs.set('preview:' + token, bytes);
@@ -762,11 +763,9 @@ window.__TAURI_INTERNALS__ = {
 		// After the cutover, the app uses NativeDatabaseClient which calls
 		// domain commands instead of plugin:sql|*. Translate them to SQL queries.
 		if (cmd === 'database_initialize' || cmd === 'database_retry' || cmd === 'database_status') {
-			// LATEST aligns to the JS registry (LATEST_SCHEMA_VERSION = 6 in
-			// src/lib/db/migrations/index.ts): restoreCompatibleDatabase validates
-			// max 6, and the E2E fixtures/assertions are schema-6-based. Rust runs
-			// its own migration 007; the mock simulates the JS-visible contract.
-			const LATEST = 6;
+			// The mock follows browser schema 7. Native schema 8 additionally
+			// includes operation receipts; preserve this adapter boundary.
+			const LATEST = 7;
 			const BACKUP_DIR = profileRegistry.activeId ? APP_DATA_DIR + '/profiles/' + profileRegistry.activeId + '/backups' : APP_DATA_DIR + '/backups';
 			const UPGRADE_DIR = BACKUP_DIR + '/upgrades';
 			const db = await loadDb(activeDbPath, SQL_JS);
@@ -857,20 +856,50 @@ window.__TAURI_INTERNALS__ = {
 				db.run('CREATE TABLE IF NOT EXISTS goals (id TEXT PRIMARY KEY, name TEXT NOT NULL, goal_type TEXT NOT NULL, target_amount INTEGER NOT NULL, target_date TEXT NOT NULL, linked_account_id TEXT, starting_amount INTEGER DEFAULT 0, current_amount INTEGER DEFAULT 0, show_on_dashboard INTEGER DEFAULT 1, status TEXT DEFAULT active, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT)');
 				// Migration 006 (mirrors src/lib/db/migrations/006-*.ts: schedules table).
 				db.run("CREATE TABLE IF NOT EXISTS schedules (id TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL, amount INTEGER NOT NULL, account_id TEXT NOT NULL, transfer_account_id TEXT, tag_id TEXT, payee TEXT, description TEXT, frequency TEXT NOT NULL, start_date TEXT NOT NULL, end_date TEXT, posts_transaction INTEGER NOT NULL DEFAULT 1, next_due_date TEXT, last_posted_date TEXT, completed INTEGER NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, errored_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, deleted_at TEXT)");
-				db.run("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', '6')");
+				db.run("CREATE TABLE IF NOT EXISTS automatic_backup_state ( id INTEGER PRIMARY KEY CHECK (id = 1), enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)), content_revision INTEGER NOT NULL DEFAULT 0 CHECK (content_revision BETWEEN 0 AND 9007199254740991), backed_up_revision INTEGER NOT NULL DEFAULT 0 CHECK (backed_up_revision BETWEEN 0 AND content_revision), last_success_at TEXT, last_success_date TEXT, last_success_offset_minutes INTEGER, warning TEXT, prune_warning TEXT, pending_job_id TEXT, pending_relative_filename TEXT, pending_revision INTEGER CHECK (pending_revision BETWEEN 0 AND 9007199254740991), pending_local_date TEXT, pending_local_week TEXT, pending_offset_minutes INTEGER, pending_started_at TEXT)");
+				db.run("CREATE TABLE IF NOT EXISTS automatic_backup_copies ( id TEXT PRIMARY KEY, relative_filename TEXT NOT NULL UNIQUE CHECK (length(relative_filename) > 0 AND instr(relative_filename, '/') = 0 AND instr(relative_filename, char(92)) = 0 AND relative_filename NOT IN ('.', '..')), schema_version INTEGER NOT NULL CHECK (schema_version >= 3), captured_revision INTEGER NOT NULL CHECK (captured_revision BETWEEN 0 AND 9007199254740991), local_date TEXT NOT NULL, local_week TEXT NOT NULL, created_at TEXT NOT NULL, publication_job_id TEXT NOT NULL UNIQUE, offset_minutes INTEGER NOT NULL)");
+				db.run("INSERT OR IGNORE INTO automatic_backup_state (id) VALUES (1)");
+				for (const table of ['accounts','transactions','category_types','category_tags','budgets','goals','reconciliations','schedules']) {
+					const columns = select(db, 'PRAGMA table_info(' + table + ')', []).map(c => c.name).filter(c => !['created_at','updated_at'].includes(c));
+					for (const operation of ['insert','update','delete']) {
+						const when = operation === 'update' ? ' WHEN ' + columns.map(c => 'OLD.' + c + ' IS NOT NEW.' + c).join(' OR ') : '';
+						db.run('CREATE TRIGGER IF NOT EXISTS trg_content_' + table + '_' + operation + ' AFTER ' + operation + ' ON ' + table + when + ' BEGIN UPDATE automatic_backup_state SET content_revision=content_revision+1 WHERE id=1; END');
+					}
+				}
+				db.run("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', '7')");
 			}
 
-			// Auto-backup simulation. runAutoBackup (src/lib/backup/index.ts) is no
-			// longer called from dbStore.init() in native mode — Rust owns backups.
-			// Mirror its contract: if last_backup_at is older than 1 hour, write a
-			// notchy-backup-*.sqlite snapshot and refresh the marker.
-			const lastBak = select(db, "SELECT value FROM app_meta WHERE key = 'last_backup_at'", []);
-			if (lastBak.length > 0 && Date.now() - new Date(lastBak[0].value).getTime() > 3600_000) {
-				fs.set(BACKUP_DIR + '/notchy-backup-' + stamp + '.sqlite', db.export());
-				db.run("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('last_backup_at', ?)", [new Date().toISOString()]);
-			}
 
 			return { lifecycle: 'ready', stage: null, recovery: null, backups: upgrades };
+		}
+		// UI contract model only. Real publication/retention is tested in Rust and
+		// the installed-app harness; these bytes live only in the virtual FS.
+		if (cmd.startsWith('backup_automatic_')) {
+			if (!activeSession || args.session?.profileId !== activeSession.profileId || args.session?.generation !== activeSession.generation) throw new Error('profile_session_expired');
+			if (cmd === 'backup_automatic_check') automaticCheckInvocations++;
+			const db = await loadDb(activeDbPath, SQL_JS);
+			if (cmd === 'backup_automatic_set_enabled') {
+				if (!args.operationId) throw new Error('operation id required');
+				db.run('UPDATE automatic_backup_state SET enabled=? WHERE id=1', [args.enabled ? 1 : 0]);
+				await flushLiveDb();
+				return;
+			}
+			let state = select(db, 'SELECT * FROM automatic_backup_state WHERE id=1', [])[0];
+			const now = new Date();
+			const localDate = new Date(now.getTime() - now.getTimezoneOffset()*60000).toISOString().slice(0,10);
+			if (cmd === 'backup_automatic_check' && state.enabled && state.content_revision > state.backed_up_revision && (!state.last_success_date || localDate > state.last_success_date)) {
+				const id = crypto.randomUUID();
+				const filename = 'memory-automatic-' + id + '.sqlite';
+				const root = APP_DATA_DIR + '/profiles/' + activeSession.profileId + '/backups/';
+				fs.set(root + filename, db.export());
+				db.run('INSERT INTO automatic_backup_copies (id,relative_filename,schema_version,captured_revision,local_date,local_week,created_at,publication_job_id,offset_minutes) VALUES (?,?,7,?,?,?, ?,?,?)', [id,filename,state.content_revision,localDate,'model-week',now.toISOString(),id,-now.getTimezoneOffset()]);
+				db.run('UPDATE automatic_backup_state SET backed_up_revision=content_revision,last_success_at=?,last_success_date=?,warning=NULL WHERE id=1', [now.toISOString(),localDate]);
+				await flushLiveDb();
+				state = select(db, 'SELECT * FROM automatic_backup_state WHERE id=1', [])[0];
+			}
+			const next = state.last_success_date && new Date(state.last_success_date + 'T00:00:00Z');
+			if (next) next.setUTCDate(next.getUTCDate()+1);
+			return {enabled:!!state.enabled,contentRevision:state.content_revision,backedUpRevision:state.backed_up_revision,lastSuccessAt:state.last_success_at,lastSuccessDate:state.last_success_date,nextEligibleDate:state.enabled && next ? next.toISOString().slice(0,10) : null,warning:state.warning,pruneWarning:state.prune_warning};
 		}
 		if (cmd === 'account_list') {
 			const db = await loadDb(activeDbPath, SQL_JS);
@@ -1657,6 +1686,7 @@ window.__TAURI_INTERNALS__ = {
 // sql.js factory so tests can mint corrupt / mismatched candidate DBs through
 // the same sql.js build the mock uses internally.
 window.__notchyMock = {
+	automaticCheckInvocations: () => automaticCheckInvocations,
 	readFs: (path) => fs.get(path),
 	listFs: (dir) => [...fs.keys()].filter((p) => p.startsWith(dir)),
 	writeFs: (path, bytes) => fs.set(path, bytes),
@@ -1698,6 +1728,7 @@ window.__notchyMock = {
 
 /** The in-page mock surface exposed on window by the init script. */
 interface NotchyMockWindow {
+	automaticCheckInvocations: () => number;
 	readFs: (path: string) => Uint8Array | undefined;
 	listFs: (dir: string) => string[];
 	writeFs: (path: string, bytes: Uint8Array) => void;

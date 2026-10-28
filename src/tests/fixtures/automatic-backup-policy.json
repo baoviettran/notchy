@@ -1,0 +1,825 @@
+{
+  "eligibility": [
+    {
+      "name": "unchanged",
+      "status": {
+        "enabled": true,
+        "contentRevision": 1,
+        "backedUpRevision": 1,
+        "lastSuccessAt": "2026-10-26T10:00:00Z",
+        "lastSuccessDate": "2026-10-26",
+        "nextEligibleDate": null,
+        "warning": null,
+        "pruneWarning": null
+      },
+      "clock": {
+        "nowIso": "2026-10-27T10:00:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "due": false
+    },
+    {
+      "name": "second write today",
+      "status": {
+        "enabled": true,
+        "contentRevision": 2,
+        "backedUpRevision": 1,
+        "lastSuccessAt": "2026-10-26T10:00:00Z",
+        "lastSuccessDate": "2026-10-26",
+        "nextEligibleDate": null,
+        "warning": null,
+        "pruneWarning": null
+      },
+      "clock": {
+        "nowIso": "2026-10-26T11:00:00Z",
+        "localDate": "2026-10-26",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "due": false
+    },
+    {
+      "name": "changed next day",
+      "status": {
+        "enabled": true,
+        "contentRevision": 2,
+        "backedUpRevision": 1,
+        "lastSuccessAt": "2026-10-26T10:00:00Z",
+        "lastSuccessDate": "2026-10-26",
+        "nextEligibleDate": null,
+        "warning": null,
+        "pruneWarning": null
+      },
+      "clock": {
+        "nowIso": "2026-10-27T10:00:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "due": true
+    },
+    {
+      "name": "disabled",
+      "status": {
+        "enabled": false,
+        "contentRevision": 2,
+        "backedUpRevision": 1,
+        "lastSuccessAt": "2026-10-26T10:00:00Z",
+        "lastSuccessDate": "2026-10-26",
+        "nextEligibleDate": null,
+        "warning": null,
+        "pruneWarning": null
+      },
+      "clock": {
+        "nowIso": "2026-10-27T10:00:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "due": false
+    },
+    {
+      "name": "first changed profile",
+      "status": {
+        "enabled": true,
+        "contentRevision": 2,
+        "backedUpRevision": 1,
+        "lastSuccessAt": null,
+        "lastSuccessDate": null,
+        "nextEligibleDate": null,
+        "warning": null,
+        "pruneWarning": null
+      },
+      "clock": {
+        "nowIso": "2026-10-27T10:00:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "due": true
+    },
+    {
+      "name": "backward instant",
+      "status": {
+        "enabled": true,
+        "contentRevision": 2,
+        "backedUpRevision": 1,
+        "lastSuccessAt": "2026-10-26T10:00:00Z",
+        "lastSuccessDate": "2026-10-26",
+        "nextEligibleDate": null,
+        "warning": null,
+        "pruneWarning": null
+      },
+      "clock": {
+        "nowIso": "2026-10-26T09:00:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 840
+      },
+      "due": false
+    },
+    {
+      "name": "invalid local date",
+      "status": {
+        "enabled": true,
+        "contentRevision": 2,
+        "backedUpRevision": 1,
+        "lastSuccessAt": null,
+        "lastSuccessDate": null,
+        "nextEligibleDate": null,
+        "warning": null,
+        "pruneWarning": null
+      },
+      "clock": {
+        "nowIso": "2026-02-30T10:00:00Z",
+        "localDate": "2026-03-02",
+        "isoWeek": "2026-W10",
+        "offsetMinutes": 0
+      },
+      "due": false
+    },
+    {
+      "name": "invalid week",
+      "status": {
+        "enabled": true,
+        "contentRevision": 2,
+        "backedUpRevision": 1,
+        "lastSuccessAt": null,
+        "lastSuccessDate": null,
+        "nextEligibleDate": null,
+        "warning": null,
+        "pruneWarning": null
+      },
+      "clock": {
+        "nowIso": "2026-10-27T10:00:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W43",
+        "offsetMinutes": 0
+      },
+      "due": false
+    },
+    {
+      "name": "invalid persisted success date",
+      "status": {
+        "enabled": true,
+        "contentRevision": 2,
+        "backedUpRevision": 1,
+        "lastSuccessAt": "2026-10-26T10:00:00Z",
+        "lastSuccessDate": "2026-02-30",
+        "nextEligibleDate": null,
+        "warning": null,
+        "pruneWarning": null
+      },
+      "clock": {
+        "nowIso": "2026-10-27T10:00:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "due": false
+    },
+    {
+      "name": "normalized hour 24",
+      "status": {
+        "enabled": true,
+        "contentRevision": 2,
+        "backedUpRevision": 1,
+        "lastSuccessAt": null,
+        "lastSuccessDate": null,
+        "nextEligibleDate": null,
+        "warning": null,
+        "pruneWarning": null
+      },
+      "clock": {
+        "nowIso": "2026-10-26T24:00:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "due": false
+    },
+    {
+      "name": "invalid minute",
+      "status": {
+        "enabled": true,
+        "contentRevision": 2,
+        "backedUpRevision": 1,
+        "lastSuccessAt": null,
+        "lastSuccessDate": null,
+        "nextEligibleDate": null,
+        "warning": null,
+        "pruneWarning": null
+      },
+      "clock": {
+        "nowIso": "2026-10-27T10:60:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "due": false
+    },
+    {
+      "name": "invalid second",
+      "status": {
+        "enabled": true,
+        "contentRevision": 2,
+        "backedUpRevision": 1,
+        "lastSuccessAt": null,
+        "lastSuccessDate": null,
+        "nextEligibleDate": null,
+        "warning": null,
+        "pruneWarning": null
+      },
+      "clock": {
+        "nowIso": "2026-10-27T10:00:61Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "due": false
+    },
+    {
+      "name": "leap second",
+      "status": {
+        "enabled": true,
+        "contentRevision": 2,
+        "backedUpRevision": 1,
+        "lastSuccessAt": null,
+        "lastSuccessDate": null,
+        "nextEligibleDate": null,
+        "warning": null,
+        "pruneWarning": null
+      },
+      "clock": {
+        "nowIso": "2026-12-31T23:59:60Z",
+        "localDate": "2026-12-31",
+        "isoWeek": "2026-W53",
+        "offsetMinutes": 0
+      },
+      "due": false
+    },
+    {
+      "name": "overprecision",
+      "status": {
+        "enabled": true,
+        "contentRevision": 2,
+        "backedUpRevision": 1,
+        "lastSuccessAt": null,
+        "lastSuccessDate": null,
+        "nextEligibleDate": null,
+        "warning": null,
+        "pruneWarning": null
+      },
+      "clock": {
+        "nowIso": "2026-10-27T10:00:00.1234567890Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "due": false
+    }
+  ],
+  "clocks": [
+    {
+      "name": "ISO year boundary",
+      "previous": {
+        "nowIso": "2020-12-31T23:59:00Z",
+        "localDate": "2020-12-31",
+        "isoWeek": "2020-W53",
+        "offsetMinutes": 0
+      },
+      "current": {
+        "nowIso": "2021-01-01T00:01:00Z",
+        "localDate": "2021-01-01",
+        "isoWeek": "2020-W53",
+        "offsetMinutes": 0
+      },
+      "trusted": true
+    },
+    {
+      "name": "DST",
+      "previous": {
+        "nowIso": "2026-11-01T05:30:00Z",
+        "localDate": "2026-11-01",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": -240
+      },
+      "current": {
+        "nowIso": "2026-11-01T06:30:00Z",
+        "localDate": "2026-11-01",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": -300
+      },
+      "trusted": false
+    },
+    {
+      "name": "timezone crossing",
+      "previous": {
+        "nowIso": "2026-10-26T22:00:00Z",
+        "localDate": "2026-10-26",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "current": {
+        "nowIso": "2026-10-26T23:00:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 120
+      },
+      "trusted": false
+    },
+    {
+      "name": "backwards clock",
+      "previous": {
+        "nowIso": "2026-10-27T10:00:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "current": {
+        "nowIso": "2026-10-26T10:00:00Z",
+        "localDate": "2026-10-26",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "trusted": false
+    },
+    {
+      "name": "next stable observation",
+      "previous": {
+        "nowIso": "2026-11-01T06:30:00Z",
+        "localDate": "2026-11-01",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": -300
+      },
+      "current": {
+        "nowIso": "2026-11-02T06:30:00Z",
+        "localDate": "2026-11-02",
+        "isoWeek": "2026-W45",
+        "offsetMinutes": -300
+      },
+      "trusted": true
+    },
+    {
+      "name": "invalid local date",
+      "previous": {
+        "nowIso": "2026-02-30T10:00:00Z",
+        "localDate": "2026-03-02",
+        "isoWeek": "2026-W10",
+        "offsetMinutes": 0
+      },
+      "current": {
+        "nowIso": "2026-02-30T10:00:00Z",
+        "localDate": "2026-03-02",
+        "isoWeek": "2026-W10",
+        "offsetMinutes": 0
+      },
+      "trusted": false
+    },
+    {
+      "name": "invalid week",
+      "previous": {
+        "nowIso": "2026-10-27T10:00:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W43",
+        "offsetMinutes": 0
+      },
+      "current": {
+        "nowIso": "2026-10-27T10:00:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W43",
+        "offsetMinutes": 0
+      },
+      "trusted": false
+    },
+    {
+      "name": "normalized hour 24",
+      "previous": {
+        "nowIso": "2026-10-26T24:00:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "current": {
+        "nowIso": "2026-10-26T24:00:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "trusted": false
+    },
+    {
+      "name": "invalid minute",
+      "previous": {
+        "nowIso": "2026-10-27T10:60:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "current": {
+        "nowIso": "2026-10-27T10:60:00Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "trusted": false
+    },
+    {
+      "name": "invalid second",
+      "previous": {
+        "nowIso": "2026-10-27T10:00:61Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "current": {
+        "nowIso": "2026-10-27T10:00:61Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "trusted": false
+    },
+    {
+      "name": "leap second",
+      "previous": {
+        "nowIso": "2026-12-31T23:59:60Z",
+        "localDate": "2026-12-31",
+        "isoWeek": "2026-W53",
+        "offsetMinutes": 0
+      },
+      "current": {
+        "nowIso": "2026-12-31T23:59:60Z",
+        "localDate": "2026-12-31",
+        "isoWeek": "2026-W53",
+        "offsetMinutes": 0
+      },
+      "trusted": false
+    },
+    {
+      "name": "overprecision",
+      "previous": {
+        "nowIso": "2026-10-27T10:00:00.1234567890Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "current": {
+        "nowIso": "2026-10-27T10:00:00.1234567890Z",
+        "localDate": "2026-10-27",
+        "isoWeek": "2026-W44",
+        "offsetMinutes": 0
+      },
+      "trusted": false
+    }
+  ],
+  "retention": {
+    "copies": [
+      {
+        "id": "1",
+        "relativeFilename": "1.sqlite",
+        "schemaVersion": 8,
+        "capturedRevision": 1,
+        "localDate": "2026-10-01",
+        "localWeek": "2026-W40",
+        "createdAt": "2026-10-01T12:00:00Z",
+        "publicationJobId": "job-1",
+        "offsetMinutes": 0,
+        "kind": "automatic",
+        "verified": true,
+        "owned": true
+      },
+      {
+        "id": "2",
+        "relativeFilename": "2.sqlite",
+        "schemaVersion": 8,
+        "capturedRevision": 1,
+        "localDate": "2026-10-02",
+        "localWeek": "2026-W40",
+        "createdAt": "2026-10-02T12:00:00Z",
+        "publicationJobId": "job-2",
+        "offsetMinutes": 0,
+        "kind": "automatic",
+        "verified": true,
+        "owned": true
+      },
+      {
+        "id": "3",
+        "relativeFilename": "3.sqlite",
+        "schemaVersion": 8,
+        "capturedRevision": 1,
+        "localDate": "2026-10-03",
+        "localWeek": "2026-W40",
+        "createdAt": "2026-10-03T12:00:00Z",
+        "publicationJobId": "job-3",
+        "offsetMinutes": 0,
+        "kind": "automatic",
+        "verified": true,
+        "owned": true
+      },
+      {
+        "id": "8",
+        "relativeFilename": "8.sqlite",
+        "schemaVersion": 8,
+        "capturedRevision": 1,
+        "localDate": "2026-10-08",
+        "localWeek": "2026-W41",
+        "createdAt": "2026-10-08T12:00:00Z",
+        "publicationJobId": "job-8",
+        "offsetMinutes": 0,
+        "kind": "automatic",
+        "verified": true,
+        "owned": true
+      },
+      {
+        "id": "9",
+        "relativeFilename": "9.sqlite",
+        "schemaVersion": 8,
+        "capturedRevision": 1,
+        "localDate": "2026-10-09",
+        "localWeek": "2026-W41",
+        "createdAt": "2026-10-09T12:00:00Z",
+        "publicationJobId": "job-9",
+        "offsetMinutes": 0,
+        "kind": "automatic",
+        "verified": true,
+        "owned": true
+      },
+      {
+        "id": "10",
+        "relativeFilename": "10.sqlite",
+        "schemaVersion": 8,
+        "capturedRevision": 1,
+        "localDate": "2026-10-10",
+        "localWeek": "2026-W41",
+        "createdAt": "2026-10-10T12:00:00Z",
+        "publicationJobId": "job-10",
+        "offsetMinutes": 0,
+        "kind": "automatic",
+        "verified": true,
+        "owned": true
+      },
+      {
+        "id": "15",
+        "relativeFilename": "15.sqlite",
+        "schemaVersion": 8,
+        "capturedRevision": 1,
+        "localDate": "2026-10-15",
+        "localWeek": "2026-W42",
+        "createdAt": "2026-10-15T12:00:00Z",
+        "publicationJobId": "job-15",
+        "offsetMinutes": 0,
+        "kind": "automatic",
+        "verified": true,
+        "owned": true
+      },
+      {
+        "id": "16",
+        "relativeFilename": "16.sqlite",
+        "schemaVersion": 8,
+        "capturedRevision": 1,
+        "localDate": "2026-10-16",
+        "localWeek": "2026-W42",
+        "createdAt": "2026-10-16T12:00:00Z",
+        "publicationJobId": "job-16",
+        "offsetMinutes": 0,
+        "kind": "automatic",
+        "verified": true,
+        "owned": true
+      },
+      {
+        "id": "17",
+        "relativeFilename": "17.sqlite",
+        "schemaVersion": 8,
+        "capturedRevision": 1,
+        "localDate": "2026-10-17",
+        "localWeek": "2026-W42",
+        "createdAt": "2026-10-17T12:00:00Z",
+        "publicationJobId": "job-17",
+        "offsetMinutes": 0,
+        "kind": "automatic",
+        "verified": true,
+        "owned": true
+      },
+      {
+        "id": "22",
+        "relativeFilename": "22.sqlite",
+        "schemaVersion": 8,
+        "capturedRevision": 1,
+        "localDate": "2026-10-22",
+        "localWeek": "2026-W43",
+        "createdAt": "2026-10-22T12:00:00Z",
+        "publicationJobId": "job-22",
+        "offsetMinutes": 0,
+        "kind": "automatic",
+        "verified": true,
+        "owned": true
+      },
+      {
+        "id": "23",
+        "relativeFilename": "23.sqlite",
+        "schemaVersion": 8,
+        "capturedRevision": 1,
+        "localDate": "2026-10-23",
+        "localWeek": "2026-W43",
+        "createdAt": "2026-10-23T12:00:00.000000002Z",
+        "publicationJobId": "job-23",
+        "offsetMinutes": 0,
+        "kind": "automatic",
+        "verified": true,
+        "owned": true
+      },
+      {
+        "id": "manual",
+        "relativeFilename": "manual.sqlite",
+        "schemaVersion": 8,
+        "capturedRevision": 1,
+        "localDate": "2026-09-01",
+        "localWeek": "2026-W36",
+        "createdAt": "2026-09-01T12:00:00Z",
+        "publicationJobId": "job-manual",
+        "offsetMinutes": 0,
+        "kind": "manual",
+        "verified": true,
+        "owned": true
+      },
+      {
+        "id": "reset",
+        "relativeFilename": "reset.sqlite",
+        "schemaVersion": 8,
+        "capturedRevision": 1,
+        "localDate": "2026-09-01",
+        "localWeek": "2026-W36",
+        "createdAt": "2026-09-01T12:00:00Z",
+        "publicationJobId": "job-reset",
+        "offsetMinutes": 0,
+        "kind": "reset",
+        "verified": true,
+        "owned": true
+      },
+      {
+        "id": "upgrade",
+        "relativeFilename": "upgrade.sqlite",
+        "schemaVersion": 8,
+        "capturedRevision": 1,
+        "localDate": "2026-09-01",
+        "localWeek": "2026-W36",
+        "createdAt": "2026-09-01T12:00:00Z",
+        "publicationJobId": "job-upgrade",
+        "offsetMinutes": 0,
+        "kind": "upgrade",
+        "verified": true,
+        "owned": true
+      },
+      {
+        "id": "legacy",
+        "relativeFilename": "legacy.sqlite",
+        "schemaVersion": 8,
+        "capturedRevision": 1,
+        "localDate": "2026-09-01",
+        "localWeek": "2026-W36",
+        "createdAt": "2026-09-01T12:00:00Z",
+        "publicationJobId": "job-legacy",
+        "offsetMinutes": 0,
+        "kind": "legacy",
+        "verified": true,
+        "owned": true
+      },
+      {
+        "id": "unknown",
+        "relativeFilename": "unknown.sqlite",
+        "schemaVersion": 8,
+        "capturedRevision": 1,
+        "localDate": "2026-09-01",
+        "localWeek": "2026-W36",
+        "createdAt": "2026-09-01T12:00:00Z",
+        "publicationJobId": "job-unknown",
+        "offsetMinutes": 0,
+        "kind": "unknown",
+        "verified": true,
+        "owned": true
+      },
+      {
+        "id": "corrupt",
+        "relativeFilename": "corrupt.sqlite",
+        "schemaVersion": 8,
+        "capturedRevision": 1,
+        "localDate": "2026-09-01",
+        "localWeek": "2026-W36",
+        "createdAt": "2026-09-01T12:00:00Z",
+        "publicationJobId": "job-corrupt",
+        "offsetMinutes": 0,
+        "kind": "automatic",
+        "verified": false,
+        "owned": true
+      },
+      {
+        "id": "external",
+        "relativeFilename": "external.sqlite",
+        "schemaVersion": 8,
+        "capturedRevision": 1,
+        "localDate": "2026-09-01",
+        "localWeek": "2026-W36",
+        "createdAt": "2026-09-01T12:00:00Z",
+        "publicationJobId": "job-external",
+        "offsetMinutes": 0,
+        "kind": "automatic",
+        "verified": true,
+        "owned": false
+      },
+      {
+        "id": "schema7",
+        "relativeFilename": "schema7.sqlite",
+        "schemaVersion": 7,
+        "capturedRevision": 1,
+        "localDate": "2026-09-01",
+        "localWeek": "2026-W36",
+        "createdAt": "2026-09-01T12:00:00Z",
+        "publicationJobId": "job-schema7",
+        "offsetMinutes": 0,
+        "kind": "automatic",
+        "verified": true,
+        "owned": true
+      },
+      {
+        "id": "protected",
+        "relativeFilename": "protected.sqlite",
+        "schemaVersion": 8,
+        "capturedRevision": 1,
+        "localDate": "2026-09-02",
+        "localWeek": "2026-W36",
+        "createdAt": "2026-09-02T12:00:00Z",
+        "publicationJobId": "job-protected",
+        "offsetMinutes": 0,
+        "kind": "automatic",
+        "verified": true,
+        "owned": true
+      },
+      {
+        "id": "duplicate",
+        "relativeFilename": "duplicate.sqlite",
+        "schemaVersion": 8,
+        "capturedRevision": 1,
+        "localDate": "2026-10-23",
+        "localWeek": "2026-W43",
+        "createdAt": "2026-10-23T12:30:00+01:00",
+        "publicationJobId": "job-duplicate",
+        "offsetMinutes": 0,
+        "kind": "automatic",
+        "verified": true,
+        "owned": true
+      },
+      {
+        "id": "malformed",
+        "relativeFilename": "1.sqlite",
+        "schemaVersion": 8,
+        "capturedRevision": 1,
+        "localDate": "2026-10-01",
+        "localWeek": "2026-W40",
+        "createdAt": "invalid",
+        "publicationJobId": "job-1",
+        "offsetMinutes": 0,
+        "kind": "automatic",
+        "verified": true,
+        "owned": true
+      },
+      {
+        "id": "z-submillisecond",
+        "relativeFilename": "23.sqlite",
+        "schemaVersion": 8,
+        "capturedRevision": 1,
+        "localDate": "2026-10-23",
+        "localWeek": "2026-W43",
+        "createdAt": "2026-10-23T12:00:00.000000001Z",
+        "publicationJobId": "job-23",
+        "offsetMinutes": 0,
+        "kind": "automatic",
+        "verified": true,
+        "owned": true
+      }
+    ],
+    "protectedId": "protected",
+    "protected": [
+      "manual",
+      "reset",
+      "upgrade",
+      "legacy",
+      "unknown",
+      "corrupt",
+      "external",
+      "schema7",
+      "protected",
+      "23",
+      "malformed"
+    ],
+    "deletions": [
+      "1",
+      "2",
+      "8",
+      "duplicate",
+      "z-submillisecond"
+    ]
+  }
+}

@@ -10,6 +10,7 @@
 	import { profiles } from '$lib/stores/profiles.svelte';
 	import { registerDraft, markDraftChanged, isDraftsFrozen } from '$lib/profiles/drafts.svelte';
 	import { installProfileWindowListeners, type DraftChoice } from '$lib/profiles/windows';
+	import { startAutomaticBackupChecks } from '$lib/backup/automatic';
 	import type { ProfileSession } from '$lib/profiles/types';
 	import { parseQuickInput } from '$lib/utils/quick_parse';
 	import { formatCurrency, formatCurrencyCompact } from '$lib/utils/currency';
@@ -28,7 +29,7 @@
 	let unlistenFocus: (() => void) | undefined;
 	let unlistenProfiles: (() => void) | undefined;
 	let unregisterDraft: (() => void) | undefined;
-	let loadedSession: ProfileSession | null = null;
+	let loadedSession = $state<ProfileSession | null>(null);
 	let noProfile = $state(false);
 	let pendingChoice = $state<((choice: DraftChoice) => void) | null>(null);
 
@@ -131,6 +132,11 @@
 				onTransitionCanceled: () => answerChoice('cancel')
 			});
 		}
+	});
+
+	$effect(() => {
+		if (!ready || !loadedSession) return;
+		return startAutomaticBackupChecks(getDb(), () => profiles.snapshot?.active ?? null);
 	});
 
 	onDestroy(() => { unlistenFocus?.(); unlistenProfiles?.(); unregisterDraft?.(); });

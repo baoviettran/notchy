@@ -220,7 +220,7 @@ describe('Forwarder paths', () => {
 		const mod = await import('$lib/db/migrations/index');
 		expect(mod).toHaveProperty('migrations');
 		expect(mod).toHaveProperty('LATEST_SCHEMA_VERSION');
-		expect(mod.LATEST_SCHEMA_VERSION).toBe(6);
+		expect(mod.LATEST_SCHEMA_VERSION).toBe(7);
 	});
 
 	it('re-exports runner from old path', async () => {

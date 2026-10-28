@@ -2,7 +2,7 @@
 //! fail closed; financial commands require the active profile generation.
 use std::sync::Arc;
 use tauri::Manager;
-use notchy_lib::database::{ErrorCode, OperationId};
+use notchy_lib::database::{commands, ErrorCode, OperationId};
 use notchy_lib::database::commands::{account_list, backup_create, database_import, database_initialize};
 use notchy_lib::profiles::commands::profiles_bootstrap;
 use notchy_lib::profiles::coordinator::ProfileCoordinator;
@@ -40,6 +40,9 @@ async fn stale_generation_cannot_read_or_back_up_another_profile() {
         .build(tauri::test::mock_context(tauri::test::noop_assets())).unwrap();
     coordinator.activate(&b.id).await.unwrap();
     assert_eq!(account_list(app.state(), old.clone()).await.unwrap_err().code, ErrorCode::ProfileSessionExpired);
+    assert_eq!(commands::backup_automatic_status(app.state(), old.clone()).await.unwrap_err().code, ErrorCode::ProfileSessionExpired);
+    assert_eq!(commands::backup_automatic_check(app.state(), old.clone()).await.unwrap_err().code, ErrorCode::ProfileSessionExpired);
+    assert_eq!(commands::backup_automatic_set_enabled(app.state(), old.clone(), false, OperationId::generate()).await.unwrap_err().code, ErrorCode::ProfileSessionExpired);
     assert_eq!(backup_create(app.state(), old).await.unwrap_err().code, ErrorCode::ProfileSessionExpired);
 }
 

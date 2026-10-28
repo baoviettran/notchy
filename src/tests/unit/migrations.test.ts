@@ -73,7 +73,7 @@ describe('released database fixtures', () => {
 				await fixtureDb.query<{ value: string }>(
 					`SELECT value FROM app_meta WHERE key = 'schema_version'`
 				)
-			).toEqual([{ value: '6' }]);
+			).toEqual([{ value: '7' }]);
 			expect(await fixtureDb.query<{ id: string }>(`SELECT id FROM accounts WHERE id = ?`, [accountId])).toEqual([
 				{ id: accountId }
 			]);
@@ -127,7 +127,7 @@ describe('released database fixtures', () => {
 
 describe('migration registry', () => {
 	it('derives the latest schema version from the registry', () => {
-		expect(LATEST_SCHEMA_VERSION).toBe(6);
+		expect(LATEST_SCHEMA_VERSION).toBe(7);
 	});
 });
 
@@ -158,7 +158,7 @@ describe('Migration 001 - schema', () => {
 describe('Migration 002 - triggers', () => {
 	it('creates 21 triggers (3 per 7 tables)', async () => {
 		const triggers = await db.query<{ name: string }>(
-			`SELECT name FROM sqlite_master WHERE type='trigger'`
+			`SELECT name FROM sqlite_master WHERE type='trigger' AND name NOT GLOB 'trg_content_*'`
 		);
 		expect(triggers.length).toBe(21);
 	});
@@ -207,11 +207,11 @@ describe('Migration 003 - seed data', () => {
 		expect(rows[0].value).toHaveLength(26);
 	});
 
-	it('schema_version is 6', async () => {
+	it('schema_version is 7', async () => {
 		const rows = await db.query<{ value: string }>(
 			`SELECT value FROM app_meta WHERE key = 'schema_version'`
 		);
-		expect(rows[0].value).toBe('6');
+		expect(rows[0].value).toBe('7');
 	});
 });
 
@@ -249,7 +249,7 @@ describe('runMigrations — recovery from a half-applied state', () => {
 		// `db` is already fully migrated by beforeEach. Simulate the stuck state:
 		// roll schema_version back to 3 while keeping the rollover_enabled column.
 		// This is exactly the on-disk state that bricked boot with "duplicate
-		// column name". runMigrations must converge to schema_version=6 cleanly.
+		// column name". runMigrations must converge to schema_version=7 cleanly.
 		await db.execute(
 			`UPDATE app_meta SET value = '3' WHERE key = 'schema_version'`
 		);
@@ -257,7 +257,7 @@ describe('runMigrations — recovery from a half-applied state', () => {
 		const rows = await db.query<{ value: string }>(
 			`SELECT value FROM app_meta WHERE key = 'schema_version'`
 		);
-		expect(rows[0].value).toBe('6');
+		expect(rows[0].value).toBe('7');
 	});
 
 	it('reports each applied migration in order', async () => {
@@ -266,16 +266,16 @@ describe('runMigrations — recovery from a half-applied state', () => {
 
 		await runMigrations(fresh, migrations, (migration) => seen.push(migration.version));
 
-		expect(seen).toEqual([1, 2, 3, 4, 5, 6]);
+		expect(seen).toEqual([1, 2, 3, 4, 5, 6, 7]);
 	});
 
 	it('does not modify a database from a newer schema', async () => {
-		await db.execute(`UPDATE app_meta SET value = '7' WHERE key = 'schema_version'`);
+		await db.execute(`UPDATE app_meta SET value = '8' WHERE key = 'schema_version'`);
 
-		await expect(runMigrations(db, migrations)).rejects.toThrow('database_schema_newer:7:6');
+		await expect(runMigrations(db, migrations)).rejects.toThrow('database_schema_newer:8:7');
 		expect(
 			await db.query<{ value: string }>(`SELECT value FROM app_meta WHERE key = 'schema_version'`)
-		).toEqual([{ value: '7' }]);
+		).toEqual([{ value: '8' }]);
 	});
 });
 

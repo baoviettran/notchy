@@ -14,10 +14,20 @@
  */
 import { invoke } from '$lib/native/invoke';
 import type { SessionInvoker } from '$lib/profiles/session';
-import type { BackupOps } from '../client';
+import type { BackupOps, AutomaticBackupStatus } from '../client';
+import type { MutationOptions } from '$lib/native/mutation-intent';
 
 export class NativeBackupOps implements BackupOps {
 	constructor(private readonly invoker: SessionInvoker = invoke) {}
+	automaticStatus(): Promise<AutomaticBackupStatus> {
+		return this.invoker('backup_automatic_status');
+	}
+	setAutomaticEnabled(enabled: boolean, options?: MutationOptions): Promise<void> {
+		return this.invoker('backup_automatic_set_enabled', { enabled }, options);
+	}
+	checkAutomatic(): Promise<AutomaticBackupStatus> {
+		return this.invoker('backup_automatic_check');
+	}
 	async create(): Promise<string> {
 		return this.invoker<string>('backup_create');
 	}

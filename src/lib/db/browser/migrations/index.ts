@@ -5,6 +5,7 @@ import { migration003 } from './003_seed';
 import { migration004 } from './004_rollover_toggle';
 import { migration005 } from './005_categorize_rules';
 import { migration006 } from './006_schedules';
+import { migration007 } from './007_automatic_backup';
 
 export const migrations: Migration[] = [
 	migration001,
@@ -13,6 +14,7 @@ export const migrations: Migration[] = [
 	migration004,
 	migration005,
 	migration006,
+	migration007,
 ];
 
 export const LATEST_SCHEMA_VERSION = Math.max(...migrations.map((migration) => migration.version));

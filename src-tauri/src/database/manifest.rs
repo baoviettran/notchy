@@ -1,6 +1,6 @@
 //! Version-specific schema manifests and validation (Task 3).
 //!
-//! Each supported schema version (3-7) has an exact manifest covering tables,
+//! Each supported schema version (3-8) has an exact manifest covering tables,
 //! columns, types, nullability, defaults, primary/foreign keys, indexes,
 //! triggers, and the CHECK constraints that carry business invariants.
 //! `validate_manifest` runs SQLite integrity and foreign-key checks and then
@@ -42,6 +42,8 @@ pub struct TableManifest {
     pub columns: &'static [ColumnManifest],
     pub foreign_keys: &'static [ForeignKeyManifest],
     pub indexes: &'static [&'static str],
+    /// Exact key columns of unconditional unique indexes, independent of names.
+    pub unique_keys: &'static [&'static [&'static str]],
     pub triggers: &'static [&'static str],
     pub check_constraints: &'static [&'static str],
 }
@@ -173,6 +175,7 @@ const ACCOUNTS: TableManifest = TableManifest {
     ],
     foreign_keys: &[],
     indexes: &["idx_accounts_type", "idx_accounts_archived"],
+    unique_keys: &[],
     triggers: &[
         "trg_accounts_insert",
         "trg_accounts_update",
@@ -199,6 +202,7 @@ const CATEGORY_TYPES_V3: TableManifest = TableManifest {
     ],
     foreign_keys: &[],
     indexes: &[],
+    unique_keys: &[],
     triggers: &[
         "trg_category_types_insert",
         "trg_category_types_update",
@@ -224,6 +228,7 @@ const CATEGORY_TYPES_V4: TableManifest = TableManifest {
     ],
     foreign_keys: &[],
     indexes: &[],
+    unique_keys: &[],
     triggers: &[
         "trg_category_types_insert",
         "trg_category_types_update",
@@ -250,6 +255,7 @@ const CATEGORY_TAGS: TableManifest = TableManifest {
         references_column: "id",
     }],
     indexes: &[],
+    unique_keys: &[],
     triggers: &[
         "trg_category_tags_insert",
         "trg_category_tags_update",
@@ -308,6 +314,7 @@ const TRANSACTIONS: TableManifest = TableManifest {
         "idx_transactions_refund",
         "idx_transactions_deleted",
     ],
+    unique_keys: &[],
     triggers: &[
         "trg_transactions_insert",
         "trg_transactions_update",
@@ -340,6 +347,7 @@ const BUDGETS: TableManifest = TableManifest {
         references_column: "id",
     }],
     indexes: &[],
+    unique_keys: &[],
     triggers: &[
         "trg_budgets_insert",
         "trg_budgets_update",
@@ -374,6 +382,7 @@ const GOALS: TableManifest = TableManifest {
         references_column: "id",
     }],
     indexes: &["idx_goals_status"],
+    unique_keys: &[],
     triggers: &["trg_goals_insert", "trg_goals_update", "trg_goals_delete"],
     check_constraints: &[
         "length(name) <= 64",
@@ -410,6 +419,7 @@ const RECONCILIATIONS: TableManifest = TableManifest {
         },
     ],
     indexes: &["idx_reconciliations_account"],
+    unique_keys: &[],
     triggers: &[
         "trg_reconciliations_insert",
         "trg_reconciliations_update",
@@ -431,6 +441,7 @@ const CHANGE_LOG: TableManifest = TableManifest {
     ],
     foreign_keys: &[],
     indexes: &["idx_change_log_timestamp"],
+    unique_keys: &[],
     triggers: &[],
     check_constraints: &["operation IN ('insert', 'update', 'delete')"],
 };
@@ -440,6 +451,7 @@ const APP_META: TableManifest = TableManifest {
     columns: &[text_pk!("key"), text_nn!("value")],
     foreign_keys: &[],
     indexes: &[],
+    unique_keys: &[],
     triggers: &[],
     check_constraints: &[],
 };
@@ -463,6 +475,7 @@ const CATEGORIZE_RULES: TableManifest = TableManifest {
         references_column: "id",
     }],
     indexes: &["idx_categorize_rules_enabled"],
+    unique_keys: &[],
     triggers: &[],
     check_constraints: &[
         "length(payee_term) BETWEEN 1 AND 128",
@@ -482,6 +495,7 @@ const OPERATION_RECEIPTS: TableManifest = TableManifest {
     ],
     foreign_keys: &[],
     indexes: &[],
+    unique_keys: &[],
     triggers: &[],
     check_constraints: &[],
 };
@@ -529,6 +543,7 @@ const SCHEDULES: TableManifest = TableManifest {
         },
     ],
     indexes: &["idx_schedules_due"],
+    unique_keys: &[],
     triggers: &[],
     // Every CHECK migration 007 writes, so `validate_manifest` fails if the
     // migration and this manifest drift on an invariant rather than on a column.
@@ -620,6 +635,83 @@ const TABLES_V7: &[TableManifest] = &[
     TRANSACTIONS,
 ];
 
+const AUTOMATIC_BACKUP_STATE: TableManifest = TableManifest {
+    name: "automatic_backup_state",
+    columns: &[
+        column!("id", INTEGER, false, None, true),
+        int_default!("enabled", "1"),
+        int_default!("content_revision", "0"),
+        int_default!("backed_up_revision", "0"),
+        text_opt!("last_success_at"),
+        text_opt!("last_success_date"),
+        column!("last_success_offset_minutes", INTEGER, false, None, false),
+        text_opt!("warning"),
+        text_opt!("prune_warning"),
+        text_opt!("pending_job_id"),
+        text_opt!("pending_relative_filename"),
+        column!("pending_revision", INTEGER, false, None, false),
+        text_opt!("pending_local_date"),
+        text_opt!("pending_local_week"),
+        column!("pending_offset_minutes", INTEGER, false, None, false),
+        text_opt!("pending_started_at"),
+    ],
+    foreign_keys: &[],
+    indexes: &[],
+    unique_keys: &[],
+    triggers: &[],
+    check_constraints: &[
+        "id = 1",
+        "enabled IN (0, 1)",
+        "content_revision BETWEEN 0 AND 9007199254740991",
+        "backed_up_revision BETWEEN 0 AND content_revision",
+        "pending_revision BETWEEN 0 AND 9007199254740991",
+    ],
+};
+const AUTOMATIC_BACKUP_COPIES: TableManifest = TableManifest {
+    name: "automatic_backup_copies",
+    columns: &[
+        text_pk!("id"),
+        text_nn!("relative_filename"),
+        column!("schema_version", INTEGER, true, None, false),
+        column!("captured_revision", INTEGER, true, None, false),
+        text_nn!("local_date"),
+        text_nn!("local_week"),
+        text_nn!("created_at"),
+        text_nn!("publication_job_id"),
+        column!("offset_minutes", INTEGER, true, None, false),
+    ],
+    foreign_keys: &[],
+    indexes: &[],
+    unique_keys: &[&["relative_filename"], &["publication_job_id"]],
+    triggers: &[],
+    check_constraints: &[
+        "schema_version >= 3",
+        "captured_revision BETWEEN 0 AND 9007199254740991",
+        "length(relative_filename) > 0",
+        "instr(relative_filename, '/') = 0",
+        "instr(relative_filename, char(92)) = 0",
+        "relative_filename NOT IN ('.', '..')",
+    ],
+};
+
+const TABLES_V8: &[TableManifest] = &[
+    ACCOUNTS,
+    APP_META,
+    AUTOMATIC_BACKUP_COPIES,
+    AUTOMATIC_BACKUP_STATE,
+    BUDGETS,
+    CATEGORIZE_RULES,
+    CATEGORY_TAGS,
+    CATEGORY_TYPES_V4,
+    CHANGE_LOG,
+    GOALS,
+    OPERATION_RECEIPTS,
+    RECONCILIATIONS,
+    SCHEDULES,
+    TRANSACTIONS,
+
+];
+
 /// The manifest for a released schema version, or `None` for unsupported ones.
 pub fn manifest_for(version: i64) -> Option<&'static SchemaManifest> {
     match version {
@@ -628,6 +720,7 @@ pub fn manifest_for(version: i64) -> Option<&'static SchemaManifest> {
         5 => Some(&SchemaManifest { version: 5, tables: TABLES_V5 }),
         6 => Some(&SchemaManifest { version: 6, tables: TABLES_V6 }),
         7 => Some(&SchemaManifest { version: 7, tables: TABLES_V7 }),
+        8 => Some(&SchemaManifest { version: 8, tables: TABLES_V8 }),
         _ => None,
     }
 }
@@ -735,6 +828,17 @@ pub fn validate_manifest(connection: &rusqlite::Connection, version: i64) -> DbR
     for table in manifest.tables {
         validate_table(connection, table)?;
     }
+    if version >= 8 {
+        for table in crate::database::automatic_backup::CONTENT_TABLES_V8
+            .iter().copied().chain(["app_meta"])
+        {
+            for operation in ["insert", "update", "delete"] {
+                if !trigger_exists(connection, &format!("trg_content_{table}_{operation}"))? {
+                    return Err(DbError::new(ErrorCode::DatabaseInvalid));
+                }
+            }
+        }
+    }
     Ok(())
 }
 
@@ -782,6 +886,11 @@ fn validate_table(connection: &rusqlite::Connection, table: &TableManifest) -> D
     }
     for index in table.indexes {
         if !index_exists(connection, table.name, index)? {
+            return Err(DbError::new(ErrorCode::DatabaseInvalid));
+        }
+    }
+    for key in table.unique_keys {
+        if !unique_key_exists(connection, table.name, key)? {
             return Err(DbError::new(ErrorCode::DatabaseInvalid));
         }
     }
@@ -866,6 +975,38 @@ fn index_exists(connection: &rusqlite::Connection, table: &str, index: &str) -> 
     Ok(stmt
         .query_row(rusqlite::params![index, table], |_| Ok(()))
         .is_ok())
+}
+
+/// A partial or composite index cannot establish a declared single-column key.
+/// Read key columns rather than relying on SQLite's generated autoindex names.
+fn unique_key_exists(
+    connection: &rusqlite::Connection,
+    table: &str,
+    expected_columns: &[&str],
+) -> DbResult<bool> {
+    let mut stmt = connection.prepare(
+        "SELECT name FROM pragma_index_list(?1) WHERE \"unique\" = 1 AND partial = 0",
+    ).map_err(map_sqlite_error)?;
+    let indexes: Vec<String> = stmt.query_map([table], |row| row.get(0))
+        .map_err(map_sqlite_error)?
+        .collect::<rusqlite::Result<_>>()
+        .map_err(map_sqlite_error)?;
+    let mut expected: Vec<Option<String>> = expected_columns.iter()
+        .map(|column| Some((*column).to_owned())).collect();
+    expected.sort();
+    for index in indexes {
+        let mut stmt = connection.prepare("SELECT name FROM pragma_index_info(?1)")
+            .map_err(map_sqlite_error)?;
+        let mut actual: Vec<Option<String>> = stmt.query_map([index], |row| row.get(0))
+            .map_err(map_sqlite_error)?
+            .collect::<rusqlite::Result<_>>()
+            .map_err(map_sqlite_error)?;
+        actual.sort();
+        if actual == expected {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 fn trigger_exists(connection: &rusqlite::Connection, trigger: &str) -> DbResult<bool> {

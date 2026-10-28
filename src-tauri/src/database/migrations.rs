@@ -1,4 +1,4 @@
-//! Native schema registry, fresh bootstrap, and migrations 1-7 (Task 3).
+//! Native schema registry, fresh bootstrap, and migrations 1-8 (Task 3).
 //!
 //! This is the single native source of schema truth: the exact SQL ported from
 //! the committed TypeScript migration registry, plus the Rust-only migration
@@ -20,7 +20,7 @@ use crate::database::manifest::{inspect_schema, validate_manifest};
 use crate::database::types::OperationId;
 
 /// The newest released schema version.
-pub const LATEST_SCHEMA_VERSION: i64 = 7;
+pub const LATEST_SCHEMA_VERSION: i64 = 8;
 /// The oldest schema version still supported for in-place migration.
 pub const MIN_SUPPORTED_SCHEMA_VERSION: i64 = 3;
 
@@ -42,6 +42,7 @@ pub const MIGRATIONS: &[Migration] = &[
     Migration { version: 5, name: "categorize_rules", up: migration_005 },
     Migration { version: 6, name: "operation_receipts", up: migration_006 },
     Migration { version: 7, name: "schedules", up: migration_007 },
+    Migration { version: 8, name: "automatic_backup", up: migration_008 },
 ];
 
 /// Fault-injection point for atomic-rollback tests.
@@ -143,7 +144,7 @@ pub fn run_migrations(
 /// The database is inspected read-only first; only `Older` schemas with the
 /// expected `from_version` proceed. The live connection applies the exact
 /// connection policy, every pending migration runs atomically, and the result
-/// is validated against the schema-7 manifest.
+/// is validated against the schema-8 manifest.
 pub fn migrate_supported(
     path: &Path,
     from_version: i64,
@@ -163,7 +164,7 @@ pub fn migrate_supported(
     Ok(())
 }
 
-/// Bootstrap a fresh database (absent path) through migrations 1-7.
+/// Bootstrap a fresh database (absent path) through migrations 1-8.
 ///
 /// The schema is built in a same-directory temporary file, validated, `fsync`ed,
 /// and atomically renamed into place, then the directory is `fsync`ed. Any
@@ -778,5 +779,21 @@ fn migration_007(transaction: &Transaction<'_>) -> DbResult<()> {
         [],
     ))?;
     failpoint_step(7)?;
+    Ok(())
+}
+
+// Migration 8: durable automatic-backup state, registry, and content revisions.
+fn migration_008(transaction: &Transaction<'_>) -> DbResult<()> {
+    use crate::database::automatic_backup::{
+        AUTOMATIC_BACKUP_SCHEMA, CONTENT_TABLES_V8, content_revision_statements,
+    };
+    for statement in AUTOMATIC_BACKUP_SCHEMA {
+        sql(transaction.execute_batch(statement))?;
+        failpoint_step(8)?;
+    }
+    for statement in content_revision_statements(transaction, CONTENT_TABLES_V8)? {
+        sql(transaction.execute_batch(&statement))?;
+        failpoint_step(8)?;
+    }
     Ok(())
 }

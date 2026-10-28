@@ -86,13 +86,14 @@ You're ready to go.
 
 ### Backup & Data
 
-- **Backups** — use Settings → Backup & Data for the active profile, or Settings → Profiles for another profile. Verified snapshots protect schema upgrades and profile resets; automatic routine backup/retention is not enabled.
+- **Automatic backups** — enabled by default per profile. While Notchy is open, changed content qualifies for one verified copy per local day. Retention keeps seven daily and four weekly representatives (which may overlap), plus the newest copy for each schema version. Settings → Backup & Data shows the preference, last success, earliest next eligible date, actual folder and retry warnings.
+- **Manual backups** — use Settings → Backup & Data for the active profile, or Settings → Profiles for another profile. Manual, legacy, upgrade, reset and unregistered copies are excluded from automatic retention.
 - **Export** — export SQLite for complete recovery, or CSV for archival tables.
 - **Restore** — restore SQLite into a **new profile**; existing profiles remain intact. Transaction CSV import is a separate bank-style import flow.
 - **Linux profile database** — `~/.local/share/com.notchy.app/profiles/<profile-id>/notchy.db`.
 - **Linux registry/preferences** — `~/.config/com.notchy.app/profiles.json` and `preferences.json`.
 
-Backups live inside each profile's data directory under `backups/`, `backups/upgrades/` and `backups/resets/`. Settings → Backup & Data displays actual resolved paths. Older single-database installations are adopted into one profile. Export an external SQLite backup before upgrading; older binaries cannot be assumed to understand the new profile layout.
+Backups live inside each profile's data directory under `backups/`, `backups/upgrades/` and `backups/resets/`. These same-disk copies do not protect against disk loss; export a SQLite backup to another drive. Settings → Backup & Data displays actual resolved paths. Older single-database installations are adopted into one profile. Export an external SQLite backup before upgrading; older binaries cannot be assumed to understand the new profile layout.
 
 You can open this file with any SQLite tool. See [RECOVERY.md](RECOVERY.md) for queries.
 

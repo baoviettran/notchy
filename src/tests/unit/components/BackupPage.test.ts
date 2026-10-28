@@ -9,6 +9,9 @@ import BackupPage from '../../../routes/settings/backup/+page.svelte';
 // inject a fake AppDatabase whose meta and backup ops record every call, so the
 // assertions are about ROUTING — which port method each button drives — not
 // about the backup machinery (covered by the BackupOps contract tests).
+const automaticStatus = vi.hoisted(() => vi.fn());
+const automaticSet = vi.hoisted(() => vi.fn());
+const automaticCheck = vi.hoisted(() => vi.fn());
 const metaGet = vi.hoisted(() => vi.fn());
 const backupCreate = vi.hoisted(() => vi.fn().mockResolvedValue('/backups/notchy-backup.sqlite'));
 const backupExportSqlite = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
@@ -17,9 +20,10 @@ const dialogSave = vi.hoisted(() => vi.fn());
 const dialogOpen = vi.hoisted(() => vi.fn());
 
 vi.mock('$lib/db', () => ({
+	isTauri: () => true,
 	getDb: () => ({
 		meta: { get: metaGet },
-		backup: { create: backupCreate, exportSqlite: backupExportSqlite, exportCsv: backupExportCsv }
+		backup: { automaticStatus, setAutomaticEnabled: automaticSet, checkAutomatic: automaticCheck, create: backupCreate, exportSqlite: backupExportSqlite, exportCsv: backupExportCsv }
 	}),
 	getDatabasePaths: async () => ({
 		dataDir: '/data',
@@ -33,7 +37,7 @@ vi.mock('$lib/db', () => ({
 
 vi.mock('$lib/stores/profiles.svelte', () => ({ profiles: {
 	snapshot: { active: { profileId: 'profile-A', generation: 'g1' } },
-	paths: async () => ({ databasePath: '/data/profiles/profile-A/notchy.db', upgradeBackupDir: '/data/profiles/profile-A/backups/upgrades' }),
+	paths: async () => ({ databasePath: '/data/profiles/profile-A/notchy.db', upgradeBackupDir: '/data/profiles/profile-A/backups/upgrades', routineBackupDir: '/data/profiles/profile-A/backups' }),
 	backup: backupCreate, exportBackup: backupExportSqlite
 } }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ save: dialogSave, open: dialogOpen }));
@@ -48,6 +52,9 @@ const META: Record<string, string> = {
 
 beforeEach(() => {
 	vi.clearAllMocks();
+	automaticStatus.mockResolvedValue({ enabled: true, contentRevision: 2, backedUpRevision: 1, lastSuccessAt: '2026-10-27T08:00:00Z', lastSuccessDate: '2026-10-27', nextEligibleDate: '2026-10-28', warning: 'backup_automatic_failed', pruneWarning: null });
+	automaticSet.mockResolvedValue(undefined);
+	automaticCheck.mockImplementation(async () => ({ ...(await automaticStatus()), warning: null }));
 	metaGet.mockImplementation(async (key: string) => META[key] ?? null);
 });
 
@@ -94,4 +101,33 @@ describe('<BackupPage>', () => {
 
 		await waitFor(() => expect(backupExportCsv).toHaveBeenCalledWith('/tmp/notchy-csv'));
 	});
+});
+
+it('does show a localized retryable warning and keep the last verified success', async () => {
+	await renderWithHealth();
+	expect(await screen.findByText('2026-10-27T08:00:00Z')).toBeInTheDocument();
+	expect(screen.getByText(m.backup_automatic_failed())).toBeInTheDocument();
+	expect(screen.getByText('/data/profiles/profile-A/backups')).toBeInTheDocument();
+	await fireEvent.click(screen.getByRole('button', { name: m.settings_backup_auto_retry() }));
+	await waitFor(() => expect(screen.queryByText(m.backup_automatic_failed())).not.toBeInTheDocument());
+	expect(screen.getByText('2026-10-27T08:00:00Z')).toBeInTheDocument();
+});
+it('does persist the automatic backup toggle and refresh its enabled state', async () => {
+	await renderWithHealth();
+	const toggle = await screen.findByRole('checkbox', { name: m.settings_backup_auto_enabled() });
+	expect(toggle).toBeChecked();
+	automaticStatus.mockResolvedValue({ ...(await automaticStatus()), enabled: false, nextEligibleDate: null });
+	await fireEvent.click(toggle);
+	await waitFor(() => expect(toggle).not.toBeChecked());
+	expect(automaticSet).toHaveBeenCalledWith(false);
+});
+
+it('does restore the enabled checkbox when saving the preference fails', async () => {
+	await renderWithHealth();
+	const toggle = await screen.findByRole('checkbox', { name: m.settings_backup_auto_enabled() });
+	automaticSet.mockRejectedValueOnce(new Error('unavailable'));
+	await fireEvent.click(toggle);
+	await waitFor(() => expect(toggle).toBeEnabled());
+	expect(toggle).toBeChecked();
+	expect(screen.getAllByText(m.backup_automatic_failed()).length).toBeGreaterThan(0);
 });

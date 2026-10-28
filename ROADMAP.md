@@ -6,7 +6,7 @@ The active product backlog is [product/stories/index.md](product/stories/index.m
 
 The desktop app uses a Rust-owned SQLite boundary, verified upgrade/restore snapshots, recurring transactions, a visible To Budget pool with per-bucket rollover controls, and extended reporting. Settings includes classification-rule management. The browser adapter is currently an in-memory development/test environment, not durable browser storage.
 
-Release readiness also requires the [desktop smoke checklist](specs/2026-07-27-desktop-release-smoke-checklist.md). Routine backups are manual; a schema-current launch does not create one, and automatic retention is not wired.
+Release readiness also requires the [desktop smoke checklist](specs/2026-07-27-desktop-release-smoke-checklist.md). Automatic backups are enabled by default per profile while Notchy is open: changed content is captured at most once per local day, with seven daily/four weekly representatives and a per-schema recovery floor. Manual and other unmanaged copies are preserved. See [installed Linux verification](specs/notes/2026-10-26-automatic-backup-verification.md) for evidence and limits.
 
 ## Historical milestones
 

@@ -12,6 +12,7 @@ const state = vi.hoisted(() => ({
 	profileName: 'Personal',
 	generation: 'g1',
 	create: vi.fn(),
+	checkBackup: vi.fn(),
 	profileLoad: vi.fn(),
 	showMain: vi.fn(),
 	focus: null as null | ((event: { payload: boolean }) => void),
@@ -26,7 +27,7 @@ vi.mock('$lib/db', () => ({
 	initDb: async () => { state.init(); state.initialized = true; },
 	getDb: () => {
 		if (!state.initialized) throw new Error('database not initialized');
-		return { meta: { getDefaultQuickAccount: async () => null }, accounts: { list: state.list }, transactions: { create: state.create } };
+		return { backup: { checkAutomatic: state.checkBackup }, meta: { getDefaultQuickAccount: async () => null }, accounts: { list: state.list }, transactions: { create: state.create } };
 	},
 	databaseInitialize: state.initializeLifecycle
 }));
@@ -47,6 +48,7 @@ vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => ({
 
 beforeEach(() => {
 	vi.clearAllMocks();
+	state.checkBackup.mockResolvedValue({ enabled: true, contentRevision: 0, backedUpRevision: 0, lastSuccessAt: null, lastSuccessDate: null, nextEligibleDate: null, warning: null, pruneWarning: null });
 	state.initialized = false;
 	state.firstRunComplete = true;
 	state.persistedFirstRunComplete = true;
@@ -133,4 +135,13 @@ describe('native Quick Add startup', () => {
 		await waitFor(() => expect(screen.getByRole('textbox')).toHaveFocus());
 		expect(screen.queryByText('Something went wrong. Please try again')).not.toBeInTheDocument();
 	});
+});
+
+it('does check automatic backups after its profile binds and cleans up on unmount', async () => {
+	const view = render(QuickAddPage);
+	await waitFor(() => expect(state.checkBackup).toHaveBeenCalledTimes(1));
+	view.unmount();
+	window.dispatchEvent(new Event('focus'));
+	await Promise.resolve();
+	expect(state.checkBackup).toHaveBeenCalledTimes(1);
 });

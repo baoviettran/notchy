@@ -211,6 +211,7 @@ impl ProfileCoordinator {
         let staged = (|| -> DbResult<()> {
             export_backup_to(&preview, &staged_db)?;
             if version < LATEST_SCHEMA_VERSION { migrate_supported(&staged_db, version, FailurePoint::None)?; }
+            crate::database::automatic_backup::bind_automatic_owner(&mut open_live_at(&staged_db)?, &target_id, true)?;
             validate_manifest(&open_read_only_at(&staged_db)?, LATEST_SCHEMA_VERSION)?;
             Ok(())
         })();

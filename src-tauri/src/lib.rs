@@ -156,6 +156,9 @@ pub fn run() {
             report_get_year_over_year,
             report_get_net_worth_series,
             // Backup commands
+            backup_automatic_status,
+            backup_automatic_set_enabled,
+            backup_automatic_check,
             backup_create,
             backup_export_sqlite,
             backup_export_csv,

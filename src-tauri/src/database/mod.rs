@@ -5,8 +5,10 @@
 //! lifecycle snapshot, exact connection policy, and authoritative OS lock.
 //! Task 14 scope: all domain commands registered with Tauri.
 
+pub mod automatic_backup;
 pub mod backup;
 pub mod commands;
+pub mod clock;
 pub mod connection;
 pub mod domains;
 pub mod error;
@@ -19,6 +21,9 @@ pub mod restore;
 pub mod startup;
 pub mod types;
 
+pub use automatic_backup::{
+    read_automatic_status, install_content_revision_triggers, AutomaticBackupStatus,
+};
 pub use backup::{
     cleanup_interrupted_publications, discover_verified_backups, publish_backup,
     retention_deletions, BackupFailurePoint,

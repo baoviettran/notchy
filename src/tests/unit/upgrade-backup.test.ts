@@ -40,7 +40,7 @@ async function copyMigrationFixture(name: string): Promise<{ db: DatabaseService
 
 describe('validateDatabase', () => {
 	it('accepts an exact source schema for upgrade verification', async () => {
-		expect(await validateDatabase(db, { exact: 6 })).toEqual({ valid: true, schemaVersion: 6 });
+		expect(await validateDatabase(db, { exact: 7 })).toEqual({ valid: true, schemaVersion: 7 });
 	});
 
 	it('accepts supported older backups and rejects newer backups', async () => {
@@ -57,7 +57,7 @@ describe('validateDatabase', () => {
 
 
 	it('accepts exact min/max boundaries and rejects malformed schema metadata variants', async () => {
-		expect(await validateDatabase(db, { min: 6, max: 6 })).toEqual({ valid: true, schemaVersion: 6 });
+		expect(await validateDatabase(db, { min: 7, max: 7 })).toEqual({ valid: true, schemaVersion: 7 });
 
 		const noAppMetaDb = createTestDb();
 		openedDbs.push(noAppMetaDb);

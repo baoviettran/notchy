@@ -2342,6 +2342,7 @@ name = "notchy"
 version = "0.2.2"
 dependencies = [
  "blake3",
+ "chrono",
  "fs2",
  "log",
  "rusqlite",

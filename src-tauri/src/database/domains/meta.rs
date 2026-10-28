@@ -27,10 +27,10 @@ pub fn get_meta(conn: &Connection, key: &str) -> DbResult<Option<String>> {
     Ok(val)
 }
 
-/// Set a meta value (INSERT OR REPLACE).
+/// Set a meta value without replacing an unchanged row.
 pub fn set_meta(conn: &Connection, key: &str, value: &str) -> DbResult<()> {
     conn.execute(
-        "INSERT OR REPLACE INTO app_meta (key, value) VALUES (?1, ?2)",
+        "INSERT INTO app_meta (key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         params![key, value],
     )
     .map_err(map_sqlite_error)?;

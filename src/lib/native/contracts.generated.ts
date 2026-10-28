@@ -68,6 +68,8 @@ created_at: string,
  * returned by verified discovery.
  */
 verified: boolean, };
+export type AutomaticBackupStatus = { enabled: boolean, contentRevision: number, backedUpRevision: number, lastSuccessAt: string | null, lastSuccessDate: string | null, nextEligibleDate: string | null, warning: string | null, pruneWarning: string | null, };
+export type BackupClock = { nowIso: string, localDate: string, isoWeek: string, offsetMinutes: number, };
 export type ProfileRecord = { id: string, name: string, createdAt: string, };
 export type ProfileRegistry = { version: 1, profiles: Array<ProfileRecord>, lastActiveId: string | null, legacyAdopted: boolean, };
 export type AppPreferences = { locale: "en" | "vi", theme: "auto" | "light" | "dark", };

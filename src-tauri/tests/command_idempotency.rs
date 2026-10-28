@@ -100,3 +100,23 @@ async fn concurrent_schedule_jobs_read_authoritative_state_before_posting() {
  let count=manager.with_session(&app.session,|s|Ok(s.connection()?.query_row("SELECT COUNT(*) FROM transactions",[],|r|r.get::<_,i64>(0)).unwrap())).await.unwrap();
  assert_eq!(count,1);
 }
+
+#[tokio::test]
+async fn automatic_backup_toggle_replays_once_and_checks_do_not_create_financial_receipts() {
+    let (manager, app) = funded_app().await;
+    let operation = OperationId::generate();
+    commands::backup_automatic_set_enabled(app.app.state(), app.session.clone(), false, operation.clone()).await.unwrap();
+    commands::backup_automatic_set_enabled(app.app.state(), app.session.clone(), false, operation.clone()).await.unwrap();
+    assert_eq!(commands::backup_automatic_set_enabled(app.app.state(), app.session.clone(), true, operation).await.unwrap_err().code, ErrorCode::OperationIdConflict);
+    let disabled = commands::backup_automatic_status(app.app.state(), app.session.clone()).await.unwrap();
+    assert!(!disabled.enabled);
+    commands::backup_automatic_set_enabled(app.app.state(), app.session.clone(), true, OperationId::generate()).await.unwrap();
+    let count_receipts = || manager.with_session(&app.session, |s| Ok(s.connection()?.query_row("SELECT COUNT(*) FROM operation_receipts", [], |r| r.get::<_, i64>(0)).unwrap()));
+    let before = count_receipts().await.unwrap();
+    let (main, quick) = tokio::join!(commands::backup_automatic_check(app.app.state(), app.session.clone()), commands::backup_automatic_check(app.app.state(), app.session.clone()));
+    let main = main.unwrap(); let quick = quick.unwrap();
+    assert_eq!(main, quick); assert!(main.last_success_at.is_some());
+    assert_eq!(count_receipts().await.unwrap(), before);
+    let copies = manager.with_session(&app.session, |s| Ok(s.connection()?.query_row("SELECT COUNT(*) FROM automatic_backup_copies", [], |r| r.get::<_, i64>(0)).unwrap())).await.unwrap();
+    assert_eq!(copies, 1);
+}

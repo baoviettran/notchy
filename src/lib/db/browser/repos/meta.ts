@@ -7,7 +7,7 @@ export async function getMeta(db: DatabaseService, key: string): Promise<string 
 
 export async function setMeta(db: DatabaseService, key: string, value: string): Promise<void> {
 	await db.execute(
-		`INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)`,
+		`INSERT INTO app_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
 		[key, value]
 	);
 }
