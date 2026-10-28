@@ -16,7 +16,8 @@
 	import { dbStore } from '$lib/stores/db.svelte';
 	import { profiles, setProfileDraftChoice } from '$lib/stores/profiles.svelte';
 	import { installProfileWindowListeners, installAppPreferencesListener, type DraftChoice } from '$lib/profiles/windows';
-	import { isTauri } from '$lib/db';
+	import { getDb, isTauri } from '$lib/db';
+	import { startAutomaticBackupChecks } from '$lib/backup/automatic';
 	import ProfileManager from '$lib/components/profiles/ProfileManager.svelte';
 	import ProfileDialogs from '$lib/components/profiles/ProfileDialogs.svelte';
 	import { settings } from '$lib/stores/settings.svelte';
@@ -108,6 +109,12 @@
 			tourInitialized = true;
 			void tour.load().then(() => { if (!tour.complete) tour.start(); });
 		}
+	});
+
+	$effect(() => {
+		const active = profiles.snapshot?.active;
+		if (bootingProfiles || $page.url.pathname.startsWith('/quick-add') || !active || !dbStore.ready) return;
+		return startAutomaticBackupChecks(getDb(), () => profiles.snapshot?.active ?? null);
 	});
 
 	function onKeydown(e: KeyboardEvent) {

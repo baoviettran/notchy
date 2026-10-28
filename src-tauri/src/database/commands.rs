@@ -5,6 +5,7 @@ use std::sync::Arc;
 use tauri::State;
 
 use crate::database::domains;
+use crate::database::automatic_backup::AutomaticBackupStatus;
 use crate::database::error::{DbError, ErrorCode, MetaKey};
 use crate::profiles::coordinator::ProfileCoordinator;
 use crate::profiles::types::ProfileSession;
@@ -1007,6 +1008,32 @@ pub async fn report_get_net_worth_series(
 
 /// Publish a routine backup into the app's backup directory and return its path.
 #[tauri::command]
+pub async fn backup_automatic_status(
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
+) -> Result<AutomaticBackupStatus, DbError> {
+    coordinator.automatic_backup_status(&session).await
+}
+
+#[tauri::command]
+pub async fn backup_automatic_set_enabled(
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
+    enabled: bool,
+    operation_id: OperationId,
+) -> Result<(), DbError> {
+    coordinator.set_automatic_backup_enabled(&session, enabled, operation_id).await
+}
+
+#[tauri::command]
+pub async fn backup_automatic_check(
+    coordinator: State<'_, Arc<ProfileCoordinator>>,
+    session: ProfileSession,
+) -> Result<AutomaticBackupStatus, DbError> {
+    coordinator.check_automatic_backup(&session).await
+}
+
+#[tauri::command]
 pub async fn backup_create(
     coordinator: State<'_, Arc<ProfileCoordinator>>,
     session: ProfileSession,
@@ -1173,6 +1200,8 @@ pub fn generate_bindings() -> String {
     push_decl(&mut out, StartupStage::decl(&cfg));
     push_decl(&mut out, RecoveryContext::decl(&cfg));
     push_decl(&mut out, BackupSummary::decl(&cfg));
+    push_decl(&mut out, AutomaticBackupStatus::decl(&cfg));
+    push_decl(&mut out, crate::database::clock::BackupClock::decl(&cfg));
     push_decl(&mut out, crate::profiles::types::ProfileRecord::decl(&cfg));
     push_decl(&mut out, crate::profiles::types::ProfileRegistry::decl(&cfg));
     push_decl(&mut out, crate::profiles::types::AppPreferences::decl(&cfg));

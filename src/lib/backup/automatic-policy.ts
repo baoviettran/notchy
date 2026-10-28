@@ -1,20 +1,6 @@
 /** Shared pure policy. Native code owns timestamps, verification and publication. */
-export interface BackupClock {
-	nowIso: string;
-	localDate: string;
-	isoWeek: string;
-	offsetMinutes: number;
-}
-export interface AutomaticBackupStatus {
-	enabled: boolean;
-	contentRevision: number;
-	backedUpRevision: number;
-	lastSuccessAt: string | null;
-	lastSuccessDate: string | null;
-	nextEligibleDate: string | null;
-	warning: string | null;
-	pruneWarning: string | null;
-}
+import type { AutomaticBackupStatus, BackupClock } from '$lib/native/contracts.generated';
+export type { AutomaticBackupStatus, BackupClock } from '$lib/native/contracts.generated';
 export interface AutomaticCopy {
 	id: string;
 	relativeFilename: string;

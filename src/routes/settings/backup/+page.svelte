@@ -1,9 +1,11 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import Button from '$lib/components/primitives/Button.svelte';
 	import Skeleton from '$lib/components/primitives/Skeleton.svelte';
 	import { save, open } from '@tauri-apps/plugin-dialog';
-	import { getDb } from '$lib/db';
+	import { getDb, isTauri } from '$lib/db';
+	import { automaticBackupState, sameBackupSession } from '$lib/backup/status.svelte';
+	import { label } from '$lib/utils/i18n.svelte';
 	import { getBackupHealth, type BackupHealth } from '$lib/backup/health';
 	import { toast } from '$lib/stores/toast.svelte';
 	import { mapError } from '$lib/utils/errors';
@@ -17,26 +19,73 @@
 	let health = $state<BackupHealth | null>(null);
 	let healthError = $state<string | null>(null);
 	let upgradeBackupDir = $state('');
+	let routineBackupDir = $state('');
+	let automaticBusy = $state(false);
+	let mounted = true;
+	const automatic = $derived(sameBackupSession(automaticBackupState.session, profiles.snapshot?.active ?? null) ? automaticBackupState.status : null);
+	const automaticError = $derived(sameBackupSession(automaticBackupState.session, profiles.snapshot?.active ?? null) && automaticBackupState.error);
+	function warningLabel(key: string): string {
+		if (key === 'backup_automatic_clock_warning') return m.backup_automatic_clock_warning();
+		if (key === 'backup_automatic_prune_failed') return m.backup_automatic_prune_failed();
+		return m.backup_automatic_failed();
+	}
+	async function updateAutomatic(enabled?: boolean) {
+		const active = profiles.snapshot?.active;
+		if (!active || automaticBusy) return;
+		const bound = { ...active };
+		if (!sameBackupSession(bound, automaticBackupState.session)) automaticBackupState.reset(bound);
+		automaticBusy = true;
+		try {
+			const db = getDb();
+			if (enabled !== undefined) await db.backup.setAutomaticEnabled(enabled);
+			const status = enabled === undefined ? await db.backup.checkAutomatic() : await db.backup.automaticStatus();
+			if (mounted && sameBackupSession(bound, profiles.snapshot?.active ?? null)) automaticBackupState.publish(bound, status);
+		} catch {
+			if (mounted && sameBackupSession(bound, profiles.snapshot?.active ?? null)) automaticBackupState.fail(bound);
+		} finally { if (mounted) automaticBusy = false; }
+	}
+	async function changeAutomatic(input: HTMLInputElement) {
+		await updateAutomatic(input.checked);
+		// A failed write must restore the persisted value in the native control.
+		input.checked = automatic?.enabled ?? false;
+	}
+	async function loadAutomatic() {
+		const active = profiles.snapshot?.active;
+		if (!active) return;
+		const bound = { ...active };
+		if (!sameBackupSession(bound, automaticBackupState.session)) automaticBackupState.reset(bound);
+		try {
+			const db = getDb();
+			const status = await db.backup.automaticStatus();
+			if (mounted && sameBackupSession(bound, profiles.snapshot?.active ?? null)) automaticBackupState.publish(bound, status);
+		} catch { if (mounted && sameBackupSession(bound, profiles.snapshot?.active ?? null)) automaticBackupState.fail(bound); }
+	}
+	onDestroy(() => { mounted = false; });
 
 	async function loadHealth() {
 		try {
 			const active = profiles.snapshot?.active;
 			if (!active) throw new Error('no active profile');
 			const [appVersion, paths] = await Promise.all([getInstalledAppVersion(), profiles.paths(active.profileId)]);
+			if (!mounted || !sameBackupSession(active, profiles.snapshot?.active ?? null)) return;
 			upgradeBackupDir = paths.upgradeBackupDir;
-			health = await getBackupHealth(getDb().meta, {
+			routineBackupDir = paths.routineBackupDir;
+			const nextHealth = await getBackupHealth(getDb().meta, {
 				appVersion,
 				databasePath: paths.databasePath,
 				upgradeBackupDir: paths.upgradeBackupDir
 			});
+			if (!mounted || !sameBackupSession(active, profiles.snapshot?.active ?? null)) return;
+			health = nextHealth;
 			healthError = null;
 		} catch (e) {
-			healthError = mapError(e);
+			if (mounted) healthError = mapError(e);
 		}
 	}
 
 	onMount(() => {
 		void loadHealth();
+		void loadAutomatic();
 	});
 
 	async function createBackupNow() {
@@ -169,7 +218,29 @@
 
 	<div class="surface rounded-lg p-4 space-y-2">
 		<h2 class="plate">{m.settings_backup_auto()}</h2>
-		<p class="text-sm text-dim">{m.settings_backup_auto_desc()}</p>
-		<p class="text-xs text-dim">{m.settings_backup_auto_location()}</p>
+		<p class="text-sm text-dim">{label(() => m.settings_backup_auto_desc())}</p>
+		{#if !isTauri()}<p class="text-sm text-dim">{label(() => m.settings_backup_auto_browser())}</p>{/if}
+		{#if automatic}
+			<label class="flex items-center gap-3 py-2 text-sm text-ledger">
+				<input type="checkbox" class="accent-phosphor h-4 w-4 focus-visible:ring-2 focus-visible:ring-phosphor" checked={automatic.enabled} disabled={automaticBusy} onchange={(event) => void changeAutomatic(event.currentTarget)} />
+				{label(() => m.settings_backup_auto_enabled())}
+			</label>
+			<dl class="space-y-2 text-sm" aria-live="polite">
+				<div><dt class="text-dim">{label(() => m.settings_backup_auto_last_success())}</dt><dd class="text-ledger">{automatic.lastSuccessAt ?? label(() => m.settings_backup_health_no_backup())}</dd></div>
+				<div><dt class="text-dim">{label(() => m.settings_backup_auto_eligibility())}</dt><dd class="text-ledger">{!automatic.enabled ? label(() => m.settings_backup_auto_paused()) : automatic.nextEligibleDate ?? label(() => m.settings_backup_auto_first_check())}</dd></div>
+				{#if isTauri()}<div><dt class="text-dim">{label(() => m.settings_backup_auto_location())}</dt><dd><code class="font-mono text-xs text-ledger break-all">{routineBackupDir}</code></dd></div>{/if}
+			</dl>
+		{:else if !automaticError}
+			<Skeleton lines={3} />
+		{/if}
+		{#if automaticError || automatic?.warning || automatic?.pruneWarning}
+			<div class="space-y-2" role="status">
+				{#if automaticError}<p class="text-sm text-debit">{label(() => m.backup_automatic_failed())}</p>{/if}
+				{#if automatic?.warning}<p class="text-sm text-debit">{label(() => warningLabel(automatic!.warning!))}</p>{/if}
+				{#if automatic?.pruneWarning}<p class="text-sm text-debit">{label(() => warningLabel(automatic!.pruneWarning!))}</p>{/if}
+				<Button size="sm" variant="secondary" disabled={automaticBusy} onclick={() => void updateAutomatic()}>{label(() => automaticBusy ? m.settings_backup_auto_checking() : m.settings_backup_auto_retry())}</Button>
+			</div>
+		{/if}
+		{#if isTauri()}<p class="text-xs text-dim">{label(() => m.settings_backup_auto_same_disk())}</p>{/if}
 	</div>
 </div>

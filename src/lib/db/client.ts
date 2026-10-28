@@ -227,7 +227,11 @@ export interface ReportOps {
  * publication protocol. No op exposes a query handle — a caller gets a path or
  * an error, never SQL.
  */
+export type { AutomaticBackupStatus } from '$lib/native/contracts.generated';
 export interface BackupOps {
+	automaticStatus(): Promise<import('$lib/native/contracts.generated').AutomaticBackupStatus>;
+	setAutomaticEnabled(enabled: boolean, options?: MutationOptions): Promise<void>;
+	checkAutomatic(): Promise<import('$lib/native/contracts.generated').AutomaticBackupStatus>;
 	/**
 	 * Publish a routine backup into the app's routine backup directory and
 	 * resolve to its canonical path. Records `last_backup_at` only if the

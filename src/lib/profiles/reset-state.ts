@@ -1,3 +1,4 @@
+import { automaticBackupState } from '$lib/backup/status.svelte';
 import type { ProfileSession } from './types';
 import { advanceDataEpoch } from './epoch';
 import { accounts } from '$lib/stores/accounts.svelte';
@@ -20,6 +21,7 @@ import { dbStore } from '$lib/stores/db.svelte';
 
 export function resetProfileState(_session: ProfileSession | null): void {
 	advanceDataEpoch();
+	automaticBackupState.reset(_session);
 	for (const store of [accounts, transactions, categories, budgets, goals, debts, schedules, rules, reportsStore]) {
 		store.loading = false;
 		store.error = null;

@@ -1,7 +1,7 @@
 import type { Migration } from './runner';
+import { installContentRevisionTriggers } from '../content-revision';
 // Browser schema 7 mirrors native schema 8; native-only receipts keep them apart.
 const contentTables = ['accounts', 'transactions', 'category_types', 'category_tags', 'budgets', 'goals', 'reconciliations', 'categorize_rules', 'schedules'];
-const identifier = (value: string) => `"${value.replaceAll('"', '""')}"`;
 export const migration007: Migration = {
 	version: 7,
 	name: 'automatic_backup',
@@ -73,18 +73,6 @@ BEGIN UPDATE automatic_backup_state SET content_revision = content_revision + 1 
 		await db.execute(`CREATE TRIGGER IF NOT EXISTS trg_content_app_meta_update AFTER UPDATE ON app_meta
 WHEN (OLD.key IN ('currency', 'first_run_complete', 'onboarding_step') OR NEW.key IN ('currency', 'first_run_complete', 'onboarding_step')) AND (OLD.key IS NOT NEW.key OR OLD.value IS NOT NEW.value)
 BEGIN UPDATE automatic_backup_state SET content_revision = content_revision + 1 WHERE id = 1; END`);
-		for (const table of contentTables) {
-			const columns = await db.query<{
-				name: string;
-			}>(`PRAGMA table_info(${identifier(table)})`);
-			const changes = columns.filter(({ name }) => name !== 'created_at' && name !== 'updated_at')
-				.map(({ name }) => `OLD.${identifier(name)} IS NOT NEW.${identifier(name)}`).join(' OR ');
-			for (const operation of ['insert', 'update', 'delete']) {
-				const condition = operation === 'update' ? `WHEN ${changes || '0'}` : '';
-				await db.execute(`CREATE TRIGGER IF NOT EXISTS ${identifier(`trg_content_${table}_${operation}`)}
-					AFTER ${operation} ON ${identifier(table)} ${condition}
-					BEGIN UPDATE automatic_backup_state SET content_revision = content_revision + 1 WHERE id = 1; END`);
-			}
-		}
+		await installContentRevisionTriggers(db, contentTables);
 	}
 };
