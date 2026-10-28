@@ -86,13 +86,14 @@ Xong rồi, bắt đầu dùng thôi.
 
 ### Sao lưu & dữ liệu
 
-- **Sao lưu** — dùng Cài đặt → Sao lưu & dữ liệu cho profile đang mở, hoặc Cài đặt → Profiles cho profile khác. Snapshot đã xác minh bảo vệ trước migration và reset; chưa bật sao lưu định kỳ/retention tự động.
+- **Sao lưu tự động** — bật mặc định cho từng profile. Khi Notchy đang mở, nội dung đã thay đổi đủ điều kiện tạo một bản sao đã xác minh mỗi ngày theo giờ địa phương. Giữ bản đại diện của bảy ngày và bốn tuần có sao lưu gần nhất (có thể trùng nhau), cùng bản mới nhất cho mỗi phiên bản schema. Cài đặt → Sao lưu & dữ liệu hiển thị tùy chọn, lần thành công gần nhất, ngày sớm nhất có thể sao lưu tiếp, thư mục thực tế và cảnh báo/thử lại.
+- **Sao lưu thủ công** — dùng Cài đặt → Sao lưu & dữ liệu cho profile đang mở, hoặc Cài đặt → Profiles cho profile khác. Sao lưu thủ công, bản cũ, bản trước nâng cấp/reset và tệp chưa đăng ký không bị dọn bởi chính sách tự động.
 - **Xuất** — SQLite để khôi phục đầy đủ, CSV để lưu trữ từng bảng.
 - **Khôi phục** — SQLite được khôi phục thành **profile mới**, giữ nguyên các profile hiện có. Nhập CSV giao dịch là luồng nhập dữ liệu ngân hàng riêng.
 - **Database profile trên Linux** — `~/.local/share/com.notchy.app/profiles/<profile-id>/notchy.db`.
 - **Registry/tùy chọn trên Linux** — `~/.config/com.notchy.app/profiles.json` và `preferences.json`.
 
-Backup nằm trong thư mục dữ liệu từng profile tại `backups/`, `backups/upgrades/`, `backups/resets/`. Cài đặt → Sao lưu & dữ liệu hiển thị đường dẫn thực tế. Database cũ được tiếp nhận vào một profile. Xuất backup SQLite ra ngoài thư mục ứng dụng trước khi nâng cấp; không mặc định binary cũ đọc được cấu trúc profile mới.
+Backup nằm trong thư mục dữ liệu từng profile tại `backups/`, `backups/upgrades/`, `backups/resets/`. Các bản sao trên cùng ổ đĩa không bảo vệ khi ổ đĩa hỏng; hãy xuất backup SQLite sang ổ đĩa khác. Cài đặt → Sao lưu & dữ liệu hiển thị đường dẫn thực tế. Database cũ được tiếp nhận vào một profile. Xuất backup SQLite ra ngoài thư mục ứng dụng trước khi nâng cấp; không mặc định binary cũ đọc được cấu trúc profile mới.
 
 Bạn có thể mở tệp này bằng bất kỳ công cụ SQLite nào. Xem [RECOVERY.md](RECOVERY.md) để biết các câu truy vấn.
 

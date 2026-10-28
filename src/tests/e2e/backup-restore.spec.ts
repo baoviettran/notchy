@@ -1,9 +1,13 @@
 import { test, expect, rawQuery, rawExecute, writeVirtualFs, readVirtualFs, flushDb } from './fixtures/tauri-mock';
-import { onboard } from './helpers/ui';
+import { onboard, addTransaction } from './helpers/ui';
 import type { Page } from '@playwright/test';
 
 const invoke = <T>(page: Page, command: string, args: Record<string, unknown> = {}): Promise<T> =>
-	page.evaluate(({ command, args }) => (window as any).__TAURI_INTERNALS__.invoke(command, args), { command, args });
+	page.evaluate(async ({ command, args }) => {
+		const ipc = (window as any).__TAURI_INTERNALS__;
+		if (command.startsWith('backup_automatic_')) args = { ...args, session: (await ipc.invoke('profiles_load')).active };
+		return ipc.invoke(command, args);
+	}, { command, args });
 const active = (page: Page) => invoke<{ active: { profileId: string; generation: string } }>(page, 'profiles_load').then((snapshot) => snapshot.active);
 
 test.describe('profile backup and restore', () => {
@@ -69,5 +73,44 @@ test('reset leaves a recoverable snapshot and an empty selected profile', async 
 	expect(backups.some((backup) => backup.path.includes('/resets/'))).toBe(true);
 	await page.reload();
 	await expect(page.getByRole('radiogroup').first()).toBeVisible();
+});
+// IPC is a browser fixture here; native acceptance separately proves real files.
+test('shows enabled automatic backups and waits after a same-day second write', async ({ tauriMockPage: page }) => {
+	await onboard(page);
+	await page.getByRole('link', { name: 'Settings' }).click();
+	await page.getByRole('link', { name: 'Backup & Data' }).click();
+	const enabled = page.getByRole('checkbox', { name: 'Enable automatic backups' });
+	await expect(enabled).toBeChecked();
+	await enabled.uncheck();
+	await expect(enabled).not.toBeChecked();
+	await expect(page.getByText('Paused', { exact: true })).toBeVisible();
+	await enabled.check();
+	await invoke(page, 'backup_automatic_check');
+	await page.reload();
+	await expect(page.getByRole('checkbox', { name: 'Enable automatic backups' })).toBeChecked();
+	const before = await invoke<{ backedUpRevision: number; lastSuccessAt: string; nextEligibleDate: string }>(page, 'backup_automatic_status');
+	await expect(page.getByText(before.lastSuccessAt, { exact: true })).toBeVisible();
+	await expect(page.getByText(before.nextEligibleDate, { exact: true })).toBeVisible();
+	await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
+	await addTransaction(page, { kind: 'expense', amount: '1234', payee: 'After automatic copy' });
+	const after = await invoke<{ contentRevision: number; backedUpRevision: number; lastSuccessAt: string }>(page, 'backup_automatic_check');
+	expect(after.contentRevision).toBeGreaterThan(after.backedUpRevision);
+	expect(after.backedUpRevision).toBe(before.backedUpRevision);
+	expect(after.lastSuccessAt).toBe(before.lastSuccessAt);
+});
+
+test('keeps a failed backup visible with the previous success and a keyboard retry', async ({ tauriMockPage: page }) => {
+	await onboard(page);
+	await rawExecute(page, "UPDATE automatic_backup_state SET warning='backup_automatic_failed', last_success_at='2026-10-25T10:00:00Z', last_success_date='2026-10-25', enabled=0");
+	await page.getByRole('link', { name: 'Settings' }).click();
+	await page.getByRole('link', { name: 'Backup & Data' }).click();
+	await expect(page.getByText('2026-10-25T10:00:00Z', { exact: true })).toBeVisible();
+	await expect(page.getByRole('status').filter({ hasText: 'The automatic backup could not finish' })).toBeVisible();
+	const retry = page.getByRole('button', { name: 'Retry backup check' });
+	await retry.focus();
+	await page.keyboard.press('Enter');
+	await expect(retry).toBeEnabled();
+	await expect(page.getByRole('status').filter({ hasText: 'The automatic backup could not finish' })).toBeVisible();
+	await expect(page.getByText('2026-10-25T10:00:00Z', { exact: true })).toBeVisible();
 });
 });

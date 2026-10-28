@@ -147,7 +147,7 @@ fn run(conn: &mut Connection, profile: &Path, owner: &str, clock: &BackupClock, 
     let backwards=before.last_success_at.as_deref().is_some_and(|at| chrono::DateTime::parse_from_rfc3339(at).map_or(true,|last|now<last))
         || before.last_success_date.as_deref().is_some_and(|date|NaiveDate::parse_from_str(date,"%Y-%m-%d").is_err() || clock.local_date.as_str()<date);
     let pending_backwards=job.as_ref().is_some_and(|job| validated_clock(&job.clock)
-        .is_none_or(|started| now<started || clock.local_date<job.clock.local_date));
+        .map_or(true,|started| now<started || clock.local_date<job.clock.local_date));
     if backwards || pending_backwards { return clock_warning(conn); }
     if before.warning.as_deref()==Some(CLOCK_WARNING) { conn.execute("UPDATE automatic_backup_state SET warning=NULL WHERE id=1",[]).map_err(map_sqlite_error)?; }
     if !before.enabled { return status(conn); }
