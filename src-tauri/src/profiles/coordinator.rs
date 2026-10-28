@@ -13,7 +13,7 @@ use super::types::{AppPreferences, ProfileRegistry, ProfileSession, ProfileSnaps
 
 pub(super) struct ActiveProfile {
     pub(super) session: ProfileSession,
-    manager: Arc<DatabaseManager>,
+    pub(super) manager: Arc<DatabaseManager>,
 }
 
 pub(super) struct State {
@@ -193,6 +193,13 @@ impl ProfileCoordinator {
         if !metadata.is_file() { return Err(DbError::new(ErrorCode::DatabaseInvalid)); }
         let manager = DatabaseManager::spawn_with_lock(paths, 64, Arc::clone(&self.lock))?;
         if let Err(error) = manager.initialize().await {
+            manager.shutdown();
+            return Err(error);
+        }
+        let owner = id.to_owned();
+        if let Err(error) = manager.data_job(move |state| {
+            crate::database::automatic_backup::bind_automatic_owner(state.connection_mut()?, &owner, false)
+        }).await {
             manager.shutdown();
             return Err(error);
         }

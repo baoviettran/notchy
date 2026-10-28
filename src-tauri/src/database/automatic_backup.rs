@@ -241,3 +241,22 @@ pub fn automatic_retention_ids(copies: &[AutomaticCopy], protected_id: &str) -> 
     }
     eligible.into_iter().filter(|(copy, _)| !keep.contains(&copy.id)).map(|(copy, _)| copy.id.clone()).collect()
 }
+
+/// Imported scheduler metadata is never authority over this profile's files.
+/// Binding is bookkeeping and deliberately does not trigger content revisions.
+pub(crate) fn bind_automatic_owner(conn: &mut Connection, owner: &str, restored: bool) -> DbResult<()> {
+    use crate::database::domains::meta::{get_meta, set_meta};
+    if !restored && get_meta(conn, "automatic_backup_owner")?.as_deref() == Some(owner) { return Ok(()); }
+    let tx = conn.transaction().map_err(map_sqlite_error)?;
+    tx.execute("DELETE FROM automatic_backup_copies", []).map_err(map_sqlite_error)?;
+    tx.execute("UPDATE automatic_backup_state SET backed_up_revision=0,last_success_at=NULL,last_success_date=NULL,last_success_offset_minutes=NULL,warning=NULL,prune_warning=NULL,pending_job_id=NULL,pending_relative_filename=NULL,pending_revision=NULL,pending_local_date=NULL,pending_local_week=NULL,pending_offset_minutes=NULL,pending_started_at=NULL", []).map_err(map_sqlite_error)?;
+    set_meta(&tx, "automatic_backup_owner", owner)?;
+    tx.commit().map_err(map_sqlite_error)
+}
+
+pub(crate) fn set_automatic_enabled(conn: &mut Connection, enabled: bool, operation_id: crate::database::OperationId) -> DbResult<()> {
+    crate::database::receipt::run_idempotent(conn, operation_id, "backup_automatic_set_enabled", &enabled, |tx| {
+        tx.execute("UPDATE automatic_backup_state SET enabled=?1 WHERE id=1", [enabled]).map_err(map_sqlite_error)?;
+        Ok(())
+    })
+}

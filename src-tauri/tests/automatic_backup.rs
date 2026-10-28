@@ -315,3 +315,275 @@ fn observes_consistent_native_local_clock_labels() {
     let clock = local_backup_clock();
     assert!(automatic_prune_clock_trusted(&clock, &clock));
 }
+
+use notchy_lib::profiles::{coordinator::ProfileCoordinator, paths::ProfilePaths, types::{OperationContext, ProfileSession}};
+use notchy_lib::profiles::automatic_backup::AutomaticBackupFailurePoint as AutoFail;
+use notchy_lib::database::{OperationId, ErrorCode};
+use std::sync::Arc;
+fn auto_context() -> OperationContext { OperationContext { operation_id: OperationId::generate().as_str().into(), transition_token: None } }
+fn day(n: u32) -> BackupClock {
+    use chrono::NaiveDate;
+    let date = NaiveDate::from_ymd_opt(2026, 10, n).unwrap();
+    BackupClock { now_iso: format!("{date}T10:00:00Z"), local_date: date.to_string(), iso_week: date.format("%G-W%V").to_string(), offset_minutes: 0 }
+}
+async fn auto_fixture() -> (ProfilePaths, Arc<ProfileCoordinator>, ProfileSession) {
+    let root = std::env::temp_dir().join(format!("notchy-auto-run-{}", OperationId::generate().as_str()));
+    let paths = ProfilePaths::new(root.join("config"), root.join("data"));
+    let coordinator = ProfileCoordinator::open(paths.clone()).unwrap();
+    let profile = coordinator.create("Automatic", &auto_context()).await.unwrap();
+    let session = coordinator.activate(&profile.id).await.unwrap();
+    dirty(&coordinator, &session, "USD").await;
+    (paths, coordinator, session)
+}
+async fn dirty(c: &ProfileCoordinator, s: &ProfileSession, value: &str) {
+    let value = value.to_owned();
+    c.with_session(s, move |state| notchy_lib::database::domains::meta::set_meta(state.connection()?, "currency", &value)).await.unwrap();
+}
+async fn registered(c: &ProfileCoordinator, s: &ProfileSession) -> Vec<(String, String, i64)> {
+    c.with_session(s, |state| {
+        Ok(state.connection()?.prepare("SELECT id,relative_filename,captured_revision FROM automatic_backup_copies ORDER BY created_at").unwrap().query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).unwrap().collect::<rusqlite::Result<_>>().unwrap())
+    }).await.unwrap()
+}
+#[tokio::test]
+async fn concurrent_checks_publish_one_copy_and_preserve_later_dirty_revision() {
+    let (_, c, s) = auto_fixture().await;
+    let clock = day(1);
+    let (a,b) = tokio::join!(c.check_automatic_backup_at(&s, &clock, AutoFail::None), c.check_automatic_backup_at(&s, &clock, AutoFail::None));
+    assert_eq!(a.unwrap().backed_up_revision, 1); assert_eq!(b.unwrap().backed_up_revision, 1);
+    assert_eq!(registered(&c,&s).await.len(), 1);
+    dirty(&c,&s,"VND").await;
+    let status = c.check_automatic_backup_at(&s,&clock,AutoFail::None).await.unwrap();
+    assert_eq!((status.content_revision,status.backed_up_revision), (2,1));
+    assert_eq!(status.next_eligible_date.as_deref(),Some("2026-10-02"));
+}
+#[tokio::test]
+async fn reconciles_published_job_after_reopen() {
+    let (paths, c, s) = auto_fixture().await;
+    let status = c.check_automatic_backup_at(&s,&day(1),AutoFail::AfterPublication).await.unwrap();
+    assert!(status.warning.is_some()); assert_eq!(status.backed_up_revision, 0);
+    let before = c.backups(&s.profile_id).await.unwrap(); assert_eq!(before.len(),1);
+    dirty(&c,&s,"VND").await;
+    drop(c);
+    let c = ProfileCoordinator::open(paths.clone()).unwrap();
+    let s = c.activate(&s.profile_id).await.unwrap();
+    let status = c.check_automatic_backup_at(&s,&day(1),AutoFail::None).await.unwrap();
+    let verified_automatic_copy_count = registered(&c,&s).await.len();
+    assert_eq!(verified_automatic_copy_count, 1);
+    assert_eq!(registered(&c,&s).await[0].0,before[0].id);
+    assert_eq!((status.content_revision,status.backed_up_revision), (2,1));
+    assert!(status.warning.is_none());
+}
+#[tokio::test]
+async fn retries_unpublished_job_without_deleting_prior_copies() {
+    let (paths,c,s)=auto_fixture().await;
+    c.check_automatic_backup_at(&s,&day(1),AutoFail::None).await.unwrap();
+    let prior=c.backups(&s.profile_id).await.unwrap();
+    dirty(&c,&s,"VND").await;
+    let failed=c.check_automatic_backup_at(&s,&day(2),AutoFail::BeforePublication).await.unwrap();
+    assert_eq!(failed.backed_up_revision,1); assert!(failed.warning.is_some());
+    let job=c.with_session(&s,|st|Ok(st.connection()?.query_row("SELECT pending_job_id FROM automatic_backup_state",[],|r|r.get::<_,String>(0)).unwrap())).await.unwrap();
+    assert_eq!(c.backups(&s.profile_id).await.unwrap(),prior);
+    drop(c);
+    let c=ProfileCoordinator::open(paths).unwrap(); let s=c.activate(&s.profile_id).await.unwrap();
+    c.check_automatic_backup_at(&s,&day(2),AutoFail::None).await.unwrap();
+    assert!(registered(&c,&s).await.iter().any(|r|r.0==job));
+    assert_eq!(registered(&c,&s).await.len(),2);
+}
+#[tokio::test]
+async fn setting_is_receipt_backed_and_stale_sessions_cannot_publish() {
+    let (_,c,s)=auto_fixture().await; let op=OperationId::generate();
+    c.set_automatic_backup_enabled(&s,false,op.clone()).await.unwrap();
+    c.set_automatic_backup_enabled(&s,false,op.clone()).await.unwrap();
+    assert_eq!(c.set_automatic_backup_enabled(&s,true,op).await.unwrap_err().code,ErrorCode::OperationIdConflict);
+    assert!(!c.check_automatic_backup_at(&s,&day(1),AutoFail::None).await.unwrap().enabled);
+    assert!(registered(&c,&s).await.is_empty());
+    let fresh=c.activate(&s.profile_id).await.unwrap();
+    assert_eq!(c.automatic_backup_status(&s).await.unwrap_err().code,ErrorCode::ProfileSessionExpired);
+    assert_eq!(c.check_automatic_backup_at(&s,&day(1),AutoFail::None).await.unwrap_err().code,ErrorCode::ProfileSessionExpired);
+    assert!(!c.automatic_backup_status(&fresh).await.unwrap().enabled);
+}
+#[tokio::test]
+async fn invalid_or_backwards_clocks_warn_without_publication() {
+    let (_,c,s)=auto_fixture().await;
+    c.check_automatic_backup_at(&s,&day(2),AutoFail::None).await.unwrap(); dirty(&c,&s,"VND").await;
+    for clock in [day(1),BackupClock { now_iso:"bad".into(), ..day(3) }] {
+        let status=c.check_automatic_backup_at(&s,&clock,AutoFail::None).await.unwrap();
+        assert_eq!(status.warning.as_deref(),Some("backup_automatic_clock_warning"));
+        assert_eq!(registered(&c,&s).await.len(),1);
+    }
+}
+#[tokio::test]
+async fn pruning_failure_preserves_success_and_retries_without_another_copy() {
+    let (_,c,s)=auto_fixture().await;
+    for n in 1..=9 { dirty(&c,&s,&n.to_string()).await; c.check_automatic_backup_at(&s,&day(n),AutoFail::Prune).await.unwrap(); }
+    let status=c.automatic_backup_status(&s).await.unwrap();
+    assert!(status.prune_warning.is_some()); assert!(status.warning.is_none());
+    assert_eq!(registered(&c,&s).await.len(),9);
+    let before=status.backed_up_revision;
+    let status=c.check_automatic_backup_at(&s,&day(9),AutoFail::None).await.unwrap();
+    assert_eq!(status.backed_up_revision,before); assert!(status.prune_warning.is_none());
+    assert!(registered(&c,&s).await.len()<9);
+}
+#[tokio::test]
+async fn offset_change_defers_pruning_using_prepublication_clock() {
+    let (_,c,s)=auto_fixture().await;
+    for n in 1..=9 { dirty(&c,&s,&n.to_string()).await; c.check_automatic_backup_at(&s,&day(n),AutoFail::Prune).await.unwrap(); }
+    dirty(&c,&s,"10").await;
+    let clock=BackupClock { offset_minutes:60, ..day(10) };
+    let status=c.check_automatic_backup_at(&s,&clock,AutoFail::None).await.unwrap();
+    assert_eq!(registered(&c,&s).await.len(),10);
+    assert!(status.prune_warning.is_some());
+}
+#[tokio::test]
+async fn restore_rebinds_ownership_without_changing_source_registry_or_files() {
+    let (paths,c,s)=auto_fixture().await;
+    c.check_automatic_backup_at(&s,&day(1),AutoFail::None).await.unwrap();
+    c.set_automatic_backup_enabled(&s,false,OperationId::generate()).await.unwrap();
+    let manual=c.backup_for_session(&s).await.unwrap();
+    let rows=registered(&c,&s).await; let files=c.backups(&s.profile_id).await.unwrap();
+    let preview=c.inspect_restore(manual.path()).await.unwrap();
+    let restored=c.restore(&preview.token,"Restored",&auto_context()).await.unwrap();
+    assert_eq!(registered(&c,&s).await,rows); assert_eq!(c.backups(&s.profile_id).await.unwrap(),files);
+    let rs=c.activate(&restored.id).await.unwrap();
+    let status=c.automatic_backup_status(&rs).await.unwrap();
+    assert!(!status.enabled); assert_eq!(status.backed_up_revision,0); assert!(status.last_success_at.is_none());
+    assert!(registered(&c,&rs).await.is_empty());
+    c.set_automatic_backup_enabled(&rs,true,OperationId::generate()).await.unwrap();
+    c.check_automatic_backup_at(&rs,&day(1),AutoFail::None).await.unwrap();
+    assert_eq!(registered(&c,&rs).await.len(),1);
+    for row in rows { assert!(paths.profile_dir(&s.profile_id).unwrap().join("backups").join(row.1).exists()); }
+}
+
+#[tokio::test]
+async fn registry_commit_failure_preserves_publication_for_reopen_retry() {
+    let (paths,c,s)=auto_fixture().await;
+    c.with_session(&s,|st| { st.connection()?.execute_batch("CREATE TRIGGER fail_auto_register BEFORE INSERT ON automatic_backup_copies BEGIN SELECT RAISE(ABORT,'injected registry failure'); END").unwrap(); Ok(()) }).await.unwrap();
+    let failed=c.check_automatic_backup_at(&s,&day(1),AutoFail::None).await.unwrap();
+    assert!(failed.warning.is_some()); assert!(failed.last_success_at.is_none());
+    assert_eq!(c.backups(&s.profile_id).await.unwrap().len(),1);
+    assert!(registered(&c,&s).await.is_empty());
+    c.with_session(&s,|st| {st.connection()?.execute_batch("DROP TRIGGER fail_auto_register").unwrap();Ok(())}).await.unwrap();
+    drop(c);
+    let c=ProfileCoordinator::open(paths).unwrap(); let s=c.activate(&s.profile_id).await.unwrap();
+    assert!(c.check_automatic_backup_at(&s,&day(1),AutoFail::None).await.unwrap().warning.is_none());
+    assert_eq!(registered(&c,&s).await.len(),1);
+    assert_eq!(c.backups(&s.profile_id).await.unwrap().len(),1);
+}
+#[tokio::test]
+async fn corrupt_pending_target_is_not_overwritten_or_registered() {
+    let (paths,c,s)=auto_fixture().await;
+    c.check_automatic_backup_at(&s,&day(1),AutoFail::AfterPublication).await.unwrap();
+    let target=c.backups(&s.profile_id).await.unwrap()[0].path.clone();
+    std::fs::write(&target,b"corrupt pending snapshot").unwrap();
+    drop(c);
+    let c=ProfileCoordinator::open(paths).unwrap(); let s=c.activate(&s.profile_id).await.unwrap();
+    let status=c.check_automatic_backup_at(&s,&day(1),AutoFail::None).await.unwrap();
+    assert_eq!(status.backed_up_revision,0); assert!(status.warning.is_some());
+    assert!(registered(&c,&s).await.is_empty());
+    assert_eq!(std::fs::read(target).unwrap(),b"corrupt pending snapshot");
+}
+#[tokio::test]
+async fn pruning_preserves_manual_unregistered_reset_and_upgrade_files() {
+    let (paths,c,s)=auto_fixture().await;
+    let manual=c.backup_for_session(&s).await.unwrap();
+    let dir=paths.profile_dir(&s.profile_id).unwrap().join("backups");
+    let unknown=dir.join("unregistered.sqlite"); std::fs::copy(manual.path(),&unknown).unwrap();
+    for folder in ["resets","upgrades"] {
+        std::fs::create_dir_all(dir.join(folder)).unwrap();
+        std::fs::copy(manual.path(),dir.join(folder).join("protected.sqlite")).unwrap();
+    }
+    let manual_bytes=std::fs::read(manual.path()).unwrap();
+    for n in 1..=12 {dirty(&c,&s,&n.to_string()).await;c.check_automatic_backup_at(&s,&day(n),AutoFail::None).await.unwrap();}
+    assert!(registered(&c,&s).await.len()<12);
+    for path in [manual.path().to_owned(),unknown,dir.join("resets/protected.sqlite"),dir.join("upgrades/protected.sqlite")] {
+        assert_eq!(std::fs::read(path).unwrap(),manual_bytes);
+    }
+}
+#[cfg(unix)]
+#[tokio::test]
+async fn symlinked_backup_directory_cannot_publish_outside_profile() {
+    let (paths,c,s)=auto_fixture().await;
+    let outside=paths.data_dir.parent().unwrap().join("outside");std::fs::create_dir(&outside).unwrap();
+    std::os::unix::fs::symlink(&outside,paths.profile_dir(&s.profile_id).unwrap().join("backups")).unwrap();
+    let status=c.check_automatic_backup_at(&s,&day(1),AutoFail::None).await.unwrap();
+    assert!(status.warning.is_some()); assert!(registered(&c,&s).await.is_empty());
+    assert_eq!(std::fs::read_dir(outside).unwrap().count(),0);
+}
+#[tokio::test]
+async fn pending_publication_from_a_future_clock_reports_clock_warning() {
+    let (_,c,s)=auto_fixture().await;
+    c.check_automatic_backup_at(&s,&day(2),AutoFail::AfterPublication).await.unwrap();
+    let status=c.check_automatic_backup_at(&s,&day(1),AutoFail::None).await.unwrap();
+    assert_eq!(status.warning.as_deref(),Some("backup_automatic_clock_warning"));
+}
+#[tokio::test]
+async fn reset_preserves_disabled_preference_and_rebinds_clean_scheduler() {
+    let (_,c,s)=auto_fixture().await;
+    c.check_automatic_backup_at(&s,&day(1),AutoFail::None).await.unwrap();
+    c.set_automatic_backup_enabled(&s,false,OperationId::generate()).await.unwrap();
+    let context=OperationContext {transition_token:Some(c.issue_transition_token()),..auto_context()};
+    c.reset(&s.profile_id,&context).await.unwrap();
+    let fresh=c.load().active.unwrap();
+    let status=c.automatic_backup_status(&fresh).await.unwrap();
+    assert!(!status.enabled); assert_eq!(status.backed_up_revision,0); assert!(status.last_success_at.is_none());
+    assert!(registered(&c,&fresh).await.is_empty());
+    assert_eq!(c.backups(&fresh.profile_id).await.unwrap().len(),2);
+    c.set_automatic_backup_enabled(&fresh,true,OperationId::generate()).await.unwrap();
+    dirty(&c,&fresh,"USD").await;
+    assert_eq!(c.check_automatic_backup_at(&fresh,&day(1),AutoFail::None).await.unwrap().backed_up_revision,1);
+}
+
+#[tokio::test]
+async fn unpublished_retry_recaptures_new_revision_under_the_same_job() {
+    let (_,c,s)=auto_fixture().await;
+    c.check_automatic_backup_at(&s,&day(1),AutoFail::BeforePublication).await.unwrap();
+    let job=c.with_session(&s,|st|Ok(st.connection()?.query_row("SELECT pending_job_id FROM automatic_backup_state",[],|r|r.get::<_,String>(0)).unwrap())).await.unwrap();
+    dirty(&c,&s,"VND").await;
+    let result=c.check_automatic_backup_at(&s,&day(1),AutoFail::None).await.unwrap();
+    assert_eq!((result.content_revision,result.backed_up_revision),(2,2));
+    let rows=registered(&c,&s).await;assert_eq!(rows.len(),1);assert_eq!(rows[0].0,job);assert_eq!(rows[0].2,2);
+}
+#[tokio::test]
+async fn restored_pending_snapshot_cannot_reconcile_source_job() {
+    let (_,c,s)=auto_fixture().await;
+    c.check_automatic_backup_at(&s,&day(1),AutoFail::AfterPublication).await.unwrap();
+    let source=c.backups(&s.profile_id).await.unwrap()[0].clone();
+    let preview=c.inspect_restore(std::path::Path::new(&source.path)).await.unwrap();
+    let restored=c.restore(&preview.token,"Recovered",&auto_context()).await.unwrap();
+    let rs=c.activate(&restored.id).await.unwrap();
+    c.check_automatic_backup_at(&rs,&day(1),AutoFail::None).await.unwrap();
+    assert_ne!(registered(&c,&rs).await[0].0,source.id);
+    assert_eq!(c.backups(&s.profile_id).await.unwrap(),vec![source]);
+}
+#[tokio::test]
+async fn later_stable_publication_resolves_offset_prune_deferral() {
+    let (_,c,s)=auto_fixture().await;
+    for n in 1..=9 {dirty(&c,&s,&n.to_string()).await;c.check_automatic_backup_at(&s,&day(n),AutoFail::Prune).await.unwrap();}
+    for n in 10..=11 {
+        dirty(&c,&s,&n.to_string()).await;
+        let clock=BackupClock {offset_minutes:60,..day(n)};
+        let result=c.check_automatic_backup_at(&s,&clock,AutoFail::None).await.unwrap();
+        if n==10 { assert_eq!(registered(&c,&s).await.len(),10);assert!(result.prune_warning.is_some()); }
+        else { assert!(registered(&c,&s).await.len()<11);assert!(result.prune_warning.is_none()); }
+    }
+}
+#[tokio::test]
+async fn corrupt_registered_copy_defers_pruning_without_cancelling_new_success() {
+    let (paths,c,s)=auto_fixture().await;
+    c.check_automatic_backup_at(&s,&day(1),AutoFail::None).await.unwrap();
+    let first=registered(&c,&s).await[0].clone();
+    let path=paths.profile_dir(&s.profile_id).unwrap().join("backups").join(first.1);
+    std::fs::write(&path,b"corrupt").unwrap();
+    dirty(&c,&s,"VND").await;
+    let result=c.check_automatic_backup_at(&s,&day(2),AutoFail::None).await.unwrap();
+    assert_eq!(result.backed_up_revision,2);assert!(result.warning.is_none());assert!(result.prune_warning.is_some());
+    assert_eq!(registered(&c,&s).await.len(),2);assert_eq!(std::fs::read(path).unwrap(),b"corrupt");
+}
+#[tokio::test]
+async fn automatic_operations_are_send_and_reject_switched_sessions() {
+    let (_,c,s)=auto_fixture().await;
+    let other=c.create("Other",&auto_context()).await.unwrap();
+    c.activate(&other.id).await.unwrap();
+    let result=tokio::spawn(async move {c.check_automatic_backup(&s).await}).await.unwrap();
+    assert_eq!(result.unwrap_err().code,ErrorCode::ProfileSessionExpired);
+}

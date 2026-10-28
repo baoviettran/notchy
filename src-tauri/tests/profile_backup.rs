@@ -150,3 +150,15 @@ async fn internal_backup_is_scoped_to_its_profile_and_preserves_preferences() {
     coordinator.restore(&preview.token, "A restored", &context()).await.unwrap();
     assert_eq!(RegistryStore::new(paths).load_preferences().unwrap(), Some(preferences));
 }
+
+#[tokio::test]
+async fn reset_of_an_inactive_older_profile_defaults_automatic_backup_to_enabled() {
+    let (paths, coordinator) = fixture();
+    let profile = coordinator.create("Older", &context()).await.unwrap();
+    let source = paths.profile_dir(&profile.id).unwrap().join("notchy.db");
+    fs::copy(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/v004.sqlite"), &source).unwrap();
+    coordinator.reset(&profile.id, &context()).await.unwrap();
+    let session = coordinator.activate(&profile.id).await.unwrap();
+    assert!(coordinator.automatic_backup_status(&session).await.unwrap().enabled);
+    assert_eq!(coordinator.backups(&profile.id).await.unwrap().len(), 1);
+}

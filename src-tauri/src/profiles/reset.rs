@@ -2,7 +2,7 @@ use std::{fs, path::PathBuf};
 use serde::{Deserialize, Serialize};
 use crate::database::{BackupFailurePoint, DbError, DbResult, ErrorCode, OperationId};
 use crate::database::backup::publish_backup;
-use crate::database::connection::{create_dir_private, open_read_only_at};
+use crate::database::connection::{create_dir_private, open_live_at, open_read_only_at};
 use crate::database::manifest::validate_manifest;
 use crate::database::migrations::{bootstrap_current, FailurePoint, LATEST_SCHEMA_VERSION};
 use super::coordinator::ProfileCoordinator;
@@ -52,6 +52,15 @@ impl ProfileCoordinator {
             return self.finish_reset(&record).await;
         }
         self.require_transition_token(id, context.transition_token.as_deref())?;
+        let source = self.profile_source(id)?;
+        let automatic_enabled = {
+            let connection = open_read_only_at(&source)?;
+            let schema = crate::database::domains::meta::get_meta(&connection, "schema_version")?
+                .and_then(|value| value.parse::<i64>().ok()).ok_or_else(invalid)?;
+            // Inactive older profiles have no scheduler metadata yet.
+            if schema >= 8 { crate::database::automatic_backup::read_automatic_status(&connection)?.enabled }
+            else { true }
+        };
         let snapshot = self.labeled_snapshot(id)?;
         let reset_backups = self.paths.profile_dir(id)?.join("backups/resets");
         let backup = publish_backup(&snapshot, &reset_backups, failpoint);
@@ -61,6 +70,11 @@ impl ProfileCoordinator {
         let stage = self.reset_stage(&context.operation_id);
         create_dir_private(&stage).map_err(|_| invalid())?;
         bootstrap_current(&stage.join("notchy.db"), FailurePoint::None)?;
+        {
+            let mut replacement = open_live_at(&stage.join("notchy.db"))?;
+            crate::database::automatic_backup::bind_automatic_owner(&mut replacement, id, false)?;
+            replacement.execute("UPDATE automatic_backup_state SET enabled=?1 WHERE id=1", [automatic_enabled]).map_err(|_| invalid())?;
+        }
         let record = ResetRecord { operation_id: context.operation_id.clone(), profile_id: id.to_owned(), phase: "prepared".into() };
         self.save_reset(&record)?;
         profile_probe_crash("after-prepared");
