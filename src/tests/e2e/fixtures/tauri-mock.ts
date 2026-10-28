@@ -96,6 +96,7 @@ const APP_DATA_DIR = '/notchy/appdata';
 const LIVE_PATH = 'sqlite:notchy.db';
 const LIVE_DB_PATH = '/notchy/appdata/notchy.db';
 let activeDbPath = LIVE_DB_PATH;
+let automaticCheckInvocations = 0;
 const profilePath = (id) => APP_DATA_DIR + '/profiles/' + id + '/notchy.db';
 // Native boot loads LIVE_DB_PATH; the legacy plugin:sql connection string
 // resolves to the same file via fsKeyFor. "Live" means either key.
@@ -875,6 +876,7 @@ window.__TAURI_INTERNALS__ = {
 		// the installed-app harness; these bytes live only in the virtual FS.
 		if (cmd.startsWith('backup_automatic_')) {
 			if (!activeSession || args.session?.profileId !== activeSession.profileId || args.session?.generation !== activeSession.generation) throw new Error('profile_session_expired');
+			if (cmd === 'backup_automatic_check') automaticCheckInvocations++;
 			const db = await loadDb(activeDbPath, SQL_JS);
 			if (cmd === 'backup_automatic_set_enabled') {
 				if (!args.operationId) throw new Error('operation id required');
@@ -1684,6 +1686,7 @@ window.__TAURI_INTERNALS__ = {
 // sql.js factory so tests can mint corrupt / mismatched candidate DBs through
 // the same sql.js build the mock uses internally.
 window.__notchyMock = {
+	automaticCheckInvocations: () => automaticCheckInvocations,
 	readFs: (path) => fs.get(path),
 	listFs: (dir) => [...fs.keys()].filter((p) => p.startsWith(dir)),
 	writeFs: (path, bytes) => fs.set(path, bytes),
@@ -1725,6 +1728,7 @@ window.__notchyMock = {
 
 /** The in-page mock surface exposed on window by the init script. */
 interface NotchyMockWindow {
+	automaticCheckInvocations: () => number;
 	readFs: (path: string) => Uint8Array | undefined;
 	listFs: (dir: string) => string[];
 	writeFs: (path: string, bytes: Uint8Array) => void;

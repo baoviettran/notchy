@@ -43,3 +43,12 @@ Native real-SQLite/file tests inject clock and failure points: concurrent public
 Clippy first rejected `Option::is_none_or` (stable since Rust 1.82) against declared MSRV 1.77.2. Integration replaced it with equivalent `map_or(true, ...)`; full Rust tests and all-target Clippy then passed without suppressing the lint or changing MSRV.
 
 Command logs are retained in `artifacts/automatic-backups/verification/`. The roadmap command runs before this task commit; the controller owns final plan checkboxes and regenerated status after independent review. Same-disk snapshots still require an external export for disk-loss protection, and backups run only while Notchy is open with changed content.
+
+## Final review disposition and known follow-up
+
+Final review of `c1b3f1b..0af0c64d` found no Critical or Important issues and assessed the slice ready to merge. Both Minor findings remain explicit:
+
+- **Keyboard retry observability — addressed.** The browser IPC fixture exposes a count of valid-session `backup_automatic_check` invocations. The retry journey records the count before Enter and waits for exactly one additional invocation, alongside the existing warning and prior-success assertions. A temporary test-only listener suppressing Enter activation made the new assertion fail (expected 6, received 5); removing the listener passed the single affected journey with one worker and zero retries. No application or native code changed.
+- **Schema-8 revision-trigger semantic validation — deferred nonblocking hardening.** `src-tauri/src/database/manifest.rs:836` currently checks expected trigger names, not their table/event/body. Correct generated migrations and ordinary app operations are unaffected, but an imported or externally edited schema-8 database could contain a misbound/no-op trigger with the expected name. Follow-up: validate expected trigger semantics (or equivalent behavior), with rejection tests for misbound and no-op definitions. This fix wave intentionally does not redesign production validation.
+
+Existing Quick Add CSS, jsdom chart/navigation, mixed-import and color-environment warning noise is unchanged. This test-only follow-up does not require rebuilding or repeating installed native acceptance; its scope and fresh command evidence are recorded in `.superpowers/sdd/2026-10-26-automatic-backups/final-fix-report.md`.

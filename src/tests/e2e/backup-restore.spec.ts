@@ -107,8 +107,10 @@ test('keeps a failed backup visible with the previous success and a keyboard ret
 	await expect(page.getByText('2026-10-25T10:00:00Z', { exact: true })).toBeVisible();
 	await expect(page.getByRole('status').filter({ hasText: 'The automatic backup could not finish' })).toBeVisible();
 	const retry = page.getByRole('button', { name: 'Retry backup check' });
+	const checksBefore = await page.evaluate(() => (window as any).__notchyMock.automaticCheckInvocations());
 	await retry.focus();
 	await page.keyboard.press('Enter');
+	await expect.poll(() => page.evaluate(() => (window as any).__notchyMock.automaticCheckInvocations())).toBe(checksBefore + 1);
 	await expect(retry).toBeEnabled();
 	await expect(page.getByRole('status').filter({ hasText: 'The automatic backup could not finish' })).toBeVisible();
 	await expect(page.getByText('2026-10-25T10:00:00Z', { exact: true })).toBeVisible();
