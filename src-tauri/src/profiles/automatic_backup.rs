@@ -51,6 +51,14 @@ fn status(conn: &Connection) -> DbResult<AutomaticBackupStatus> {
 fn warning(conn: &Connection, key: &str) -> DbResult<()> {
     conn.execute("UPDATE automatic_backup_state SET warning=?1 WHERE id=1", [key]).map_err(map_sqlite_error)?; Ok(())
 }
+fn clock_warning(conn: &Connection) -> DbResult<AutomaticBackupStatus> {
+    let mut result=status(conn)?;
+    // A clock observation cannot resolve an earlier publication failure. Keep
+    // that durable cause while reporting the current clock warning to callers.
+    if result.warning.as_deref()!=Some(PUBLICATION_WARNING) { warning(conn,CLOCK_WARNING)?; }
+    result.warning=Some(CLOCK_WARNING.into());
+    Ok(result)
+}
 fn prune_warning(conn: &Connection, key: Option<&str>) -> DbResult<()> {
     conn.execute("UPDATE automatic_backup_state SET prune_warning=?1 WHERE id=1", [key]).map_err(map_sqlite_error)?; Ok(())
 }
@@ -135,12 +143,12 @@ fn run(conn: &mut Connection, profile: &Path, owner: &str, clock: &BackupClock, 
     let before=read_automatic_status(conn)?;
     let job=pending(conn)?;
     let previous=previous_clock(conn)?;
-    let Some(now)=validated_clock(clock) else { warning(conn,CLOCK_WARNING)?; return status(conn); };
+    let Some(now)=validated_clock(clock) else { return clock_warning(conn); };
     let backwards=before.last_success_at.as_deref().is_some_and(|at| chrono::DateTime::parse_from_rfc3339(at).map_or(true,|last|now<last))
         || before.last_success_date.as_deref().is_some_and(|date|NaiveDate::parse_from_str(date,"%Y-%m-%d").is_err() || clock.local_date.as_str()<date);
     let pending_backwards=job.as_ref().is_some_and(|job| validated_clock(&job.clock)
         .is_none_or(|started| now<started || clock.local_date<job.clock.local_date));
-    if backwards || pending_backwards { warning(conn,CLOCK_WARNING)?; return status(conn); }
+    if backwards || pending_backwards { return clock_warning(conn); }
     if before.warning.as_deref()==Some(CLOCK_WARNING) { conn.execute("UPDATE automatic_backup_state SET warning=NULL WHERE id=1",[]).map_err(map_sqlite_error)?; }
     if !before.enabled { return status(conn); }
     if job.is_none() && !automatic_backup_due(&before,clock) {

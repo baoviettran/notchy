@@ -587,3 +587,43 @@ async fn automatic_operations_are_send_and_reject_switched_sessions() {
     let result=tokio::spawn(async move {c.check_automatic_backup(&s).await}).await.unwrap();
     assert_eq!(result.unwrap_err().code,ErrorCode::ProfileSessionExpired);
 }
+
+#[tokio::test]
+async fn clock_recovery_does_not_clear_disabled_pending_publication_failure() {
+    let (paths,c,s)=auto_fixture().await;
+    c.check_automatic_backup_at(&s,&day(1),AutoFail::None).await.unwrap();
+    dirty(&c,&s,"VND").await;
+    let failed=c.check_automatic_backup_at(&s,&day(2),AutoFail::BeforePublication).await.unwrap();
+    assert_eq!(failed.warning.as_deref(),Some("backup_automatic_failed"));
+    c.set_automatic_backup_enabled(&s,false,OperationId::generate()).await.unwrap();
+    let backwards=c.check_automatic_backup_at(&s,&day(1),AutoFail::None).await.unwrap();
+    assert_eq!(backwards.warning.as_deref(),Some("backup_automatic_clock_warning"));
+    drop(c);
+    let c=ProfileCoordinator::open(paths).unwrap();
+    let s=c.activate(&s.profile_id).await.unwrap();
+    let recovered=c.check_automatic_backup_at(&s,&day(2),AutoFail::None).await.unwrap();
+    assert_eq!(recovered.warning.as_deref(),Some("backup_automatic_failed"));
+    assert_eq!(recovered.backed_up_revision,1);
+    assert_eq!(registered(&c,&s).await.len(),1);
+    c.set_automatic_backup_enabled(&s,true,OperationId::generate()).await.unwrap();
+    let successful=c.check_automatic_backup_at(&s,&day(2),AutoFail::None).await.unwrap();
+    assert_eq!(successful.backed_up_revision,2);
+    assert!(successful.warning.is_none());
+}
+
+#[tokio::test]
+async fn clock_recovery_preserves_publication_failure_before_a_job_was_created() {
+    let (paths,c,s)=auto_fixture().await;
+    let directory=paths.profile_dir(&s.profile_id).unwrap().join("backups");
+    std::fs::write(&directory,b"directory unavailable").unwrap();
+    assert_eq!(c.check_automatic_backup_at(&s,&day(1),AutoFail::None).await.unwrap().warning.as_deref(),Some("backup_automatic_failed"));
+    c.set_automatic_backup_enabled(&s,false,OperationId::generate()).await.unwrap();
+    let invalid=BackupClock {now_iso:"invalid".into(),..day(1)};
+    assert_eq!(c.check_automatic_backup_at(&s,&invalid,AutoFail::None).await.unwrap().warning.as_deref(),Some("backup_automatic_clock_warning"));
+    let recovered=c.check_automatic_backup_at(&s,&day(1),AutoFail::None).await.unwrap();
+    assert_eq!(recovered.warning.as_deref(),Some("backup_automatic_failed"));
+    assert!(registered(&c,&s).await.is_empty());
+    std::fs::remove_file(directory).unwrap();
+    c.set_automatic_backup_enabled(&s,true,OperationId::generate()).await.unwrap();
+    assert!(c.check_automatic_backup_at(&s,&day(1),AutoFail::None).await.unwrap().warning.is_none());
+}
